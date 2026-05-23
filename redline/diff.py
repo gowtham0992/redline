@@ -32,6 +32,7 @@ def compare_suite_to_candidate(
     suite: dict[str, Any],
     candidate_records: list[LogRecord],
 ) -> dict[str, Any]:
+    candidate_case_index = _index_by_case_id(candidate_records)
     candidate_index = _index_by_prompt(candidate_records)
     judgments = suite.get("judgments", {})
     if not isinstance(judgments, dict):
@@ -41,7 +42,9 @@ def compare_suite_to_candidate(
     for case in suite.get("cases", []):
         case_id = str(case["id"])
         prompt = str(case["prompt"])
-        candidate = _pop_candidate(candidate_index, prompt)
+        candidate = _pop_candidate_by_case_id(candidate_case_index, case_id)
+        if candidate is None:
+            candidate = _pop_candidate(candidate_index, prompt)
         if candidate is None:
             status, reasons = apply_judgment(
                 "missing",
@@ -211,6 +214,25 @@ def _index_by_prompt(records: list[LogRecord]) -> dict[str, list[LogRecord]]:
     for record in records:
         indexed[record.prompt].append(record)
     return indexed
+
+
+def _index_by_case_id(records: list[LogRecord]) -> dict[str, list[LogRecord]]:
+    indexed: dict[str, list[LogRecord]] = defaultdict(list)
+    for record in records:
+        case_id = record.raw.get("case_id")
+        if isinstance(case_id, str) and case_id:
+            indexed[case_id].append(record)
+    return indexed
+
+
+def _pop_candidate_by_case_id(
+    indexed: dict[str, list[LogRecord]],
+    case_id: str,
+) -> LogRecord | None:
+    records = indexed.get(case_id)
+    if not records:
+        return None
+    return records.pop(0)
 
 
 def _pop_candidate(indexed: dict[str, list[LogRecord]], prompt: str) -> LogRecord | None:

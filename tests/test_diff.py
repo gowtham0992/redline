@@ -30,6 +30,31 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(result["summary"]["missing"], 1)
         self.assertEqual(result["diffs"][0]["status"], "missing")
 
+    def test_compare_matches_candidate_by_case_id_before_prompt(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        case_id = suite["cases"][0]["id"]
+
+        result = compare_suite_to_candidate(
+            suite,
+            [
+                LogRecord(
+                    1,
+                    "different prompt text",
+                    '{"ok": true}',
+                    {"case_id": case_id},
+                )
+            ],
+        )
+
+        self.assertEqual(result["summary"]["missing"], 0)
+        self.assertEqual(result["summary"]["neutral"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
