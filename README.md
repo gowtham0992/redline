@@ -198,6 +198,9 @@ Generate a suite from baseline logs:
 python -m redline suite examples/baseline.jsonl
 ```
 
+The suite command prints next steps for inspecting cases, comparing a candidate
+log, and wiring a replay runner.
+
 Or generate it from the locally collected watch log:
 
 ```bash

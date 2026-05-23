@@ -512,6 +512,11 @@ def cmd_suite(args: argparse.Namespace) -> int:
     print(f"Generated {summary['cases']} cases from {summary['records_seen']} records.")
     print(f"Detected {summary['clusters']} behavioral clusters.")
     print(f"Wrote {Path(output)}.")
+    print()
+    print("Next:")
+    print(f"- Inspect cases: redline cases {Path(output)}")
+    print(f"- Compare a candidate log: redline diff {Path(output)} path/to/candidate.jsonl")
+    print("- Configure replay when ready: redline init --runner openai --copy-runner")
     return 0
 
 

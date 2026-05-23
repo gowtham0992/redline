@@ -34,6 +34,9 @@ class QuickstartTests(unittest.TestCase):
                     ]
                 )
                 self.assertIn("Generated 5 cases", suite_output)
+                self.assertIn("Next:", suite_output)
+                self.assertIn("redline cases redline-suite.json", suite_output)
+                self.assertIn("redline diff redline-suite.json path/to/candidate.jsonl", suite_output)
 
                 diff_output = _run_cli(
                     [
