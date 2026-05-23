@@ -1,4 +1,7 @@
+import os
+import tempfile
 import unittest
+from pathlib import Path
 
 from redline.doctor import doctor_report, format_doctor_report
 
@@ -73,6 +76,82 @@ class DoctorTests(unittest.TestCase):
 
         self.assertEqual(report["warnings"], 1)
         self.assertTrue(any(check["name"] == "suite-git" for check in report["checks"]))
+
+    def test_doctor_errors_for_missing_replay_command_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(directory)
+            try:
+                report = doctor_report(
+                    config_path=".",
+                    config={"replay": "./runners/openai_runner.sh"},
+                    suite={"cases": []},
+                )
+
+                self.assertFalse(report["ok"])
+                self.assertEqual(report["errors"], 1)
+                self.assertTrue(
+                    any(
+                        check["name"] == "replay"
+                        and "command path not found" in check["message"]
+                        for check in report["checks"]
+                    )
+                )
+            finally:
+                os.chdir(previous)
+
+    def test_doctor_errors_for_missing_replay_script_argument(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(directory)
+            try:
+                report = doctor_report(
+                    config_path=".",
+                    config={"replay": "python runners/http_runner.py"},
+                    suite={"cases": []},
+                )
+
+                self.assertFalse(report["ok"])
+                self.assertEqual(report["errors"], 1)
+                self.assertTrue(
+                    any(
+                        check["name"] == "replay"
+                        and "referenced file not found" in check["message"]
+                        for check in report["checks"]
+                    )
+                )
+            finally:
+                os.chdir(previous)
+
+    def test_doctor_accepts_existing_replay_command_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                runner = root / "runners" / "openai_runner.sh"
+                runner.parent.mkdir()
+                runner.write_text("#!/bin/sh\ncat\n", encoding="utf-8")
+                runner.chmod(0o755)
+
+                report = doctor_report(
+                    config_path=".",
+                    config={"replay": "./runners/openai_runner.sh"},
+                    suite={"cases": []},
+                )
+
+                self.assertTrue(report["ok"])
+                self.assertEqual(report["errors"], 0)
+                self.assertTrue(
+                    any(
+                        check["name"] == "replay"
+                        and check["status"] == "ok"
+                        and check["message"] == "configured"
+                        for check in report["checks"]
+                    )
+                )
+            finally:
+                os.chdir(previous)
 
 
 if __name__ == "__main__":
