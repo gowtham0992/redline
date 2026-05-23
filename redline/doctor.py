@@ -48,9 +48,12 @@ def doctor_report(
 
     replay = config.get("replay")
     if isinstance(replay, str) and replay:
-        checks.append(_replay_check(replay))
+        checks.append(_command_check("replay", replay))
     else:
         checks.append({"status": "warn", "name": "replay", "message": "not configured"})
+
+    if "judge" in config:
+        checks.append(_judge_check(config.get("judge")))
 
     report_paths = _configured_paths(config.get("reports"), ("json", "markdown", "junit"))
     if report_paths:
@@ -131,6 +134,10 @@ def _next_steps(checks: list[dict[str, str]]) -> list[str]:
     if replay and replay["status"] == "error":
         steps.append(_replay_next_step(replay["message"]))
 
+    judge = by_name.get("judge")
+    if judge and judge["status"] in {"error", "warn"}:
+        steps.append("Fix judge command in redline.json, then rerun: redline doctor")
+
     if _check_has(by_name, "suite-git", "warn"):
         steps.append("Commit the suite baseline, or move it out of ignored paths")
 
@@ -162,17 +169,27 @@ def _replay_next_step(message: str) -> str:
     return "Fix replay command in redline.json, then rerun: redline doctor"
 
 
-def _replay_check(replay: str) -> dict[str, str]:
+def _judge_check(value: object) -> dict[str, str]:
+    if isinstance(value, str) and value:
+        return _command_check("judge", value)
+    if isinstance(value, dict):
+        command = value.get("command")
+        if isinstance(command, str) and command:
+            return _command_check("judge", command)
+    return {"status": "error", "name": "judge", "message": "not configured"}
+
+
+def _command_check(name: str, command_line: str) -> dict[str, str]:
     try:
-        argv = shlex.split(replay)
+        argv = shlex.split(command_line)
     except ValueError as exc:
         return {
             "status": "error",
-            "name": "replay",
-            "message": f"invalid replay command: {exc}",
+            "name": name,
+            "message": f"invalid {name} command: {exc}",
         }
     if not argv:
-        return {"status": "warn", "name": "replay", "message": "not configured"}
+        return {"status": "warn", "name": name, "message": "not configured"}
 
     command = argv[0]
     if _looks_like_path(command):
@@ -180,19 +197,19 @@ def _replay_check(replay: str) -> dict[str, str]:
         if not command_path.exists():
             return {
                 "status": "error",
-                "name": "replay",
+                "name": name,
                 "message": f"command path not found: {command}",
             }
         if not _is_executable(command_path):
             return {
                 "status": "warn",
-                "name": "replay",
+                "name": name,
                 "message": f"command path is not executable: {command}",
             }
     elif shutil.which(command) is None:
         return {
             "status": "error",
-            "name": "replay",
+            "name": name,
             "message": f"command not found on PATH: {command}",
         }
 
@@ -200,16 +217,18 @@ def _replay_check(replay: str) -> dict[str, str]:
         if _should_check_arg_path(arg) and not Path(arg).exists():
             return {
                 "status": "error",
-                "name": "replay",
+                "name": name,
                 "message": f"referenced file not found: {arg}",
             }
 
-    return {"status": "ok", "name": "replay", "message": "configured"}
+    return {"status": "ok", "name": name, "message": "configured"}
 
 
 def _should_check_arg_path(value: str) -> bool:
     if value.startswith("-") or "://" in value or "{" in value:
         return False
+    if Path(value).suffix in {".py", ".sh", ".js", ".mjs", ".ts"}:
+        return True
     return _looks_like_path(value)
 
 

@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -41,7 +42,8 @@ class DoctorTests(unittest.TestCase):
         report = doctor_report(
             config_path="pyproject.toml",
             config={
-                "replay": "python runner.py",
+                "replay": f"{sys.executable} -c pass",
+                "judge": f"{sys.executable} -c pass",
                 "reports": {
                     "json": ".redline/reports/doctor.json",
                     "junit": ".redline/reports/doctor.xml",
@@ -59,6 +61,7 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("redline doctor", output)
         self.assertIn("suite: found", output)
         self.assertIn("replay: configured", output)
+        self.assertIn("judge: configured", output)
         self.assertIn("reports: json=.redline/reports/doctor.json", output)
         self.assertIn("junit=.redline/reports/doctor.xml", output)
         self.assertIn("runs: candidate=.redline/runs/candidate.jsonl", output)
@@ -90,7 +93,10 @@ class DoctorTests(unittest.TestCase):
     def test_doctor_warns_when_suite_is_git_ignored(self) -> None:
         report = doctor_report(
             config_path="pyproject.toml",
-            config={"suite": ".redline/suite.json", "replay": "python runner.py"},
+            config={
+                "suite": ".redline/suite.json",
+                "replay": f"{sys.executable} -c pass",
+            },
             suite={"cases": [{}]},
             suite_git_ignored=True,
         )
@@ -144,6 +150,90 @@ class DoctorTests(unittest.TestCase):
                         and "referenced file not found" in check["message"]
                         for check in report["checks"]
                     )
+                )
+            finally:
+                os.chdir(previous)
+
+    def test_doctor_errors_for_missing_replay_script_without_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(directory)
+            try:
+                report = doctor_report(
+                    config_path=".",
+                    config={"replay": "python runner.py"},
+                    suite={"cases": []},
+                )
+
+                self.assertFalse(report["ok"])
+                self.assertTrue(
+                    any(
+                        check["name"] == "replay"
+                        and "referenced file not found: runner.py" in check["message"]
+                        for check in report["checks"]
+                    )
+                )
+            finally:
+                os.chdir(previous)
+
+    def test_doctor_checks_configured_judge_command(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                judge = root / "judge.py"
+                judge.write_text(
+                    "import json\nprint(json.dumps({'status': 'neutral'}))\n",
+                    encoding="utf-8",
+                )
+
+                report = doctor_report(
+                    config_path=".",
+                    config={
+                        "replay": f"{sys.executable} -c pass",
+                        "judge": "python judge.py",
+                    },
+                    suite={"cases": []},
+                )
+
+                self.assertTrue(report["ok"])
+                self.assertTrue(
+                    any(
+                        check["name"] == "judge"
+                        and check["status"] == "ok"
+                        and check["message"] == "configured"
+                        for check in report["checks"]
+                    )
+                )
+            finally:
+                os.chdir(previous)
+
+    def test_doctor_errors_for_missing_judge_command(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(directory)
+            try:
+                report = doctor_report(
+                    config_path=".",
+                    config={
+                        "replay": f"{sys.executable} -c pass",
+                        "judge": {"command": "python judge.py"},
+                    },
+                    suite={"cases": []},
+                )
+
+                self.assertFalse(report["ok"])
+                self.assertTrue(
+                    any(
+                        check["name"] == "judge"
+                        and "referenced file not found: judge.py" in check["message"]
+                        for check in report["checks"]
+                    )
+                )
+                self.assertIn(
+                    "Fix judge command in redline.json, then rerun: redline doctor",
+                    report["next_steps"],
                 )
             finally:
                 os.chdir(previous)
