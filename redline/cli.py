@@ -62,6 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     watch_parser.add_argument("--input-field", help="JSONL input field")
     watch_parser.add_argument("--output-field", help="JSONL output field")
     watch_parser.add_argument("--replace", action="store_true", help="replace the observed log instead of appending")
+    watch_parser.add_argument("--allow-duplicates", action="store_true", help="append records even if source lines were already collected")
     watch_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     watch_parser.set_defaults(func=cmd_watch)
 
@@ -229,11 +230,14 @@ def cmd_watch(args: argparse.Namespace) -> int:
         input_field=input_field,
         output_field=output_field,
         append=not args.replace,
+        dedupe=not args.allow_duplicates,
     )
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
-        print(f"Collected {result['records']} prompt-response pairs from {Path(args.log)}.")
+        print(f"Collected {result['records']} new prompt-response pairs from {Path(args.log)}.")
+        if result["skipped_duplicates"]:
+            print(f"Skipped {result['skipped_duplicates']} duplicate records.")
         print(f"{str(result['mode']).title()} {Path(str(result['output']))}.")
     return 0
 

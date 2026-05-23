@@ -38,6 +38,9 @@ Collect prompt-response pairs from an existing log:
 python -m redline watch --log examples/baseline.jsonl
 ```
 
+Repeated `watch` runs skip source lines that were already collected. Pass
+`--allow-duplicates` only when you intentionally want duplicate observations.
+
 Inspect behavioral clusters before generating a suite:
 
 ```bash
