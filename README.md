@@ -49,7 +49,8 @@ Write reports for CI or PR comments:
 ```bash
 python -m redline diff .redline/suite.json examples/candidate.jsonl \
   --out-json .redline/reports/diff.json \
-  --out-md .redline/reports/diff.md
+  --out-md .redline/reports/diff.md \
+  --out-junit .redline/reports/diff.xml
 ```
 
 Mark a known change as expected so future runs do not fail on that case:

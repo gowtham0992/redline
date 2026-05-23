@@ -12,7 +12,7 @@ from .diff import compare_suite_to_candidate, format_report
 from .io import read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import parse_fail_on, should_fail
-from .reports import format_markdown_report
+from .reports import format_junit_report, format_markdown_report
 from .replay import replay_suite
 from .summary import format_suite_summary, suite_summary
 from .suite import build_suite
@@ -77,6 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     diff_parser.add_argument("--out-json", help="write machine-readable JSON report")
     diff_parser.add_argument("--out-md", help="write Markdown report")
+    diff_parser.add_argument("--out-junit", help="write JUnit XML report")
     diff_parser.add_argument(
         "--fail-on",
         default=None,
@@ -95,6 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     eval_parser.add_argument("--out-json", help="write machine-readable JSON report")
     eval_parser.add_argument("--out-md", help="write Markdown report")
+    eval_parser.add_argument("--out-junit", help="write JUnit XML report")
     eval_parser.add_argument("--candidate-out", help="write replayed candidate prompt-response JSONL")
     eval_parser.add_argument(
         "--fail-on",
@@ -247,6 +249,8 @@ def _emit_result(
         write_json(out_json, result)
     if out_md:
         write_text(out_md, format_markdown_report(result, title=title))
+    if args.out_junit:
+        write_text(args.out_junit, format_junit_report(result, suite_name=title.replace(" ", ".")))
 
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))

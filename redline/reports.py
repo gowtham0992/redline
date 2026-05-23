@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from xml.etree import ElementTree
 
 
 def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff") -> str:
@@ -45,6 +46,49 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
                 lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def format_junit_report(result: dict[str, Any], *, suite_name: str = "redline") -> str:
+    diffs = result.get("diffs", [])
+    if not isinstance(diffs, list):
+        diffs = []
+
+    failures = [
+        item
+        for item in diffs
+        if isinstance(item, dict) and item.get("status") in {"regression", "missing"}
+    ]
+    testsuite = ElementTree.Element(
+        "testsuite",
+        {
+            "name": suite_name,
+            "tests": str(len(diffs)),
+            "failures": str(len(failures)),
+            "errors": "0",
+        },
+    )
+
+    for item in diffs:
+        if not isinstance(item, dict):
+            continue
+        case_id = str(item.get("case_id", "unknown"))
+        status = str(item.get("status", "unknown"))
+        testcase = ElementTree.SubElement(
+            testsuite,
+            "testcase",
+            {
+                "classname": suite_name,
+                "name": case_id,
+            },
+        )
+        if status in {"regression", "missing"}:
+            failure = ElementTree.SubElement(testcase, "failure", {"message": status})
+            failure.text = "\n".join(str(reason) for reason in item.get("reasons", []))
+        elif status in {"accepted", "ignored"}:
+            skipped = ElementTree.SubElement(testcase, "skipped", {"message": status})
+            skipped.text = "\n".join(str(reason) for reason in item.get("reasons", []))
+
+    return ElementTree.tostring(testsuite, encoding="unicode") + "\n"
 
 
 def _inline_code(value: str) -> str:
