@@ -43,8 +43,11 @@ class PackagingTests(unittest.TestCase):
 
     def test_demo_recording_script_runs_compact_demo(self) -> None:
         script = Path("scripts/demo_terminal.sh")
+        text = script.read_text(encoding="utf-8")
 
-        self.assertIn("redline demo --compact", script.read_text(encoding="utf-8"))
+        self.assertIn("redline demo --compact", text)
+        self.assertIn("redline history", text)
+        self.assertIn("--out-md", text)
 
     def test_release_check_builds_and_smokes_installed_wheel(self) -> None:
         script = Path("scripts/release_check.sh").read_text(encoding="utf-8")
