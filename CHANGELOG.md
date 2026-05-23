@@ -11,7 +11,7 @@
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Ship larger dogfood prompt logs that exercise several regression classes.
-- Include an optional OpenAI-backed judge command template for ambiguous changes.
+- Include optional OpenAI- and Anthropic-backed judge command templates for ambiguous changes.
 - Scaffold replay runners for OpenAI, Anthropic, HTTP APIs, Python chains, JSONL logs, and LiteLLM.
 - Initialize projects with config schema, runner setup, and GitHub Actions workflow generation.
 - Diagnose setup with actionable doctor checks and next-step commands.

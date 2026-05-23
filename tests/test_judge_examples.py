@@ -34,7 +34,17 @@ class JudgeExampleTests(unittest.TestCase):
         readme = Path("README.md").read_text(encoding="utf-8")
 
         self.assertIn("examples/judge_changed.py", readme)
+        self.assertIn("examples/anthropic_judge.sh", readme)
         self.assertIn("examples/openai_judge.sh", readme)
+
+    def test_anthropic_judge_template_is_executable_and_packaged(self) -> None:
+        script = Path("examples/anthropic_judge.sh")
+        manifest = Path("MANIFEST.in").read_text(encoding="utf-8")
+
+        self.assertTrue(script.exists())
+        self.assertTrue(script.stat().st_mode & 0o111)
+        self.assertIn("ANTHROPIC_JUDGE_MODEL", script.read_text(encoding="utf-8"))
+        self.assertIn("examples *.jsonl *.py *.sh *.yml", manifest)
 
     def test_openai_judge_template_is_executable_and_packaged(self) -> None:
         script = Path("examples/openai_judge.sh")
