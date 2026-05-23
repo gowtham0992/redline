@@ -112,6 +112,10 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
         if compact
         else format_report(result["diff"], title="redline demo")
     )
+    history_command = (
+        f"redline history {result['report_json']} --label demo "
+        "--out .redline/history.jsonl --out-md .redline/history.md"
+    )
     lines = [
         "redline demo",
         "",
@@ -128,7 +132,7 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
         "Next steps",
         f"- Inspect the Markdown report: {result['report_markdown']}",
         f"- List demo cases: redline cases {result['suite']}",
-        f"- Record a trend entry: redline history {result['report_json']} --label demo",
+        f"- Record a trend entry: {history_command}",
         "- Connect a runner: redline init --runner openai --copy-runner --github-action",
         "- Explore adapters: redline runners --copy all",
         "- Build a real suite: redline suite path/to/baseline.jsonl --out redline-suite.json",

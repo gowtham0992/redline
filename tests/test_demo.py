@@ -38,6 +38,7 @@ class DemoTests(unittest.TestCase):
             self.assertIn("Next steps", output)
             self.assertIn("redline history", output)
             self.assertIn("--label demo", output)
+            self.assertIn("--out-md .redline/history.md", output)
             self.assertIn("redline init --runner openai --copy-runner --github-action", output)
             self.assertIn("redline runners --copy all", output)
             self.assertIn("redline suite path/to/baseline.jsonl --out redline-suite.json", output)
