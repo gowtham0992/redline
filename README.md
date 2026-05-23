@@ -87,6 +87,12 @@ Accept all cases previously marked `expected`:
 python -m redline accept --all-expected --candidate .redline/runs/candidate.jsonl
 ```
 
+Add a deterministic requirement for a case:
+
+```bash
+python -m redline require case_003_b13b74def7 --include "30 days"
+```
+
 Tune CI strictness with `--fail-on`. By default redline exits `1` for
 `regression` and `missing` cases. Use `none` for report-only runs:
 

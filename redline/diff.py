@@ -7,6 +7,7 @@ from typing import Any
 
 from .features import extract_features
 from .io import LogRecord
+from .requirements import case_requirements, requirement_reasons
 
 
 @dataclass(frozen=True)
@@ -73,12 +74,19 @@ def compare_suite_to_candidate(
 
         baseline = extract_features(baseline_response)
         candidate_features = extract_features(candidate.response)
+        requirement_failures = requirement_reasons(
+            case_requirements(suite, case_id),
+            candidate.response,
+        )
         status, reasons = classify_change(
             baseline.to_dict(),
             candidate_features.to_dict(),
             baseline_text=baseline_response,
             candidate_text=candidate.response,
         )
+        if requirement_failures:
+            status = "regression"
+            reasons = requirement_failures + reasons
         status, reasons = apply_judgment(status, reasons, _case_judgment(judgments, case_id))
         diffs.append(
             CaseDiff(

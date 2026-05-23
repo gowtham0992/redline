@@ -15,6 +15,7 @@ from .io import read_json, read_jsonl_records, write_json, write_jsonl, write_te
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import parse_fail_on, should_fail
 from .reports import format_junit_report, format_markdown_report
+from .requirements import add_case_requirement, clear_case_requirements
 from .replay import replay_suite
 from .summary import format_suite_summary, suite_summary
 from .suite import build_suite
@@ -142,6 +143,15 @@ def build_parser() -> argparse.ArgumentParser:
     accept_parser.add_argument("--note", default="", help="short reason for accepting the baseline")
     accept_parser.add_argument("--out", help="write updated suite to a new path")
     accept_parser.set_defaults(func=cmd_accept)
+
+    require_parser = subparsers.add_parser("require", help="add or clear deterministic case requirements")
+    require_parser.add_argument("paths", nargs="+", help="case id, or suite JSON plus case id")
+    require_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
+    require_parser.add_argument("--include", action="append", default=[], help="text that candidate output must include")
+    require_parser.add_argument("--note", default="", help="short reason for the requirement")
+    require_parser.add_argument("--clear", action="store_true", help="clear requirements for the case")
+    require_parser.add_argument("--out", help="write updated suite to a new path")
+    require_parser.set_defaults(func=cmd_require)
 
     return parser
 
@@ -314,6 +324,25 @@ def cmd_accept(args: argparse.Namespace) -> int:
     write_json(output, suite)
     for result in results:
         print(f"Accepted {result['case_id']} from {Path(candidate_path)} line {result['candidate_line']}.")
+    print(f"Wrote {Path(output)}.")
+    return 0
+
+
+def cmd_require(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    suite_path, case_id = _suite_case_args(args.paths, config)
+    suite = read_json(suite_path)
+    if args.clear:
+        removed = clear_case_requirements(suite, case_id)
+        action = "Cleared" if removed else "No requirements found for"
+        print(f"{action} {case_id}.")
+    else:
+        if not args.include:
+            raise ValueError("require needs --include or --clear")
+        add_case_requirement(suite, case_id, include=args.include, note=args.note)
+        print(f"Updated requirements for {case_id}.")
+    output = args.out or suite_path
+    write_json(output, suite)
     print(f"Wrote {Path(output)}.")
     return 0
 
