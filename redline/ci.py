@@ -66,7 +66,8 @@ jobs:
               .redline/reports/eval.json \\
               --label "${{ github.sha }}" \\
               --out .redline/history.jsonl \\
-              --out-md .redline/history.md
+              --out-md .redline/history.md \\
+              --github-summary
           else
             echo "No redline eval report found at .redline/reports/eval.json; skipping history."
           fi

@@ -58,6 +58,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("$ redline\\n", script)
         self.assertIn("redline demo --compact", script)
         self.assertIn("redline history .redline/demo/reports/diff.json", script)
+        self.assertIn("--out-md history.md", script)
+        self.assertIn("--github-summary", script)
         self.assertIn("redline doctor", script)
 
     def test_release_build_script_uses_fresh_output_dir(self) -> None:
