@@ -10,6 +10,7 @@ from .accept import accept_candidate_baseline, expected_case_ids
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
 from .clusters import cluster_report, format_cluster_report
 from .config import DEFAULT_CONFIG_PATH, create_config, load_config
+from .demo import format_demo, run_demo
 from .diff import compare_suite_to_candidate, format_report
 from .doctor import doctor_report, format_doctor_report
 from .io import read_json, read_jsonl_records, write_json, write_jsonl, write_text
@@ -54,6 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     doctor_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     doctor_parser.set_defaults(func=cmd_doctor)
+
+    demo_parser = subparsers.add_parser("demo", help="run a first-use prompt regression demo")
+    demo_parser.add_argument("--out", default=".redline/demo", help="demo output directory")
+    demo_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    demo_parser.set_defaults(func=cmd_demo)
 
     watch_parser = subparsers.add_parser("watch", help="collect prompt-response records from a JSONL log")
     watch_parser.add_argument("--log", help="JSONL prompt-response log to collect")
@@ -223,6 +229,16 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     else:
         print(format_doctor_report(report), end="")
     return 0 if report["errors"] == 0 else 1
+
+
+def cmd_demo(args: argparse.Namespace) -> int:
+    result = run_demo(args.out)
+    if args.json:
+        payload = {key: value for key, value in result.items() if key != "diff"}
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(format_demo(result), end="")
+    return 0
 
 
 def cmd_watch(args: argparse.Namespace) -> int:

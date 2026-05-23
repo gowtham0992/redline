@@ -8,6 +8,15 @@ run against the baseline.
 
 ## Quick Start
 
+Run the first-use demo:
+
+```bash
+python -m redline demo
+```
+
+The demo writes a tiny local suite under `.redline/demo` and prints a behavioral
+diff with intentional regressions.
+
 Create a project config:
 
 ```bash

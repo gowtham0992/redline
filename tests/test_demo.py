@@ -1,0 +1,38 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from redline.demo import format_demo, run_demo
+from redline.io import read_json
+
+
+class DemoTests(unittest.TestCase):
+    def test_run_demo_writes_artifacts_and_finds_regressions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = run_demo(Path(directory) / "demo")
+
+            self.assertTrue(Path(result["baseline"]).exists())
+            self.assertTrue(Path(result["candidate"]).exists())
+            self.assertTrue(Path(result["prompt"]).exists())
+            self.assertTrue(Path(result["suite"]).exists())
+            self.assertTrue(Path(result["report_json"]).exists())
+            self.assertTrue(Path(result["report_markdown"]).exists())
+            self.assertGreaterEqual(result["summary"]["regression"], 1)
+
+            report = read_json(result["report_json"])
+            self.assertEqual(report["summary"]["regression"], result["summary"]["regression"])
+
+    def test_format_demo_includes_regression_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = run_demo(Path(directory) / "demo")
+
+            output = format_demo(result)
+
+            self.assertIn("redline demo", output)
+            self.assertIn("intentional candidate regression", output)
+            self.assertIn("REGRESSION", output)
+            self.assertIn("candidate lost valid JSON format", output)
+
+
+if __name__ == "__main__":
+    unittest.main()
