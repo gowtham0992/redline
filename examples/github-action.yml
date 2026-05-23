@@ -26,6 +26,9 @@ jobs:
       - name: Check redline setup
         run: python -m redline doctor --strict
 
+      - name: Validate redline suite
+        run: python -m redline validate --strict
+
       - name: Run redline eval
         run: |
           python -m redline eval \

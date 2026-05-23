@@ -148,6 +148,12 @@ Summarize suite coverage:
 python -m redline summary
 ```
 
+Validate a generated or hand-edited suite before relying on it:
+
+```bash
+python -m redline validate
+```
+
 Compare candidate outputs against that suite:
 
 ```bash

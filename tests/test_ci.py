@@ -8,6 +8,7 @@ class CiTests(unittest.TestCase):
         workflow = default_github_workflow()
 
         self.assertIn("python -m redline doctor --strict", workflow)
+        self.assertIn("python -m redline validate --strict", workflow)
         self.assertIn("python -m redline eval", workflow)
         self.assertIn("--compact", workflow)
         self.assertIn("--github-summary", workflow)
