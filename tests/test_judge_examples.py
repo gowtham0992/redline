@@ -35,6 +35,7 @@ class JudgeExampleTests(unittest.TestCase):
 
         self.assertIn("examples/judge_changed.py", readme)
         self.assertIn("examples/anthropic_judge.sh", readme)
+        self.assertIn("examples/litellm_judge.sh", readme)
         self.assertIn("examples/openai_judge.sh", readme)
 
     def test_anthropic_judge_template_is_executable_and_packaged(self) -> None:
@@ -53,6 +54,17 @@ class JudgeExampleTests(unittest.TestCase):
         self.assertTrue(script.exists())
         self.assertTrue(script.stat().st_mode & 0o111)
         self.assertIn("OPENAI_JUDGE_MODEL", script.read_text(encoding="utf-8"))
+        self.assertIn("examples *.jsonl *.py *.sh *.yml", manifest)
+
+    def test_litellm_judge_template_is_executable_and_packaged(self) -> None:
+        script = Path("examples/litellm_judge.sh")
+        manifest = Path("MANIFEST.in").read_text(encoding="utf-8")
+
+        self.assertTrue(script.exists())
+        self.assertTrue(script.stat().st_mode & 0o111)
+        content = script.read_text(encoding="utf-8")
+        self.assertIn("LITELLM_JUDGE_MODEL", content)
+        self.assertIn("/v1/chat/completions", content)
         self.assertIn("examples *.jsonl *.py *.sh *.yml", manifest)
 
 

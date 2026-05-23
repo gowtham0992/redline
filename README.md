@@ -372,6 +372,7 @@ judge template:
 ```bash
 OPENAI_API_KEY="..." python -m redline diff examples/candidate.jsonl --judge "./examples/openai_judge.sh"
 ANTHROPIC_API_KEY="..." python -m redline diff examples/candidate.jsonl --judge "./examples/anthropic_judge.sh"
+LITELLM_API_KEY="..." LITELLM_JUDGE_MODEL="..." python -m redline diff examples/candidate.jsonl --judge "./examples/litellm_judge.sh"
 ```
 
 Save replayed candidate outputs for debugging or a later `diff` run:
