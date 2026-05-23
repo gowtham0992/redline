@@ -18,6 +18,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config["input_field"], "prompt")
         self.assertEqual(config["output_field"], "response")
         self.assertEqual(config["timeout_seconds"], 30.0)
+        self.assertEqual(config["workers"], 1)
         self.assertEqual(config["fail_on"], ["regression", "missing"])
         self.assertEqual(config["reports"]["json"], ".redline/reports/{command}.json")
         self.assertEqual(config["reports"]["junit"], ".redline/reports/{command}.xml")
@@ -71,6 +72,7 @@ class ConfigTests(unittest.TestCase):
         self.assertIn("replay", schema["properties"])
         self.assertIn("judge", schema["properties"])
         self.assertIn("fail_on", schema["properties"])
+        self.assertIn("workers", schema["properties"])
 
 
 if __name__ == "__main__":

@@ -57,6 +57,7 @@ python -m redline init --timeout 10 --force
 | `input_field`, `output_field` | JSONL field paths for prompts and responses. Nested paths are supported. |
 | `max_cases` | Maximum representative cases selected for a suite. Default `42` keeps early runs broad while still reviewable. |
 | `timeout_seconds` | Per-case replay timeout for `redline eval`. |
+| `workers` | Number of replay cases `redline eval` may run concurrently. Default `1`. |
 | `fail_on` | Statuses that fail `diff` or `eval`; use `"none"` for report-only mode. |
 | `reports` | JSON, Markdown, and JUnit output paths. `{command}` expands to `diff` or `eval`. |
 | `logs.observed` | Local watch output JSONL path. |
@@ -212,6 +213,12 @@ the prompt on stdin and should print the candidate response to stdout:
 python -m redline eval redline-suite.json --replay "python examples/replay_candidate.py"
 ```
 
+Run replay cases concurrently when your runner can handle it:
+
+```bash
+python -m redline eval redline-suite.json --workers 4
+```
+
 Evaluate a changed prompt template with your configured replay command:
 
 ```bash
@@ -288,8 +295,8 @@ does not call any cloud model unless you explicitly configure that command. A
 `neutral` result means no high-signal change was detected by the configured
 checks; it should not be read as a proof that the text is identical.
 
-The next iterations should add stronger built-in judge templates, parallel eval
-execution, richer config documentation, and release packaging.
+The next iterations should add stronger built-in judge templates, richer config
+documentation, compact CI output modes, and release packaging.
 
 See [examples/github-action.yml](examples/github-action.yml) for a GitHub
 Actions starting point.

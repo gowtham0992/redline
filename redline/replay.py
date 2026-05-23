@@ -4,6 +4,7 @@ import shlex
 import subprocess
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -19,12 +20,14 @@ class ReplayResult:
     records: list[LogRecord]
     command: str
     timeout_seconds: float
+    workers: int = 1
     prompt_path: str | None = None
 
     def to_metadata(self) -> dict[str, Any]:
         metadata = {
             "command": self.command,
             "timeout_seconds": self.timeout_seconds,
+            "workers": self.workers,
             "records": len(self.records),
         }
         if self.prompt_path:
@@ -37,44 +40,48 @@ def replay_suite(
     command: str,
     *,
     timeout_seconds: float = 30.0,
+    workers: int = 1,
     prompt_template: str | None = None,
     prompt_path: str | None = None,
 ) -> ReplayResult:
+    if workers < 1:
+        raise ValueError("workers must be at least 1")
     argv_template = _parse_command(command)
-    records: list[LogRecord] = []
+    cases = list(enumerate(suite.get("cases", []), 1))
 
-    for line_number, case in enumerate(suite.get("cases", []), 1):
-        case_id = str(case["id"])
-        case_prompt = str(case["prompt"])
-        rendered_prompt = render_prompt_template(prompt_template, case) if prompt_template is not None else case_prompt
-        extra_env = {
-            "REDLINE_CASE_ID": case_id,
-            "REDLINE_SOURCE_LINE": str(case.get("source_line", "")),
-            "REDLINE_CLUSTER": str(case.get("cluster", "")),
-            "REDLINE_PROMPT_PATH": prompt_path or "",
-        }
-        try:
-            output = _run_replay(argv_template, rendered_prompt, timeout_seconds, extra_env)
-        except ValueError as exc:
-            raise ValueError(f"{case_id}: {exc}") from exc
-        records.append(
-            LogRecord(
-                line_number=line_number,
-                prompt=case_prompt,
-                response=output,
-                raw={
-                    "case_id": case_id,
-                    "prompt": case_prompt,
-                    "rendered_prompt": rendered_prompt,
-                    "response": output,
-                },
+    if workers == 1 or len(cases) <= 1:
+        records = [
+            _replay_case(
+                argv_template,
+                line_number,
+                case,
+                timeout_seconds=timeout_seconds,
+                prompt_template=prompt_template,
+                prompt_path=prompt_path,
             )
-        )
+            for line_number, case in cases
+        ]
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = [
+                executor.submit(
+                    _replay_case,
+                    argv_template,
+                    line_number,
+                    case,
+                    timeout_seconds=timeout_seconds,
+                    prompt_template=prompt_template,
+                    prompt_path=prompt_path,
+                )
+                for line_number, case in cases
+            ]
+            records = [future.result() for future in futures]
 
     return ReplayResult(
         records=records,
         command=command,
         timeout_seconds=timeout_seconds,
+        workers=workers,
         prompt_path=prompt_path,
     )
 
@@ -84,6 +91,41 @@ def read_prompt_template(path: str | Path) -> str:
         return Path(path).read_text(encoding="utf-8")
     except FileNotFoundError as exc:
         raise ValueError(f"{path} not found") from exc
+
+
+def _replay_case(
+    argv_template: list[str],
+    line_number: int,
+    case: dict[str, Any],
+    *,
+    timeout_seconds: float,
+    prompt_template: str | None,
+    prompt_path: str | None,
+) -> LogRecord:
+    case_id = str(case["id"])
+    case_prompt = str(case["prompt"])
+    rendered_prompt = render_prompt_template(prompt_template, case) if prompt_template is not None else case_prompt
+    extra_env = {
+        "REDLINE_CASE_ID": case_id,
+        "REDLINE_SOURCE_LINE": str(case.get("source_line", "")),
+        "REDLINE_CLUSTER": str(case.get("cluster", "")),
+        "REDLINE_PROMPT_PATH": prompt_path or "",
+    }
+    try:
+        output = _run_replay(argv_template, rendered_prompt, timeout_seconds, extra_env)
+    except ValueError as exc:
+        raise ValueError(f"{case_id}: {exc}") from exc
+    return LogRecord(
+        line_number=line_number,
+        prompt=case_prompt,
+        response=output,
+        raw={
+            "case_id": case_id,
+            "prompt": case_prompt,
+            "rendered_prompt": rendered_prompt,
+            "response": output,
+        },
+    )
 
 
 def render_prompt_template(template: str | None, case: dict[str, Any]) -> str:

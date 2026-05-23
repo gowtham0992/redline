@@ -155,6 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     eval_parser.add_argument("--prompt", help="prompt template file to render for each case")
     eval_parser.add_argument("--timeout", type=float, help="per-case timeout in seconds")
+    eval_parser.add_argument("--workers", type=int, help="number of replay cases to run concurrently")
     eval_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     eval_parser.add_argument("--out-json", help="write machine-readable JSON report")
     eval_parser.add_argument("--out-md", help="write Markdown report")
@@ -411,11 +412,13 @@ def cmd_eval(args: argparse.Namespace) -> int:
         raise ValueError("replay command required; pass --replay or set replay in redline.json")
     suite = read_json(suite_path)
     timeout_seconds = float(_config_value(args.timeout, config, "timeout_seconds", 30.0))
+    workers = int(_config_value(args.workers, config, "workers", 1))
     prompt_template = read_prompt_template(args.prompt) if args.prompt else None
     replay = replay_suite(
         suite,
         replay_command,
         timeout_seconds=timeout_seconds,
+        workers=workers,
         prompt_template=prompt_template,
         prompt_path=args.prompt,
     )

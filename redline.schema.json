@@ -35,6 +35,11 @@
       "exclusiveMinimum": 0,
       "description": "Per-case replay timeout for redline eval."
     },
+    "workers": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of replay cases redline eval may run concurrently."
+    },
     "fail_on": {
       "description": "Statuses that produce a non-zero diff/eval exit. Use \"none\" for report-only mode.",
       "oneOf": [

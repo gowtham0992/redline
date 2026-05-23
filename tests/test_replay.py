@@ -76,6 +76,40 @@ class ReplayTests(unittest.TestCase):
         self.assertEqual(replay.records[0].response, "System: answer briefly\nUser: hello")
         self.assertEqual(replay.to_metadata()["prompt"], "prompts/v2.txt")
 
+    def test_replay_can_run_cases_with_workers_and_preserve_order(self) -> None:
+        suite = {
+            "cases": [
+                {"id": "case_001", "prompt": "slow"},
+                {"id": "case_002", "prompt": "fast"},
+            ]
+        }
+
+        replay = replay_suite(
+            suite,
+            (
+                f"{sys.executable} -c "
+                "\"import sys, time; prompt=sys.stdin.read(); "
+                "time.sleep(0.05 if prompt == 'slow' else 0); print(prompt.upper())\""
+            ),
+            workers=2,
+        )
+
+        self.assertEqual([record.prompt for record in replay.records], ["slow", "fast"])
+        self.assertEqual([record.response for record in replay.records], ["SLOW", "FAST"])
+        self.assertEqual(replay.to_metadata()["workers"], 2)
+
+    def test_replay_rejects_non_positive_workers(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "hello", "hello", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        with self.assertRaisesRegex(ValueError, "workers"):
+            replay_suite(suite, f"{sys.executable} -c \"print('hello')\"", workers=0)
+
     def test_render_prompt_template_supports_case_fields(self) -> None:
         rendered = render_prompt_template(
             "Case {case_id} line {source_line}: {prompt} // {cluster} // {baseline_response}",

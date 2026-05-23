@@ -329,6 +329,7 @@ class CliConfigTests(unittest.TestCase):
                 self.assertEqual(metadata["candidate"], ".redline/runs/candidate.jsonl")
                 self.assertEqual(metadata["replay"]["command"], replay)
                 self.assertEqual(metadata["replay"]["timeout_seconds"], 3.5)
+                self.assertEqual(metadata["replay"]["workers"], 1)
                 self.assertEqual(metadata["summary"]["neutral"], 1)
                 self.assertEqual(metadata["decision"]["confidence"], "high")
             finally:
@@ -419,6 +420,46 @@ class CliConfigTests(unittest.TestCase):
                     (root / ".redline" / "runs" / "replay.json").read_text(encoding="utf-8")
                 )
                 self.assertEqual(metadata["replay"]["timeout_seconds"], 1.25)
+            finally:
+                os.chdir(previous)
+
+    def test_eval_workers_flag_overrides_config_workers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("runner.py").write_text(
+                    "import sys\nprint(sys.stdin.read())\n",
+                    encoding="utf-8",
+                )
+                replay = f"{sys.executable} runner.py"
+                Path("redline.json").write_text(
+                    json.dumps(
+                        {
+                            "suite": ".redline/suite.json",
+                            "replay": replay,
+                            "workers": 1,
+                            "fail_on": "none",
+                            "runs": {"metadata": ".redline/runs/replay.json"},
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "one", "response": "one"}\n'
+                    '{"prompt": "two", "response": "two"}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
+                    self.assertEqual(main(["eval", "--workers", "2"]), 0)
+
+                metadata = json.loads(
+                    (root / ".redline" / "runs" / "replay.json").read_text(encoding="utf-8")
+                )
+                self.assertEqual(metadata["replay"]["workers"], 2)
             finally:
                 os.chdir(previous)
 

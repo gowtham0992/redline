@@ -27,6 +27,7 @@ def default_config(
         "output_field": output_field,
         "max_cases": max_cases,
         "timeout_seconds": timeout_seconds,
+        "workers": 1,
         "fail_on": list(DEFAULT_FAIL_ON),
         "reports": {
             "json": ".redline/reports/{command}.json",
