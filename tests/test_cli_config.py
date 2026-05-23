@@ -256,6 +256,52 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_compare_reports_previous_and_current_json(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("before.json").write_text(
+                    json.dumps(
+                        {
+                            "diffs": [
+                                {
+                                    "case_id": "case_001",
+                                    "status": "changed",
+                                    "prompt": "Return JSON",
+                                    "reasons": ["content changed"],
+                                }
+                            ]
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("after.json").write_text(
+                    json.dumps(
+                        {
+                            "diffs": [
+                                {
+                                    "case_id": "case_001",
+                                    "status": "regression",
+                                    "prompt": "Return JSON",
+                                    "reasons": ["candidate lost valid JSON format"],
+                                }
+                            ]
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["compare", "before.json", "after.json"]), 1)
+
+                self.assertIn("redline compare", output.getvalue())
+                self.assertIn("Worse:     1", output.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_diff_uses_configured_judge_command_for_changed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

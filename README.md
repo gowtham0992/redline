@@ -172,6 +172,13 @@ python -m redline diff redline-suite.json examples/candidate.jsonl \
 The default config writes JSON, Markdown, and JUnit XML reports under
 `.redline/reports/` for `diff` and `eval` runs.
 
+Compare two redline JSON reports to see whether a prompt fix made the run
+better or worse:
+
+```bash
+python -m redline compare .redline/reports/eval-before.json .redline/reports/eval.json
+```
+
 In GitHub Actions, append the Markdown report to the job summary:
 
 ```bash
