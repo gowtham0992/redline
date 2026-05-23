@@ -58,10 +58,24 @@ jobs:
             echo "No previous redline report found at .redline/reports/eval-before.json; skipping compare."
           fi
 
+      - name: Record redline history
+        if: always()
+        run: |
+          if [ -f .redline/reports/eval.json ]; then
+            python -m redline history \\
+              .redline/reports/eval.json \\
+              --label "${{ github.sha }}" \\
+              --out .redline/history.jsonl
+          else
+            echo "No redline eval report found at .redline/reports/eval.json; skipping history."
+          fi
+
       - name: Upload redline reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: redline-reports
-          path: .redline/reports/
+          path: |
+            .redline/reports/
+            .redline/history.jsonl
 """

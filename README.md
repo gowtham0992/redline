@@ -262,8 +262,8 @@ python -m redline history --out .redline/history.jsonl
 ```
 
 The generated GitHub Actions workflow also runs this comparison when
-`.redline/reports/eval-before.json` exists, then uploads the compare artifacts
-with the rest of the redline reports.
+`.redline/reports/eval-before.json` exists, records `.redline/history.jsonl`,
+then uploads the history and report artifacts.
 
 In GitHub Actions, append the Markdown report to the job summary:
 
