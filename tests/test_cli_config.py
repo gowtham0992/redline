@@ -75,14 +75,18 @@ class CliConfigTests(unittest.TestCase):
                     encoding="utf-8",
                 )
 
+                cluster_output = io.StringIO()
                 with contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(main(["watch", "--log", "source.jsonl", "--replace"]), 0)
                     self.assertEqual(main(["suite", ".redline/logs/observed.jsonl"]), 0)
+                with contextlib.redirect_stdout(cluster_output):
+                    self.assertEqual(main(["cluster"]), 0)
 
                 observed = root / ".redline" / "logs" / "observed.jsonl"
                 self.assertTrue(observed.exists())
                 self.assertIn('"source": "source.jsonl"', observed.read_text(encoding="utf-8"))
                 self.assertTrue((root / ".redline" / "suite.json").exists())
+                self.assertIn("redline cluster", cluster_output.getvalue())
             finally:
                 os.chdir(previous)
 

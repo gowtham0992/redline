@@ -38,6 +38,12 @@ Collect prompt-response pairs from an existing log:
 python -m redline watch --log examples/baseline.jsonl
 ```
 
+Inspect behavioral clusters before generating a suite:
+
+```bash
+python -m redline cluster
+```
+
 Generate a suite from baseline logs:
 
 ```bash

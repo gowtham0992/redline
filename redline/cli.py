@@ -8,6 +8,7 @@ from typing import Sequence
 
 from .accept import accept_candidate_baseline, expected_case_ids
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
+from .clusters import cluster_report, format_cluster_report
 from .config import DEFAULT_CONFIG_PATH, create_config, load_config
 from .diff import compare_suite_to_candidate, format_report
 from .doctor import doctor_report, format_doctor_report
@@ -63,6 +64,15 @@ def build_parser() -> argparse.ArgumentParser:
     watch_parser.add_argument("--replace", action="store_true", help="replace the observed log instead of appending")
     watch_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     watch_parser.set_defaults(func=cmd_watch)
+
+    cluster_parser = subparsers.add_parser("cluster", help="analyze behavioral clusters in a log")
+    cluster_parser.add_argument("log", nargs="?", help="JSONL prompt-response log; defaults to watched log")
+    cluster_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
+    cluster_parser.add_argument("--input-field", help="JSONL input field")
+    cluster_parser.add_argument("--output-field", help="JSONL output field")
+    cluster_parser.add_argument("--max-cases", type=int, help="maximum representative cases")
+    cluster_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    cluster_parser.set_defaults(func=cmd_cluster)
 
     suite_parser = subparsers.add_parser("suite", help="generate a representative suite")
     suite_parser.add_argument("log", help="baseline JSONL file")
@@ -225,6 +235,27 @@ def cmd_watch(args: argparse.Namespace) -> int:
     else:
         print(f"Collected {result['records']} prompt-response pairs from {Path(args.log)}.")
         print(f"{str(result['mode']).title()} {Path(str(result['output']))}.")
+    return 0
+
+
+def cmd_cluster(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    input_field = str(_config_value(args.input_field, config, "input_field", "prompt"))
+    output_field = str(_config_value(args.output_field, config, "output_field", "response"))
+    max_cases = int(_config_value(args.max_cases, config, "max_cases", 42))
+    log_path = args.log or _config_observed_log_path(config) or ".redline/logs/prompts.jsonl"
+    records = read_jsonl_records(log_path, input_field, output_field)
+    suite = build_suite(
+        records,
+        source=log_path,
+        input_field=input_field,
+        output_field=output_field,
+        max_cases=max_cases,
+    )
+    if args.json:
+        print(json.dumps(cluster_report(suite), indent=2, sort_keys=True))
+    else:
+        print(format_cluster_report(suite), end="")
     return 0
 
 
