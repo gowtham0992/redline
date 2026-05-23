@@ -26,6 +26,43 @@ redline eval --prompt prompts/v2.txt --replay "./runners/openai_runner.sh"
 
 That's it.
 
+## App Logs To JSONL
+
+What you need: exported production logs as JSONL.
+
+Your adapter command:
+
+```bash
+python runners/jsonl_log_adapter.py logs/export.jsonl \
+  --input-field request.prompt \
+  --output-field response.text \
+  --out .redline/logs/prompts.jsonl
+```
+
+What it does: reads your exported log rows, copies the configured prompt and
+response fields into redline's JSONL shape, writes `prompt` and `response`.
+
+Wire it in:
+
+```bash
+redline suite .redline/logs/prompts.jsonl
+```
+
+Common field mappings:
+
+```bash
+# Langfuse-style exports
+--input-field input --output-field output
+
+# Helicone-style request/response rows
+--input-field request.prompt --output-field response.text
+
+# Your app's own JSONL logs
+--input-field messages.user --output-field result.answer
+```
+
+That's it.
+
 ## HTTP API
 
 What you need: a POST endpoint that accepts a prompt and returns JSON.

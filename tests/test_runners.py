@@ -1,6 +1,8 @@
 import importlib.util
+import json
 import os
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -78,3 +80,42 @@ class RunnerTests(unittest.TestCase):
 
         self.assertIn("## HTTP API", docs)
         self.assertIn('redline eval --prompt prompts/v2.txt --replay "python runners/http_runner.py"', docs)
+
+    def test_jsonl_log_adapter_converts_nested_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "export.jsonl"
+            output = root / "prompts.jsonl"
+            source.write_text(
+                '{"request": {"prompt": "hello"}, "response": {"text": "world"}}\n',
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(source),
+                    "--input-field",
+                    "request.prompt",
+                    "--output-field",
+                    "response.text",
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["prompt"], "hello")
+            self.assertEqual(row["response"], "world")
+            self.assertEqual(row["source_line"], 1)
+
+    def test_runner_docs_include_app_logs_adapter(self) -> None:
+        docs = Path("docs/runners.md").read_text(encoding="utf-8")
+
+        self.assertIn("## App Logs To JSONL", docs)
+        self.assertIn("python runners/jsonl_log_adapter.py logs/export.jsonl", docs)
