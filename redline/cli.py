@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import Sequence
 
 from .diff import compare_suite_to_candidate, format_report
-from .io import read_json, read_jsonl_records, write_json
+from .io import read_json, read_jsonl_records, write_json, write_text
+from .reports import format_markdown_report
 from .replay import replay_suite
 from .suite import build_suite
 
@@ -43,6 +44,8 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("--input-field", help="candidate input field; defaults to suite input field")
     diff_parser.add_argument("--output-field", help="candidate output field; defaults to suite output field")
     diff_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    diff_parser.add_argument("--out-json", help="write machine-readable JSON report")
+    diff_parser.add_argument("--out-md", help="write Markdown report")
     diff_parser.set_defaults(func=cmd_diff)
 
     eval_parser = subparsers.add_parser("eval", help="replay a suite with a local command")
@@ -54,6 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     eval_parser.add_argument("--timeout", type=float, default=30.0, help="per-case timeout in seconds")
     eval_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    eval_parser.add_argument("--out-json", help="write machine-readable JSON report")
+    eval_parser.add_argument("--out-md", help="write Markdown report")
     eval_parser.set_defaults(func=cmd_eval)
 
     return parser
@@ -83,13 +88,7 @@ def cmd_diff(args: argparse.Namespace) -> int:
     candidate = read_jsonl_records(args.candidate, input_field, output_field)
     result = compare_suite_to_candidate(suite, candidate)
 
-    if args.json:
-        print(json.dumps(result, indent=2, sort_keys=True))
-    else:
-        print(format_report(result), end="")
-
-    summary = result["summary"]
-    return 1 if summary["regression"] or summary["missing"] else 0
+    return _emit_result(args, result, title="redline diff")
 
 
 def cmd_eval(args: argparse.Namespace) -> int:
@@ -98,10 +97,19 @@ def cmd_eval(args: argparse.Namespace) -> int:
     result = compare_suite_to_candidate(suite, replay.records)
     result["replay"] = replay.to_metadata()
 
+    return _emit_result(args, result, title="redline eval")
+
+
+def _emit_result(args: argparse.Namespace, result: dict[str, object], *, title: str) -> int:
+    if args.out_json:
+        write_json(args.out_json, result)
+    if args.out_md:
+        write_text(args.out_md, format_markdown_report(result, title=title))
+
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
-        print(format_report(result, title="redline eval"), end="")
+        print(format_report(result, title=title), end="")
 
     summary = result["summary"]
     return 1 if summary["regression"] or summary["missing"] else 0

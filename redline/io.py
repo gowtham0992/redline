@@ -57,6 +57,13 @@ def write_json(path: str | Path, data: dict[str, Any]) -> None:
         handle.write("\n")
 
 
+def write_text(path: str | Path, text: str) -> None:
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("w", encoding="utf-8") as handle:
+        handle.write(text)
+
+
 def read_json(path: str | Path) -> dict[str, Any]:
     with Path(path).open("r", encoding="utf-8") as handle:
         data = json.load(handle)

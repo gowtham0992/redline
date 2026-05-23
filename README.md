@@ -20,6 +20,14 @@ Compare candidate outputs against that suite:
 python -m redline diff .redline/suite.json examples/candidate.jsonl
 ```
 
+Write reports for CI or PR comments:
+
+```bash
+python -m redline diff .redline/suite.json examples/candidate.jsonl \
+  --out-json .redline/reports/diff.json \
+  --out-md .redline/reports/diff.md
+```
+
 Or let redline replay each suite case with a local command. The command receives
 the prompt on stdin and should print the candidate response to stdout:
 
