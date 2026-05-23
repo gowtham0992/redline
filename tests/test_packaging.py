@@ -56,6 +56,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("-m unittest discover", script)
         self.assertIn("-m compileall redline tests examples", script)
         self.assertIn("git diff --check", script)
+        self.assertIn("examples/public_dogfood_baseline.jsonl", script)
+        self.assertIn("examples/public_dogfood_candidate.jsonl", script)
         self.assertIn("-m pip wheel . --no-deps --no-build-isolation", script)
         self.assertIn("-m venv", script)
         self.assertIn("redline --version", script)
@@ -106,9 +108,23 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline runners", guide)
         self.assertIn("redline init --runner stdio --copy-runner --github-action", guide)
         self.assertIn("redline suite .redline/demo/baseline.jsonl", guide)
+        self.assertIn("examples/public_dogfood_baseline.jsonl", guide)
+        self.assertIn("public_dogfood_sources.md", guide)
         self.assertIn("normalize_ai_session_logs.py", guide)
         self.assertIn("ai-session-dogfood-prompts.jsonl", guide)
         self.assertIn("severity: blocker | confusing | polish", guide)
+
+    def test_public_dogfood_fixture_documents_source_inspiration(self) -> None:
+        sources = Path("examples/public_dogfood_sources.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn("synthetic", sources)
+        self.assertIn("Databricks Dolly 15k", sources)
+        self.assertIn("OpenAssistant OASST1", sources)
+        self.assertIn("Anthropic HH-RLHF", sources)
+        self.assertIn("WildChat", sources)
+        self.assertIn("examples/public_dogfood_baseline.jsonl", readme)
+        self.assertIn("examples/public_dogfood_candidate.jsonl", readme)
 
     def test_ai_session_prompt_set_has_ten_prompts(self) -> None:
         prompts = Path("docs/ai-session-dogfood-prompts.jsonl").read_text(encoding="utf-8").splitlines()

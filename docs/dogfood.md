@@ -58,7 +58,22 @@ redline diff /tmp/redline-dogfood-suite.json examples/dogfood_candidate.jsonl --
 Expected result: the diff includes regressions for missing JSON keys, refusals,
 lost Markdown tables, lost code blocks, lost numbered lists, and empty output.
 
-## Pass 5: AI Assistant Session Logs
+## Pass 5: Public-Pattern Fixture
+
+Use the synthetic public-pattern fixture when you need a launch-safe proof that
+does not depend on private logs, API keys, or copied third-party rows:
+
+```bash
+redline suite examples/public_dogfood_baseline.jsonl --out /tmp/redline-public-suite.json --all-cases
+redline diff /tmp/redline-public-suite.json examples/public_dogfood_candidate.jsonl --compact --fail-on none
+```
+
+Expected result: the diff catches visible losses in JSON validity, required
+keys, table structure, code fences, numbered lists, URLs, refusal behavior,
+empty output, entities, and numbers. Source inspiration is documented in
+[public_dogfood_sources.md](../examples/public_dogfood_sources.md).
+
+## Pass 6: AI Assistant Session Logs
 
 Use the same prompts in [ai-session-dogfood-prompts.jsonl](ai-session-dogfood-prompts.jsonl)
 across Claude, Kiro, Antigravity, or another assistant. Ask each tool to export

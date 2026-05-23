@@ -45,6 +45,17 @@ python -m redline suite examples/dogfood_baseline.jsonl --out /tmp/redline-dogfo
 python -m redline diff /tmp/redline-dogfood-suite.json examples/dogfood_candidate.jsonl --compact --fail-on none
 ```
 
+For a launch-safe public dogfood pass shaped after public instruction and chat
+dataset patterns:
+
+```bash
+python -m redline suite examples/public_dogfood_baseline.jsonl --out /tmp/redline-public-suite.json --all-cases
+python -m redline diff /tmp/redline-public-suite.json examples/public_dogfood_candidate.jsonl --compact --fail-on none
+```
+
+The public fixture is synthetic and documented in
+[examples/public_dogfood_sources.md](examples/public_dogfood_sources.md).
+
 For AI-assistant session dogfood, use the prompt set in
 `docs/ai-session-dogfood-prompts.jsonl` and normalize raw exports with
 `scripts/normalize_ai_session_logs.py`.

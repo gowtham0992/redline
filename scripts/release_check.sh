@@ -22,6 +22,13 @@ printf '\n$ %s -m compileall redline tests examples\n' "$python_bin"
 printf '\n$ git diff --check\n'
 git diff --check
 
+public_suite="$work_dir/public-dogfood-suite.json"
+printf '\n$ %s -m redline suite examples/public_dogfood_baseline.jsonl --out %s --all-cases\n' "$python_bin" "$public_suite"
+"$python_bin" -m redline suite examples/public_dogfood_baseline.jsonl --out "$public_suite" --all-cases
+
+printf '\n$ %s -m redline diff %s examples/public_dogfood_candidate.jsonl --compact --fail-on none\n' "$python_bin" "$public_suite"
+"$python_bin" -m redline diff "$public_suite" examples/public_dogfood_candidate.jsonl --compact --fail-on none
+
 printf '\n$ %s -m pip wheel . --no-deps --no-build-isolation -w %s\n' "$python_bin" "$wheel_dir"
 "$python_bin" -m pip wheel . --no-deps --no-build-isolation -w "$wheel_dir"
 wheel_files=("$wheel_dir"/*.whl)
