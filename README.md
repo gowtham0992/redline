@@ -20,6 +20,19 @@ Compare candidate outputs against that suite:
 python -m redline diff .redline/suite.json examples/candidate.jsonl
 ```
 
+Or let redline replay each suite case with a local command. The command receives
+the prompt on stdin and should print the candidate response to stdout:
+
+```bash
+python -m redline eval .redline/suite.json --replay "python examples/replay_candidate.py"
+```
+
+If your command takes the prompt as an argument, use `{prompt}`:
+
+```bash
+python -m redline eval .redline/suite.json --replay "my-prompt-runner {prompt}"
+```
+
 The default JSONL fields are `prompt` and `response`. Override them when your
 logs use different names:
 
@@ -36,5 +49,5 @@ list/code/table structure, refusal behavior, and length bucket. The diff reports
 format regressions, newly empty answers, new refusals, missing JSON keys, lost
 numbers, and other high-signal behavioral changes.
 
-The next iterations should add replay commands, rubric capture, LLM judging for
-ambiguous cases, and CI output.
+The next iterations should add rubric capture, LLM judging for ambiguous cases,
+and CI output.

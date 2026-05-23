@@ -144,10 +144,10 @@ def classify_change(
     return "neutral", ["no high-signal behavioral change detected"]
 
 
-def format_report(result: dict[str, Any]) -> str:
+def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str:
     summary = result["summary"]
     lines = [
-        "redline diff",
+        title,
         "",
         f"  REGRESSION {summary['regression']:>3}",
         f"  CHANGED    {summary['changed']:>3}",
