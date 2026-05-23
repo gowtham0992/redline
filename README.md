@@ -41,6 +41,12 @@ python -m redline watch --log examples/baseline.jsonl
 Repeated `watch` runs skip source lines that were already collected. Pass
 `--allow-duplicates` only when you intentionally want duplicate observations.
 
+Keep polling a log during local development:
+
+```bash
+python -m redline watch --log logs/prompts.jsonl --follow
+```
+
 Summarize collected evidence:
 
 ```bash

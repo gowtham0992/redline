@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+from time import monotonic, sleep
 from typing import Any
 
 from .features import behavior_signature
@@ -102,6 +103,72 @@ def format_watch_stats(stats: dict[str, Any]) -> str:
         lines.append(f"First observed:    {stats['first_observed_at'] or '<unknown>'}")
         lines.append(f"Last observed:     {stats['last_observed_at'] or '<unknown>'}")
     return "\n".join(lines) + "\n"
+
+
+def follow_log(
+    source: str | Path,
+    *,
+    output: str | Path,
+    input_field: str = "prompt",
+    output_field: str = "response",
+    poll_interval: float = 1.0,
+    max_records: int | None = None,
+    idle_timeout: float | None = None,
+    dedupe: bool = True,
+    replace: bool = False,
+) -> dict[str, Any]:
+    if poll_interval < 0:
+        raise ValueError("poll_interval must be at least 0")
+    if max_records is not None and max_records < 1:
+        raise ValueError("max_records must be at least 1")
+    if idle_timeout is not None and idle_timeout < 0:
+        raise ValueError("idle_timeout must be at least 0")
+
+    collected = 0
+    seen = 0
+    skipped = 0
+    iterations = 0
+    idle_started: float | None = None
+    append = not replace
+
+    while True:
+        result = collect_log(
+            source,
+            output=output,
+            input_field=input_field,
+            output_field=output_field,
+            append=append,
+            dedupe=dedupe,
+        )
+        append = True
+        iterations += 1
+        collected += int(result["records"])
+        seen += int(result["records_seen"])
+        skipped += int(result["skipped_duplicates"])
+
+        if max_records is not None and collected >= max_records:
+            break
+
+        if result["records"]:
+            idle_started = None
+        elif idle_timeout is not None:
+            if idle_started is None:
+                idle_started = monotonic()
+            if monotonic() - idle_started >= idle_timeout:
+                break
+
+        sleep(poll_interval)
+
+    return {
+        "source": str(source),
+        "output": str(output),
+        "records": collected,
+        "records_seen": seen,
+        "skipped_duplicates": skipped,
+        "dedupe": dedupe,
+        "mode": "followed",
+        "iterations": iterations,
+    }
 
 
 def _observed_row(

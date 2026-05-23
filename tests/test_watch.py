@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from redline.io import read_jsonl_records
-from redline.watch import collect_log, format_watch_stats, watch_stats
+from redline.watch import collect_log, follow_log, format_watch_stats, watch_stats
 
 
 class WatchTests(unittest.TestCase):
@@ -91,6 +91,49 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(stats["behavior_patterns"], 2)
             self.assertIn("Behavior patterns: 2", text)
             self.assertIn("First observed:", text)
+
+    def test_follow_log_collects_until_max_records(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.jsonl"
+            output = root / "observed.jsonl"
+            source.write_text(
+                '{"prompt": "one", "response": "1"}\n'
+                '{"prompt": "two", "response": "2"}\n',
+                encoding="utf-8",
+            )
+
+            result = follow_log(
+                source,
+                output=output,
+                poll_interval=0,
+                max_records=2,
+            )
+
+            records = read_jsonl_records(output, "prompt", "response")
+            self.assertEqual(result["mode"], "followed")
+            self.assertEqual(result["records"], 2)
+            self.assertEqual(result["iterations"], 1)
+            self.assertEqual(len(records), 2)
+
+    def test_follow_log_can_stop_after_idle_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.jsonl"
+            output = root / "observed.jsonl"
+            source.write_text('{"prompt": "one", "response": "1"}\n', encoding="utf-8")
+
+            result = follow_log(
+                source,
+                output=output,
+                poll_interval=0,
+                max_records=2,
+                idle_timeout=0,
+            )
+
+            self.assertEqual(result["records"], 1)
+            self.assertGreaterEqual(result["iterations"], 2)
+            self.assertGreaterEqual(result["skipped_duplicates"], 1)
 
 
 if __name__ == "__main__":

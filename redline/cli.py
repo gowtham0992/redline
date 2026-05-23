@@ -20,7 +20,7 @@ from .requirements import add_case_requirement, clear_case_requirements
 from .replay import replay_suite
 from .summary import format_suite_summary, suite_summary
 from .suite import build_suite
-from .watch import collect_log, format_watch_stats, watch_stats
+from .watch import collect_log, follow_log, format_watch_stats, watch_stats
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -64,6 +64,10 @@ def build_parser() -> argparse.ArgumentParser:
     watch_parser.add_argument("--replace", action="store_true", help="replace the observed log instead of appending")
     watch_parser.add_argument("--allow-duplicates", action="store_true", help="append records even if source lines were already collected")
     watch_parser.add_argument("--stats", action="store_true", help="summarize the observed watch log")
+    watch_parser.add_argument("--follow", action="store_true", help="keep polling the source log for new records")
+    watch_parser.add_argument("--poll-interval", type=float, default=1.0, help="seconds between follow polls")
+    watch_parser.add_argument("--max-records", type=int, help="stop follow mode after collecting this many new records")
+    watch_parser.add_argument("--idle-timeout", type=float, help="stop follow mode after this many idle seconds")
     watch_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     watch_parser.set_defaults(func=cmd_watch)
 
@@ -234,14 +238,27 @@ def cmd_watch(args: argparse.Namespace) -> int:
         return 0
     if not args.log:
         raise ValueError("watch requires --log unless --stats is used")
-    result = collect_log(
-        args.log,
-        output=output,
-        input_field=input_field,
-        output_field=output_field,
-        append=not args.replace,
-        dedupe=not args.allow_duplicates,
-    )
+    if args.follow:
+        result = follow_log(
+            args.log,
+            output=output,
+            input_field=input_field,
+            output_field=output_field,
+            poll_interval=args.poll_interval,
+            max_records=args.max_records,
+            idle_timeout=args.idle_timeout,
+            dedupe=not args.allow_duplicates,
+            replace=args.replace,
+        )
+    else:
+        result = collect_log(
+            args.log,
+            output=output,
+            input_field=input_field,
+            output_field=output_field,
+            append=not args.replace,
+            dedupe=not args.allow_duplicates,
+        )
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
