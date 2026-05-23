@@ -2,7 +2,7 @@ include LICENSE
 include README.md
 include CHANGELOG.md
 include redline.schema.json
-recursive-include examples *.jsonl *.py *.yml
+recursive-include examples *.jsonl *.py *.sh *.yml
 recursive-include scripts *.sh
 recursive-include redline py.typed
 recursive-include redline/runner_templates *.py *.sh

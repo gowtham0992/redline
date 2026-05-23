@@ -366,7 +366,12 @@ python -m redline diff examples/candidate.jsonl --judge "python examples/judge_c
 The judge command should print JSON with `status`, `confidence`, and `reason`.
 Accepted statuses are `regression`, `changed`, `improved`, and `neutral`.
 See [examples/judge_changed.py](examples/judge_changed.py) for a small local
-judge that demonstrates the stdin/stdout contract.
+judge that demonstrates the stdin/stdout contract. For an optional model-backed
+judge template:
+
+```bash
+OPENAI_API_KEY="..." python -m redline diff examples/candidate.jsonl --judge "./examples/openai_judge.sh"
+```
 
 Save replayed candidate outputs for debugging or a later `diff` run:
 
