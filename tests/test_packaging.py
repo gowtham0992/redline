@@ -83,6 +83,13 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("CHANGELOG.md", guide)
         self.assertIn("redline demo --compact", guide)
 
+    def test_changelog_mentions_release_ready_workflows(self) -> None:
+        changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+
+        self.assertIn("Markdown history reports", changelog)
+        self.assertIn("GitHub step summaries", changelog)
+        self.assertIn("suite generation commands", changelog)
+
     def test_dogfood_protocol_exercises_first_run_loop(self) -> None:
         guide = Path("docs/dogfood.md").read_text(encoding="utf-8")
 

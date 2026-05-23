@@ -9,7 +9,9 @@
 - Diff candidate outputs with deterministic regression signals and optional judges.
 - Emit JSON, Markdown, JUnit, GitHub summary, and GitHub annotation reports.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
+- Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
+- Show actionable next steps after demo and suite generation commands.
 - Ship larger dogfood prompt logs that exercise several regression classes.
 - Include optional OpenAI-, Anthropic-, and LiteLLM-backed judge command templates for ambiguous changes.
 - Scaffold replay runners for OpenAI, Anthropic, HTTP APIs, Python chains, JSONL logs, and LiteLLM.
