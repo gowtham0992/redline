@@ -9,7 +9,7 @@ class ConfigTests(unittest.TestCase):
     def test_default_config_contains_project_defaults(self) -> None:
         config = default_config()
 
-        self.assertEqual(config["suite"], ".redline/suite.json")
+        self.assertEqual(config["suite"], "redline-suite.json")
         self.assertEqual(config["input_field"], "prompt")
         self.assertEqual(config["output_field"], "response")
         self.assertEqual(config["timeout_seconds"], 30.0)

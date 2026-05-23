@@ -20,7 +20,7 @@ def default_config(
 ) -> dict[str, Any]:
     config: dict[str, Any] = {
         "version": "0.1",
-        "suite": ".redline/suite.json",
+        "suite": "redline-suite.json",
         "input_field": input_field,
         "output_field": output_field,
         "max_cases": max_cases,

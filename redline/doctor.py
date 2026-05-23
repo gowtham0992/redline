@@ -10,6 +10,7 @@ def doctor_report(
     config: dict[str, Any],
     suite: dict[str, Any] | None,
     suite_error: str | None = None,
+    suite_git_ignored: bool = False,
 ) -> dict[str, Any]:
     checks: list[dict[str, str]] = []
 
@@ -19,7 +20,7 @@ def doctor_report(
     else:
         checks.append({"status": "warn", "name": "config", "message": f"{config_path} not found"})
 
-    suite_path = str(config.get("suite") or ".redline/suite.json")
+    suite_path = str(config.get("suite") or "redline-suite.json")
     if suite is not None:
         cases = suite.get("cases", [])
         case_count = len(cases) if isinstance(cases, list) else 0
@@ -34,6 +35,14 @@ def doctor_report(
         checks.append({"status": "error", "name": "suite", "message": suite_error})
     else:
         checks.append({"status": "warn", "name": "suite", "message": f"{suite_path} not found"})
+    if suite_git_ignored:
+        checks.append(
+            {
+                "status": "warn",
+                "name": "suite-git",
+                "message": f"{suite_path} is ignored by git; CI needs a committed suite baseline",
+            }
+        )
 
     replay = config.get("replay")
     if isinstance(replay, str) and replay:

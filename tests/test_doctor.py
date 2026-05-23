@@ -63,6 +63,17 @@ class DoctorTests(unittest.TestCase):
         self.assertTrue(any(check["name"] == "reports" for check in report["checks"]))
         self.assertTrue(any(check["name"] == "runs" for check in report["checks"]))
 
+    def test_doctor_warns_when_suite_is_git_ignored(self) -> None:
+        report = doctor_report(
+            config_path="pyproject.toml",
+            config={"suite": ".redline/suite.json", "replay": "python runner.py"},
+            suite={"cases": [{}]},
+            suite_git_ignored=True,
+        )
+
+        self.assertEqual(report["warnings"], 1)
+        self.assertTrue(any(check["name"] == "suite-git" for check in report["checks"]))
+
 
 if __name__ == "__main__":
     unittest.main()

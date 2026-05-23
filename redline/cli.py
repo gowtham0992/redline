@@ -3,10 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Sequence
 
+from . import __version__
 from .accept import accept_candidate_baseline, expected_case_ids
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
 from .ci import default_github_workflow
@@ -42,6 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="redline",
         description="Local-first prompt regression diffs from JSONL logs.",
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     init_parser = subparsers.add_parser("init", help="create a redline config file")
@@ -59,6 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser = subparsers.add_parser("doctor", help="check redline setup health")
     doctor_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     doctor_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    doctor_parser.add_argument("--strict", action="store_true", help="exit non-zero when warnings are present")
     doctor_parser.set_defaults(func=cmd_doctor)
 
     demo_parser = subparsers.add_parser("demo", help="run a first-use prompt regression demo")
@@ -228,7 +232,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 def cmd_doctor(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    suite_path = str(config.get("suite") or ".redline/suite.json")
+    suite_path = str(config.get("suite") or "redline-suite.json")
     suite = None
     suite_error = None
     if Path(suite_path).exists():
@@ -241,12 +245,17 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         config=config,
         suite=suite,
         suite_error=suite_error,
+        suite_git_ignored=_is_git_ignored(suite_path),
     )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
         print(format_doctor_report(report), end="")
-    return 0 if report["errors"] == 0 else 1
+    if report["errors"] > 0:
+        return 1
+    if args.strict and report["warnings"] > 0:
+        return 1
+    return 0
 
 
 def cmd_demo(args: argparse.Namespace) -> int:
@@ -330,7 +339,7 @@ def cmd_suite(args: argparse.Namespace) -> int:
     input_field = _config_value(args.input_field, config, "input_field", "prompt")
     output_field = _config_value(args.output_field, config, "output_field", "response")
     max_cases = int(_config_value(args.max_cases, config, "max_cases", 42))
-    output = str(_config_value(args.out, config, "suite", ".redline/suite.json"))
+    output = str(_config_value(args.out, config, "suite", "redline-suite.json"))
     log_path = args.log or _config_observed_log_path(config) or ".redline/logs/prompts.jsonl"
     records = read_jsonl_records(log_path, input_field, output_field)
     suite = build_suite(
@@ -551,6 +560,19 @@ def _maybe_apply_judge(
         judge_command,
         timeout_seconds=float(_config_judge_timeout(args.judge_timeout, config)),
     )
+
+
+def _is_git_ignored(path: str) -> bool:
+    try:
+        completed = subprocess.run(
+            ["git", "check-ignore", "-q", path],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return False
+    return completed.returncode == 0
 
 
 def _config_value(

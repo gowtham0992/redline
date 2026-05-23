@@ -11,6 +11,16 @@ from redline.cli import main
 
 
 class CliConfigTests(unittest.TestCase):
+    def test_cli_version_flag_prints_version(self) -> None:
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output):
+            with self.assertRaises(SystemExit) as raised:
+                main(["--version"])
+
+        self.assertEqual(raised.exception.code, 0)
+        self.assertIn("redline 0.1.0", output.getvalue())
+
     def test_init_can_write_github_action_workflow(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -27,8 +37,10 @@ class CliConfigTests(unittest.TestCase):
                 workflow = root / ".github" / "workflows" / "redline.yml"
                 config = json.loads((root / "redline.json").read_text(encoding="utf-8"))
                 self.assertEqual(config["replay"], "python runner.py")
+                self.assertEqual(config["suite"], "redline-suite.json")
                 self.assertTrue(workflow.exists())
                 self.assertIn("--github-annotations", workflow.read_text(encoding="utf-8"))
+                self.assertIn('"redline-suite.json"', workflow.read_text(encoding="utf-8"))
                 self.assertIn("Wrote redline.json.", output.getvalue())
                 self.assertIn("Wrote .github/workflows/redline.yml.", output.getvalue())
             finally:
@@ -51,6 +63,21 @@ class CliConfigTests(unittest.TestCase):
                 self.assertEqual(code, 2)
                 self.assertIn("already exists", stderr.getvalue())
                 self.assertFalse((root / "redline.json").exists())
+            finally:
+                os.chdir(previous)
+
+    def test_doctor_strict_fails_on_warnings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    code = main(["doctor", "--strict"])
+
+                self.assertEqual(code, 1)
+                self.assertIn("Warnings:", output.getvalue())
             finally:
                 os.chdir(previous)
 
@@ -253,7 +280,7 @@ class CliConfigTests(unittest.TestCase):
                 observed = root / ".redline" / "logs" / "observed.jsonl"
                 self.assertTrue(observed.exists())
                 self.assertIn('"source": "source.jsonl"', observed.read_text(encoding="utf-8"))
-                self.assertTrue((root / ".redline" / "suite.json").exists())
+                self.assertTrue((root / "redline-suite.json").exists())
                 self.assertIn("redline cluster", cluster_output.getvalue())
             finally:
                 os.chdir(previous)

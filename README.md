@@ -2,9 +2,10 @@
 
 Local-first prompt regression diffs from JSONL logs.
 
-This is the first implementation slice from the product vision: take prompt-response
-logs you already have, generate a representative eval suite, then compare a new
-run against the baseline.
+redline turns prompt-response logs you already have into a representative eval
+suite, then compares new prompt runs against the baseline. It is built for the
+fast local loop: change a prompt, run one command, see what got better, worse,
+or dangerously different.
 
 ## Quick Start
 
@@ -45,6 +46,12 @@ Check local setup health:
 
 ```bash
 python -m redline doctor
+```
+
+Use strict mode in CI to fail on missing setup pieces:
+
+```bash
+python -m redline doctor --strict
 ```
 
 Collect prompt-response pairs from an existing log:
@@ -93,7 +100,7 @@ python -m redline suite
 List the generated cases and IDs:
 
 ```bash
-python -m redline cases .redline/suite.json
+python -m redline cases redline-suite.json
 ```
 
 Inspect a single case:
@@ -117,7 +124,7 @@ python -m redline diff examples/candidate.jsonl
 Write reports for CI or PR comments:
 
 ```bash
-python -m redline diff .redline/suite.json examples/candidate.jsonl \
+python -m redline diff redline-suite.json examples/candidate.jsonl \
   --out-json .redline/reports/diff.json \
   --out-md .redline/reports/diff.md \
   --out-junit .redline/reports/diff.xml
@@ -138,7 +145,7 @@ outputs, and ambiguous changed cases.
 Mark a known change as expected so future runs do not fail on that case:
 
 ```bash
-python -m redline mark .redline/suite.json case_002_1612556e83 \
+python -m redline mark redline-suite.json case_002_1612556e83 \
   --status expected \
   --note "intentional response format change"
 ```
@@ -173,14 +180,14 @@ Tune CI strictness with `--fail-on`. By default redline exits `1` for
 `regression` and `missing` cases. Use `none` for report-only runs:
 
 ```bash
-python -m redline diff .redline/suite.json examples/candidate.jsonl --fail-on none
+python -m redline diff redline-suite.json examples/candidate.jsonl --fail-on none
 ```
 
 Or let redline replay each suite case with a local command. The command receives
 the prompt on stdin and should print the candidate response to stdout:
 
 ```bash
-python -m redline eval .redline/suite.json --replay "python examples/replay_candidate.py"
+python -m redline eval redline-suite.json --replay "python examples/replay_candidate.py"
 ```
 
 Evaluate a changed prompt template with your configured replay command:
@@ -213,7 +220,7 @@ Accepted statuses are `regression`, `changed`, `improved`, and `neutral`.
 Save replayed candidate outputs for debugging or a later `diff` run:
 
 ```bash
-python -m redline eval .redline/suite.json \
+python -m redline eval redline-suite.json \
   --replay "python examples/replay_candidate.py" \
   --candidate-out .redline/runs/candidate.jsonl
 ```
@@ -222,7 +229,7 @@ When `runs.metadata` is configured, `eval` also writes replay metadata with the
 suite path, candidate artifact path, replay command, and diff summary:
 
 ```bash
-python -m redline eval .redline/suite.json \
+python -m redline eval redline-suite.json \
   --replay "python examples/replay_candidate.py" \
   --run-metadata .redline/runs/replay.json
 ```
@@ -230,7 +237,7 @@ python -m redline eval .redline/suite.json \
 If your command takes the prompt as an argument, use `{prompt}`:
 
 ```bash
-python -m redline eval .redline/suite.json --replay "my-prompt-runner {prompt}"
+python -m redline eval redline-suite.json --replay "my-prompt-runner {prompt}"
 ```
 
 Replay commands also receive `REDLINE_CASE_ID`, `REDLINE_SOURCE_LINE`, and
