@@ -1,6 +1,6 @@
 import unittest
 
-from redline.diff import classify_change, compare_suite_to_candidate
+from redline.diff import classify_change, compare_suite_to_candidate, format_report, summarize_decision
 from redline.features import extract_features
 from redline.io import LogRecord
 from redline.suite import build_suite
@@ -86,6 +86,8 @@ class DiffTests(unittest.TestCase):
         result = compare_suite_to_candidate(suite, [])
 
         self.assertEqual(result["summary"]["missing"], 1)
+        self.assertEqual(result["decision"]["confidence"], "high")
+        self.assertEqual(result["decision"]["recommended_action"], "fix blocking cases before shipping")
         self.assertEqual(result["diffs"][0]["status"], "missing")
         self.assertEqual(result["diffs"][0]["baseline_response"], "30 days")
         self.assertIsNone(result["diffs"][0]["candidate_response"])
@@ -118,6 +120,36 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(result["summary"]["missing"], 0)
         self.assertEqual(result["summary"]["neutral"], 1)
         self.assertEqual(result["diffs"][0]["candidate_response"], '{"ok": true}')
+
+    def test_summarize_decision_recommends_review_for_changed_cases(self) -> None:
+        decision = summarize_decision({"cases": 3, "changed": 1})
+
+        self.assertEqual(decision["confidence"], "medium")
+        self.assertEqual(decision["recommended_action"], "review changed cases before shipping")
+
+    def test_format_report_includes_decision(self) -> None:
+        result = {
+            "summary": {
+                "cases": 1,
+                "regression": 0,
+                "changed": 0,
+                "improved": 0,
+                "accepted": 0,
+                "ignored": 0,
+                "neutral": 1,
+                "missing": 0,
+            },
+            "decision": {
+                "confidence": "high",
+                "recommended_action": "ship candidate; no blocking changes detected",
+            },
+            "diffs": [],
+        }
+
+        report = format_report(result)
+
+        self.assertIn("Confidence: HIGH", report)
+        self.assertIn("Recommended action: ship candidate; no blocking changes detected", report)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ class DemoTests(unittest.TestCase):
             self.assertTrue(Path(result["report_json"]).exists())
             self.assertTrue(Path(result["report_markdown"]).exists())
             self.assertGreaterEqual(result["summary"]["regression"], 1)
+            self.assertEqual(result["decision"]["confidence"], "high")
 
             report = read_json(result["report_json"])
             self.assertEqual(report["summary"]["regression"], result["summary"]["regression"])

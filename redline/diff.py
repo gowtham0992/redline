@@ -117,18 +117,20 @@ def compare_suite_to_candidate(
         )
 
     counts = Counter(diff.status for diff in diffs)
+    summary = {
+        "cases": len(diffs),
+        "regression": counts["regression"],
+        "changed": counts["changed"],
+        "improved": counts["improved"],
+        "accepted": counts["accepted"],
+        "ignored": counts["ignored"],
+        "neutral": counts["neutral"],
+        "missing": counts["missing"],
+    }
     return {
         "version": "0.1",
-        "summary": {
-            "cases": len(diffs),
-            "regression": counts["regression"],
-            "changed": counts["changed"],
-            "improved": counts["improved"],
-            "accepted": counts["accepted"],
-            "ignored": counts["ignored"],
-            "neutral": counts["neutral"],
-            "missing": counts["missing"],
-        },
+        "summary": summary,
+        "decision": summarize_decision(summary),
         "diffs": [diff.to_dict() for diff in diffs],
     }
 
@@ -247,6 +249,13 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
         f"  MISSING    {summary['missing']:>3}",
         "",
     ]
+    decision = result.get("decision")
+    if isinstance(decision, dict):
+        confidence = str(decision.get("confidence") or "").upper()
+        action = str(decision.get("recommended_action") or "")
+        if confidence and action:
+            lines.append(f"Confidence: {confidence}  |  Recommended action: {action}")
+            lines.append("")
 
     for status in ("regression", "changed", "improved", "accepted", "ignored", "missing"):
         matching = [item for item in result["diffs"] if item["status"] == status]
@@ -260,6 +269,49 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
         lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def summarize_decision(summary: dict[str, Any]) -> dict[str, Any]:
+    cases = _summary_count(summary, "cases")
+    regression = _summary_count(summary, "regression")
+    missing = _summary_count(summary, "missing")
+    changed = _summary_count(summary, "changed")
+    improved = _summary_count(summary, "improved")
+
+    if cases == 0:
+        return {
+            "confidence": "low",
+            "recommended_action": "collect baseline cases before relying on redline",
+            "rationale": ["suite has no cases"],
+        }
+    if regression or missing:
+        rationale = []
+        if regression:
+            rationale.append(f"{regression} regression case(s)")
+        if missing:
+            rationale.append(f"{missing} missing candidate output(s)")
+        return {
+            "confidence": "high",
+            "recommended_action": "fix blocking cases before shipping",
+            "rationale": rationale,
+        }
+    if changed:
+        return {
+            "confidence": "medium",
+            "recommended_action": "review changed cases before shipping",
+            "rationale": [f"{changed} changed case(s) need human review"],
+        }
+    if improved:
+        return {
+            "confidence": "high",
+            "recommended_action": "ship candidate after reviewing improvements",
+            "rationale": [f"{improved} improved case(s), no blocking cases"],
+        }
+    return {
+        "confidence": "high",
+        "recommended_action": "ship candidate; no blocking changes detected",
+        "rationale": ["no regressions, missing outputs, or unreviewed changes"],
+    }
 
 
 def _index_by_prompt(records: list[LogRecord]) -> dict[str, list[LogRecord]]:
@@ -354,6 +406,15 @@ def _content_reason(baseline_text: str | None, candidate_text: str | None) -> st
     if ratio < 0.85:
         return f"content changed substantially: similarity {ratio:.2f}"
     return None
+
+
+def _summary_count(summary: dict[str, Any], key: str) -> int:
+    value = summary.get(key, 0)
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    return int(value) if isinstance(value, str) and value.isdigit() else 0
 
 
 def _preview(text: str, limit: int = 84) -> str:

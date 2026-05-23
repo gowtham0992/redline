@@ -624,6 +624,7 @@ def _run_metadata(
         "suite": suite_path,
         "replay": replay,
         "summary": result.get("summary", {}),
+        "decision": result.get("decision", {}),
     }
     if candidate_path:
         metadata["candidate"] = candidate_path

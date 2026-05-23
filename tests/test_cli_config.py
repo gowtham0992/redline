@@ -135,6 +135,7 @@ class CliConfigTests(unittest.TestCase):
                 self.assertEqual(metadata["replay"]["command"], replay)
                 self.assertEqual(metadata["replay"]["timeout_seconds"], 3.5)
                 self.assertEqual(metadata["summary"]["neutral"], 1)
+                self.assertEqual(metadata["decision"]["confidence"], "high")
             finally:
                 os.chdir(previous)
 

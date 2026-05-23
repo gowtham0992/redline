@@ -18,6 +18,10 @@ class ReportTests(unittest.TestCase):
                 "neutral": 0,
                 "missing": 0,
             },
+            "decision": {
+                "confidence": "high",
+                "recommended_action": "fix blocking cases before shipping",
+            },
             "diffs": [
                 {
                     "case_id": "case_001",
@@ -37,6 +41,8 @@ class ReportTests(unittest.TestCase):
 
         self.assertIn("# redline eval", report)
         self.assertIn("| Regression | 1 |", report)
+        self.assertIn("**Confidence:** HIGH", report)
+        self.assertIn("**Recommended action:** fix blocking cases before shipping", report)
         self.assertIn("candidate lost valid JSON format", report)
         self.assertIn("Source: `baseline.jsonl:12`", report)
         self.assertIn("Cluster: `structured_json|json|short`", report)

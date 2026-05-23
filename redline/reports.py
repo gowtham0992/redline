@@ -20,6 +20,15 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
         f"| Missing | {summary.get('missing', 0)} |",
         "",
     ]
+    decision = result.get("decision")
+    if isinstance(decision, dict):
+        confidence = str(decision.get("confidence") or "").upper()
+        action = str(decision.get("recommended_action") or "")
+        if confidence and action:
+            lines.append(f"**Confidence:** {confidence}")
+            lines.append("")
+            lines.append(f"**Recommended action:** {action}")
+            lines.append("")
 
     for status in ("regression", "changed", "improved", "accepted", "ignored", "missing", "neutral"):
         matching = [item for item in result["diffs"] if item["status"] == status]

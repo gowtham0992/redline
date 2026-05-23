@@ -173,6 +173,13 @@ python -m redline eval --prompt prompts/v2.txt
 Prompt templates support `{prompt}`, `{case_id}`, `{source_line}`, `{cluster}`,
 and `{baseline_response}`.
 
+Diff and eval output includes a decision line so the run answers the shipping
+question directly:
+
+```text
+Confidence: HIGH  |  Recommended action: fix blocking cases before shipping
+```
+
 Save replayed candidate outputs for debugging or a later `diff` run:
 
 ```bash

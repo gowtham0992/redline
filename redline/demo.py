@@ -101,6 +101,7 @@ def run_demo(output_dir: str | Path = ".redline/demo") -> dict[str, Any]:
         "report_json": str(report_json_path),
         "report_markdown": str(report_md_path),
         "summary": result["summary"],
+        "decision": result["decision"],
         "diff": result,
     }
 
