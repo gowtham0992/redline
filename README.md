@@ -51,6 +51,8 @@ local gate:
 bash scripts/release_check.sh
 ```
 
+The full public-alpha checklist lives in [docs/release.md](docs/release.md).
+
 Create a project config:
 
 ```bash

@@ -44,6 +44,15 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline demo --compact", script)
         self.assertIn("redline doctor", script)
 
+    def test_release_guide_documents_package_gate(self) -> None:
+        guide = Path("docs/release.md").read_text(encoding="utf-8")
+
+        self.assertIn("bash scripts/release_check.sh", guide)
+        self.assertIn("pyproject.toml", guide)
+        self.assertIn("redline/__init__.py", guide)
+        self.assertIn("CHANGELOG.md", guide)
+        self.assertIn("redline demo --compact", guide)
+
     def test_pyproject_includes_runner_templates(self) -> None:
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 
