@@ -110,3 +110,6 @@ numbers, and other high-signal behavioral changes.
 
 The next iterations should add rubric capture, LLM judging for ambiguous cases,
 and CI output.
+
+See [examples/github-action.yml](examples/github-action.yml) for a GitHub
+Actions starting point.
