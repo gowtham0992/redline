@@ -160,6 +160,10 @@ def classify_change(
     if lost_numbers:
         regression_reasons.append(f"candidate missing numbers: {', '.join(lost_numbers[:8])}")
 
+    lost_urls = sorted(set(baseline.get("urls") or []) - set(candidate.get("urls") or []))
+    if lost_urls:
+        regression_reasons.append(f"candidate missing URLs: {', '.join(lost_urls[:4])}")
+
     lost_entities = sorted(set(baseline.get("entities") or []) - set(candidate.get("entities") or []))
     if lost_entities:
         regression_reasons.append(f"candidate missing entities: {', '.join(lost_entities[:8])}")

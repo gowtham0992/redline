@@ -60,6 +60,20 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(status, "regression")
         self.assertTrue(any("candidate missing entities" in reason for reason in reasons))
 
+    def test_classify_missing_url_as_regression(self) -> None:
+        baseline = extract_features("Docs: https://example.com/docs").to_dict()
+        candidate = extract_features("Docs are available online.").to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text="Docs: https://example.com/docs",
+            candidate_text="Docs are available online.",
+        )
+
+        self.assertEqual(status, "regression")
+        self.assertTrue(any("candidate missing URLs" in reason for reason in reasons))
+
     def test_compare_detects_missing_candidate(self) -> None:
         suite = build_suite(
             [LogRecord(1, "What is the refund window?", "30 days", {})],

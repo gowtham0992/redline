@@ -56,6 +56,7 @@ class TextFeatures:
     has_markdown_table: bool
     refusal: bool
     url_count: int
+    urls: tuple[str, ...]
     numbers: tuple[str, ...]
     entities: tuple[str, ...]
     shape: str
@@ -76,6 +77,7 @@ class TextFeatures:
             "has_markdown_table": self.has_markdown_table,
             "refusal": self.refusal,
             "url_count": self.url_count,
+            "urls": list(self.urls),
             "numbers": list(self.numbers),
             "entities": list(self.entities),
             "shape": self.shape,
@@ -106,6 +108,7 @@ def extract_features(text: str) -> TextFeatures:
     has_numbered = bool(_NUMBERED_RE.search(text))
     has_table = _looks_like_markdown_table(text)
     refusal = bool(_REFUSAL_RE.search(text))
+    urls = tuple(_URL_RE.findall(text))
     numbers = tuple(_NUMBER_RE.findall(text))
     entities = _entities(text)
     length_bucket = _length_bucket(len(words))
@@ -132,7 +135,8 @@ def extract_features(text: str) -> TextFeatures:
         has_numbered_list=has_numbered,
         has_markdown_table=has_table,
         refusal=refusal,
-        url_count=len(_URL_RE.findall(text)),
+        url_count=len(urls),
+        urls=urls,
         numbers=numbers,
         entities=entities,
         shape=shape,
