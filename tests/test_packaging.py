@@ -16,6 +16,12 @@ class PackagingTests(unittest.TestCase):
         manifest = Path("MANIFEST.in").read_text(encoding="utf-8")
 
         self.assertIn("redline py.typed", manifest)
+        self.assertIn("redline/runner_templates", manifest)
+
+    def test_pyproject_includes_runner_templates(self) -> None:
+        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+        self.assertIn("runner_templates/*", pyproject["tool"]["setuptools"]["package-data"]["redline"])
 
 
 if __name__ == "__main__":

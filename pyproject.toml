@@ -40,7 +40,7 @@ redline = "redline.cli:main"
 include = ["redline*"]
 
 [tool.setuptools.package-data]
-redline = ["py.typed"]
+redline = ["py.typed", "runner_templates/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

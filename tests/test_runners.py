@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.runners import format_runner_adapters, runner_adapters
+from redline.runners import copy_runner_adapter, format_runner_adapters, runner_adapters
 
 
 class RunnerTests(unittest.TestCase):
@@ -27,6 +27,36 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("redline runners", output)
         self.assertIn("./runners/openai_runner.sh", output)
         self.assertIn("python runners/http_runner.py", output)
+
+    def test_packaged_runner_templates_match_repo_runners(self) -> None:
+        for adapter in runner_adapters():
+            repo_file = Path(adapter["file"])
+            template_file = Path("redline") / "runner_templates" / adapter["template"]
+
+            self.assertEqual(
+                template_file.read_text(encoding="utf-8"),
+                repo_file.read_text(encoding="utf-8"),
+            )
+
+    def test_copy_runner_adapter_writes_executable_template(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "runners" / "openai_runner.sh"
+
+            result = copy_runner_adapter("openai", output=str(output))
+
+            self.assertEqual(result["id"], "openai")
+            self.assertEqual(result["path"], str(output))
+            self.assertTrue(output.exists())
+            self.assertIn("OPENAI_API_KEY", output.read_text(encoding="utf-8"))
+            self.assertTrue(output.stat().st_mode & 0o111)
+
+    def test_copy_runner_adapter_refuses_existing_without_force(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "openai_runner.sh"
+            output.write_text("existing\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "already exists"):
+                copy_runner_adapter("openai", output=str(output))
 
     def test_openai_runner_fails_clearly_without_api_key(self) -> None:
         runner = Path("runners/openai_runner.sh")

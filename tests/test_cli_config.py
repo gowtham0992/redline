@@ -32,6 +32,20 @@ class CliConfigTests(unittest.TestCase):
         self.assertIn("OpenAI direct", text)
         self.assertIn("./runners/openai_runner.sh", text)
 
+    def test_runners_command_can_copy_adapter(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(["runners", "--copy", "openai", "--out", str(root / "openai.sh")]),
+                    0,
+                )
+
+            self.assertTrue((root / "openai.sh").exists())
+            self.assertIn("Replay:", output.getvalue())
+
     def test_init_can_write_github_action_workflow(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

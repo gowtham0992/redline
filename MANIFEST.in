@@ -4,3 +4,4 @@ include CHANGELOG.md
 include redline.schema.json
 recursive-include examples *.jsonl *.py *.yml
 recursive-include redline py.typed
+recursive-include redline/runner_templates *.py *.sh

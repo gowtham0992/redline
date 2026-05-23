@@ -62,6 +62,12 @@ Or list the available adapters from the CLI:
 redline runners
 ```
 
+Copy a runner into your project:
+
+```bash
+redline runners --copy openai
+```
+
 Store a default replay command in config:
 
 ```bash

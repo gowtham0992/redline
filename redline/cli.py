@@ -25,7 +25,7 @@ from .policy import parse_fail_on, should_fail
 from .reports import format_github_annotations, format_junit_report, format_markdown_report
 from .requirements import add_case_requirement, clear_case_requirements
 from .replay import read_prompt_template, replay_suite
-from .runners import format_runner_adapters, runner_adapters
+from .runners import copy_runner_adapter, format_runner_adapters, runner_adapters
 from .summary import format_suite_summary, suite_summary
 from .suite import build_suite
 from .validate import format_validation_report, validate_suite
@@ -79,6 +79,13 @@ def build_parser() -> argparse.ArgumentParser:
     demo_parser.set_defaults(func=cmd_demo)
 
     runners_parser = subparsers.add_parser("runners", help="list replay runner adapters")
+    runners_parser.add_argument(
+        "--copy",
+        choices=[adapter["id"] for adapter in runner_adapters()],
+        help="copy a runner adapter into this project",
+    )
+    runners_parser.add_argument("--out", help="output path for --copy; defaults to adapter file path")
+    runners_parser.add_argument("--force", action="store_true", help="overwrite existing output path for --copy")
     runners_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     runners_parser.set_defaults(func=cmd_runners)
 
@@ -300,6 +307,14 @@ def cmd_demo(args: argparse.Namespace) -> int:
 
 
 def cmd_runners(args: argparse.Namespace) -> int:
+    if args.copy:
+        result = copy_runner_adapter(args.copy, output=args.out, force=args.force)
+        if args.json:
+            print(json.dumps(result, indent=2, sort_keys=True))
+        else:
+            print(f"Wrote {Path(result['path'])}.")
+            print(f"Replay: {result['replay']}")
+        return 0
     adapters = runner_adapters()
     if args.json:
         print(json.dumps({"runners": adapters}, indent=2, sort_keys=True))
