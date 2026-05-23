@@ -6,8 +6,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .features import behavior_signature, extract_features
+from .features import TextFeatures, extract_features, input_intent
 from .io import LogRecord
+
+
+FeatureCache = dict[int, TextFeatures]
 
 
 def build_suite(
@@ -21,15 +24,20 @@ def build_suite(
     if max_cases < 1:
         raise ValueError("max_cases must be at least 1")
 
+    feature_cache: FeatureCache = {}
+    signatures: dict[int, str] = {}
     grouped: dict[str, list[LogRecord]] = defaultdict(list)
     for record in records:
-        grouped[behavior_signature(record.prompt, record.response)].append(record)
+        features = _record_features(record, feature_cache)
+        signature = _behavior_signature(record.prompt, features)
+        signatures[id(record)] = signature
+        grouped[signature].append(record)
 
-    selected = _select_representatives(grouped, max_cases)
+    selected = _select_representatives(grouped, max_cases, feature_cache)
     cases = []
     for index, record in enumerate(selected, 1):
-        signature = behavior_signature(record.prompt, record.response)
-        features = extract_features(record.response)
+        signature = signatures[id(record)]
+        features = _record_features(record, feature_cache)
         cases.append(
             {
                 "id": _case_id(record, index),
@@ -42,10 +50,10 @@ def build_suite(
         )
 
     clusters = []
-    for signature, group in sorted(grouped.items(), key=_group_rank):
+    for signature, group in sorted(grouped.items(), key=lambda item: _group_rank(item, feature_cache)):
         lengths = [len(record.response.split()) for record in group]
         high_variance = _is_high_variance(lengths)
-        failure_patterns = _failure_patterns(signature, group, high_variance)
+        failure_patterns = _failure_patterns(signature, group, high_variance, feature_cache)
         clusters.append(
             {
                 "signature": signature,
@@ -78,11 +86,12 @@ def build_suite(
 def _select_representatives(
     grouped: dict[str, list[LogRecord]],
     max_cases: int,
+    feature_cache: FeatureCache,
 ) -> list[LogRecord]:
     selected: list[LogRecord] = []
     selected_keys: set[tuple[str, int]] = set()
 
-    groups = sorted(grouped.items(), key=_group_rank)
+    groups = sorted(grouped.items(), key=lambda item: _group_rank(item, feature_cache))
     for signature, group in groups:
         record = _median_length_record(group)
         selected.append(record)
@@ -114,11 +123,11 @@ def _median_length_record(group: list[LogRecord]) -> LogRecord:
     return ranked[len(ranked) // 2]
 
 
-def _group_rank(item: tuple[str, list[LogRecord]]) -> tuple[int, int, str]:
+def _group_rank(item: tuple[str, list[LogRecord]], feature_cache: FeatureCache) -> tuple[int, int, str]:
     signature, group = item
     lengths = [len(record.response.split()) for record in group]
     high_variance = _is_high_variance(lengths)
-    risk = _cluster_risk(_failure_patterns(signature, group, high_variance))
+    risk = _cluster_risk(_failure_patterns(signature, group, high_variance, feature_cache))
     risk_rank = {"high": 0, "medium": 1, "low": 2}[risk]
     return risk_rank, -len(group), signature
 
@@ -142,8 +151,9 @@ def _failure_patterns(
     signature: str,
     group: list[LogRecord],
     high_variance: bool,
+    feature_cache: FeatureCache,
 ) -> list[str]:
-    features = [extract_features(record.response) for record in group]
+    features = [_record_features(record, feature_cache) for record in group]
     patterns = []
     intent = signature.split("|", 1)[0]
 
@@ -159,6 +169,24 @@ def _failure_patterns(
         patterns.append("high_length_variance")
 
     return patterns
+
+
+def _record_features(record: LogRecord, feature_cache: FeatureCache) -> TextFeatures:
+    key = id(record)
+    if key not in feature_cache:
+        feature_cache[key] = extract_features(record.response)
+    return feature_cache[key]
+
+
+def _behavior_signature(prompt: str, features: TextFeatures) -> str:
+    parts = [
+        input_intent(prompt),
+        features.shape,
+        features.length_bucket,
+    ]
+    if features.valid_json and features.json_type:
+        parts.append(f"json:{features.json_type}:{','.join(features.json_keys[:8])}")
+    return "|".join(parts)
 
 
 def _cluster_risk(failure_patterns: list[str]) -> str:

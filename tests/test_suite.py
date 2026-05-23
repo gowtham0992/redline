@@ -1,5 +1,7 @@
 import unittest
+from unittest.mock import patch
 
+from redline.features import extract_features
 from redline.io import LogRecord
 from redline.suite import build_suite
 
@@ -77,6 +79,18 @@ class SuiteTests(unittest.TestCase):
 
         self.assertEqual(suite["cases"][0]["prompt"], "Return JSON for Ada")
         self.assertEqual(suite["clusters"][0]["risk"], "high")
+
+    def test_build_suite_extracts_features_once_per_record(self) -> None:
+        records = [
+            LogRecord(1, "Return JSON for Ada", '{"name":"Ada"}', {}),
+            LogRecord(2, "Summarize in bullets", "- one\n- two", {}),
+            LogRecord(3, "Answer", "plain text", {}),
+        ]
+
+        with patch("redline.suite.extract_features", wraps=extract_features) as wrapped:
+            build_suite(records, source="memory", input_field="prompt", output_field="response")
+
+        self.assertEqual(wrapped.call_count, len(records))
 
 
 if __name__ == "__main__":
