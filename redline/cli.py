@@ -17,7 +17,7 @@ from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_
 from .policy import parse_fail_on, should_fail
 from .reports import format_junit_report, format_markdown_report
 from .requirements import add_case_requirement, clear_case_requirements
-from .replay import replay_suite
+from .replay import read_prompt_template, replay_suite
 from .summary import format_suite_summary, suite_summary
 from .suite import build_suite
 from .watch import collect_log, follow_log, format_watch_stats, watch_stats
@@ -134,6 +134,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--replay",
         help="command to run for each case; receives prompt on stdin unless argv contains {prompt}",
     )
+    eval_parser.add_argument("--prompt", help="prompt template file to render for each case")
     eval_parser.add_argument("--timeout", type=float, help="per-case timeout in seconds")
     eval_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     eval_parser.add_argument("--out-json", help="write machine-readable JSON report")
@@ -366,7 +367,14 @@ def cmd_eval(args: argparse.Namespace) -> int:
         raise ValueError("replay command required; pass --replay or set replay in redline.json")
     suite = read_json(suite_path)
     timeout_seconds = float(_config_value(args.timeout, config, "timeout_seconds", 30.0))
-    replay = replay_suite(suite, replay_command, timeout_seconds=timeout_seconds)
+    prompt_template = read_prompt_template(args.prompt) if args.prompt else None
+    replay = replay_suite(
+        suite,
+        replay_command,
+        timeout_seconds=timeout_seconds,
+        prompt_template=prompt_template,
+        prompt_path=args.prompt,
+    )
     candidate_out = args.candidate_out or _config_candidate_path(config)
     if candidate_out:
         write_jsonl(candidate_out, (record.raw for record in replay.records))

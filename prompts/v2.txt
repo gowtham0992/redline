@@ -1,0 +1,6 @@
+You are testing a candidate prompt with redline.
+
+Answer the user request exactly and preserve any required format.
+
+User request:
+{prompt}

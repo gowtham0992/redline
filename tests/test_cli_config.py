@@ -138,6 +138,55 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_eval_prompt_file_renders_case_prompt_for_configured_replay(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("runner.py").write_text(
+                    "import sys\nprint(sys.stdin.read())\n",
+                    encoding="utf-8",
+                )
+                replay = f"{sys.executable} runner.py"
+                Path("prompts").mkdir()
+                Path("prompts/v2.txt").write_text(
+                    "System: answer exactly.\nUser: {prompt}\n",
+                    encoding="utf-8",
+                )
+                Path("redline.json").write_text(
+                    json.dumps(
+                        {
+                            "suite": ".redline/suite.json",
+                            "replay": replay,
+                            "fail_on": "none",
+                            "runs": {
+                                "candidate": ".redline/runs/candidate.jsonl",
+                                "metadata": ".redline/runs/replay.json",
+                            },
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "hello", "response": "hello"}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
+                    self.assertEqual(main(["eval", "--prompt", "prompts/v2.txt"]), 0)
+
+                candidate = (root / ".redline" / "runs" / "candidate.jsonl").read_text(encoding="utf-8")
+                metadata = json.loads(
+                    (root / ".redline" / "runs" / "replay.json").read_text(encoding="utf-8")
+                )
+                self.assertIn('"prompt": "hello"', candidate)
+                self.assertIn('"rendered_prompt": "System: answer exactly.\\nUser: hello\\n"', candidate)
+                self.assertEqual(metadata["replay"]["prompt"], "prompts/v2.txt")
+            finally:
+                os.chdir(previous)
+
     def test_eval_timeout_flag_overrides_config_timeout(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -155,6 +155,15 @@ the prompt on stdin and should print the candidate response to stdout:
 python -m redline eval .redline/suite.json --replay "python examples/replay_candidate.py"
 ```
 
+Evaluate a changed prompt template with your configured replay command:
+
+```bash
+python -m redline eval --prompt prompts/v2.txt
+```
+
+Prompt templates support `{prompt}`, `{case_id}`, `{source_line}`, `{cluster}`,
+and `{baseline_response}`.
+
 Save replayed candidate outputs for debugging or a later `diff` run:
 
 ```bash
