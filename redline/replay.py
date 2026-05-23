@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shlex
 import subprocess
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -32,15 +33,24 @@ def replay_suite(
     records: list[LogRecord] = []
 
     for line_number, case in enumerate(suite.get("cases", []), 1):
+        case_id = str(case["id"])
         prompt = str(case["prompt"])
-        output = _run_replay(argv_template, prompt, timeout_seconds)
+        extra_env = {
+            "REDLINE_CASE_ID": case_id,
+            "REDLINE_SOURCE_LINE": str(case.get("source_line", "")),
+            "REDLINE_CLUSTER": str(case.get("cluster", "")),
+        }
+        try:
+            output = _run_replay(argv_template, prompt, timeout_seconds, extra_env)
+        except ValueError as exc:
+            raise ValueError(f"{case_id}: {exc}") from exc
         records.append(
             LogRecord(
                 line_number=line_number,
                 prompt=prompt,
                 response=output,
                 raw={
-                    "case_id": str(case["id"]),
+                    "case_id": case_id,
                     "prompt": prompt,
                     "response": output,
                 },
@@ -60,10 +70,17 @@ def _parse_command(command: str) -> list[str]:
     return argv
 
 
-def _run_replay(argv_template: list[str], prompt: str, timeout_seconds: float) -> str:
+def _run_replay(
+    argv_template: list[str],
+    prompt: str,
+    timeout_seconds: float,
+    extra_env: dict[str, str],
+) -> str:
     uses_placeholder = any("{prompt}" in arg for arg in argv_template)
     argv = [arg.replace("{prompt}", prompt) for arg in argv_template]
     stdin = None if uses_placeholder else prompt
+    env = os.environ.copy()
+    env.update(extra_env)
 
     try:
         completed = subprocess.run(
@@ -73,6 +90,7 @@ def _run_replay(argv_template: list[str], prompt: str, timeout_seconds: float) -
             capture_output=True,
             timeout=timeout_seconds,
             check=False,
+            env=env,
         )
     except FileNotFoundError as exc:
         raise ValueError(f"replay command not found: {argv[0]}") from exc

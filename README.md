@@ -88,6 +88,9 @@ If your command takes the prompt as an argument, use `{prompt}`:
 python -m redline eval .redline/suite.json --replay "my-prompt-runner {prompt}"
 ```
 
+Replay commands also receive `REDLINE_CASE_ID`, `REDLINE_SOURCE_LINE`, and
+`REDLINE_CLUSTER` as environment variables.
+
 The default JSONL fields are `prompt` and `response`. Override them when your
 logs use different names. Nested field paths are supported:
 

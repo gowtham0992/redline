@@ -55,6 +55,36 @@ class ReplayTests(unittest.TestCase):
 
         self.assertEqual(replay.records[0].response, "HELLO")
 
+    def test_replay_exposes_case_context_as_environment(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "hello", "hello", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        case_id = suite["cases"][0]["id"]
+
+        replay = replay_suite(
+            suite,
+            f"{sys.executable} -c \"import os; print(os.environ['REDLINE_CASE_ID'])\"",
+        )
+
+        self.assertEqual(replay.records[0].response, case_id)
+
+    def test_replay_error_includes_case_id(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "hello", "hello", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        case_id = suite["cases"][0]["id"]
+
+        with self.assertRaisesRegex(ValueError, case_id):
+            replay_suite(suite, f"{sys.executable} -c \"raise SystemExit(7)\"")
+
 
 if __name__ == "__main__":
     unittest.main()
