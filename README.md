@@ -14,6 +14,12 @@ Create a project config:
 python -m redline init
 ```
 
+Store a default replay command in config:
+
+```bash
+python -m redline init --replay "python examples/replay_candidate.py" --force
+```
+
 Generate a suite from baseline logs:
 
 ```bash

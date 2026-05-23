@@ -40,6 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--input-field", default="prompt", help="default JSONL input field")
     init_parser.add_argument("--output-field", default="response", help="default JSONL output field")
     init_parser.add_argument("--max-cases", type=int, default=42, help="default maximum suite cases")
+    init_parser.add_argument("--replay", help="default eval replay command")
     init_parser.add_argument("--force", action="store_true", help="overwrite an existing config file")
     init_parser.set_defaults(func=cmd_init)
 
@@ -88,7 +89,6 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     eval_parser.add_argument(
         "--replay",
-        required=True,
         help="command to run for each case; receives prompt on stdin unless argv contains {prompt}",
     )
     eval_parser.add_argument("--timeout", type=float, default=30.0, help="per-case timeout in seconds")
@@ -126,6 +126,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         input_field=args.input_field,
         output_field=args.output_field,
         max_cases=args.max_cases,
+        replay=args.replay,
         force=args.force,
     )
     write_json(args.config, config)
@@ -192,8 +193,11 @@ def cmd_diff(args: argparse.Namespace) -> int:
 def cmd_eval(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path = _suite_arg(args.suite, config)
+    replay_command = args.replay or _config_replay(config)
+    if not replay_command:
+        raise ValueError("replay command required; pass --replay or set replay in redline.json")
     suite = read_json(suite_path)
-    replay = replay_suite(suite, args.replay, timeout_seconds=args.timeout)
+    replay = replay_suite(suite, replay_command, timeout_seconds=args.timeout)
     candidate_out = args.candidate_out or _config_candidate_path(config)
     if candidate_out:
         write_jsonl(candidate_out, (record.raw for record in replay.records))
@@ -314,6 +318,13 @@ def _config_candidate_path(config: dict[str, object]) -> str | None:
     if not isinstance(runs, dict):
         return None
     value = runs.get("candidate")
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
+def _config_replay(config: dict[str, object]) -> str | None:
+    value = config.get("replay")
     if isinstance(value, str) and value:
         return value
     return None

@@ -15,8 +15,9 @@ def default_config(
     input_field: str = "prompt",
     output_field: str = "response",
     max_cases: int = 42,
+    replay: str | None = None,
 ) -> dict[str, Any]:
-    return {
+    config: dict[str, Any] = {
         "version": "0.1",
         "suite": ".redline/suite.json",
         "input_field": input_field,
@@ -31,6 +32,9 @@ def default_config(
             "candidate": ".redline/runs/candidate.jsonl",
         },
     }
+    if replay:
+        config["replay"] = replay
+    return config
 
 
 def create_config(
@@ -39,6 +43,7 @@ def create_config(
     input_field: str = "prompt",
     output_field: str = "response",
     max_cases: int = 42,
+    replay: str | None = None,
     force: bool = False,
 ) -> dict[str, Any]:
     target = Path(path)
@@ -50,6 +55,7 @@ def create_config(
         input_field=input_field,
         output_field=output_field,
         max_cases=max_cases,
+        replay=replay,
     )
 
 

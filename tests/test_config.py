@@ -29,11 +29,13 @@ class ConfigTests(unittest.TestCase):
             input_field="input",
             output_field="output",
             max_cases=12,
+            replay="python runner.py",
         )
 
         self.assertEqual(config["input_field"], "input")
         self.assertEqual(config["output_field"], "output")
         self.assertEqual(config["max_cases"], 12)
+        self.assertEqual(config["replay"], "python runner.py")
 
     def test_load_config_returns_empty_when_missing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
