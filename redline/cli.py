@@ -10,6 +10,7 @@ from .accept import accept_candidate_baseline, expected_case_ids
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
 from .config import DEFAULT_CONFIG_PATH, create_config, load_config
 from .diff import compare_suite_to_candidate, format_report
+from .doctor import doctor_report, format_doctor_report
 from .io import read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import parse_fail_on, should_fail
@@ -44,6 +45,11 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--replay", help="default eval replay command")
     init_parser.add_argument("--force", action="store_true", help="overwrite an existing config file")
     init_parser.set_defaults(func=cmd_init)
+
+    doctor_parser = subparsers.add_parser("doctor", help="check redline setup health")
+    doctor_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
+    doctor_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    doctor_parser.set_defaults(func=cmd_doctor)
 
     suite_parser = subparsers.add_parser("suite", help="generate a representative suite")
     suite_parser.add_argument("log", help="baseline JSONL file")
@@ -152,6 +158,29 @@ def cmd_init(args: argparse.Namespace) -> int:
     write_json(args.config, config)
     print(f"Wrote {Path(args.config)}.")
     return 0
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    suite_path = str(config.get("suite") or ".redline/suite.json")
+    suite = None
+    suite_error = None
+    if Path(suite_path).exists():
+        try:
+            suite = read_json(suite_path)
+        except ValueError as exc:
+            suite_error = str(exc)
+    report = doctor_report(
+        config_path=args.config,
+        config=config,
+        suite=suite,
+        suite_error=suite_error,
+    )
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        print(format_doctor_report(report), end="")
+    return 0 if report["errors"] == 0 else 1
 
 
 def cmd_suite(args: argparse.Namespace) -> int:

@@ -20,6 +20,12 @@ Store a default replay command in config:
 python -m redline init --replay "python examples/replay_candidate.py" --force
 ```
 
+Check local setup health:
+
+```bash
+python -m redline doctor
+```
+
 Generate a suite from baseline logs:
 
 ```bash
