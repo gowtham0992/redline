@@ -19,6 +19,7 @@ from .requirements import add_case_requirement, clear_case_requirements
 from .replay import replay_suite
 from .summary import format_suite_summary, suite_summary
 from .suite import build_suite
+from .watch import collect_log
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -52,6 +53,16 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     doctor_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     doctor_parser.set_defaults(func=cmd_doctor)
+
+    watch_parser = subparsers.add_parser("watch", help="collect prompt-response records from a JSONL log")
+    watch_parser.add_argument("--log", required=True, help="JSONL prompt-response log to collect")
+    watch_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
+    watch_parser.add_argument("--out", help="observed log output path")
+    watch_parser.add_argument("--input-field", help="JSONL input field")
+    watch_parser.add_argument("--output-field", help="JSONL output field")
+    watch_parser.add_argument("--replace", action="store_true", help="replace the observed log instead of appending")
+    watch_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    watch_parser.set_defaults(func=cmd_watch)
 
     suite_parser = subparsers.add_parser("suite", help="generate a representative suite")
     suite_parser.add_argument("log", help="baseline JSONL file")
@@ -195,6 +206,26 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     else:
         print(format_doctor_report(report), end="")
     return 0 if report["errors"] == 0 else 1
+
+
+def cmd_watch(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    input_field = str(_config_value(args.input_field, config, "input_field", "prompt"))
+    output_field = str(_config_value(args.output_field, config, "output_field", "response"))
+    output = args.out or _config_observed_log_path(config) or ".redline/logs/prompts.jsonl"
+    result = collect_log(
+        args.log,
+        output=output,
+        input_field=input_field,
+        output_field=output_field,
+        append=not args.replace,
+    )
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        print(f"Collected {result['records']} prompt-response pairs from {Path(args.log)}.")
+        print(f"{str(result['mode']).title()} {Path(str(result['output']))}.")
+    return 0
 
 
 def cmd_suite(args: argparse.Namespace) -> int:
@@ -456,6 +487,16 @@ def _config_report_path(config: dict[str, object], format_key: str, report_key: 
     if "{command}" in value:
         return value.replace("{command}", report_key)
     return value
+
+
+def _config_observed_log_path(config: dict[str, object]) -> str | None:
+    logs = config.get("logs")
+    if not isinstance(logs, dict):
+        return None
+    value = logs.get("observed")
+    if isinstance(value, str) and value:
+        return value
+    return None
 
 
 def _config_candidate_path(config: dict[str, object]) -> str | None:

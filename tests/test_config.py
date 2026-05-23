@@ -16,6 +16,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config["fail_on"], ["regression", "missing"])
         self.assertEqual(config["reports"]["json"], ".redline/reports/{command}.json")
         self.assertEqual(config["reports"]["junit"], ".redline/reports/{command}.xml")
+        self.assertEqual(config["logs"]["observed"], ".redline/logs/prompts.jsonl")
         self.assertEqual(config["runs"]["candidate"], ".redline/runs/candidate.jsonl")
         self.assertEqual(config["runs"]["metadata"], ".redline/runs/replay.json")
 

@@ -54,6 +54,38 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_watch_uses_configured_observed_log_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps(
+                        {
+                            "input_field": "input",
+                            "output_field": "output",
+                            "logs": {"observed": ".redline/logs/observed.jsonl"},
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("source.jsonl").write_text(
+                    '{"input": "hello", "output": "world"}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["watch", "--log", "source.jsonl", "--replace"]), 0)
+                    self.assertEqual(main(["suite", ".redline/logs/observed.jsonl"]), 0)
+
+                observed = root / ".redline" / "logs" / "observed.jsonl"
+                self.assertTrue(observed.exists())
+                self.assertIn('"source": "source.jsonl"', observed.read_text(encoding="utf-8"))
+                self.assertTrue((root / ".redline" / "suite.json").exists())
+            finally:
+                os.chdir(previous)
+
     def test_eval_uses_configured_replay_command(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

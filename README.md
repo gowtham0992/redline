@@ -32,10 +32,22 @@ Check local setup health:
 python -m redline doctor
 ```
 
+Collect prompt-response pairs from an existing log:
+
+```bash
+python -m redline watch --log examples/baseline.jsonl
+```
+
 Generate a suite from baseline logs:
 
 ```bash
 python -m redline suite examples/baseline.jsonl
+```
+
+Or generate it from the locally collected watch log:
+
+```bash
+python -m redline suite .redline/logs/prompts.jsonl
 ```
 
 List the generated cases and IDs:

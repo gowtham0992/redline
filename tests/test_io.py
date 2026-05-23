@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.io import read_jsonl_records, write_jsonl
+from redline.io import append_jsonl, read_jsonl_records, write_jsonl
 
 
 class IoTests(unittest.TestCase):
@@ -21,6 +21,16 @@ class IoTests(unittest.TestCase):
     def test_missing_jsonl_file_raises_value_error(self) -> None:
         with self.assertRaisesRegex(ValueError, "not found"):
             read_jsonl_records("missing.jsonl", "prompt", "response")
+
+    def test_append_jsonl_adds_rows_without_replacing_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "observed.jsonl"
+
+            write_jsonl(path, [{"prompt": "one", "response": "1"}])
+            append_jsonl(path, [{"prompt": "two", "response": "2"}])
+            records = read_jsonl_records(path, "prompt", "response")
+
+            self.assertEqual([record.prompt for record in records], ["one", "two"])
 
     def test_read_jsonl_records_supports_nested_field_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

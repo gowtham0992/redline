@@ -31,6 +31,9 @@ def default_config(
             "markdown": ".redline/reports/{command}.md",
             "junit": ".redline/reports/{command}.xml",
         },
+        "logs": {
+            "observed": ".redline/logs/prompts.jsonl",
+        },
         "runs": {
             "candidate": ".redline/runs/candidate.jsonl",
             "metadata": ".redline/runs/replay.json",
