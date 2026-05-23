@@ -12,7 +12,7 @@ class ConfigTests(unittest.TestCase):
 
         self.assertEqual(
             config["$schema"],
-            "https://raw.githubusercontent.com/gowtham0992/redline/main/redline.schema.json",
+            "https://raw.githubusercontent.com/gowtham0992/redline/develop/redline.schema.json",
         )
         self.assertEqual(config["suite"], "redline-suite.json")
         self.assertEqual(config["input_field"], "prompt")
