@@ -313,9 +313,12 @@ Optional judge commands are supported for ambiguous `changed` cases, but redline
 does not call any cloud model unless you explicitly configure that command. A
 `neutral` result means no high-signal change was detected by the configured
 checks; it should not be read as a proof that the text is identical.
+Entity and refusal checks are deliberately conservative so sentence starters,
+supportive apologies, and ordinary support-ticket words do not become noisy
+regression signals.
 
-The next iterations should add stronger built-in judge templates, richer config
-documentation, compact CI output modes, and release packaging.
+The next iterations should add stronger built-in judge templates, previous-run
+comparison, and release packaging.
 
 See [examples/github-action.yml](examples/github-action.yml) for a GitHub
 Actions starting point.

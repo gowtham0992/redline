@@ -66,6 +66,21 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(status, "regression")
         self.assertTrue(any("candidate missing entities" in reason for reason in reasons))
 
+    def test_classify_supportive_apology_is_not_new_refusal(self) -> None:
+        baseline = extract_features("Reset your password from account settings.").to_dict()
+        candidate_text = "I'm sorry you're experiencing this. Reset your password from account settings."
+        candidate = extract_features(candidate_text).to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text="Reset your password from account settings.",
+            candidate_text=candidate_text,
+        )
+
+        self.assertNotEqual(status, "regression")
+        self.assertFalse(any("candidate newly refuses" in reason for reason in reasons))
+
     def test_classify_missing_url_as_regression(self) -> None:
         baseline = extract_features("Docs: https://example.com/docs").to_dict()
         candidate = extract_features("Docs are available online.").to_dict()

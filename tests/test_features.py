@@ -5,17 +5,42 @@ from redline.features import extract_features
 
 class FeatureTests(unittest.TestCase):
     def test_extract_entities_keeps_names_and_acronyms(self) -> None:
-        features = extract_features("Route Ada Lovelace to ACME support.")
+        features = extract_features("Ada owns ACME support. Route Ada Lovelace to ACME support.")
 
+        self.assertIn("Ada", features.entities)
         self.assertIn("Ada Lovelace", features.entities)
         self.assertIn("ACME", features.entities)
         self.assertNotIn("Route", features.entities)
+
+    def test_extract_entities_ignores_sentence_starters_and_common_title_words(self) -> None:
+        features = extract_features("The customer should read Docs before opening a Ticket.")
+
+        self.assertNotIn("The", features.entities)
+        self.assertNotIn("Docs", features.entities)
+        self.assertNotIn("Ticket", features.entities)
 
     def test_extract_urls(self) -> None:
         features = extract_features("Read https://example.com/docs for details.")
 
         self.assertEqual(features.url_count, 1)
         self.assertEqual(features.urls, ("https://example.com/docs",))
+
+    def test_refusal_detection_ignores_supportive_apologies(self) -> None:
+        features = extract_features("I'm sorry you're experiencing this. Try resetting your password.")
+
+        self.assertFalse(features.refusal)
+        self.assertEqual(features.shape, "prose")
+
+    def test_refusal_detection_keeps_action_refusals(self) -> None:
+        features = extract_features("Sorry, but I can't provide that information.")
+
+        self.assertTrue(features.refusal)
+        self.assertEqual(features.shape, "refusal")
+
+    def test_refusal_detection_ignores_context_disclaimers(self) -> None:
+        features = extract_features("I don't have enough context to answer confidently.")
+
+        self.assertFalse(features.refusal)
 
 
 if __name__ == "__main__":

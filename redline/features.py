@@ -7,9 +7,17 @@ from typing import Any
 
 
 _REFUSAL_RE = re.compile(
-    r"\b("
-    r"as an ai|i can(?:not|'t)|i'?m unable|unable to|sorry|"
-    r"i do not have|i don't have|cannot provide|can't provide"
+    r"\b(?:"
+    r"as an ai(?: language model)?|"
+    r"(?:i\s+)?(?:can(?:not|'t)|cannot|can't)\s+"
+    r"(?:help|assist|answer|provide|comply|fulfill|complete|do|share|generate|create|write|access)|"
+    r"i'?m unable to\s+"
+    r"(?:help|assist|answer|provide|comply|fulfill|complete|do|share|generate|create|write|access)|"
+    r"unable to\s+"
+    r"(?:help|assist|answer|provide|comply|fulfill|complete|do|share|generate|create|write|access)|"
+    r"i do not have\s+(?:access|permission|the ability)|"
+    r"i don't have\s+(?:access|permission|the ability)|"
+    r"sorry,?\s+(?:but\s+)?(?:i\s+)?(?:can(?:not|'t)|cannot|can't|am unable)"
     r")\b",
     re.IGNORECASE,
 )
@@ -38,6 +46,49 @@ _ENTITY_STOPWORDS = {
     "Updated",
     "User",
     "Users",
+}
+_COMMON_TITLE_WORDS = {
+    "Account",
+    "Answer",
+    "Billing",
+    "Case",
+    "Classify",
+    "Details",
+    "Docs",
+    "Example",
+    "Issue",
+    "Login",
+    "Note",
+    "Policy",
+    "Prompt",
+    "Question",
+    "Read",
+    "Refund",
+    "Release",
+    "Response",
+    "Result",
+    "Security",
+    "Status",
+    "Support",
+    "Ticket",
+}
+_SENTENCE_START_ENTITY_VERBS = {
+    "asked",
+    "filed",
+    "handles",
+    "has",
+    "is",
+    "joined",
+    "left",
+    "needs",
+    "owns",
+    "reported",
+    "requested",
+    "requires",
+    "said",
+    "uses",
+    "works",
+    "wrote",
 }
 
 
@@ -226,11 +277,45 @@ def _looks_like_markdown_table(text: str) -> bool:
 
 def _entities(text: str) -> tuple[str, ...]:
     entities = set()
-    for match in _ENTITY_RE.findall(text):
-        words = match.split()
+    for match in _ENTITY_RE.finditer(text):
+        words = match.group(0).split()
         while len(words) > 1 and words[0] in _ENTITY_STOPWORDS:
             words = words[1:]
         entity = " ".join(words)
-        if entity not in _ENTITY_STOPWORDS:
+        if _keep_entity(entity, text, match.start(), match.end()):
             entities.add(entity)
     return tuple(sorted(entities))
+
+
+def _keep_entity(entity: str, text: str, start: int, end: int) -> bool:
+    if not entity or entity in _ENTITY_STOPWORDS:
+        return False
+    if _is_acronym(entity):
+        return True
+
+    words = entity.split()
+    if len(words) > 1:
+        return any(
+            word not in _ENTITY_STOPWORDS and word not in _COMMON_TITLE_WORDS
+            for word in words
+        )
+
+    if entity in _COMMON_TITLE_WORDS:
+        return False
+    if not _is_sentence_start(text, start):
+        return True
+    return _next_word(text, end).lower() in _SENTENCE_START_ENTITY_VERBS
+
+
+def _is_acronym(value: str) -> bool:
+    return bool(re.fullmatch(r"[A-Z]{2,}(?:-[A-Z0-9]+)*", value))
+
+
+def _is_sentence_start(text: str, start: int) -> bool:
+    prefix = text[:start].rstrip()
+    return not prefix or prefix[-1] in ".!?\n"
+
+
+def _next_word(text: str, end: int) -> str:
+    match = re.search(r"\b([A-Za-z]+)\b", text[end:])
+    return match.group(1) if match else ""
