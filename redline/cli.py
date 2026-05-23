@@ -118,6 +118,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     demo_parser = subparsers.add_parser("demo", help="run a first-use prompt regression demo")
     demo_parser.add_argument("--out", default=".redline/demo", help="demo output directory")
+    demo_parser.add_argument(
+        "--public",
+        action="store_true",
+        help="run the public-pattern dogfood fixture that works from any install",
+    )
     demo_parser.add_argument("--compact", action="store_true", help="print compact one-line-per-case output")
     demo_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     demo_parser.set_defaults(func=cmd_demo)
@@ -383,7 +388,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 
 def cmd_demo(args: argparse.Namespace) -> int:
-    result = run_demo(args.out)
+    result = run_demo(args.out, public=args.public)
     if args.json:
         payload = {key: value for key, value in result.items() if key != "diff"}
         print(json.dumps(payload, indent=2, sort_keys=True))

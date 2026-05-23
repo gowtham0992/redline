@@ -25,13 +25,15 @@ Run the first five minutes exactly like a new user. Use the full dogfood pass in
 ```bash
 python -m pip install "git+https://github.com/gowtham0992/redline.git@develop"
 redline demo
+redline demo --public --compact
 redline runners
 redline init --runner stdio --copy-runner
 redline doctor
 ```
 
 Confirm the demo ends with actionable next steps and catches the intentional
-support-agent regressions.
+support-agent regressions. Confirm the public-pattern proof works from the
+installed package without relying on repo-local `examples/` paths.
 
 ## Tag
 

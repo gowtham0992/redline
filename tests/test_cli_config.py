@@ -47,6 +47,25 @@ class CliConfigTests(unittest.TestCase):
             self.assertIn("redline demo: cases=5 regression=4", text)
             self.assertIn("REGRESSION", text)
 
+    def test_demo_command_can_run_public_fixture_from_any_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                output = io.StringIO()
+
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["demo", "--public", "--compact"]), 0)
+
+                text = output.getvalue()
+                self.assertIn("redline public dogfood: cases=10 regression=10", text)
+                self.assertIn("candidate lost valid JSON format", text)
+                self.assertTrue((root / ".redline" / "demo" / "public_baseline.jsonl").exists())
+                self.assertTrue((root / ".redline" / "demo" / "public_candidate.jsonl").exists())
+            finally:
+                os.chdir(previous)
+
     def test_runners_command_lists_adapter_commands(self) -> None:
         output = io.StringIO()
 

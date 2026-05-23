@@ -31,29 +31,29 @@ For a GIF-friendly terminal view:
 redline demo --compact
 ```
 
+Run the larger public-pattern proof from any install:
+
+```bash
+redline demo --public --compact
+```
+
 To record the public demo from a repeatable script:
 
 ```bash
 bash scripts/demo_terminal.sh
 ```
 
-For a larger dogfood log that exercises JSON, refusal, table, code, numbered
-list, empty-output, and entity-loss regressions:
+From a repo checkout, the raw dogfood fixtures are also available as JSONL:
 
 ```bash
 python -m redline suite examples/dogfood_baseline.jsonl --out /tmp/redline-dogfood-suite.json --max-cases 20
 python -m redline diff /tmp/redline-dogfood-suite.json examples/dogfood_candidate.jsonl --compact --fail-on none
-```
-
-For a launch-safe public dogfood pass shaped after public instruction and chat
-dataset patterns:
-
-```bash
 python -m redline suite examples/public_dogfood_baseline.jsonl --out /tmp/redline-public-suite.json --all-cases
 python -m redline diff /tmp/redline-public-suite.json examples/public_dogfood_candidate.jsonl --compact --fail-on none
 ```
 
-The public fixture is synthetic and documented in
+The public fixture is synthetic, shaped after public instruction/chat dataset
+patterns, and documented in
 [examples/public_dogfood_sources.md](examples/public_dogfood_sources.md).
 
 For AI-assistant session dogfood, use the prompt set in

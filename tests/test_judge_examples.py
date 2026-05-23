@@ -45,7 +45,7 @@ class JudgeExampleTests(unittest.TestCase):
         self.assertTrue(script.exists())
         self.assertTrue(script.stat().st_mode & 0o111)
         self.assertIn("ANTHROPIC_JUDGE_MODEL", script.read_text(encoding="utf-8"))
-        self.assertIn("examples *.jsonl *.py *.sh *.yml", manifest)
+        self.assertIn("examples *.jsonl *.md *.py *.sh *.yml", manifest)
 
     def test_openai_judge_template_is_executable_and_packaged(self) -> None:
         script = Path("examples/openai_judge.sh")
@@ -54,7 +54,7 @@ class JudgeExampleTests(unittest.TestCase):
         self.assertTrue(script.exists())
         self.assertTrue(script.stat().st_mode & 0o111)
         self.assertIn("OPENAI_JUDGE_MODEL", script.read_text(encoding="utf-8"))
-        self.assertIn("examples *.jsonl *.py *.sh *.yml", manifest)
+        self.assertIn("examples *.jsonl *.md *.py *.sh *.yml", manifest)
 
     def test_litellm_judge_template_is_executable_and_packaged(self) -> None:
         script = Path("examples/litellm_judge.sh")
@@ -65,7 +65,7 @@ class JudgeExampleTests(unittest.TestCase):
         content = script.read_text(encoding="utf-8")
         self.assertIn("LITELLM_JUDGE_MODEL", content)
         self.assertIn("/v1/chat/completions", content)
-        self.assertIn("examples *.jsonl *.py *.sh *.yml", manifest)
+        self.assertIn("examples *.jsonl *.md *.py *.sh *.yml", manifest)
 
 
 if __name__ == "__main__":

@@ -63,18 +63,106 @@ User request:
 {prompt}
 """
 
+PUBLIC_DEMO_BASELINE = [
+    {
+        "prompt": "Extract the support request into JSON with keys category, urgency, owner, and next_action: Maya Chen reports that invoice INV-7788 was charged twice after upgrading to Team.",
+        "response": '{"category":"billing","urgency":"high","owner":"Billing Ops","next_action":"review duplicate charge on invoice INV-7788 for Maya Chen"}',
+    },
+    {
+        "prompt": "Summarize rollout risk as a Markdown table with columns Risk, Evidence, Owner, and Deadline: missing rollback plan; canary errors rose to 7%; owner Platform ML; deadline June 4.",
+        "response": "| Risk | Evidence | Owner | Deadline |\n| --- | --- | --- | --- |\n| Missing rollback plan | Canary errors rose to 7% | Platform ML | June 4 |",
+    },
+    {
+        "prompt": "Write a Python function normalize_ticket_id that strips whitespace and uppercases the value. Return only a fenced code block.",
+        "response": "```python\ndef normalize_ticket_id(value: str) -> str:\n    return value.strip().upper()\n```",
+    },
+    {
+        "prompt": "Give a four-step numbered checklist for rotating an API key. Include rollback owner Security Ops.",
+        "response": "1. Create a replacement API key in the provider console.\n2. Deploy the new key to the service secret store.\n3. Verify successful requests for the checkout worker.\n4. Roll back through Security Ops if error rates increase.",
+    },
+    {
+        "prompt": "Answer a customer asking about the refund policy. Include refund window 14 days, seat cap 3, and URL https://example.com/policy/refunds.",
+        "response": "You can request a refund within 14 days if the workspace has 3 or fewer active seats. Policy: https://example.com/policy/refunds",
+    },
+    {
+        "prompt": "Give safe high-level steps for preparing for a SOC 2 evidence review. Do not ask for confidential data.",
+        "response": "1. Confirm the control list and evidence owners.\n2. Export non-sensitive evidence inventories.\n3. Check that access reviews, change logs, and vendor reviews are current.\n4. Schedule gaps with the compliance lead before the audit window.",
+    },
+    {
+        "prompt": "Summarize account health for Northstar Labs. Include renewal date January 15, CSM Omar Reyes, ARR $82,000, and risk medium.",
+        "response": "Northstar Labs has medium renewal risk. Renewal is January 15, ARR is $82,000, and Omar Reyes is the CSM.",
+    },
+    {
+        "prompt": "Draft two bullet action items after a failed data export. Include owner Data Platform, customer impact 19 blocked analysts, and deadline May 28.",
+        "response": "- Owner: Data Platform; unblock 19 analysts by replaying the failed export jobs.\n- Deadline: May 28; send customer-facing status after replay completes.",
+    },
+    {
+        "prompt": "Return a JSON array of exactly three routing tags for a login bug affecting SSO.",
+        "response": '["login","sso","urgent"]',
+    },
+    {
+        "prompt": "Extract action items from the launch review. Use bullets and include owners Ravi and Mei with due dates May 28 and June 2.",
+        "response": "- Ravi: publish the launch-readiness dashboard by May 28.\n- Mei: finish enterprise customer follow-up by June 2.",
+    },
+]
 
-def run_demo(output_dir: str | Path = ".redline/demo") -> dict[str, Any]:
+PUBLIC_DEMO_CANDIDATE = [
+    {
+        "prompt": "Extract the support request into JSON with keys category, urgency, owner, and next_action: Maya Chen reports that invoice INV-7788 was charged twice after upgrading to Team.",
+        "response": "This is a billing issue and someone should review the duplicate charge.",
+    },
+    {
+        "prompt": "Summarize rollout risk as a Markdown table with columns Risk, Evidence, Owner, and Deadline: missing rollback plan; canary errors rose to 7%; owner Platform ML; deadline June 4.",
+        "response": "The rollout risk is the missing rollback plan. Platform ML should handle it by June 4.",
+    },
+    {
+        "prompt": "Write a Python function normalize_ticket_id that strips whitespace and uppercases the value. Return only a fenced code block.",
+        "response": "def normalize_ticket_id(value):\n    return value.strip().upper()",
+    },
+    {
+        "prompt": "Give a four-step numbered checklist for rotating an API key. Include rollback owner Security Ops.",
+        "response": "- Create a new key.\n- Update the service.\n- Delete the old key.",
+    },
+    {
+        "prompt": "Answer a customer asking about the refund policy. Include refund window 14 days, seat cap 3, and URL https://example.com/policy/refunds.",
+        "response": "Refunds may be available for small workspaces. See the billing policy.",
+    },
+    {
+        "prompt": "Give safe high-level steps for preparing for a SOC 2 evidence review. Do not ask for confidential data.",
+        "response": "Sorry, I can't help with compliance reviews.",
+    },
+    {
+        "prompt": "Summarize account health for Northstar Labs. Include renewal date January 15, CSM Omar Reyes, ARR $82,000, and risk medium.",
+        "response": "The account has a medium renewal risk and should get a CSM follow-up.",
+    },
+    {
+        "prompt": "Draft two bullet action items after a failed data export. Include owner Data Platform, customer impact 19 blocked analysts, and deadline May 28.",
+        "response": "",
+    },
+    {
+        "prompt": "Return a JSON array of exactly three routing tags for a login bug affecting SSO.",
+        "response": "login, sso, urgent",
+    },
+    {
+        "prompt": "Extract action items from the launch review. Use bullets and include owners Ravi and Mei with due dates May 28 and June 2.",
+        "response": "Publish the dashboard and finish enterprise follow-up soon.",
+    },
+]
+
+
+def run_demo(output_dir: str | Path = ".redline/demo", *, public: bool = False) -> dict[str, Any]:
     root = Path(output_dir)
-    baseline_path = root / "baseline.jsonl"
-    candidate_path = root / "candidate.jsonl"
+    baseline_path = root / ("public_baseline.jsonl" if public else "baseline.jsonl")
+    candidate_path = root / ("public_candidate.jsonl" if public else "candidate.jsonl")
     prompt_path = root / "prompts" / "v2.txt"
-    suite_path = root / "suite.json"
-    report_json_path = root / "reports" / "diff.json"
-    report_md_path = root / "reports" / "diff.md"
+    suite_path = root / ("public_suite.json" if public else "suite.json")
+    report_json_path = root / "reports" / ("public_diff.json" if public else "diff.json")
+    report_md_path = root / "reports" / ("public_diff.md" if public else "diff.md")
+    baseline_rows = PUBLIC_DEMO_BASELINE if public else DEMO_BASELINE
+    candidate_rows = PUBLIC_DEMO_CANDIDATE if public else DEMO_CANDIDATE
 
-    write_jsonl(baseline_path, DEMO_BASELINE)
-    write_jsonl(candidate_path, DEMO_CANDIDATE)
+    write_jsonl(baseline_path, baseline_rows)
+    write_jsonl(candidate_path, candidate_rows)
     write_text(prompt_path, DEMO_PROMPT)
 
     baseline = read_jsonl_records(baseline_path, "prompt", "response")
@@ -84,15 +172,28 @@ def run_demo(output_dir: str | Path = ".redline/demo") -> dict[str, Any]:
         input_field="prompt",
         output_field="response",
         max_cases=42,
+        all_cases=public,
     )
     write_json(suite_path, suite)
 
     candidate = read_jsonl_records(candidate_path, "prompt", "response")
     result = compare_suite_to_candidate(suite, candidate)
     write_json(report_json_path, result)
-    write_text(report_md_path, format_markdown_report(result, title="redline demo"))
+    title = "redline public dogfood" if public else "redline demo"
+    write_text(report_md_path, format_markdown_report(result, title=title))
 
     return {
+        "title": title,
+        "description": (
+            "Generated a public-pattern regression fixture."
+            if public
+            else "Generated a local support-agent regression demo."
+        ),
+        "scenario": (
+            "A candidate model keeps answers short but drops required structure, dates, URLs, and owners."
+            if public
+            else "A shorter candidate prompt sounds cleaner but drops required production details."
+        ),
         "output_dir": str(root),
         "baseline": str(baseline_path),
         "candidate": str(candidate_path),
@@ -103,24 +204,26 @@ def run_demo(output_dir: str | Path = ".redline/demo") -> dict[str, Any]:
         "summary": result["summary"],
         "decision": result["decision"],
         "diff": result,
+        "public": public,
     }
 
 
 def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
     report = (
-        format_compact_report(result["diff"], title="redline demo")
+        format_compact_report(result["diff"], title=result["title"])
         if compact
-        else format_report(result["diff"], title="redline demo")
+        else format_report(result["diff"], title=result["title"])
     )
+    history_label = "public-dogfood" if result.get("public") else "demo"
     history_command = (
-        f"redline history {result['report_json']} --label demo "
+        f"redline history {result['report_json']} --label {history_label} "
         "--out .redline/history.jsonl --out-md .redline/history.md"
     )
     lines = [
-        "redline demo",
+        result["title"],
         "",
-        "Generated a local support-agent regression demo.",
-        "Scenario: a shorter candidate prompt sounds cleaner but drops required production details.",
+        result["description"],
+        f"Scenario: {result['scenario']}",
         f"Baseline log: {result['baseline']}",
         f"Candidate log: {result['candidate']}",
         f"Prompt file:   {result['prompt']}",
@@ -138,4 +241,6 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
         "- Build a real suite: redline suite path/to/baseline.jsonl --out redline-suite.json",
         "- Check setup before CI: redline doctor --strict",
     ]
+    if not result.get("public"):
+        lines.insert(-2, "- Run public proof from any install: redline demo --public --compact")
     return "\n".join(lines).rstrip() + "\n"

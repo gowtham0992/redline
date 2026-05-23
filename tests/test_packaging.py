@@ -32,6 +32,7 @@ class PackagingTests(unittest.TestCase):
 
         self.assertIn("redline py.typed", manifest)
         self.assertIn("redline/runner_templates", manifest)
+        self.assertIn("examples *.jsonl *.md", manifest)
         self.assertIn("scripts *.sh", manifest)
 
     def test_shell_scripts_are_executable(self) -> None:
@@ -63,6 +64,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline --version", script)
         self.assertIn("$ redline\\n", script)
         self.assertIn("redline demo --compact", script)
+        self.assertIn("redline demo --public --compact", script)
         self.assertIn("redline history .redline/demo/reports/diff.json", script)
         self.assertIn("--out-md history.md", script)
         self.assertIn("--github-summary", script)
@@ -90,6 +92,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline/__init__.py", guide)
         self.assertIn("CHANGELOG.md", guide)
         self.assertIn("redline demo --compact", guide)
+        self.assertIn("redline demo --public --compact", guide)
         self.assertIn("redline init --runner stdio --copy-runner", guide)
 
     def test_changelog_mentions_release_ready_workflows(self) -> None:
@@ -105,6 +108,7 @@ class PackagingTests(unittest.TestCase):
         guide = Path("docs/dogfood.md").read_text(encoding="utf-8")
 
         self.assertIn("redline demo", guide)
+        self.assertIn("redline demo --public --compact", guide)
         self.assertIn("redline runners", guide)
         self.assertIn("redline init --runner stdio --copy-runner --github-action", guide)
         self.assertIn("redline suite .redline/demo/baseline.jsonl", guide)

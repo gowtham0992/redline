@@ -56,6 +56,9 @@ printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_pat
   printf '\n$ redline demo --compact\n'
   "$venv_dir/bin/redline" demo --compact
 
+  printf '\n$ redline demo --public --compact\n'
+  "$venv_dir/bin/redline" demo --public --compact
+
   printf '\n$ GITHUB_STEP_SUMMARY=github-summary.md redline history .redline/demo/reports/diff.json --label demo --out history.jsonl --out-md history.md --github-summary\n'
   GITHUB_STEP_SUMMARY="$summary_path" "$venv_dir/bin/redline" history \
     .redline/demo/reports/diff.json \

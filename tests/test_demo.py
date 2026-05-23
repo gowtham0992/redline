@@ -55,6 +55,24 @@ class DemoTests(unittest.TestCase):
             self.assertIn("candidate missing JSON keys", output)
             self.assertNotIn("  REGRESSION", output)
 
+    def test_run_public_demo_writes_self_contained_fixture(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = run_demo(Path(directory) / "demo", public=True)
+
+            self.assertTrue(Path(result["baseline"]).exists())
+            self.assertTrue(Path(result["candidate"]).exists())
+            self.assertTrue(Path(result["suite"]).exists())
+            self.assertTrue(Path(result["report_json"]).exists())
+            self.assertEqual(result["summary"]["cases"], 10)
+            self.assertEqual(result["summary"]["regression"], 10)
+            self.assertTrue(result["public"])
+
+            output = format_demo(result, compact=True)
+
+            self.assertIn("redline public dogfood", output)
+            self.assertIn("redline public dogfood: cases=10 regression=10", output)
+            self.assertIn("candidate lost valid JSON format", output)
+
 
 if __name__ == "__main__":
     unittest.main()
