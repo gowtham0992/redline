@@ -26,6 +26,30 @@ redline eval --prompt prompts/v2.txt --replay "./runners/openai_runner.sh"
 
 That's it.
 
+## LiteLLM Or Model Proxy
+
+What you need: a LiteLLM-compatible `/v1/chat/completions` endpoint.
+
+Your replay command:
+
+```bash
+./runners/litellm_runner.sh
+```
+
+What it does: reads input from `stdin`, calls your OpenAI-compatible proxy,
+prints the first chat completion message to `stdout`.
+
+Wire it in:
+
+```bash
+export LITELLM_BASE_URL="http://localhost:4000"
+export LITELLM_API_KEY="..."
+export LITELLM_MODEL="gpt-4o-mini"
+redline eval --prompt prompts/v2.txt --replay "./runners/litellm_runner.sh"
+```
+
+That's it.
+
 ## App Logs To JSONL
 
 What you need: exported production logs as JSONL.
