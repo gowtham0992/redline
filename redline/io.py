@@ -17,15 +17,17 @@ class LogRecord:
 def read_jsonl_records(path: str | Path, input_field: str, output_field: str) -> list[LogRecord]:
     records: list[LogRecord] = []
     for line_number, obj in iter_jsonl(path):
-        missing = [field for field in (input_field, output_field) if field not in obj]
+        missing = [field for field in (input_field, output_field) if _get_field(obj, field) is _MISSING]
         if missing:
             joined = ", ".join(missing)
             raise ValueError(f"{path}:{line_number} missing required field(s): {joined}")
+        prompt = _get_field(obj, input_field)
+        response = _get_field(obj, output_field)
         records.append(
             LogRecord(
                 line_number=line_number,
-                prompt=_stringify(obj[input_field]),
-                response=_stringify(obj[output_field]),
+                prompt=_stringify(prompt),
+                response=_stringify(response),
                 raw=obj,
             )
         )
@@ -93,3 +95,17 @@ def _stringify(value: Any) -> str:
     if isinstance(value, str):
         return value
     return json.dumps(value, sort_keys=True, ensure_ascii=False)
+
+
+_MISSING = object()
+
+
+def _get_field(obj: dict[str, Any], field: str) -> Any:
+    if field in obj:
+        return obj[field]
+    current: Any = obj
+    for part in field.split("."):
+        if not isinstance(current, dict) or part not in current:
+            return _MISSING
+        current = current[part]
+    return current

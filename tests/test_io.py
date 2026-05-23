@@ -22,6 +22,31 @@ class IoTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not found"):
             read_jsonl_records("missing.jsonl", "prompt", "response")
 
+    def test_read_jsonl_records_supports_nested_field_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nested.jsonl"
+            path.write_text(
+                '{"request": {"prompt": "hello"}, "result": {"text": "world"}}\n',
+                encoding="utf-8",
+            )
+
+            records = read_jsonl_records(path, "request.prompt", "result.text")
+
+            self.assertEqual(records[0].prompt, "hello")
+            self.assertEqual(records[0].response, "world")
+
+    def test_exact_key_wins_over_nested_field_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nested.jsonl"
+            path.write_text(
+                '{"request.prompt": "exact", "request": {"prompt": "nested"}, "response": "ok"}\n',
+                encoding="utf-8",
+            )
+
+            records = read_jsonl_records(path, "request.prompt", "response")
+
+            self.assertEqual(records[0].prompt, "exact")
+
 
 if __name__ == "__main__":
     unittest.main()

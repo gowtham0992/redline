@@ -83,11 +83,11 @@ python -m redline eval .redline/suite.json --replay "my-prompt-runner {prompt}"
 ```
 
 The default JSONL fields are `prompt` and `response`. Override them when your
-logs use different names:
+logs use different names. Nested field paths are supported:
 
 ```bash
 python -m redline suite logs.jsonl --input-field input --output-field output
-python -m redline diff .redline/suite.json candidate.jsonl --input-field input --output-field output
+python -m redline suite logs.jsonl --input-field request.prompt --output-field result.text
 ```
 
 ## Current Scope
