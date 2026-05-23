@@ -187,6 +187,18 @@ class DiffTests(unittest.TestCase):
 
         self.assertEqual(decision["confidence"], "medium")
         self.assertEqual(decision["recommended_action"], "review changed cases before shipping")
+        self.assertIn("structural checks only", decision["scope"])
+
+    def test_summarize_decision_calibrates_all_neutral_cases(self) -> None:
+        decision = summarize_decision({"cases": 3, "neutral": 3})
+
+        self.assertEqual(decision["confidence"], "medium")
+        self.assertEqual(
+            decision["recommended_action"],
+            "no structural blockers detected; review semantic risks before shipping",
+        )
+        self.assertIn("structural checks only", decision["scope"])
+        self.assertTrue(any("neutral does not prove" in reason for reason in decision["rationale"]))
 
     def test_format_report_includes_decision(self) -> None:
         result = {
@@ -201,16 +213,18 @@ class DiffTests(unittest.TestCase):
                 "missing": 0,
             },
             "decision": {
-                "confidence": "high",
-                "recommended_action": "ship candidate; no blocking changes detected",
+                "confidence": "medium",
+                "recommended_action": "no structural blockers detected; review semantic risks before shipping",
+                "scope": "structural checks only; review semantic risks separately",
             },
             "diffs": [],
         }
 
         report = format_report(result)
 
-        self.assertIn("Confidence: HIGH", report)
-        self.assertIn("Recommended action: ship candidate; no blocking changes detected", report)
+        self.assertIn("Confidence: MEDIUM", report)
+        self.assertIn("Recommended action: no structural blockers detected; review semantic risks before shipping", report)
+        self.assertIn("Scope: structural checks only", report)
 
     def test_format_compact_report_outputs_one_line_per_actionable_case(self) -> None:
         result = {
@@ -227,6 +241,7 @@ class DiffTests(unittest.TestCase):
             "decision": {
                 "confidence": "high",
                 "recommended_action": "fix blocking cases before shipping",
+                "scope": "structural checks only; review semantic risks separately",
             },
             "diffs": [
                 {
@@ -250,6 +265,7 @@ class DiffTests(unittest.TestCase):
 
         self.assertIn("redline eval: cases=2 regression=1 changed=1", report)
         self.assertIn("Confidence: HIGH | fix blocking cases before shipping", report)
+        self.assertIn("Scope: structural checks only", report)
         self.assertIn("REGRESSION case_001 [baseline.jsonl:12]: candidate lost valid JSON format", report)
         self.assertIn("CHANGED    case_002: short answer changed", report)
 

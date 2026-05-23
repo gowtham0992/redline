@@ -85,6 +85,7 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("suite: found", output)
         self.assertIn("replay: configured", output)
         self.assertIn("judge: configured", output)
+        self.assertIn("coverage: structural checks only", output)
         self.assertIn("reports: json=.redline/reports/doctor.json", output)
         self.assertIn("junit=.redline/reports/doctor.xml", output)
         self.assertIn("runs: candidate=.redline/runs/candidate.jsonl", output)

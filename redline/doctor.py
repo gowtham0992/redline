@@ -55,6 +55,17 @@ def doctor_report(
     if "judge" in config:
         checks.append(_judge_check(config.get("judge")))
 
+    checks.append(
+        {
+            "status": "ok",
+            "name": "coverage",
+            "message": (
+                "structural checks only; use requirements or an optional judge "
+                "for factual, tone, hallucination, or reasoning risks"
+            ),
+        }
+    )
+
     report_paths = _configured_paths(config.get("reports"), ("json", "markdown", "junit"))
     if report_paths:
         checks.append({"status": "ok", "name": "reports", "message": ", ".join(report_paths)})

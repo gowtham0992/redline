@@ -7,6 +7,8 @@
 - Show first-run guidance when `redline` is run without a command.
 - Replay suites through local commands with optional prompt templates and workers.
 - Diff candidate outputs with deterministic regression signals and optional judges.
+- Calibrate diff and eval decisions so neutral runs say "no structural blockers"
+  instead of implying full semantic approval.
 - Add a `review` diff profile for long-form assistant logs where missing numbers and entities should be reviewed instead of blocking by default.
 - Emit JSON, Markdown, JUnit, GitHub summary, and GitHub annotation reports.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.

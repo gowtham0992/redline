@@ -11,6 +11,10 @@ from .requirements import case_requirements, requirement_reasons
 
 
 DIFF_PROFILES = ("strict", "review")
+TRUST_SCOPE = (
+    "structural checks only; review factual correctness, tone, hallucinations, "
+    "and subtle reasoning separately"
+)
 
 
 @dataclass(frozen=True)
@@ -294,6 +298,9 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
         action = str(decision.get("recommended_action") or "")
         if confidence and action:
             lines.append(f"Confidence: {confidence}  |  Recommended action: {action}")
+            scope = str(decision.get("scope") or "")
+            if scope:
+                lines.append(f"Scope: {scope}")
             lines.append("")
 
     for status in ("regression", "changed", "improved", "accepted", "ignored", "missing"):
@@ -327,6 +334,9 @@ def format_compact_report(result: dict[str, Any], *, title: str = "redline diff"
         action = str(decision.get("recommended_action") or "")
         if confidence and action:
             lines.append(f"Confidence: {confidence} | {action}")
+            scope = str(decision.get("scope") or "")
+            if scope:
+                lines.append(f"Scope: {scope}")
 
     actionable = [
         item
@@ -334,7 +344,7 @@ def format_compact_report(result: dict[str, Any], *, title: str = "redline diff"
         if isinstance(item, dict) and item.get("status") != "neutral"
     ]
     if not actionable:
-        lines.append("No blocking or reviewable cases.")
+        lines.append("No structural blockers or reviewable cases.")
         return "\n".join(lines) + "\n"
 
     lines.append("")
@@ -361,6 +371,7 @@ def summarize_decision(summary: dict[str, Any]) -> dict[str, Any]:
         return {
             "confidence": "low",
             "recommended_action": "collect baseline cases before relying on redline",
+            "scope": TRUST_SCOPE,
             "rationale": ["suite has no cases"],
         }
     if regression or missing:
@@ -372,24 +383,34 @@ def summarize_decision(summary: dict[str, Any]) -> dict[str, Any]:
         return {
             "confidence": "high",
             "recommended_action": "fix blocking cases before shipping",
+            "scope": TRUST_SCOPE,
             "rationale": rationale,
         }
     if changed:
         return {
             "confidence": "medium",
             "recommended_action": "review changed cases before shipping",
+            "scope": TRUST_SCOPE,
             "rationale": [f"{changed} changed case(s) need human review"],
         }
     if improved:
         return {
-            "confidence": "high",
-            "recommended_action": "ship candidate after reviewing improvements",
-            "rationale": [f"{improved} improved case(s), no blocking cases"],
+            "confidence": "medium",
+            "recommended_action": "review improvements and semantic risks before shipping",
+            "scope": TRUST_SCOPE,
+            "rationale": [
+                f"{improved} improved case(s), no structural blockers",
+                "redline does not prove factual correctness, tone, hallucination safety, or reasoning quality",
+            ],
         }
     return {
-        "confidence": "high",
-        "recommended_action": "ship candidate; no blocking changes detected",
-        "rationale": ["no regressions, missing outputs, or unreviewed changes"],
+        "confidence": "medium",
+        "recommended_action": "no structural blockers detected; review semantic risks before shipping",
+        "scope": TRUST_SCOPE,
+        "rationale": [
+            "no regressions, missing outputs, or unreviewed changes detected by structural checks",
+            "neutral does not prove identical meaning, factual correctness, tone, hallucination safety, or reasoning quality",
+        ],
     }
 
 

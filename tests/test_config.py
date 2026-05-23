@@ -85,6 +85,7 @@ class ConfigTests(unittest.TestCase):
         schema = json.loads(Path("redline.schema.json").read_text(encoding="utf-8"))
 
         self.assertEqual(schema["$id"], default_config()["$schema"])
+        self.assertIn("structural and high-signal", schema["description"])
         self.assertIn("suite", schema["properties"])
         self.assertIn("replay", schema["properties"])
         self.assertIn("judge", schema["properties"])

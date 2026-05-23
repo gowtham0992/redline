@@ -21,6 +21,7 @@ class ReportTests(unittest.TestCase):
             "decision": {
                 "confidence": "high",
                 "recommended_action": "fix blocking cases before shipping",
+                "scope": "structural checks only; review semantic risks separately",
             },
             "diffs": [
                 {
@@ -43,6 +44,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("| Regression | 1 |", report)
         self.assertIn("**Confidence:** HIGH", report)
         self.assertIn("**Recommended action:** fix blocking cases before shipping", report)
+        self.assertIn("**Scope:** structural checks only", report)
         self.assertIn("candidate lost valid JSON format", report)
         self.assertIn("Source: `baseline.jsonl:12`", report)
         self.assertIn("Cluster: `structured_json|json|short`", report)

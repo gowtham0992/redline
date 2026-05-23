@@ -98,6 +98,11 @@ redline init --runner stdio --copy-runner --github-action
 The generated `redline.json` includes a `$schema` reference for editor help.
 Regressions and missing outputs fail CI by default through `fail_on`; set
 `fail_on` to `"none"` during setup if you want report-only runs.
+Redline is deterministic and structural by default: it catches lost formats,
+keys, URLs, numbers, entities, refusals, empty outputs, code blocks, tables, and
+lists. It does not prove factual correctness, tone, hallucination safety, or
+subtle reasoning quality; add case requirements or an optional judge for those
+risks.
 
 Need to connect your app? See [runner adapters](docs/runners.md) for
 provider-neutral replay commands first, then optional OpenAI, Anthropic,
@@ -456,7 +461,9 @@ and other high-signal behavioral changes.
 Optional judge commands are supported for ambiguous `changed` cases, but redline
 does not call any cloud model unless you explicitly configure that command. A
 `neutral` result means no high-signal change was detected by the configured
-checks; it should not be read as a proof that the text is identical.
+checks; it should not be read as a proof that the text is identical, factual,
+safe, or semantically equivalent. Diff and eval reports include this scope note
+so green structural checks do not get mistaken for full semantic approval.
 Entity and refusal checks are deliberately conservative so sentence starters,
 supportive apologies, and ordinary support-ticket words do not become noisy
 regression signals.

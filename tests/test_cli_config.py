@@ -938,7 +938,8 @@ class CliConfigTests(unittest.TestCase):
                 self.assertEqual(metadata["replay"]["timeout_seconds"], 3.5)
                 self.assertEqual(metadata["replay"]["workers"], 1)
                 self.assertEqual(metadata["summary"]["neutral"], 1)
-                self.assertEqual(metadata["decision"]["confidence"], "high")
+                self.assertEqual(metadata["decision"]["confidence"], "medium")
+                self.assertIn("structural checks only", metadata["decision"]["scope"])
             finally:
                 os.chdir(previous)
 
