@@ -37,6 +37,14 @@ To record the public demo from a repeatable script:
 bash scripts/demo_terminal.sh
 ```
 
+For a larger dogfood log that exercises JSON, refusal, table, code, numbered
+list, empty-output, and entity-loss regressions:
+
+```bash
+python -m redline suite examples/dogfood_baseline.jsonl --out /tmp/redline-dogfood-suite.json --max-cases 20
+python -m redline diff /tmp/redline-dogfood-suite.json examples/dogfood_candidate.jsonl --compact --fail-on none
+```
+
 For local development on redline itself:
 
 ```bash

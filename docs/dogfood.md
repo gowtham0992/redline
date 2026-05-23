@@ -45,6 +45,19 @@ redline eval redline-suite.json --replay "python path/to/replay.py" --fail-on no
 If replay is not available, mark the exact point where the workflow stops and
 what command or example would have unblocked it.
 
+## Pass 4: Larger Sample
+
+Use the bigger checked-in sample to confirm redline catches more than one demo
+pattern:
+
+```bash
+redline suite examples/dogfood_baseline.jsonl --out /tmp/redline-dogfood-suite.json --max-cases 20
+redline diff /tmp/redline-dogfood-suite.json examples/dogfood_candidate.jsonl --compact --fail-on none
+```
+
+Expected result: the diff includes regressions for missing JSON keys, refusals,
+lost Markdown tables, lost code blocks, lost numbered lists, and empty output.
+
 ## Friction Log
 
 Record every issue in this format:
