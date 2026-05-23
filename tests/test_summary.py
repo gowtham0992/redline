@@ -29,6 +29,20 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["cases"], 2)
         self.assertEqual(summary["judgments"], {"expected": 1})
         self.assertEqual(summary["requirements"], 1)
+        self.assertEqual(summary["failure_pattern_clusters"], 0)
+
+    def test_suite_summary_counts_failure_pattern_clusters(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", "not json", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        summary = suite_summary(suite)
+
+        self.assertEqual(summary["failure_pattern_clusters"], 1)
 
     def test_format_suite_summary_is_readable(self) -> None:
         suite = build_suite(
@@ -43,6 +57,7 @@ class SummaryTests(unittest.TestCase):
 
         self.assertIn("redline summary", output)
         self.assertIn("Records seen:", output)
+        self.assertIn("Failure-pattern clusters:", output)
         self.assertIn("Top clusters:", output)
 
 

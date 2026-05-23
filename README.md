@@ -178,9 +178,11 @@ python -m redline suite logs.jsonl --input-field request.prompt --output-field r
 
 This v0 is deliberately local and deterministic. It does not call an LLM judge.
 It clusters outputs by observable behavior such as response shape, JSON validity,
-list/code/table structure, refusal behavior, and length bucket. The diff reports
-format regressions, newly empty answers, new refusals, missing JSON keys, lost
-numbers, and other high-signal behavioral changes.
+list/code/table structure, refusal behavior, and length bucket. Cluster reports
+flag failure patterns such as empty outputs, refusals, invalid JSON for JSON
+requests, missing tables for table requests, and high length variance. The diff
+reports format regressions, newly empty answers, new refusals, missing JSON keys,
+lost numbers, and other high-signal behavioral changes.
 
 The next iterations should add rubric capture, LLM judging for ambiguous cases,
 and CI output.

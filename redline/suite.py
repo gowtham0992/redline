@@ -44,13 +44,15 @@ def build_suite(
     clusters = []
     for signature, group in sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0])):
         lengths = [len(record.response.split()) for record in group]
+        high_variance = _is_high_variance(lengths)
         clusters.append(
             {
                 "signature": signature,
                 "size": len(group),
                 "word_count_min": min(lengths),
                 "word_count_max": max(lengths),
-                "high_variance": _is_high_variance(lengths),
+                "high_variance": high_variance,
+                "failure_patterns": _failure_patterns(signature, group, high_variance),
             }
         )
 
@@ -123,6 +125,29 @@ def _is_high_variance(lengths: list[int]) -> bool:
     minimum = max(1, min(lengths))
     maximum = max(lengths)
     return maximum / minimum >= 3
+
+
+def _failure_patterns(
+    signature: str,
+    group: list[LogRecord],
+    high_variance: bool,
+) -> list[str]:
+    features = [extract_features(record.response) for record in group]
+    patterns = []
+    intent = signature.split("|", 1)[0]
+
+    if any(item.empty for item in features):
+        patterns.append("empty_response")
+    if any(item.refusal for item in features):
+        patterns.append("refusal_response")
+    if intent == "structured_json" and any(not item.valid_json for item in features):
+        patterns.append("invalid_json_for_json_prompt")
+    if intent == "structured_table" and any(not item.has_markdown_table for item in features):
+        patterns.append("missing_table_for_table_prompt")
+    if high_variance:
+        patterns.append("high_length_variance")
+
+    return patterns
 
 
 def _case_id(record: LogRecord, index: int) -> str:
