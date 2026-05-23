@@ -119,7 +119,7 @@ def _requirement_count(requirement: object) -> int:
         values = requirement.get(key)
         if isinstance(values, list):
             count += len([value for value in values if str(value).strip()])
-    return count or 1
+    return count
 
 
 def _judgment_status(judgment: object) -> str:

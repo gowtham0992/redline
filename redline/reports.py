@@ -131,7 +131,10 @@ def format_github_annotations(result: dict[str, Any], *, title: str = "redline d
 
 def _inline_code(value: str) -> str:
     compact = " ".join(value.split())
-    return f"`{compact.replace('`', '')}`"
+    fence = "`"
+    while fence in compact:
+        fence += "`"
+    return f"{fence}{compact}{fence}"
 
 
 def _code_block(value: str, limit: int = 1200) -> str:

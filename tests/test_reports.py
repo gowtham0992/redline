@@ -50,6 +50,25 @@ class ReportTests(unittest.TestCase):
         self.assertIn('{"ok": true}', report)
         self.assertIn("Candidate:", report)
 
+    def test_markdown_inline_code_preserves_backticks(self) -> None:
+        result = {
+            "summary": {"regression": 0, "changed": 1, "improved": 0, "neutral": 0, "missing": 0},
+            "diffs": [
+                {
+                    "case_id": "case_001",
+                    "status": "changed",
+                    "prompt": "Use `json` output",
+                    "baseline_response": "ok",
+                    "candidate_response": "sure",
+                    "reasons": ["short answer changed"],
+                }
+            ],
+        }
+
+        report = format_markdown_report(result)
+
+        self.assertIn("Prompt: ``Use `json` output``", report)
+
     def test_report_files_create_parent_directories(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

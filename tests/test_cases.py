@@ -40,6 +40,21 @@ class CasesTests(unittest.TestCase):
 
         self.assertEqual(rows[0]["requirements"], 2)
 
+    def test_suite_case_rows_count_empty_requirements_as_zero(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Refund policy", "Refunds are available within 30 days.", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        case_id = suite["cases"][0]["id"]
+        suite["requirements"] = {case_id: {}}
+
+        rows = suite_case_rows(suite)
+
+        self.assertEqual(rows[0]["requirements"], 0)
+
     def test_suite_case_rows_include_judgment_status(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Return JSON for Ada", '{"name": "Ada"}', {})],
