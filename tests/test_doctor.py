@@ -19,7 +19,7 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(report["errors"], 0)
         self.assertEqual(report["warnings"], 3)
         self.assertIn(
-            "Create config: redline init --runner openai --copy-runner",
+            "Create config: redline init --runner stdio --copy-runner",
             report["next_steps"],
         )
         self.assertIn(
@@ -100,7 +100,7 @@ class DoctorTests(unittest.TestCase):
         output = format_doctor_report(report)
 
         self.assertIn("Next:", output)
-        self.assertIn("redline init --runner openai --copy-runner", output)
+        self.assertIn("redline init --runner stdio --copy-runner", output)
 
     def test_doctor_warns_for_empty_artifact_sections(self) -> None:
         report = doctor_report(
@@ -149,6 +149,25 @@ class DoctorTests(unittest.TestCase):
                 )
                 self.assertIn(
                     "Copy missing runner: redline runners --copy openai",
+                    report["next_steps"],
+                )
+            finally:
+                os.chdir(previous)
+
+    def test_doctor_errors_for_missing_stdio_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(directory)
+            try:
+                report = doctor_report(
+                    config_path=".",
+                    config={"replay": "python runners/stdio_runner.py"},
+                    suite={"cases": []},
+                )
+
+                self.assertFalse(report["ok"])
+                self.assertIn(
+                    "Copy missing runner: redline runners --copy stdio",
                     report["next_steps"],
                 )
             finally:

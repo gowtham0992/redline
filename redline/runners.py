@@ -7,6 +7,14 @@ from typing import Any
 
 RUNNER_ADAPTERS: list[dict[str, str]] = [
     {
+        "name": "Custom stdio command",
+        "id": "stdio",
+        "need": "any command that reads stdin and prints stdout",
+        "file": "runners/stdio_runner.py",
+        "template": "stdio_runner.py",
+        "replay": "python runners/stdio_runner.py",
+    },
+    {
         "name": "OpenAI direct",
         "id": "openai",
         "need": "OPENAI_API_KEY and a prompt file",

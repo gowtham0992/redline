@@ -81,15 +81,16 @@ redline init --replay "python examples/replay_candidate.py" --github-action
 Or choose a built-in runner adapter:
 
 ```bash
-redline init --runner openai --copy-runner --github-action
+redline init --runner stdio --copy-runner --github-action
 ```
 
 The generated `redline.json` includes a `$schema` reference for editor help.
 Regressions and missing outputs fail CI by default through `fail_on`; set
 `fail_on` to `"none"` during setup if you want report-only runs.
 
-Need to connect your app? See [runner adapters](docs/runners.md) for copy-paste
-replay commands, starting with OpenAI direct.
+Need to connect your app? See [runner adapters](docs/runners.md) for
+provider-neutral replay commands first, then optional OpenAI, Anthropic,
+LiteLLM, HTTP, and framework examples.
 
 Or list the available adapters from the CLI:
 
@@ -97,10 +98,10 @@ Or list the available adapters from the CLI:
 redline runners
 ```
 
-Copy a runner into your project:
+Copy a provider-neutral runner into your project:
 
 ```bash
-redline runners --copy openai
+redline runners --copy stdio
 ```
 
 Or copy every built-in adapter:

@@ -88,6 +88,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline/__init__.py", guide)
         self.assertIn("CHANGELOG.md", guide)
         self.assertIn("redline demo --compact", guide)
+        self.assertIn("redline init --runner stdio --copy-runner", guide)
 
     def test_changelog_mentions_release_ready_workflows(self) -> None:
         changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
@@ -103,7 +104,7 @@ class PackagingTests(unittest.TestCase):
 
         self.assertIn("redline demo", guide)
         self.assertIn("redline runners", guide)
-        self.assertIn("redline init --runner openai --copy-runner --github-action", guide)
+        self.assertIn("redline init --runner stdio --copy-runner --github-action", guide)
         self.assertIn("redline suite .redline/demo/baseline.jsonl", guide)
         self.assertIn("normalize_ai_session_logs.py", guide)
         self.assertIn("ai-session-dogfood-prompts.jsonl", guide)

@@ -65,7 +65,7 @@ Local-first prompt regression diffs from JSONL logs.
 
 Start here:
   redline demo
-  redline init --runner openai --copy-runner
+  redline init --runner stdio --copy-runner
   redline runners
   redline doctor
 
@@ -346,7 +346,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     print()
     print("Next:")
     if not replay:
-        print("- Connect a runner: redline init --runner openai --copy-runner --force")
+        print("- Connect a runner: redline init --runner stdio --copy-runner --force")
     print(f"- Generate suite: redline suite path/to/log.jsonl --out {config['suite']}")
     if replay:
         print("- Run eval: redline eval")
@@ -526,7 +526,7 @@ def cmd_suite(args: argparse.Namespace) -> int:
     print("Next:")
     print(f"- Inspect cases: redline cases {Path(output)}")
     print(f"- Compare a candidate log: redline diff {Path(output)} path/to/candidate.jsonl")
-    print("- Configure replay when ready: redline init --runner openai --copy-runner")
+    print("- Configure replay when ready: redline init --runner stdio --copy-runner")
     return 0
 
 

@@ -1,5 +1,9 @@
 # Runner Adapters
 
+redline is model- and provider-agnostic. It only needs prompt text in and
+candidate response text out; use the provider-specific runners only when they
+save you setup time.
+
 Replay contract: redline sends the rendered prompt to `stdin`; your runner
 prints only the candidate response to `stdout`. Logs belong on `stderr`.
 
@@ -9,7 +13,7 @@ and `REDLINE_PROMPT_PATH` for each replay.
 To set replay config and copy a built-in runner in one step:
 
 ```bash
-redline init --runner openai --copy-runner
+redline init --runner stdio --copy-runner
 ```
 
 To copy every built-in adapter for exploration:
@@ -17,6 +21,30 @@ To copy every built-in adapter for exploration:
 ```bash
 redline runners --copy all
 ```
+
+## Custom Stdio Command
+
+What you need: any command that reads prompt text from `stdin` and prints only
+the model or app response to `stdout`.
+
+Your replay command:
+
+```bash
+python runners/stdio_runner.py
+```
+
+What it does: passes redline's prompt input to `REDLINE_STDIO_COMMAND`, forwards
+the command's `stdout` as the candidate response, and forwards logs from
+`stderr`.
+
+Wire it in:
+
+```bash
+export REDLINE_STDIO_COMMAND="python my_app/run_prompt.py"
+redline eval --prompt prompts/v2.txt --replay "python runners/stdio_runner.py"
+```
+
+That's it.
 
 ## OpenAI Direct
 

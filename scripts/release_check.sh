@@ -72,8 +72,8 @@ printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_pat
   printf '\n$ redline runners\n'
   "$venv_dir/bin/redline" runners
 
-  printf '\n$ redline init --runner openai --copy-runner\n'
-  "$venv_dir/bin/redline" init --runner openai --copy-runner
+  printf '\n$ redline init --runner stdio --copy-runner\n'
+  "$venv_dir/bin/redline" init --runner stdio --copy-runner
 
   printf '\n$ redline doctor\n'
   "$venv_dir/bin/redline" doctor

@@ -15,7 +15,7 @@ bash scripts/release_check.sh
 
 The release gate runs the unit suite, bytecode compilation, whitespace checks, a
 wheel build, clean virtualenv install, `redline demo --compact`, runner listing,
-`redline init --runner openai --copy-runner`, and `redline doctor`.
+`redline init --runner stdio --copy-runner`, and `redline doctor`.
 
 ## Public Alpha Smoke
 
@@ -26,7 +26,7 @@ Run the first five minutes exactly like a new user. Use the full dogfood pass in
 python -m pip install "git+https://github.com/gowtham0992/redline.git@develop"
 redline demo
 redline runners
-redline init --runner openai --copy-runner
+redline init --runner stdio --copy-runner
 redline doctor
 ```
 

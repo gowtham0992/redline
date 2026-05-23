@@ -133,7 +133,7 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
         f"- Inspect the Markdown report: {result['report_markdown']}",
         f"- List demo cases: redline cases {result['suite']}",
         f"- Record a trend entry: {history_command}",
-        "- Connect a runner: redline init --runner openai --copy-runner --github-action",
+        "- Connect a runner: redline init --runner stdio --copy-runner --github-action",
         "- Explore adapters: redline runners --copy all",
         "- Build a real suite: redline suite path/to/baseline.jsonl --out redline-suite.json",
         "- Check setup before CI: redline doctor --strict",

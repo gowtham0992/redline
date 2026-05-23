@@ -2,6 +2,7 @@ import importlib.util
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -19,6 +20,7 @@ class RunnerTests(unittest.TestCase):
         adapters = runner_adapters()
         ids = {adapter["id"] for adapter in adapters}
 
+        self.assertIn("stdio", ids)
         self.assertIn("openai", ids)
         self.assertIn("anthropic", ids)
         self.assertIn("python-chain", ids)
@@ -30,7 +32,9 @@ class RunnerTests(unittest.TestCase):
         output = format_runner_adapters()
 
         self.assertIn("redline runners", output)
+        self.assertIn("Custom stdio command", output)
         self.assertIn("./runners/openai_runner.sh", output)
+        self.assertIn("python runners/stdio_runner.py", output)
         self.assertIn("python runners/http_runner.py", output)
 
     def test_packaged_runner_templates_match_repo_runners(self) -> None:
@@ -90,6 +94,50 @@ class RunnerTests(unittest.TestCase):
 
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("OPENAI_API_KEY", completed.stderr)
+
+    def test_stdio_runner_fails_clearly_without_command(self) -> None:
+        completed = subprocess.run(
+            ["python", "runners/stdio_runner.py"],
+            input="hello",
+            text=True,
+            capture_output=True,
+            check=False,
+            env={"PATH": os.environ.get("PATH", "")},
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("REDLINE_STDIO_COMMAND", completed.stderr)
+
+    def test_stdio_runner_invokes_configured_command(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = root / "echo_prompt.py"
+            script.write_text(
+                "import sys\n"
+                "print(sys.stdin.read().upper())\n",
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                ["python", "runners/stdio_runner.py"],
+                input="hello",
+                text=True,
+                capture_output=True,
+                check=False,
+                env={
+                    "PATH": os.environ.get("PATH", ""),
+                    "REDLINE_STDIO_COMMAND": f"{sys.executable} {script}",
+                },
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            self.assertEqual(completed.stdout.strip(), "HELLO")
+
+    def test_runner_docs_lead_with_provider_neutral_stdio(self) -> None:
+        docs = Path("docs/runners.md").read_text(encoding="utf-8")
+
+        self.assertIn("model- and provider-agnostic", docs)
+        self.assertLess(docs.index("## Custom Stdio Command"), docs.index("## OpenAI Direct"))
+        self.assertIn('redline eval --prompt prompts/v2.txt --replay "python runners/stdio_runner.py"', docs)
 
     def test_runner_docs_include_openai_wire_command(self) -> None:
         docs = Path("docs/runners.md").read_text(encoding="utf-8")

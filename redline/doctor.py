@@ -124,10 +124,10 @@ def _next_steps(checks: list[dict[str, str]]) -> list[str]:
         and by_name["replay"]["message"] == "not configured"
     )
     if config_missing:
-        steps.append("Create config: redline init --runner openai --copy-runner")
+        steps.append("Create config: redline init --runner stdio --copy-runner")
     elif replay_missing:
         steps.append(
-            "Configure replay: redline init --runner openai --copy-runner --force"
+            "Configure replay: redline init --runner stdio --copy-runner --force"
         )
 
     suite = by_name.get("suite")
@@ -162,6 +162,8 @@ def _check_has(
 
 
 def _replay_next_step(message: str) -> str:
+    if "stdio_runner.py" in message:
+        return "Copy missing runner: redline runners --copy stdio"
     if "openai_runner.sh" in message:
         return "Copy missing runner: redline runners --copy openai"
     if "anthropic_runner.sh" in message:

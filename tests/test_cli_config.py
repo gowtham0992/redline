@@ -20,7 +20,7 @@ class CliConfigTests(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("Start here:", text)
         self.assertIn("redline demo", text)
-        self.assertIn("redline init --runner openai --copy-runner", text)
+        self.assertIn("redline init --runner stdio --copy-runner", text)
         self.assertIn("redline <command> --help", text)
 
     def test_cli_version_flag_prints_version(self) -> None:
@@ -55,7 +55,9 @@ class CliConfigTests(unittest.TestCase):
 
         text = output.getvalue()
         self.assertIn("redline runners", text)
+        self.assertIn("Custom stdio command", text)
         self.assertIn("OpenAI direct", text)
+        self.assertIn("python runners/stdio_runner.py", text)
         self.assertIn("./runners/openai_runner.sh", text)
 
     def test_runners_command_can_copy_adapter(self) -> None:
@@ -141,7 +143,7 @@ class CliConfigTests(unittest.TestCase):
 
                 text = output.getvalue()
                 self.assertIn("Wrote redline.json.", text)
-                self.assertIn("Connect a runner: redline init --runner openai --copy-runner --force", text)
+                self.assertIn("Connect a runner: redline init --runner stdio --copy-runner --force", text)
                 self.assertIn("Check setup: redline doctor", text)
             finally:
                 os.chdir(previous)

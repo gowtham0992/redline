@@ -27,7 +27,7 @@ steps are obvious, and the first warning explains exactly what to run next.
 ## Pass 2: Real Replay Setup
 
 ```bash
-redline init --runner openai --copy-runner --github-action
+redline init --runner stdio --copy-runner --github-action
 redline doctor
 ```
 
