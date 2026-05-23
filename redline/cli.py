@@ -20,7 +20,7 @@ from .requirements import add_case_requirement, clear_case_requirements
 from .replay import replay_suite
 from .summary import format_suite_summary, suite_summary
 from .suite import build_suite
-from .watch import collect_log
+from .watch import collect_log, format_watch_stats, watch_stats
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -56,13 +56,14 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser.set_defaults(func=cmd_doctor)
 
     watch_parser = subparsers.add_parser("watch", help="collect prompt-response records from a JSONL log")
-    watch_parser.add_argument("--log", required=True, help="JSONL prompt-response log to collect")
+    watch_parser.add_argument("--log", help="JSONL prompt-response log to collect")
     watch_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     watch_parser.add_argument("--out", help="observed log output path")
     watch_parser.add_argument("--input-field", help="JSONL input field")
     watch_parser.add_argument("--output-field", help="JSONL output field")
     watch_parser.add_argument("--replace", action="store_true", help="replace the observed log instead of appending")
     watch_parser.add_argument("--allow-duplicates", action="store_true", help="append records even if source lines were already collected")
+    watch_parser.add_argument("--stats", action="store_true", help="summarize the observed watch log")
     watch_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     watch_parser.set_defaults(func=cmd_watch)
 
@@ -224,6 +225,15 @@ def cmd_watch(args: argparse.Namespace) -> int:
     input_field = str(_config_value(args.input_field, config, "input_field", "prompt"))
     output_field = str(_config_value(args.output_field, config, "output_field", "response"))
     output = args.out or _config_observed_log_path(config) or ".redline/logs/prompts.jsonl"
+    if args.stats:
+        result = watch_stats(output, input_field=input_field, output_field=output_field)
+        if args.json:
+            print(json.dumps(result, indent=2, sort_keys=True))
+        else:
+            print(format_watch_stats(result), end="")
+        return 0
+    if not args.log:
+        raise ValueError("watch requires --log unless --stats is used")
     result = collect_log(
         args.log,
         output=output,

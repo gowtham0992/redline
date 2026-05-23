@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from redline.io import read_jsonl_records
-from redline.watch import collect_log
+from redline.watch import collect_log, format_watch_stats, watch_stats
 
 
 class WatchTests(unittest.TestCase):
@@ -70,6 +70,27 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(result["records"], 1)
             self.assertEqual(result["skipped_duplicates"], 0)
             self.assertEqual(len(records), 2)
+
+    def test_watch_stats_summarizes_observed_log(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.jsonl"
+            output = root / "observed.jsonl"
+            source.write_text(
+                '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n'
+                '{"prompt": "Summarize", "response": "- one\\n- two"}\n',
+                encoding="utf-8",
+            )
+            collect_log(source, output=output)
+
+            stats = watch_stats(output)
+            text = format_watch_stats(stats)
+
+            self.assertEqual(stats["records"], 2)
+            self.assertEqual(stats["sources"], 1)
+            self.assertEqual(stats["behavior_patterns"], 2)
+            self.assertIn("Behavior patterns: 2", text)
+            self.assertIn("First observed:", text)
 
 
 if __name__ == "__main__":

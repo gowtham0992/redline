@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .features import behavior_signature
 from .io import LogRecord, append_jsonl, iter_jsonl, read_jsonl_records, write_jsonl
 
 
@@ -55,6 +56,52 @@ def collect_log(
         "dedupe": dedupe,
         "mode": mode,
     }
+
+
+def watch_stats(
+    path: str | Path,
+    *,
+    input_field: str = "prompt",
+    output_field: str = "response",
+) -> dict[str, Any]:
+    records = read_jsonl_records(path, input_field, output_field)
+    observed_at = sorted(
+        str(record.raw["observed_at"])
+        for record in records
+        if isinstance(record.raw.get("observed_at"), str)
+    )
+    signatures = {
+        behavior_signature(record.prompt, record.response)
+        for record in records
+    }
+    sources = {
+        str(record.raw.get("source"))
+        for record in records
+        if record.raw.get("source")
+    }
+    return {
+        "log": str(path),
+        "records": len(records),
+        "sources": len(sources),
+        "behavior_patterns": len(signatures),
+        "first_observed_at": observed_at[0] if observed_at else None,
+        "last_observed_at": observed_at[-1] if observed_at else None,
+    }
+
+
+def format_watch_stats(stats: dict[str, Any]) -> str:
+    lines = [
+        "redline watch",
+        "",
+        f"Log:               {stats['log']}",
+        f"Records:           {stats['records']}",
+        f"Sources:           {stats['sources']}",
+        f"Behavior patterns: {stats['behavior_patterns']}",
+    ]
+    if stats["first_observed_at"] or stats["last_observed_at"]:
+        lines.append(f"First observed:    {stats['first_observed_at'] or '<unknown>'}")
+        lines.append(f"Last observed:     {stats['last_observed_at'] or '<unknown>'}")
+    return "\n".join(lines) + "\n"
 
 
 def _observed_row(
