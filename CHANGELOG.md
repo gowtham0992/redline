@@ -3,6 +3,8 @@
 ## 0.1.0
 
 - Generate representative prompt eval suites from JSONL prompt-response logs.
+- Package the CLI as `redline-ai` while exposing the `redline` command.
+- Show first-run guidance when `redline` is run without a command.
 - Replay suites through local commands with optional prompt templates and workers.
 - Diff candidate outputs with deterministic regression signals and optional judges.
 - Emit JSON, Markdown, JUnit, GitHub summary, and GitHub annotation reports.

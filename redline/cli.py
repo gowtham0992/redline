@@ -46,12 +46,36 @@ from .watch import collect_log, follow_log, format_follow_records, format_watch_
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(argv)
+    arguments = sys.argv[1:] if argv is None else list(argv)
+    if not arguments:
+        print(_root_help(), end="")
+        return 0
+    args = parser.parse_args(arguments)
     try:
         return args.func(args)
     except ValueError as exc:
         print(f"redline: {exc}", file=sys.stderr)
         return 2
+
+
+def _root_help() -> str:
+    return """redline
+
+Local-first prompt regression diffs from JSONL logs.
+
+Start here:
+  redline demo
+  redline init --runner openai --copy-runner
+  redline runners
+  redline doctor
+
+Core loop:
+  redline suite path/to/baseline.jsonl --out redline-suite.json
+  redline eval --prompt prompts/v2.txt
+  redline diff redline-suite.json path/to/candidate.jsonl
+
+Run `redline <command> --help` for command details.
+"""
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -313,6 +337,14 @@ def cmd_init(args: argparse.Namespace) -> int:
     if args.github_action:
         write_text(args.workflow, default_github_workflow())
         print(f"Wrote {Path(args.workflow)}.")
+    print()
+    print("Next:")
+    if not replay:
+        print("- Connect a runner: redline init --runner openai --copy-runner --force")
+    print(f"- Generate suite: redline suite path/to/log.jsonl --out {config['suite']}")
+    if replay:
+        print("- Run eval: redline eval")
+    print("- Check setup: redline doctor")
     return 0
 
 

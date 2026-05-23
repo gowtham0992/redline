@@ -8,6 +8,7 @@ class PackagingTests(unittest.TestCase):
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 
         self.assertEqual(pyproject["build-system"]["build-backend"], "setuptools.build_meta")
+        self.assertEqual(pyproject["project"]["name"], "redline-ai")
         self.assertEqual(pyproject["project"]["scripts"]["redline"], "redline.cli:main")
         self.assertIn("Generate eval suites", pyproject["project"]["description"])
         self.assertEqual(pyproject["project"]["urls"]["Repository"], "https://github.com/gowtham0992/redline")
@@ -48,6 +49,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("git diff --check", script)
         self.assertIn("-m pip wheel . --no-deps --no-build-isolation", script)
         self.assertIn("-m venv", script)
+        self.assertIn("redline --version", script)
+        self.assertIn("$ redline\\n", script)
         self.assertIn("redline demo --compact", script)
         self.assertIn("redline history demo/reports/diff.json", script)
         self.assertIn("redline doctor", script)

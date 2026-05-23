@@ -11,6 +11,18 @@ from redline.cli import main
 
 
 class CliConfigTests(unittest.TestCase):
+    def test_bare_cli_prints_first_run_help(self) -> None:
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main([]), 0)
+
+        text = output.getvalue()
+        self.assertIn("Start here:", text)
+        self.assertIn("redline demo", text)
+        self.assertIn("redline init --runner openai --copy-runner", text)
+        self.assertIn("redline <command> --help", text)
+
     def test_cli_version_flag_prints_version(self) -> None:
         output = io.StringIO()
 
@@ -113,6 +125,24 @@ class CliConfigTests(unittest.TestCase):
                 self.assertIn('"redline-suite.json"', workflow.read_text(encoding="utf-8"))
                 self.assertIn("Wrote redline.json.", output.getvalue())
                 self.assertIn("Wrote .github/workflows/redline.yml.", output.getvalue())
+                self.assertIn("Next:", output.getvalue())
+                self.assertIn("redline suite path/to/log.jsonl", output.getvalue())
+            finally:
+                os.chdir(previous)
+
+    def test_init_without_replay_suggests_runner_setup(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(Path(directory))
+            try:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["init"]), 0)
+
+                text = output.getvalue()
+                self.assertIn("Wrote redline.json.", text)
+                self.assertIn("Connect a runner: redline init --runner openai --copy-runner --force", text)
+                self.assertIn("Check setup: redline doctor", text)
             finally:
                 os.chdir(previous)
 

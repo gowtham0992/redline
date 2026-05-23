@@ -42,6 +42,9 @@ printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_pat
   printf '\n$ redline --version\n'
   "$venv_dir/bin/redline" --version
 
+  printf '\n$ redline\n'
+  "$venv_dir/bin/redline"
+
   printf '\n$ redline demo --compact --out demo\n'
   "$venv_dir/bin/redline" demo --compact --out demo
 

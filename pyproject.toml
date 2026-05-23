@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "redline-local"
+name = "redline-ai"
 version = "0.1.0"
 description = "Generate eval suites from prompt logs and catch LLM regressions locally."
 readme = "README.md"
