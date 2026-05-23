@@ -31,6 +31,12 @@ For a GIF-friendly terminal view:
 redline demo --compact
 ```
 
+To record the public demo from a repeatable script:
+
+```bash
+bash scripts/demo_terminal.sh
+```
+
 For local development on redline itself:
 
 ```bash

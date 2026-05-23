@@ -17,6 +17,14 @@ class PackagingTests(unittest.TestCase):
 
         self.assertIn("redline py.typed", manifest)
         self.assertIn("redline/runner_templates", manifest)
+        self.assertIn("scripts *.sh", manifest)
+
+    def test_demo_recording_script_is_executable(self) -> None:
+        script = Path("scripts/demo_terminal.sh")
+
+        self.assertTrue(script.exists())
+        self.assertTrue(script.stat().st_mode & 0o111)
+        self.assertIn("redline demo --compact", script.read_text(encoding="utf-8"))
 
     def test_pyproject_includes_runner_templates(self) -> None:
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
