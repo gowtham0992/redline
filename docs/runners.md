@@ -26,6 +26,41 @@ redline eval --prompt prompts/v2.txt --replay "./runners/openai_runner.sh"
 
 That's it.
 
+## LangChain Or LlamaIndex
+
+What you need: a Python function that loads your chain/index and accepts a
+prompt string.
+
+Your replay command:
+
+```bash
+python runners/python_chain_runner.py
+```
+
+What it does: imports `module:function` from `REDLINE_PYTHON_RUNNER`, passes the
+rendered prompt string, prints the returned text to `stdout`.
+
+Create a small wrapper in your app:
+
+```python
+# my_app/redline_runner.py
+from my_app.chain import chain
+
+
+def run(prompt: str) -> str:
+    result = chain.invoke(prompt)
+    return result.content if hasattr(result, "content") else str(result)
+```
+
+Wire it in:
+
+```bash
+export REDLINE_PYTHON_RUNNER="my_app.redline_runner:run"
+redline eval --prompt prompts/v2.txt --replay "python runners/python_chain_runner.py"
+```
+
+That's it.
+
 ## LiteLLM Or Model Proxy
 
 What you need: a LiteLLM-compatible `/v1/chat/completions` endpoint.

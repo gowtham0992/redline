@@ -140,3 +140,49 @@ class RunnerTests(unittest.TestCase):
 
         self.assertIn("## LiteLLM Or Model Proxy", docs)
         self.assertIn('redline eval --prompt prompts/v2.txt --replay "./runners/litellm_runner.sh"', docs)
+
+    def test_python_chain_runner_fails_clearly_without_target(self) -> None:
+        completed = subprocess.run(
+            ["python", "runners/python_chain_runner.py"],
+            input="hello",
+            text=True,
+            capture_output=True,
+            check=False,
+            env={"PATH": os.environ.get("PATH", "")},
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("REDLINE_PYTHON_RUNNER", completed.stderr)
+
+    def test_python_chain_runner_imports_configured_function(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "my_runner.py").write_text(
+                "def run(prompt):\n"
+                "    return prompt.upper()\n",
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                ["python", "runners/python_chain_runner.py"],
+                input="hello",
+                text=True,
+                capture_output=True,
+                check=False,
+                env={
+                    "PATH": os.environ.get("PATH", ""),
+                    "PYTHONPATH": str(root),
+                    "REDLINE_PYTHON_RUNNER": "my_runner:run",
+                },
+            )
+
+        self.assertEqual(completed.returncode, 0)
+        self.assertEqual(completed.stdout.strip(), "HELLO")
+
+    def test_runner_docs_include_python_chain_wire_command(self) -> None:
+        docs = Path("docs/runners.md").read_text(encoding="utf-8")
+
+        self.assertIn("## LangChain Or LlamaIndex", docs)
+        self.assertIn(
+            'redline eval --prompt prompts/v2.txt --replay "python runners/python_chain_runner.py"',
+            docs,
+        )
