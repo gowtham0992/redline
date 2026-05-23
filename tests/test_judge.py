@@ -91,6 +91,33 @@ class JudgeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "judge status"):
                 apply_judge(result, f"{sys.executable} {script}")
 
+    def test_apply_judge_error_includes_stdout_and_stderr(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "judge.py"
+            script.write_text(
+                "import sys\n"
+                "print('out detail')\n"
+                "print('err detail', file=sys.stderr)\n"
+                "raise SystemExit(7)\n",
+                encoding="utf-8",
+            )
+            result = {
+                "summary": {"cases": 1, "changed": 1},
+                "diffs": [
+                    {
+                        "case_id": "case_001",
+                        "status": "changed",
+                        "prompt": "hello",
+                        "baseline_response": "one",
+                        "candidate_response": "two",
+                        "reasons": ["short answer changed"],
+                    }
+                ],
+            }
+
+            with self.assertRaisesRegex(ValueError, "stderr: err detail.*stdout: out detail"):
+                apply_judge(result, f"{sys.executable} {script}")
+
 
 if __name__ == "__main__":
     unittest.main()

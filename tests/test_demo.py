@@ -33,6 +33,9 @@ class DemoTests(unittest.TestCase):
             self.assertIn("intentional candidate regression", output)
             self.assertIn("REGRESSION", output)
             self.assertIn("candidate lost valid JSON format", output)
+            self.assertIn("Next steps", output)
+            self.assertIn("python -m redline init", output)
+            self.assertIn("python -m redline doctor --strict", output)
 
 
 if __name__ == "__main__":

@@ -135,6 +135,24 @@ class ReplayTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, case_id):
             replay_suite(suite, f"{sys.executable} -c \"raise SystemExit(7)\"")
 
+    def test_replay_error_includes_stdout_and_stderr(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "hello", "hello", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        with self.assertRaisesRegex(ValueError, "stdout: out detail.*stderr: err detail|stderr: err detail.*stdout: out detail"):
+            replay_suite(
+                suite,
+                (
+                    f"{sys.executable} -c "
+                    "\"import sys; print('out detail'); print('err detail', file=sys.stderr); raise SystemExit(7)\""
+                ),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

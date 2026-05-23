@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import json
 from pathlib import Path
 
 from redline.config import create_config, default_config, load_config
@@ -9,6 +10,10 @@ class ConfigTests(unittest.TestCase):
     def test_default_config_contains_project_defaults(self) -> None:
         config = default_config()
 
+        self.assertEqual(
+            config["$schema"],
+            "https://raw.githubusercontent.com/gowtham0992/redline/main/redline.schema.json",
+        )
         self.assertEqual(config["suite"], "redline-suite.json")
         self.assertEqual(config["input_field"], "prompt")
         self.assertEqual(config["output_field"], "response")
@@ -58,6 +63,14 @@ class ConfigTests(unittest.TestCase):
             path.write_text('{"suite": "suite.json"}', encoding="utf-8")
 
             self.assertEqual(load_config(path), {"suite": "suite.json"})
+
+    def test_schema_file_documents_generated_config_keys(self) -> None:
+        schema = json.loads(Path("redline.schema.json").read_text(encoding="utf-8"))
+
+        self.assertIn("suite", schema["properties"])
+        self.assertIn("replay", schema["properties"])
+        self.assertIn("judge", schema["properties"])
+        self.assertIn("fail_on", schema["properties"])
 
 
 if __name__ == "__main__":

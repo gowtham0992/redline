@@ -8,6 +8,7 @@ from .policy import DEFAULT_FAIL_ON
 
 
 DEFAULT_CONFIG_PATH = "redline.json"
+DEFAULT_SCHEMA_URL = "https://raw.githubusercontent.com/gowtham0992/redline/main/redline.schema.json"
 
 
 def default_config(
@@ -19,6 +20,7 @@ def default_config(
     replay: str | None = None,
 ) -> dict[str, Any]:
     config: dict[str, Any] = {
+        "$schema": DEFAULT_SCHEMA_URL,
         "version": "0.1",
         "suite": "redline-suite.json",
         "input_field": input_field,

@@ -30,6 +30,10 @@ Create config plus a GitHub Actions workflow:
 python -m redline init --replay "python examples/replay_candidate.py" --github-action
 ```
 
+The generated `redline.json` includes a `$schema` reference for editor help.
+Regressions and missing outputs fail CI by default through `fail_on`; set
+`fail_on` to `"none"` during setup if you want report-only runs.
+
 Store a default replay command in config:
 
 ```bash
@@ -41,6 +45,24 @@ Set a default per-case replay timeout in config:
 ```bash
 python -m redline init --timeout 10 --force
 ```
+
+## Config Reference
+
+`redline.json` is intentionally small. These are the supported keys:
+
+| Key | Purpose |
+| --- | --- |
+| `$schema` | JSON Schema URL for editor autocomplete. |
+| `suite` | Committed suite baseline path, default `redline-suite.json`. |
+| `input_field`, `output_field` | JSONL field paths for prompts and responses. Nested paths are supported. |
+| `max_cases` | Maximum representative cases selected for a suite. Default `42` keeps early runs broad while still reviewable. |
+| `timeout_seconds` | Per-case replay timeout for `redline eval`. |
+| `fail_on` | Statuses that fail `diff` or `eval`; use `"none"` for report-only mode. |
+| `reports` | JSON, Markdown, and JUnit output paths. `{command}` expands to `diff` or `eval`. |
+| `logs.observed` | Local watch output JSONL path. |
+| `runs.candidate`, `runs.metadata` | Candidate replay rows and eval metadata output paths. |
+| `replay` | Command used by `eval`; prompts go to stdin unless the command contains `{prompt}`. |
+| `judge` | Optional judge command for ambiguous `changed` cases only. Use a string or `{ "command": "...", "timeout_seconds": 10 }`. |
 
 Check local setup health:
 
@@ -253,16 +275,21 @@ python -m redline suite logs.jsonl --input-field request.prompt --output-field r
 
 ## Current Scope
 
-This v0 is deliberately local and deterministic. It does not call an LLM judge.
-It clusters outputs by observable behavior such as response shape, JSON validity,
-list/code/table structure, refusal behavior, and length bucket. Cluster reports
-flag failure patterns such as empty outputs, refusals, invalid JSON for JSON
-requests, missing tables for table requests, and high length variance. The diff
-reports format regressions, newly empty answers, new refusals, missing JSON keys,
-lost numbers, and other high-signal behavioral changes.
+This v0 is local-first and deterministic by default. It clusters outputs by
+observable behavior such as response shape, JSON validity, list/code/table
+structure, refusal behavior, and length bucket. Cluster reports flag failure
+patterns such as empty outputs, refusals, invalid JSON for JSON requests, missing
+tables for table requests, and high length variance. Diff reports format
+regressions, newly empty answers, new refusals, missing JSON keys, lost numbers,
+and other high-signal behavioral changes.
 
-The next iterations should add rubric capture, LLM judging for ambiguous cases,
-and CI output.
+Optional judge commands are supported for ambiguous `changed` cases, but redline
+does not call any cloud model unless you explicitly configure that command. A
+`neutral` result means no high-signal change was detected by the configured
+checks; it should not be read as a proof that the text is identical.
+
+The next iterations should add stronger built-in judge templates, parallel eval
+execution, richer config documentation, and release packaging.
 
 See [examples/github-action.yml](examples/github-action.yml) for a GitHub
 Actions starting point.

@@ -149,8 +149,16 @@ def _run_replay(
         raise ValueError(f"replay command timed out after {timeout_seconds:g}s") from exc
 
     if completed.returncode != 0:
-        stderr = completed.stderr.strip()
-        detail = f": {stderr}" if stderr else ""
+        detail = _command_output_detail(completed.stdout, completed.stderr)
         raise ValueError(f"replay command exited {completed.returncode}{detail}")
 
     return completed.stdout.rstrip("\n")
+
+
+def _command_output_detail(stdout: str, stderr: str) -> str:
+    parts = []
+    if stderr.strip():
+        parts.append(f"stderr: {stderr.strip()}")
+    if stdout.strip():
+        parts.append(f"stdout: {stdout.strip()}")
+    return f": {'; '.join(parts)}" if parts else ""
