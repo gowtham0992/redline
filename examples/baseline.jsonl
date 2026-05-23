@@ -1,0 +1,5 @@
+{"prompt":"Return JSON with name and status for customer Ada.","response":"{\"name\":\"Ada\",\"status\":\"active\"}"}
+{"prompt":"Summarize the release note in three bullets.","response":"- Added CSV export\n- Fixed invoice retries\n- Improved admin search"}
+{"prompt":"What is the refund window? Include the number of days.","response":"Customers can request a refund within 30 days of purchase."}
+{"prompt":"Write a Python function that adds two numbers.","response":"```python\ndef add(a, b):\n    return a + b\n```"}
+{"prompt":"Classify this ticket: Cannot log in after password reset.","response":"authentication"}

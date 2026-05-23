@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.redline/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+redline_product_vision.docx
