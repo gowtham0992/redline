@@ -252,12 +252,13 @@ report-only history checks, or include other directions such as `new`:
 python -m redline compare before.json after.json --fail-on worse,new
 ```
 
-Archive compare output for trend history:
+Archive report summaries for trend history:
 
 ```bash
-python -m redline compare before.json after.json \
-  --out-json .redline/reports/compare.json \
-  --out-md .redline/reports/compare.md
+python -m redline history .redline/reports/eval.json \
+  --label prompt-v2 \
+  --out .redline/history.jsonl
+python -m redline history --out .redline/history.jsonl
 ```
 
 The generated GitHub Actions workflow also runs this comparison when
