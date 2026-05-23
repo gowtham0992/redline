@@ -64,6 +64,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline history .redline/demo/reports/diff.json", script)
         self.assertIn("--out-md history.md", script)
         self.assertIn("--github-summary", script)
+        self.assertIn("--all-cases", script)
+        self.assertIn("--profile review", script)
         self.assertIn("redline doctor", script)
 
     def test_release_build_script_uses_fresh_output_dir(self) -> None:
@@ -93,6 +95,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("Markdown history reports", changelog)
         self.assertIn("GitHub step summaries", changelog)
         self.assertIn("suite generation commands", changelog)
+        self.assertIn("review` diff profile", changelog)
+        self.assertIn("suite --all-cases", changelog)
 
     def test_dogfood_protocol_exercises_first_run_loop(self) -> None:
         guide = Path("docs/dogfood.md").read_text(encoding="utf-8")

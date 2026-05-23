@@ -7,12 +7,15 @@
 - Show first-run guidance when `redline` is run without a command.
 - Replay suites through local commands with optional prompt templates and workers.
 - Diff candidate outputs with deterministic regression signals and optional judges.
+- Add a `review` diff profile for long-form assistant logs where missing numbers and entities should be reviewed instead of blocking by default.
 - Emit JSON, Markdown, JUnit, GitHub summary, and GitHub annotation reports.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.
 - Ship larger dogfood prompt logs that exercise several regression classes.
+- Normalize AI assistant session exports for private dogfood comparisons.
+- Include all fixed prompt rows with `redline suite --all-cases`.
 - Include optional OpenAI-, Anthropic-, and LiteLLM-backed judge command templates for ambiguous changes.
 - Scaffold replay runners for OpenAI, Anthropic, HTTP APIs, Python chains, JSONL logs, and LiteLLM.
 - Initialize projects with config schema, runner setup, and GitHub Actions workflow generation.
