@@ -36,6 +36,13 @@ python -m redline mark .redline/suite.json case_002_1612556e83 \
   --note "intentional response format change"
 ```
 
+Tune CI strictness with `--fail-on`. By default redline exits `1` for
+`regression` and `missing` cases. Use `none` for report-only runs:
+
+```bash
+python -m redline diff .redline/suite.json examples/candidate.jsonl --fail-on none
+```
+
 Or let redline replay each suite case with a local command. The command receives
 the prompt on stdin and should print the candidate response to stdout:
 

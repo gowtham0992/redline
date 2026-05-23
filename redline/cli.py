@@ -9,6 +9,7 @@ from typing import Sequence
 from .diff import compare_suite_to_candidate, format_report
 from .io import read_json, read_jsonl_records, write_json, write_text
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
+from .policy import DEFAULT_FAIL_ON, parse_fail_on, should_fail
 from .reports import format_markdown_report
 from .replay import replay_suite
 from .suite import build_suite
@@ -47,6 +48,11 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     diff_parser.add_argument("--out-json", help="write machine-readable JSON report")
     diff_parser.add_argument("--out-md", help="write Markdown report")
+    diff_parser.add_argument(
+        "--fail-on",
+        default=",".join(DEFAULT_FAIL_ON),
+        help="comma-separated statuses that produce exit code 1; use 'none' for report-only",
+    )
     diff_parser.set_defaults(func=cmd_diff)
 
     eval_parser = subparsers.add_parser("eval", help="replay a suite with a local command")
@@ -60,6 +66,11 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     eval_parser.add_argument("--out-json", help="write machine-readable JSON report")
     eval_parser.add_argument("--out-md", help="write Markdown report")
+    eval_parser.add_argument(
+        "--fail-on",
+        default=",".join(DEFAULT_FAIL_ON),
+        help="comma-separated statuses that produce exit code 1; use 'none' for report-only",
+    )
     eval_parser.set_defaults(func=cmd_eval)
 
     mark_parser = subparsers.add_parser("mark", help="mark a suite case judgment")
@@ -137,6 +148,7 @@ def cmd_clear(args: argparse.Namespace) -> int:
 
 
 def _emit_result(args: argparse.Namespace, result: dict[str, object], *, title: str) -> int:
+    fail_on = parse_fail_on(args.fail_on)
     if args.out_json:
         write_json(args.out_json, result)
     if args.out_md:
@@ -147,5 +159,4 @@ def _emit_result(args: argparse.Namespace, result: dict[str, object], *, title: 
     else:
         print(format_report(result, title=title), end="")
 
-    summary = result["summary"]
-    return 1 if summary["regression"] or summary["missing"] else 0
+    return 1 if should_fail(result, fail_on) else 0
