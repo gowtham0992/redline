@@ -18,6 +18,13 @@ python -m redline demo
 The demo writes a tiny local suite under `.redline/demo` and prints a behavioral
 diff with intentional regressions.
 
+For local development on redline itself:
+
+```bash
+python -m pip install -e ".[dev]"
+python -m unittest discover
+```
+
 Create a project config:
 
 ```bash

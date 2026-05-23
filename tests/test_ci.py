@@ -11,6 +11,8 @@ class CiTests(unittest.TestCase):
         self.assertIn("python -m redline eval", workflow)
         self.assertIn("--github-summary", workflow)
         self.assertIn("--github-annotations", workflow)
+        self.assertIn('cache: "pip"', workflow)
+        self.assertIn('"**/*.jsonl"', workflow)
         self.assertIn('"redline-suite.json"', workflow)
         self.assertIn("actions/upload-artifact@v4", workflow)
 

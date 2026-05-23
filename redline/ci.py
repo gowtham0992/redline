@@ -8,8 +8,10 @@ on:
   pull_request:
     paths:
       - "prompts/**"
+      - "**/*.jsonl"
       - "redline.json"
       - "redline-suite.json"
+      - "redline.schema.json"
 
 jobs:
   eval:
@@ -20,6 +22,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
       - name: Install redline
         run: pip install -e .
