@@ -235,6 +235,13 @@ better or worse:
 python -m redline compare .redline/reports/eval-before.json .redline/reports/eval.json
 ```
 
+`compare` fails on `worse` cases by default. Use `--fail-on none` for
+report-only history checks, or include other directions such as `new`:
+
+```bash
+python -m redline compare before.json after.json --fail-on worse,new
+```
+
 In GitHub Actions, append the Markdown report to the job summary:
 
 ```bash

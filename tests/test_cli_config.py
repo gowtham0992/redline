@@ -485,6 +485,49 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_compare_fail_on_none_keeps_report_only_exit_zero(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("before.json").write_text(
+                    json.dumps(
+                        {
+                            "diffs": [
+                                {
+                                    "case_id": "case_001",
+                                    "status": "changed",
+                                    "prompt": "Return JSON",
+                                }
+                            ]
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("after.json").write_text(
+                    json.dumps(
+                        {
+                            "diffs": [
+                                {
+                                    "case_id": "case_001",
+                                    "status": "regression",
+                                    "prompt": "Return JSON",
+                                }
+                            ]
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(
+                        main(["compare", "before.json", "after.json", "--fail-on", "none"]),
+                        0,
+                    )
+            finally:
+                os.chdir(previous)
+
     def test_diff_uses_configured_judge_command_for_changed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

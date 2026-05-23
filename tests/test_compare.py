@@ -1,6 +1,11 @@
 import unittest
 
-from redline.compare import compare_reports, format_report_comparison
+from redline.compare import (
+    compare_reports,
+    format_report_comparison,
+    parse_compare_fail_on,
+    should_fail_comparison,
+)
 
 
 class CompareTests(unittest.TestCase):
@@ -77,6 +82,26 @@ class CompareTests(unittest.TestCase):
         self.assertIn("Previous: before.json", text)
         self.assertIn("Worse:     1", text)
         self.assertIn("WORSE    case_001: changed -> regression", text)
+
+    def test_parse_compare_fail_on_accepts_directions_and_none(self) -> None:
+        self.assertEqual(parse_compare_fail_on("worse,new"), {"worse", "new"})
+        self.assertEqual(parse_compare_fail_on("none"), set())
+
+    def test_parse_compare_fail_on_rejects_unknown_direction(self) -> None:
+        with self.assertRaisesRegex(ValueError, "compare --fail-on"):
+            parse_compare_fail_on("regression")
+
+    def test_should_fail_comparison_uses_selected_directions(self) -> None:
+        result = {
+            "summary": {
+                "cases": 2,
+                "worse": 0,
+                "new": 1,
+            }
+        }
+
+        self.assertTrue(should_fail_comparison(result, {"new"}))
+        self.assertFalse(should_fail_comparison(result, {"worse"}))
 
 
 if __name__ == "__main__":

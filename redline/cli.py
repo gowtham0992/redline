@@ -13,7 +13,12 @@ from .accept import accept_candidate_baseline, expected_case_ids
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
 from .ci import default_github_workflow
 from .clusters import cluster_report, format_cluster_report
-from .compare import compare_reports, format_report_comparison
+from .compare import (
+    compare_reports,
+    format_report_comparison,
+    parse_compare_fail_on,
+    should_fail_comparison,
+)
 from .config import DEFAULT_CONFIG_PATH, create_config, load_config
 from .demo import format_demo, run_demo
 from .diff import compare_suite_to_candidate, format_compact_report, format_report
@@ -190,6 +195,11 @@ def build_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("previous", help="previous redline JSON report")
     compare_parser.add_argument("current", help="current redline JSON report")
     compare_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    compare_parser.add_argument(
+        "--fail-on",
+        default=None,
+        help="comma-separated comparison directions that produce exit code 1; use 'none' for report-only",
+    )
     compare_parser.set_defaults(func=cmd_compare)
 
     eval_parser = subparsers.add_parser("eval", help="replay a suite with a local command")
@@ -533,7 +543,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
         print(format_report_comparison(result), end="")
-    return 1 if result["summary"]["worse"] else 0
+    fail_on = parse_compare_fail_on(args.fail_on or "worse")
+    return 1 if should_fail_comparison(result, fail_on) else 0
 
 
 def cmd_eval(args: argparse.Namespace) -> int:

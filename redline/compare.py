@@ -13,6 +13,15 @@ _SEVERITY = {
     "regression": 3,
     "missing": 3,
 }
+COMPARE_DIRECTIONS = {
+    "worse",
+    "better",
+    "new",
+    "resolved",
+    "removed",
+    "unchanged",
+    "changed",
+}
 
 
 def compare_reports(
@@ -115,6 +124,26 @@ def format_report_comparison(result: dict[str, Any]) -> str:
         lines.append(f"{direction:<8} {case_id}: {before} -> {after}: {reason} | {prompt}")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def parse_compare_fail_on(value: str | None) -> set[str]:
+    if value is None or value == "":
+        return set()
+    if value.strip().lower() == "none":
+        return set()
+    directions = {item.strip().lower() for item in value.split(",") if item.strip()}
+    unknown = sorted(directions - COMPARE_DIRECTIONS)
+    if unknown:
+        allowed = ", ".join(sorted(COMPARE_DIRECTIONS | {"none"}))
+        raise ValueError(f"compare --fail-on must use: {allowed}")
+    return directions
+
+
+def should_fail_comparison(result: dict[str, Any], fail_on: set[str]) -> bool:
+    summary = result.get("summary")
+    if not isinstance(summary, dict):
+        return False
+    return any(int(summary.get(direction, 0) or 0) > 0 for direction in fail_on)
 
 
 def _diff_index(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
