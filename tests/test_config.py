@@ -12,6 +12,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config["suite"], ".redline/suite.json")
         self.assertEqual(config["input_field"], "prompt")
         self.assertEqual(config["output_field"], "response")
+        self.assertEqual(config["timeout_seconds"], 30.0)
         self.assertEqual(config["fail_on"], ["regression", "missing"])
         self.assertEqual(config["reports"]["json"], ".redline/reports/{command}.json")
         self.assertEqual(config["reports"]["junit"], ".redline/reports/{command}.xml")
@@ -32,13 +33,19 @@ class ConfigTests(unittest.TestCase):
             input_field="input",
             output_field="output",
             max_cases=12,
+            timeout_seconds=4.5,
             replay="python runner.py",
         )
 
         self.assertEqual(config["input_field"], "input")
         self.assertEqual(config["output_field"], "output")
         self.assertEqual(config["max_cases"], 12)
+        self.assertEqual(config["timeout_seconds"], 4.5)
         self.assertEqual(config["replay"], "python runner.py")
+
+    def test_create_config_refuses_non_positive_timeout(self) -> None:
+        with self.assertRaisesRegex(ValueError, "timeout_seconds"):
+            create_config("redline.json", timeout_seconds=0)
 
     def test_load_config_returns_empty_when_missing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

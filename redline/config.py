@@ -15,6 +15,7 @@ def default_config(
     input_field: str = "prompt",
     output_field: str = "response",
     max_cases: int = 42,
+    timeout_seconds: float = 30.0,
     replay: str | None = None,
 ) -> dict[str, Any]:
     config: dict[str, Any] = {
@@ -23,6 +24,7 @@ def default_config(
         "input_field": input_field,
         "output_field": output_field,
         "max_cases": max_cases,
+        "timeout_seconds": timeout_seconds,
         "fail_on": list(DEFAULT_FAIL_ON),
         "reports": {
             "json": ".redline/reports/{command}.json",
@@ -45,6 +47,7 @@ def create_config(
     input_field: str = "prompt",
     output_field: str = "response",
     max_cases: int = 42,
+    timeout_seconds: float = 30.0,
     replay: str | None = None,
     force: bool = False,
 ) -> dict[str, Any]:
@@ -53,10 +56,13 @@ def create_config(
         raise ValueError(f"{target} already exists; pass --force to overwrite")
     if max_cases < 1:
         raise ValueError("max_cases must be at least 1")
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be greater than 0")
     return default_config(
         input_field=input_field,
         output_field=output_field,
         max_cases=max_cases,
+        timeout_seconds=timeout_seconds,
         replay=replay,
     )
 

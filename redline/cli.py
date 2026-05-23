@@ -43,6 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--input-field", default="prompt", help="default JSONL input field")
     init_parser.add_argument("--output-field", default="response", help="default JSONL output field")
     init_parser.add_argument("--max-cases", type=int, default=42, help="default maximum suite cases")
+    init_parser.add_argument("--timeout", type=float, default=30.0, help="default replay timeout in seconds")
     init_parser.add_argument("--replay", help="default eval replay command")
     init_parser.add_argument("--force", action="store_true", help="overwrite an existing config file")
     init_parser.set_defaults(func=cmd_init)
@@ -106,7 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--replay",
         help="command to run for each case; receives prompt on stdin unless argv contains {prompt}",
     )
-    eval_parser.add_argument("--timeout", type=float, default=30.0, help="per-case timeout in seconds")
+    eval_parser.add_argument("--timeout", type=float, help="per-case timeout in seconds")
     eval_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     eval_parser.add_argument("--out-json", help="write machine-readable JSON report")
     eval_parser.add_argument("--out-md", help="write Markdown report")
@@ -164,6 +165,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         input_field=args.input_field,
         output_field=args.output_field,
         max_cases=args.max_cases,
+        timeout_seconds=args.timeout,
         replay=args.replay,
         force=args.force,
     )
@@ -269,7 +271,8 @@ def cmd_eval(args: argparse.Namespace) -> int:
     if not replay_command:
         raise ValueError("replay command required; pass --replay or set replay in redline.json")
     suite = read_json(suite_path)
-    replay = replay_suite(suite, replay_command, timeout_seconds=args.timeout)
+    timeout_seconds = float(_config_value(args.timeout, config, "timeout_seconds", 30.0))
+    replay = replay_suite(suite, replay_command, timeout_seconds=timeout_seconds)
     candidate_out = args.candidate_out or _config_candidate_path(config)
     if candidate_out:
         write_jsonl(candidate_out, (record.raw for record in replay.records))

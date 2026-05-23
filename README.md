@@ -20,6 +20,12 @@ Store a default replay command in config:
 python -m redline init --replay "python examples/replay_candidate.py" --force
 ```
 
+Set a default per-case replay timeout in config:
+
+```bash
+python -m redline init --timeout 10 --force
+```
+
 Check local setup health:
 
 ```bash
