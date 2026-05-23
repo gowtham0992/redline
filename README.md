@@ -32,6 +32,12 @@ List the generated cases and IDs:
 python -m redline cases .redline/suite.json
 ```
 
+Inspect a single case:
+
+```bash
+python -m redline case case_002_1612556e83
+```
+
 Summarize suite coverage:
 
 ```bash

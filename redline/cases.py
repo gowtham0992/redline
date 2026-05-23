@@ -33,8 +33,63 @@ def format_suite_cases(suite: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def suite_case_detail(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
+    case = _find_case(suite, case_id)
+    judgments = suite.get("judgments", {})
+    if not isinstance(judgments, dict):
+        judgments = {}
+    judgment = judgments.get(case_id)
+    return {
+        "id": str(case["id"]),
+        "source_line": case.get("source_line"),
+        "cluster": str(case.get("cluster", "")),
+        "prompt": str(case.get("prompt", "")),
+        "baseline_response": str(case.get("baseline_response", "")),
+        "features": case.get("features", {}),
+        "judgment": judgment if isinstance(judgment, dict) else None,
+    }
+
+
+def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
+    detail = suite_case_detail(suite, case_id)
+    lines = [
+        f"redline case {detail['id']}",
+        "",
+        f"Source line: {detail['source_line']}",
+        f"Cluster:     {detail['cluster']}",
+        "",
+        "Prompt:",
+        detail["prompt"],
+        "",
+        "Baseline response:",
+        detail["baseline_response"],
+        "",
+        "Features:",
+    ]
+    features = detail["features"]
+    if isinstance(features, dict):
+        for key in sorted(features):
+            lines.append(f"  {key}: {features[key]}")
+    else:
+        lines.append("  <missing>")
+
+    if detail["judgment"]:
+        lines.extend(["", "Judgment:"])
+        for key, value in detail["judgment"].items():
+            lines.append(f"  {key}: {value}")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _preview(text: str, limit: int = 76) -> str:
     compact = " ".join(text.split())
     if len(compact) <= limit:
         return compact
     return compact[: limit - 1] + "..."
+
+
+def _find_case(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
+    for case in suite.get("cases", []):
+        if isinstance(case, dict) and str(case.get("id")) == case_id:
+            return case
+    raise ValueError(f"case not found in suite: {case_id}")
