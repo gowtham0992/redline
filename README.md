@@ -53,7 +53,7 @@ python -m redline suite examples/baseline.jsonl
 Or generate it from the locally collected watch log:
 
 ```bash
-python -m redline suite .redline/logs/prompts.jsonl
+python -m redline suite
 ```
 
 List the generated cases and IDs:

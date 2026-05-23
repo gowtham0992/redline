@@ -75,7 +75,7 @@ def build_parser() -> argparse.ArgumentParser:
     cluster_parser.set_defaults(func=cmd_cluster)
 
     suite_parser = subparsers.add_parser("suite", help="generate a representative suite")
-    suite_parser.add_argument("log", help="baseline JSONL file")
+    suite_parser.add_argument("log", nargs="?", help="baseline JSONL file; defaults to watched log")
     suite_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     suite_parser.add_argument("--out", help="suite output path")
     suite_parser.add_argument("--input-field", help="JSONL input field")
@@ -265,10 +265,11 @@ def cmd_suite(args: argparse.Namespace) -> int:
     output_field = _config_value(args.output_field, config, "output_field", "response")
     max_cases = int(_config_value(args.max_cases, config, "max_cases", 42))
     output = str(_config_value(args.out, config, "suite", ".redline/suite.json"))
-    records = read_jsonl_records(args.log, input_field, output_field)
+    log_path = args.log or _config_observed_log_path(config) or ".redline/logs/prompts.jsonl"
+    records = read_jsonl_records(log_path, input_field, output_field)
     suite = build_suite(
         records,
-        source=args.log,
+        source=log_path,
         input_field=input_field,
         output_field=output_field,
         max_cases=max_cases,

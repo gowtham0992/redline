@@ -78,7 +78,7 @@ class CliConfigTests(unittest.TestCase):
                 cluster_output = io.StringIO()
                 with contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(main(["watch", "--log", "source.jsonl", "--replace"]), 0)
-                    self.assertEqual(main(["suite", ".redline/logs/observed.jsonl"]), 0)
+                    self.assertEqual(main(["suite"]), 0)
                 with contextlib.redirect_stdout(cluster_output):
                     self.assertEqual(main(["cluster"]), 0)
 
