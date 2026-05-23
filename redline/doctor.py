@@ -36,7 +36,7 @@ def doctor_report(
     elif suite_error:
         checks.append({"status": "error", "name": "suite", "message": suite_error})
     else:
-        checks.append({"status": "warn", "name": "suite", "message": f"{suite_path} not found"})
+        checks.append({"status": "warn", "name": "suite", "message": _missing_suite_message(suite_path)})
     if suite_git_ignored:
         checks.append(
             {
@@ -104,6 +104,14 @@ def _configured_paths(value: object, keys: tuple[str, ...]) -> list[str]:
         if isinstance(path, str) and path:
             paths.append(f"{key}={path}")
     return paths
+
+
+def _missing_suite_message(suite_path: str) -> str:
+    message = f"{suite_path} not found"
+    demo_suite = Path(".redline/demo/suite.json")
+    if suite_path != str(demo_suite) and demo_suite.exists():
+        message += f"; demo suite exists at {demo_suite}, but project CI needs its own suite"
+    return message
 
 
 def _next_steps(checks: list[dict[str, str]]) -> list[str]:

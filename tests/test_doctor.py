@@ -38,6 +38,29 @@ class DoctorTests(unittest.TestCase):
         self.assertFalse(report["ok"])
         self.assertEqual(report["errors"], 1)
 
+    def test_doctor_explains_demo_suite_is_separate_from_project_suite(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                demo_suite = root / ".redline" / "demo" / "suite.json"
+                demo_suite.parent.mkdir(parents=True)
+                demo_suite.write_text('{"cases": []}\n', encoding="utf-8")
+
+                report = doctor_report(
+                    config_path="redline.json",
+                    config={"suite": "redline-suite.json"},
+                    suite=None,
+                )
+
+                suite_check = next(check for check in report["checks"] if check["name"] == "suite")
+                self.assertIn("redline-suite.json not found", suite_check["message"])
+                self.assertIn("demo suite exists at .redline/demo/suite.json", suite_check["message"])
+                self.assertIn("project CI needs its own suite", suite_check["message"])
+            finally:
+                os.chdir(previous)
+
     def test_format_doctor_report_is_readable(self) -> None:
         report = doctor_report(
             config_path="pyproject.toml",
