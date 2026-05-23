@@ -250,6 +250,10 @@ python -m redline compare before.json after.json \
   --out-md .redline/reports/compare.md
 ```
 
+The generated GitHub Actions workflow also runs this comparison when
+`.redline/reports/eval-before.json` exists, then uploads the compare artifacts
+with the rest of the redline reports.
+
 In GitHub Actions, append the Markdown report to the job summary:
 
 ```bash

@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from redline.ci import default_github_workflow
 
@@ -16,7 +17,16 @@ class CiTests(unittest.TestCase):
         self.assertIn('cache: "pip"', workflow)
         self.assertIn('"**/*.jsonl"', workflow)
         self.assertIn('"redline-suite.json"', workflow)
+        self.assertIn("python -m redline compare", workflow)
+        self.assertIn(".redline/reports/eval-before.json", workflow)
+        self.assertIn("--out-md .redline/reports/compare.md", workflow)
+        self.assertIn("--fail-on worse,new", workflow)
         self.assertIn("actions/upload-artifact@v4", workflow)
+
+    def test_example_workflow_matches_generated_default(self) -> None:
+        workflow = Path("examples/github-action.yml").read_text(encoding="utf-8")
+
+        self.assertEqual(workflow, default_github_workflow())
 
 
 if __name__ == "__main__":

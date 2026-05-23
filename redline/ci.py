@@ -43,6 +43,21 @@ jobs:
             --out-md .redline/reports/eval.md \\
             --out-junit .redline/reports/eval.xml
 
+      - name: Compare redline trend
+        if: always()
+        run: |
+          if [ -f .redline/reports/eval-before.json ]; then
+            python -m redline compare \\
+              .redline/reports/eval-before.json \\
+              .redline/reports/eval.json \\
+              --out-json .redline/reports/compare.json \\
+              --out-md .redline/reports/compare.md \\
+              --github-summary \\
+              --fail-on worse,new
+          else
+            echo "No previous redline report found at .redline/reports/eval-before.json; skipping compare."
+          fi
+
       - name: Upload redline reports
         if: always()
         uses: actions/upload-artifact@v4
