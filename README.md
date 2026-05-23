@@ -69,7 +69,8 @@ python -m redline cluster
 ```
 
 Cluster reports include risk levels, high-variance markers, and failure-pattern
-flags so risky coverage is visible before eval runs.
+flags so risky coverage is visible before eval runs. When `--max-cases` is
+tight, risky clusters are selected before larger low-risk clusters.
 
 Generate a suite from baseline logs:
 

@@ -61,6 +61,23 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("empty_response", patterns)
         self.assertIn("refusal_response", patterns)
 
+    def test_suite_prioritizes_high_risk_clusters_when_budget_is_tight(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "General prompt A", "ok", {}),
+                LogRecord(2, "General prompt B", "ok", {}),
+                LogRecord(3, "General prompt C", "ok", {}),
+                LogRecord(4, "Return JSON for Ada", "not json", {}),
+            ],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=1,
+        )
+
+        self.assertEqual(suite["cases"][0]["prompt"], "Return JSON for Ada")
+        self.assertEqual(suite["clusters"][0]["risk"], "high")
+
 
 if __name__ == "__main__":
     unittest.main()

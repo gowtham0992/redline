@@ -42,7 +42,7 @@ def build_suite(
         )
 
     clusters = []
-    for signature, group in sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0])):
+    for signature, group in sorted(grouped.items(), key=_group_rank):
         lengths = [len(record.response.split()) for record in group]
         high_variance = _is_high_variance(lengths)
         failure_patterns = _failure_patterns(signature, group, high_variance)
@@ -82,7 +82,7 @@ def _select_representatives(
     selected: list[LogRecord] = []
     selected_keys: set[tuple[str, int]] = set()
 
-    groups = sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))
+    groups = sorted(grouped.items(), key=_group_rank)
     for signature, group in groups:
         record = _median_length_record(group)
         selected.append(record)
@@ -112,6 +112,15 @@ def _select_representatives(
 def _median_length_record(group: list[LogRecord]) -> LogRecord:
     ranked = sorted(group, key=lambda record: len(record.response.split()))
     return ranked[len(ranked) // 2]
+
+
+def _group_rank(item: tuple[str, list[LogRecord]]) -> tuple[int, int, str]:
+    signature, group = item
+    lengths = [len(record.response.split()) for record in group]
+    high_variance = _is_high_variance(lengths)
+    risk = _cluster_risk(_failure_patterns(signature, group, high_variance))
+    risk_rank = {"high": 0, "medium": 1, "low": 2}[risk]
+    return risk_rank, -len(group), signature
 
 
 def _edge_records(group: list[LogRecord]) -> list[LogRecord]:
