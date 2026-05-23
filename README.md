@@ -51,7 +51,8 @@ local gate:
 bash scripts/release_check.sh
 ```
 
-The full public-alpha checklist lives in [docs/release.md](docs/release.md).
+The full public-alpha checklist lives in [docs/release.md](docs/release.md), and
+the first-user dogfood pass lives in [docs/dogfood.md](docs/dogfood.md).
 
 Create a project config:
 

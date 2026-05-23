@@ -48,10 +48,20 @@ class PackagingTests(unittest.TestCase):
         guide = Path("docs/release.md").read_text(encoding="utf-8")
 
         self.assertIn("bash scripts/release_check.sh", guide)
+        self.assertIn("docs/dogfood.md", guide)
         self.assertIn("pyproject.toml", guide)
         self.assertIn("redline/__init__.py", guide)
         self.assertIn("CHANGELOG.md", guide)
         self.assertIn("redline demo --compact", guide)
+
+    def test_dogfood_protocol_exercises_first_run_loop(self) -> None:
+        guide = Path("docs/dogfood.md").read_text(encoding="utf-8")
+
+        self.assertIn("redline demo", guide)
+        self.assertIn("redline runners", guide)
+        self.assertIn("redline init --runner openai --copy-runner --github-action", guide)
+        self.assertIn("redline suite .redline/demo/baseline.jsonl", guide)
+        self.assertIn("severity: blocker | confusing | polish", guide)
 
     def test_pyproject_includes_runner_templates(self) -> None:
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))

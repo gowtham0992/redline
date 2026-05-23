@@ -19,7 +19,8 @@ wheel build, clean virtualenv install, `redline demo --compact`, runner listing,
 
 ## Public Alpha Smoke
 
-Run the first five minutes exactly like a new user:
+Run the first five minutes exactly like a new user. Use the full dogfood pass in
+[docs/dogfood.md](dogfood.md) before tagging.
 
 ```bash
 python -m pip install "git+https://github.com/gowtham0992/redline.git@develop"
