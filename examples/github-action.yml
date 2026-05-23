@@ -24,6 +24,7 @@ jobs:
         run: |
           python -m redline eval \
             --github-summary \
+            --github-annotations \
             --out-json .redline/reports/eval.json \
             --out-md .redline/reports/eval.md \
             --out-junit .redline/reports/eval.xml

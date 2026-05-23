@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from redline.io import write_json, write_text
-from redline.reports import format_junit_report, format_markdown_report
+from redline.reports import format_github_annotations, format_junit_report, format_markdown_report
 
 
 class ReportTests(unittest.TestCase):
@@ -92,6 +92,65 @@ class ReportTests(unittest.TestCase):
         self.assertIn('name="source" value="baseline.jsonl:12"', report)
         self.assertIn('name="cluster" value="structured_json|json|short"', report)
         self.assertIn("candidate lost valid JSON format", report)
+
+    def test_github_annotations_mark_regressions_and_changed_cases(self) -> None:
+        result = {
+            "summary": {},
+            "diffs": [
+                {
+                    "case_id": "case_001",
+                    "status": "regression",
+                    "source": "logs/baseline.jsonl",
+                    "source_line": 7,
+                    "prompt": "Return JSON",
+                    "reasons": ["candidate lost valid JSON format"],
+                },
+                {
+                    "case_id": "case_002",
+                    "status": "changed",
+                    "source": "logs/baseline.jsonl",
+                    "source_line": 8,
+                    "prompt": "Route to billing, not security",
+                    "reasons": ["short answer changed"],
+                },
+                {
+                    "case_id": "case_003",
+                    "status": "neutral",
+                    "prompt": "hello",
+                    "reasons": ["no high-signal behavioral change detected"],
+                },
+            ],
+        }
+
+        annotations = format_github_annotations(result, title="redline eval")
+
+        self.assertIn("::error", annotations)
+        self.assertIn("::warning", annotations)
+        self.assertIn("title=redline eval%3A regression case_001", annotations)
+        self.assertIn("file=logs/baseline.jsonl,line=7", annotations)
+        self.assertIn("candidate lost valid JSON format", annotations)
+        self.assertIn("Prompt: Route to billing, not security", annotations)
+        self.assertNotIn("case_003", annotations)
+
+    def test_github_annotations_escape_newlines_and_percent_signs(self) -> None:
+        result = {
+            "summary": {},
+            "diffs": [
+                {
+                    "case_id": "case_001",
+                    "status": "missing",
+                    "source": "logs/baseline.jsonl",
+                    "source_line": 1,
+                    "prompt": "Discount 50%",
+                    "reasons": ["first line\nsecond 50%"],
+                }
+            ],
+        }
+
+        annotations = format_github_annotations(result)
+
+        self.assertIn("first line%0Asecond 50%25", annotations)
+        self.assertIn("Prompt: Discount 50%25", annotations)
 
 
 if __name__ == "__main__":

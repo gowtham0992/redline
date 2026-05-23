@@ -18,7 +18,7 @@ from .io import append_text, read_json, read_jsonl_records, write_json, write_js
 from .judge import apply_judge
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import parse_fail_on, should_fail
-from .reports import format_junit_report, format_markdown_report
+from .reports import format_github_annotations, format_junit_report, format_markdown_report
 from .requirements import add_case_requirement, clear_case_requirements
 from .replay import read_prompt_template, replay_suite
 from .summary import format_suite_summary, suite_summary
@@ -129,6 +129,7 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("--out-md", help="write Markdown report")
     diff_parser.add_argument("--out-junit", help="write JUnit XML report")
     diff_parser.add_argument("--github-summary", action="store_true", help="append Markdown report to GITHUB_STEP_SUMMARY")
+    diff_parser.add_argument("--github-annotations", action="store_true", help="emit GitHub error/warning annotations")
     diff_parser.add_argument("--judge", help="command that judges ambiguous changed cases from JSON on stdin")
     diff_parser.add_argument("--judge-timeout", type=float, help="per-case judge timeout in seconds")
     diff_parser.add_argument(
@@ -152,6 +153,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--out-md", help="write Markdown report")
     eval_parser.add_argument("--out-junit", help="write JUnit XML report")
     eval_parser.add_argument("--github-summary", action="store_true", help="append Markdown report to GITHUB_STEP_SUMMARY")
+    eval_parser.add_argument("--github-annotations", action="store_true", help="emit GitHub error/warning annotations")
     eval_parser.add_argument("--judge", help="command that judges ambiguous changed cases from JSON on stdin")
     eval_parser.add_argument("--judge-timeout", type=float, help="per-case judge timeout in seconds")
     eval_parser.add_argument("--candidate-out", help="write replayed candidate prompt-response JSONL")
@@ -507,6 +509,10 @@ def _emit_result(
         write_text(out_junit, format_junit_report(result, suite_name=title.replace(" ", ".")))
     if getattr(args, "github_summary", False):
         _append_github_step_summary(markdown_report)
+    if getattr(args, "github_annotations", False):
+        annotations = format_github_annotations(result, title=title)
+        if annotations:
+            print(annotations, end="", file=sys.stderr)
 
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))

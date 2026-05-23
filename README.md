@@ -123,8 +123,11 @@ The default config writes JSON, Markdown, and JUnit XML reports under
 In GitHub Actions, append the Markdown report to the job summary:
 
 ```bash
-python -m redline eval --github-summary
+python -m redline eval --github-summary --github-annotations
 ```
+
+`--github-annotations` emits PR-check annotations for regressions, missing
+outputs, and ambiguous changed cases.
 
 Mark a known change as expected so future runs do not fail on that case:
 

@@ -110,6 +110,25 @@ def format_junit_report(result: dict[str, Any], *, suite_name: str = "redline") 
     return ElementTree.tostring(testsuite, encoding="unicode") + "\n"
 
 
+def format_github_annotations(result: dict[str, Any], *, title: str = "redline diff") -> str:
+    lines = []
+    for item in result.get("diffs", []):
+        if not isinstance(item, dict):
+            continue
+        level = _annotation_level(str(item.get("status", "")))
+        if level is None:
+            continue
+        props = _annotation_properties(item, title=title)
+        prop_text = ",".join(
+            f"{key}={_escape_annotation_property(value)}"
+            for key, value in props.items()
+        )
+        lines.append(
+            f"::{level} {prop_text}::{_escape_annotation_message(_annotation_message(item))}"
+        )
+    return "\n".join(lines).rstrip() + "\n" if lines else ""
+
+
 def _inline_code(value: str) -> str:
     compact = " ".join(value.split())
     return f"`{compact.replace('`', '')}`"
@@ -153,3 +172,53 @@ def _source_location(item: dict[str, Any]) -> str:
     if source:
         return source
     return ""
+
+
+def _annotation_level(status: str) -> str | None:
+    if status in {"regression", "missing"}:
+        return "error"
+    if status == "changed":
+        return "warning"
+    return None
+
+
+def _annotation_properties(item: dict[str, Any], *, title: str) -> dict[str, str]:
+    case_id = str(item.get("case_id") or "unknown")
+    status = str(item.get("status") or "unknown")
+    props = {"title": f"{title}: {status} {case_id}"}
+    source = str(item.get("source") or "")
+    if source:
+        props["file"] = source
+    source_line = item.get("source_line")
+    if isinstance(source_line, int) and source_line >= 1:
+        props["line"] = str(source_line)
+    return props
+
+
+def _annotation_message(item: dict[str, Any]) -> str:
+    case_id = str(item.get("case_id") or "unknown")
+    prompt = _preview(str(item.get("prompt") or ""))
+    reasons = item.get("reasons")
+    reason = str(reasons[0]) if isinstance(reasons, list) and reasons else str(item.get("status") or "changed")
+    return f"{case_id}: {reason}\nPrompt: {prompt}"
+
+
+def _escape_annotation_property(value: str) -> str:
+    return (
+        value.replace("%", "%25")
+        .replace("\r", "%0D")
+        .replace("\n", "%0A")
+        .replace(":", "%3A")
+        .replace(",", "%2C")
+    )
+
+
+def _escape_annotation_message(value: str) -> str:
+    return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def _preview(text: str, limit: int = 120) -> str:
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 1] + "..."

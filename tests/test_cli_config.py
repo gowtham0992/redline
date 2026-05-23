@@ -91,6 +91,42 @@ class CliConfigTests(unittest.TestCase):
                     os.environ["GITHUB_STEP_SUMMARY"] = previous_summary
                 os.chdir(previous)
 
+    def test_diff_can_emit_github_annotations_without_polluting_json(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps({"suite": ".redline/suite.json", "fail_on": "none"}),
+                    encoding="utf-8",
+                )
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                    self.assertEqual(
+                        main(["diff", "candidate.jsonl", "--github-annotations", "--json"]),
+                        0,
+                    )
+
+                payload = json.loads(stdout.getvalue())
+                self.assertEqual(payload["summary"]["regression"], 1)
+                self.assertIn("::error", stderr.getvalue())
+                self.assertIn("candidate lost valid JSON format", stderr.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_diff_uses_configured_judge_command_for_changed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
