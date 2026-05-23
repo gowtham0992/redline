@@ -93,6 +93,12 @@ Add a deterministic requirement for a case:
 python -m redline require case_003_b13b74def7 --include "30 days"
 ```
 
+Forbid text that should never appear in a case response:
+
+```bash
+python -m redline require case_003_b13b74def7 --exclude "final sale"
+```
+
 Tune CI strictness with `--fail-on`. By default redline exits `1` for
 `regression` and `missing` cases. Use `none` for report-only runs:
 

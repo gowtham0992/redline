@@ -148,6 +148,7 @@ def build_parser() -> argparse.ArgumentParser:
     require_parser.add_argument("paths", nargs="+", help="case id, or suite JSON plus case id")
     require_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     require_parser.add_argument("--include", action="append", default=[], help="text that candidate output must include")
+    require_parser.add_argument("--exclude", action="append", default=[], help="text that candidate output must not include")
     require_parser.add_argument("--note", default="", help="short reason for the requirement")
     require_parser.add_argument("--clear", action="store_true", help="clear requirements for the case")
     require_parser.add_argument("--out", help="write updated suite to a new path")
@@ -337,9 +338,9 @@ def cmd_require(args: argparse.Namespace) -> int:
         action = "Cleared" if removed else "No requirements found for"
         print(f"{action} {case_id}.")
     else:
-        if not args.include:
-            raise ValueError("require needs --include or --clear")
-        add_case_requirement(suite, case_id, include=args.include, note=args.note)
+        if not args.include and not args.exclude:
+            raise ValueError("require needs --include, --exclude, or --clear")
+        add_case_requirement(suite, case_id, include=args.include, exclude=args.exclude, note=args.note)
         print(f"Updated requirements for {case_id}.")
     output = args.out or suite_path
     write_json(output, suite)

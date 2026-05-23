@@ -9,6 +9,7 @@ def add_case_requirement(
     case_id: str,
     *,
     include: list[str] | None = None,
+    exclude: list[str] | None = None,
     note: str = "",
 ) -> dict[str, Any]:
     _find_case(suite, case_id)
@@ -27,7 +28,14 @@ def add_case_requirement(
         if value and value not in includes:
             includes.append(value)
 
+    excludes = list(existing.get("exclude") or [])
+    for item in exclude or []:
+        value = item.strip()
+        if value and value not in excludes:
+            excludes.append(value)
+
     existing["include"] = includes
+    existing["exclude"] = excludes
     existing["note"] = note
     existing["updated_at"] = datetime.now(timezone.utc).isoformat()
     return existing
@@ -56,6 +64,10 @@ def requirement_reasons(requirement: dict[str, Any] | None, candidate_response: 
         required = str(value)
         if required and required not in candidate_response:
             reasons.append(f"candidate missing required text: {required}")
+    for value in requirement.get("exclude") or []:
+        forbidden = str(value)
+        if forbidden and forbidden in candidate_response:
+            reasons.append(f"candidate includes forbidden text: {forbidden}")
     return reasons
 
 
