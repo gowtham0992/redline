@@ -126,6 +126,60 @@ def format_report_comparison(result: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def format_markdown_comparison(result: dict[str, Any]) -> str:
+    summary = result["summary"]
+    lines = [
+        "# redline compare",
+        "",
+        "| Direction | Count |",
+        "| --- | ---: |",
+        f"| Worse | {summary.get('worse', 0)} |",
+        f"| Better | {summary.get('better', 0)} |",
+        f"| Resolved | {summary.get('resolved', 0)} |",
+        f"| New | {summary.get('new', 0)} |",
+        f"| Removed | {summary.get('removed', 0)} |",
+        f"| Unchanged | {summary.get('unchanged', 0)} |",
+        f"| Changed | {summary.get('changed', 0)} |",
+        "",
+    ]
+    previous = str(result.get("previous") or "")
+    current = str(result.get("current") or "")
+    if previous or current:
+        lines.append(f"Previous: {_inline_code(previous or '-')}")
+        lines.append("")
+        lines.append(f"Current: {_inline_code(current or '-')}")
+        lines.append("")
+
+    notable = [
+        item
+        for item in result.get("changes", [])
+        if isinstance(item, dict) and item.get("direction") != "unchanged"
+    ]
+    if not notable:
+        return "\n".join(lines).rstrip() + "\n"
+
+    lines.append("## Notable Changes")
+    lines.append("")
+    for item in notable:
+        direction = str(item.get("direction", "changed")).title()
+        case_id = str(item.get("case_id", "unknown"))
+        before = str(item.get("previous_status") or "-")
+        after = str(item.get("current_status") or "-")
+        reason = str(item.get("reason") or "")
+        prompt = str(item.get("prompt") or "")
+        lines.append(f"### `{case_id}`")
+        lines.append("")
+        lines.append(f"- Direction: **{direction}**")
+        lines.append(f"- Status: `{before}` -> `{after}`")
+        if reason:
+            lines.append(f"- Reason: {reason}")
+        if prompt:
+            lines.append(f"- Prompt: {_inline_code(prompt)}")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def parse_compare_fail_on(value: str | None) -> set[str]:
     if value is None or value == "":
         return set()
@@ -206,3 +260,11 @@ def _preview(text: str, limit: int) -> str:
     if len(compact) <= limit:
         return compact
     return compact[: limit - 1] + "..."
+
+
+def _inline_code(value: str) -> str:
+    compact = " ".join(value.split())
+    fence = "`"
+    while fence in compact:
+        fence += "`"
+    return f"{fence}{compact}{fence}"

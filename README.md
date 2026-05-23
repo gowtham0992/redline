@@ -245,7 +245,9 @@ python -m redline compare before.json after.json --fail-on worse,new
 Archive compare output for trend history:
 
 ```bash
-python -m redline compare before.json after.json --out-json .redline/reports/compare.json
+python -m redline compare before.json after.json \
+  --out-json .redline/reports/compare.json \
+  --out-md .redline/reports/compare.md
 ```
 
 In GitHub Actions, append the Markdown report to the job summary:

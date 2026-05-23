@@ -566,6 +566,76 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_compare_can_write_markdown_and_github_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            previous_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+            try:
+                Path("before.json").write_text(
+                    json.dumps(
+                        {
+                            "diffs": [
+                                {
+                                    "case_id": "case_001",
+                                    "status": "changed",
+                                    "prompt": "Return JSON",
+                                }
+                            ]
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("after.json").write_text(
+                    json.dumps(
+                        {
+                            "diffs": [
+                                {
+                                    "case_id": "case_001",
+                                    "status": "regression",
+                                    "prompt": "Return JSON",
+                                    "reasons": ["candidate lost valid JSON format"],
+                                }
+                            ]
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                summary_path = root / "github" / "summary.md"
+                os.environ["GITHUB_STEP_SUMMARY"] = str(summary_path)
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(
+                        main(
+                            [
+                                "compare",
+                                "before.json",
+                                "after.json",
+                                "--out-md",
+                                ".redline/reports/compare.md",
+                                "--github-summary",
+                                "--fail-on",
+                                "none",
+                            ]
+                        ),
+                        0,
+                    )
+
+                report = (root / ".redline" / "reports" / "compare.md").read_text(
+                    encoding="utf-8"
+                )
+                summary = summary_path.read_text(encoding="utf-8")
+                self.assertIn("# redline compare", report)
+                self.assertIn("candidate lost valid JSON format", report)
+                self.assertIn("# redline compare", summary)
+            finally:
+                if previous_summary is None:
+                    os.environ.pop("GITHUB_STEP_SUMMARY", None)
+                else:
+                    os.environ["GITHUB_STEP_SUMMARY"] = previous_summary
+                os.chdir(previous)
+
     def test_diff_uses_configured_judge_command_for_changed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
