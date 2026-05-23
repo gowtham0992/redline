@@ -21,6 +21,17 @@ class CliConfigTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 0)
         self.assertIn("redline 0.1.0", output.getvalue())
 
+    def test_runners_command_lists_adapter_commands(self) -> None:
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(["runners"]), 0)
+
+        text = output.getvalue()
+        self.assertIn("redline runners", text)
+        self.assertIn("OpenAI direct", text)
+        self.assertIn("./runners/openai_runner.sh", text)
+
     def test_init_can_write_github_action_workflow(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -50,6 +50,12 @@ Regressions and missing outputs fail CI by default through `fail_on`; set
 Need to connect your app? See [runner adapters](docs/runners.md) for copy-paste
 replay commands, starting with OpenAI direct.
 
+Or list the available adapters from the CLI:
+
+```bash
+redline runners
+```
+
 Store a default replay command in config:
 
 ```bash

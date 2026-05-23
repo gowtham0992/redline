@@ -6,8 +6,28 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from redline.runners import format_runner_adapters, runner_adapters
+
 
 class RunnerTests(unittest.TestCase):
+    def test_runner_adapters_list_core_set(self) -> None:
+        adapters = runner_adapters()
+        ids = {adapter["id"] for adapter in adapters}
+
+        self.assertIn("openai", ids)
+        self.assertIn("anthropic", ids)
+        self.assertIn("python-chain", ids)
+        self.assertIn("http", ids)
+        self.assertIn("jsonl-logs", ids)
+        self.assertIn("litellm", ids)
+
+    def test_format_runner_adapters_prints_replay_commands(self) -> None:
+        output = format_runner_adapters()
+
+        self.assertIn("redline runners", output)
+        self.assertIn("./runners/openai_runner.sh", output)
+        self.assertIn("python runners/http_runner.py", output)
+
     def test_openai_runner_fails_clearly_without_api_key(self) -> None:
         runner = Path("runners/openai_runner.sh")
 

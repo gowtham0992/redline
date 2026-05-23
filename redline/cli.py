@@ -25,6 +25,7 @@ from .policy import parse_fail_on, should_fail
 from .reports import format_github_annotations, format_junit_report, format_markdown_report
 from .requirements import add_case_requirement, clear_case_requirements
 from .replay import read_prompt_template, replay_suite
+from .runners import format_runner_adapters, runner_adapters
 from .summary import format_suite_summary, suite_summary
 from .suite import build_suite
 from .validate import format_validation_report, validate_suite
@@ -71,6 +72,10 @@ def build_parser() -> argparse.ArgumentParser:
     demo_parser.add_argument("--out", default=".redline/demo", help="demo output directory")
     demo_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     demo_parser.set_defaults(func=cmd_demo)
+
+    runners_parser = subparsers.add_parser("runners", help="list replay runner adapters")
+    runners_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    runners_parser.set_defaults(func=cmd_runners)
 
     watch_parser = subparsers.add_parser("watch", help="collect prompt-response records from a JSONL log")
     watch_parser.add_argument("--log", help="JSONL prompt-response log to collect")
@@ -283,6 +288,15 @@ def cmd_demo(args: argparse.Namespace) -> int:
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
         print(format_demo(result), end="")
+    return 0
+
+
+def cmd_runners(args: argparse.Namespace) -> int:
+    adapters = runner_adapters()
+    if args.json:
+        print(json.dumps({"runners": adapters}, indent=2, sort_keys=True))
+    else:
+        print(format_runner_adapters(adapters), end="")
     return 0
 
 
