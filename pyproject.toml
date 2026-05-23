@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "redline-local"
 version = "0.1.0"
-description = "Local-first prompt regression diffs from existing JSONL logs."
+description = "Generate eval suites from prompt logs and catch LLM regressions locally."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-keywords = ["llm", "evals", "prompts", "regression-testing"]
+keywords = ["ai", "evals", "jsonl", "llm", "prompts", "regression-testing"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",

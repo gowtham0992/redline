@@ -9,6 +9,7 @@ class PackagingTests(unittest.TestCase):
 
         self.assertEqual(pyproject["build-system"]["build-backend"], "setuptools.build_meta")
         self.assertEqual(pyproject["project"]["scripts"]["redline"], "redline.cli:main")
+        self.assertIn("Generate eval suites", pyproject["project"]["description"])
         self.assertEqual(pyproject["project"]["urls"]["Repository"], "https://github.com/gowtham0992/redline")
 
     def test_package_is_marked_typed(self) -> None:
