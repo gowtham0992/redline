@@ -17,6 +17,14 @@ class DoctorTests(unittest.TestCase):
         self.assertTrue(report["ok"])
         self.assertEqual(report["errors"], 0)
         self.assertEqual(report["warnings"], 3)
+        self.assertIn(
+            "Create config: redline init --runner openai --copy-runner",
+            report["next_steps"],
+        )
+        self.assertIn(
+            "Generate suite: redline suite path/to/log.jsonl --out redline-suite.json",
+            report["next_steps"],
+        )
 
     def test_doctor_report_errors_for_unreadable_suite(self) -> None:
         report = doctor_report(
@@ -31,7 +39,7 @@ class DoctorTests(unittest.TestCase):
 
     def test_format_doctor_report_is_readable(self) -> None:
         report = doctor_report(
-            config_path="redline.json",
+            config_path="pyproject.toml",
             config={
                 "replay": "python runner.py",
                 "reports": {
@@ -54,6 +62,19 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("reports: json=.redline/reports/doctor.json", output)
         self.assertIn("junit=.redline/reports/doctor.xml", output)
         self.assertIn("runs: candidate=.redline/runs/candidate.jsonl", output)
+        self.assertNotIn("Next:", output)
+
+    def test_format_doctor_report_prints_next_steps(self) -> None:
+        report = doctor_report(
+            config_path="missing.json",
+            config={},
+            suite=None,
+        )
+
+        output = format_doctor_report(report)
+
+        self.assertIn("Next:", output)
+        self.assertIn("redline init --runner openai --copy-runner", output)
 
     def test_doctor_warns_for_empty_artifact_sections(self) -> None:
         report = doctor_report(
@@ -96,6 +117,10 @@ class DoctorTests(unittest.TestCase):
                         and "command path not found" in check["message"]
                         for check in report["checks"]
                     )
+                )
+                self.assertIn(
+                    "Copy missing runner: redline runners --copy openai",
+                    report["next_steps"],
                 )
             finally:
                 os.chdir(previous)

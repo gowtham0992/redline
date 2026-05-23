@@ -71,6 +71,7 @@ def doctor_report(
         "errors": errors,
         "warnings": warnings,
         "checks": checks,
+        "next_steps": _next_steps(checks),
     }
 
 
@@ -82,6 +83,12 @@ def format_doctor_report(report: dict[str, Any]) -> str:
     lines.append("")
     lines.append(f"Errors: {report['errors']}")
     lines.append(f"Warnings: {report['warnings']}")
+    next_steps = report.get("next_steps") or []
+    if next_steps:
+        lines.append("")
+        lines.append("Next:")
+        for step in next_steps:
+            lines.append(f"- {step}")
     return "\n".join(lines) + "\n"
 
 
@@ -94,6 +101,65 @@ def _configured_paths(value: object, keys: tuple[str, ...]) -> list[str]:
         if isinstance(path, str) and path:
             paths.append(f"{key}={path}")
     return paths
+
+
+def _next_steps(checks: list[dict[str, str]]) -> list[str]:
+    steps: list[str] = []
+    by_name = {check["name"]: check for check in checks}
+
+    config_missing = _check_has(by_name, "config", "warn")
+    replay_missing = (
+        _check_has(by_name, "replay", "warn")
+        and by_name["replay"]["message"] == "not configured"
+    )
+    if config_missing:
+        steps.append("Create config: redline init --runner openai --copy-runner")
+    elif replay_missing:
+        steps.append(
+            "Configure replay: redline init --runner openai --copy-runner --force"
+        )
+
+    suite = by_name.get("suite")
+    if suite and suite["status"] == "warn":
+        steps.append(
+            "Generate suite: redline suite path/to/log.jsonl --out redline-suite.json"
+        )
+    elif suite and suite["status"] == "error":
+        steps.append("Fix suite JSON, then rerun: redline doctor")
+
+    replay = by_name.get("replay")
+    if replay and replay["status"] == "error":
+        steps.append(_replay_next_step(replay["message"]))
+
+    if _check_has(by_name, "suite-git", "warn"):
+        steps.append("Commit the suite baseline, or move it out of ignored paths")
+
+    return steps
+
+
+def _check_has(
+    checks: dict[str, dict[str, str]],
+    name: str,
+    status: str,
+) -> bool:
+    check = checks.get(name)
+    return bool(check and check["status"] == status)
+
+
+def _replay_next_step(message: str) -> str:
+    if "openai_runner.sh" in message:
+        return "Copy missing runner: redline runners --copy openai"
+    if "anthropic_runner.sh" in message:
+        return "Copy missing runner: redline runners --copy anthropic"
+    if "python_chain_runner.py" in message:
+        return "Copy missing runner: redline runners --copy python-chain"
+    if "http_runner.py" in message:
+        return "Copy missing runner: redline runners --copy http"
+    if "jsonl_log_adapter.py" in message:
+        return "Copy missing runner: redline runners --copy jsonl-logs"
+    if "litellm_runner.sh" in message:
+        return "Copy missing runner: redline runners --copy litellm"
+    return "Fix replay command in redline.json, then rerun: redline doctor"
 
 
 def _replay_check(replay: str) -> dict[str, str]:
