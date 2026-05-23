@@ -285,6 +285,45 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_watch_follow_prints_live_collected_records(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(Path(directory))
+            try:
+                Path("source.jsonl").write_text(
+                    '{"prompt": "hello from production", "response": "world"}\n',
+                    encoding="utf-8",
+                )
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "watch",
+                                "--log",
+                                "source.jsonl",
+                                "--follow",
+                                "--max-records",
+                                "1",
+                                "--poll-interval",
+                                "0",
+                            ]
+                        ),
+                        0,
+                    )
+
+                text = output.getvalue()
+                self.assertIn("Following source.jsonl.", text)
+                self.assertIn(
+                    "Writing new prompt-response pairs to .redline/logs/prompts.jsonl.",
+                    text,
+                )
+                self.assertIn("+ line 1: hello from production", text)
+                self.assertIn("Collected 1 new prompt-response pairs", text)
+            finally:
+                os.chdir(previous)
+
     def test_eval_uses_configured_replay_command(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

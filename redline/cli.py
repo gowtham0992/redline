@@ -26,7 +26,7 @@ from .requirements import add_case_requirement, clear_case_requirements
 from .replay import read_prompt_template, replay_suite
 from .summary import format_suite_summary, suite_summary
 from .suite import build_suite
-from .watch import collect_log, follow_log, format_watch_stats, watch_stats
+from .watch import collect_log, follow_log, format_follow_records, format_watch_stats, watch_stats
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -284,6 +284,13 @@ def cmd_watch(args: argparse.Namespace) -> int:
     if not args.log:
         raise ValueError("watch requires --log unless --stats is used")
     if args.follow:
+        if not args.json:
+            print(f"Following {Path(args.log)}.")
+            print(f"Writing new prompt-response pairs to {Path(output)}.")
+
+        def on_records(rows) -> None:
+            print(format_follow_records(rows), end="", flush=True)
+
         result = follow_log(
             args.log,
             output=output,
@@ -294,6 +301,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
             idle_timeout=args.idle_timeout,
             dedupe=not args.allow_duplicates,
             replace=args.replace,
+            on_records=on_records if not args.json else None,
         )
     else:
         result = collect_log(

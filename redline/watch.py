@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from time import monotonic, sleep
@@ -112,6 +113,16 @@ def format_watch_stats(stats: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def format_follow_records(rows: list[dict[str, Any]]) -> str:
+    lines = []
+    for row in rows:
+        source_line = row.get("source_line")
+        line = f"line {source_line}" if source_line is not None else "line ?"
+        prompt = _preview(str(row.get("prompt", "")))
+        lines.append(f"+ {line}: {prompt}")
+    return "\n".join(lines) + ("\n" if lines else "")
+
+
 def follow_log(
     source: str | Path,
     *,
@@ -123,6 +134,7 @@ def follow_log(
     idle_timeout: float | None = None,
     dedupe: bool = True,
     replace: bool = False,
+    on_records: Callable[[list[dict[str, Any]]], None] | None = None,
 ) -> dict[str, Any]:
     if poll_interval < 0:
         raise ValueError("poll_interval must be at least 0")
@@ -144,12 +156,18 @@ def follow_log(
         write_jsonl(output, [])
 
     while True:
+        read_limit = None
+        if max_records is not None:
+            read_limit = max_records - collected
+            if read_limit <= 0:
+                break
         records, offset, next_line_number = read_jsonl_records_from_offset(
             source,
             input_field,
             output_field,
             offset=offset,
             start_line_number=next_line_number,
+            max_records=read_limit,
         )
         rows = [
             _observed_row(
@@ -174,6 +192,8 @@ def follow_log(
             rows = pending
         if rows:
             append_jsonl(output, rows)
+            if on_records is not None:
+                on_records(rows)
 
         iterations += 1
         collected += len(rows)
@@ -242,3 +262,10 @@ def _row_key(row: dict[str, Any]) -> tuple[str, str] | None:
     if source is None or source_line is None:
         return None
     return str(source), str(source_line)
+
+
+def _preview(text: str, limit: int = 90) -> str:
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 1] + "..."

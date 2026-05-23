@@ -99,6 +99,9 @@ Keep polling a log during local development:
 python -m redline watch --log logs/prompts.jsonl --follow
 ```
 
+In human output mode, follow prints each collected prompt-response pair as it
+arrives. Use `--json` when another process needs machine-readable output.
+
 Summarize collected evidence:
 
 ```bash

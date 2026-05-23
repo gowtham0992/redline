@@ -5,7 +5,7 @@ from threading import Thread
 from time import sleep
 
 from redline.io import read_jsonl_records
-from redline.watch import collect_log, follow_log, format_watch_stats, watch_stats
+from redline.watch import collect_log, follow_log, format_follow_records, format_watch_stats, watch_stats
 
 
 class WatchTests(unittest.TestCase):
@@ -117,6 +117,61 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(result["records"], 2)
             self.assertEqual(result["iterations"], 1)
             self.assertEqual(len(records), 2)
+
+    def test_follow_log_caps_initial_batch_to_max_records(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.jsonl"
+            output = root / "observed.jsonl"
+            source.write_text(
+                '{"prompt": "one", "response": "1"}\n'
+                '{"prompt": "two", "response": "2"}\n',
+                encoding="utf-8",
+            )
+
+            result = follow_log(
+                source,
+                output=output,
+                poll_interval=0,
+                max_records=1,
+            )
+
+            records = read_jsonl_records(output, "prompt", "response")
+            self.assertEqual(result["records"], 1)
+            self.assertEqual(result["records_seen"], 1)
+            self.assertEqual([record.prompt for record in records], ["one"])
+
+    def test_follow_log_notifies_when_records_are_collected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.jsonl"
+            output = root / "observed.jsonl"
+            source.write_text('{"prompt": "one", "response": "1"}\n', encoding="utf-8")
+            collected = []
+
+            result = follow_log(
+                source,
+                output=output,
+                poll_interval=0,
+                max_records=1,
+                on_records=collected.extend,
+            )
+
+            self.assertEqual(result["records"], 1)
+            self.assertEqual(len(collected), 1)
+            self.assertEqual(collected[0]["prompt"], "one")
+
+    def test_format_follow_records_prints_live_prompt_preview(self) -> None:
+        text = format_follow_records(
+            [
+                {
+                    "source_line": 4,
+                    "prompt": "Summarize the refund policy for enterprise customers",
+                }
+            ]
+        )
+
+        self.assertEqual(text, "+ line 4: Summarize the refund policy for enterprise customers\n")
 
     def test_follow_log_can_stop_after_idle_timeout(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

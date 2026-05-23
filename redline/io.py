@@ -43,6 +43,7 @@ def read_jsonl_records_from_offset(
     *,
     offset: int = 0,
     start_line_number: int = 1,
+    max_records: int | None = None,
 ) -> tuple[list[LogRecord], int, int]:
     records: list[LogRecord] = []
     target = Path(path)
@@ -53,7 +54,10 @@ def read_jsonl_records_from_offset(
     with handle:
         handle.seek(offset)
         line_number = start_line_number
-        for line in handle:
+        while True:
+            line = handle.readline()
+            if line == "":
+                break
             stripped = line.strip()
             if stripped:
                 obj = _parse_jsonl_object(path, line_number, stripped)
@@ -71,6 +75,9 @@ def read_jsonl_records_from_offset(
                         raw=obj,
                     )
                 )
+                if max_records is not None and len(records) >= max_records:
+                    line_number += 1
+                    break
             line_number += 1
         return records, handle.tell(), line_number
 

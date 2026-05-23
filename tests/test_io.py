@@ -63,6 +63,34 @@ class IoTests(unittest.TestCase):
             self.assertGreater(new_offset, offset)
             self.assertEqual(new_next_line, 3)
 
+    def test_read_jsonl_records_from_offset_can_limit_records(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "observed.jsonl"
+            path.write_text(
+                '{"prompt": "one", "response": "1"}\n'
+                '{"prompt": "two", "response": "2"}\n',
+                encoding="utf-8",
+            )
+
+            records, offset, next_line = read_jsonl_records_from_offset(
+                path,
+                "prompt",
+                "response",
+                max_records=1,
+            )
+            new_records, _, new_next_line = read_jsonl_records_from_offset(
+                path,
+                "prompt",
+                "response",
+                offset=offset,
+                start_line_number=next_line,
+            )
+
+            self.assertEqual([record.prompt for record in records], ["one"])
+            self.assertEqual(next_line, 2)
+            self.assertEqual([record.prompt for record in new_records], ["two"])
+            self.assertEqual(new_next_line, 3)
+
     def test_read_jsonl_records_supports_nested_field_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "nested.jsonl"
