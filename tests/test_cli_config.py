@@ -18,8 +18,20 @@ class CliConfigTests(unittest.TestCase):
             os.chdir(root)
             try:
                 Path("redline.json").write_text(
-                    '{"suite": ".redline/suite.json", "input_field": "input", '
-                    '"output_field": "output", "max_cases": 3, "fail_on": "none"}',
+                    json.dumps(
+                        {
+                            "suite": ".redline/suite.json",
+                            "input_field": "input",
+                            "output_field": "output",
+                            "max_cases": 3,
+                            "fail_on": "none",
+                            "reports": {
+                                "json": ".redline/reports/{command}.json",
+                                "markdown": ".redline/reports/{command}.md",
+                                "junit": ".redline/reports/{command}.xml",
+                            },
+                        }
+                    ),
                     encoding="utf-8",
                 )
                 Path("baseline.jsonl").write_text(
@@ -36,6 +48,9 @@ class CliConfigTests(unittest.TestCase):
                     self.assertEqual(main(["diff", "candidate.jsonl"]), 0)
 
                 self.assertTrue((root / ".redline" / "suite.json").exists())
+                self.assertTrue((root / ".redline" / "reports" / "diff.json").exists())
+                self.assertTrue((root / ".redline" / "reports" / "diff.md").exists())
+                self.assertTrue((root / ".redline" / "reports" / "diff.xml").exists())
             finally:
                 os.chdir(previous)
 

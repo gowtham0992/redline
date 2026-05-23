@@ -366,12 +366,13 @@ def _emit_result(
     fail_on = parse_fail_on(_config_fail_on(args.fail_on, config))
     out_json = args.out_json or _config_report_path(config, "json", report_key)
     out_md = args.out_md or _config_report_path(config, "markdown", report_key)
+    out_junit = args.out_junit or _config_report_path(config, "junit", report_key)
     if out_json:
         write_json(out_json, result)
     if out_md:
         write_text(out_md, format_markdown_report(result, title=title))
-    if args.out_junit:
-        write_text(args.out_junit, format_junit_report(result, suite_name=title.replace(" ", ".")))
+    if out_junit:
+        write_text(out_junit, format_junit_report(result, suite_name=title.replace(" ", ".")))
 
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
