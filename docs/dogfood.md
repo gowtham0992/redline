@@ -58,6 +58,37 @@ redline diff /tmp/redline-dogfood-suite.json examples/dogfood_candidate.jsonl --
 Expected result: the diff includes regressions for missing JSON keys, refusals,
 lost Markdown tables, lost code blocks, lost numbered lists, and empty output.
 
+## Pass 5: AI Assistant Session Logs
+
+Use the same prompts in [ai-session-dogfood-prompts.jsonl](ai-session-dogfood-prompts.jsonl)
+across Claude, Kiro, Antigravity, or another assistant. Ask each tool to export
+its session as JSONL with `prompt`, `response`, and optional `metadata`.
+
+Save raw exports under `.redline/private/` so they stay out of git:
+
+```bash
+python scripts/normalize_ai_session_logs.py \
+  --prompts docs/ai-session-dogfood-prompts.jsonl \
+  --out .redline/private/normalized \
+  claude=.redline/private/claude.jsonl \
+  kiro=.redline/private/kiro.jsonl \
+  antigravity=.redline/private/antigravity.jsonl
+
+redline suite .redline/private/normalized/claude.jsonl \
+  --out .redline/private/normalized/claude-suite.json \
+  --max-cases 10
+
+redline diff .redline/private/normalized/claude-suite.json \
+  .redline/private/normalized/kiro.jsonl \
+  --profile review \
+  --compact \
+  --fail-on none
+```
+
+Expected result: long-form assistant differences show as `changed` review items
+instead of blocking regressions unless the candidate loses stronger signals such
+as JSON validity, required structure, URLs, refusals, or empty output.
+
 ## Friction Log
 
 Record every issue in this format:

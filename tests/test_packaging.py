@@ -1,3 +1,4 @@
+import json
 import tomllib
 import unittest
 from pathlib import Path
@@ -100,7 +101,15 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline runners", guide)
         self.assertIn("redline init --runner openai --copy-runner --github-action", guide)
         self.assertIn("redline suite .redline/demo/baseline.jsonl", guide)
+        self.assertIn("normalize_ai_session_logs.py", guide)
+        self.assertIn("ai-session-dogfood-prompts.jsonl", guide)
         self.assertIn("severity: blocker | confusing | polish", guide)
+
+    def test_ai_session_prompt_set_has_ten_prompts(self) -> None:
+        prompts = Path("docs/ai-session-dogfood-prompts.jsonl").read_text(encoding="utf-8").splitlines()
+
+        self.assertEqual(len(prompts), 10)
+        self.assertTrue(all(json.loads(line)["prompt"] for line in prompts))
 
     def test_pyproject_includes_runner_templates(self) -> None:
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
