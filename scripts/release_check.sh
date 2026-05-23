@@ -45,11 +45,11 @@ printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_pat
   printf '\n$ redline\n'
   "$venv_dir/bin/redline"
 
-  printf '\n$ redline demo --compact --out demo\n'
-  "$venv_dir/bin/redline" demo --compact --out demo
+  printf '\n$ redline demo --compact\n'
+  "$venv_dir/bin/redline" demo --compact
 
-  printf '\n$ redline history demo/reports/diff.json --label demo --out history.jsonl\n'
-  "$venv_dir/bin/redline" history demo/reports/diff.json --label demo --out history.jsonl
+  printf '\n$ redline history .redline/demo/reports/diff.json --label demo --out history.jsonl\n'
+  "$venv_dir/bin/redline" history .redline/demo/reports/diff.json --label demo --out history.jsonl
 
   printf '\n$ redline history --out history.jsonl\n'
   "$venv_dir/bin/redline" history --out history.jsonl
