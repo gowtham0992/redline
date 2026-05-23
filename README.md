@@ -316,11 +316,13 @@ deterministic checks first and only sends changed cases to the judge command as
 JSON on stdin:
 
 ```bash
-python -m redline diff examples/candidate.jsonl --judge "python scripts/judge.py"
+python -m redline diff examples/candidate.jsonl --judge "python examples/judge_changed.py"
 ```
 
 The judge command should print JSON with `status`, `confidence`, and `reason`.
 Accepted statuses are `regression`, `changed`, `improved`, and `neutral`.
+See [examples/judge_changed.py](examples/judge_changed.py) for a small local
+judge that demonstrates the stdin/stdout contract.
 
 Save replayed candidate outputs for debugging or a later `diff` run:
 
