@@ -68,6 +68,9 @@ Inspect behavioral clusters before generating a suite:
 python -m redline cluster
 ```
 
+Cluster reports include risk levels, high-variance markers, and failure-pattern
+flags so risky coverage is visible before eval runs.
+
 Generate a suite from baseline logs:
 
 ```bash

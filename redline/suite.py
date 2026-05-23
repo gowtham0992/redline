@@ -45,6 +45,7 @@ def build_suite(
     for signature, group in sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0])):
         lengths = [len(record.response.split()) for record in group]
         high_variance = _is_high_variance(lengths)
+        failure_patterns = _failure_patterns(signature, group, high_variance)
         clusters.append(
             {
                 "signature": signature,
@@ -52,7 +53,8 @@ def build_suite(
                 "word_count_min": min(lengths),
                 "word_count_max": max(lengths),
                 "high_variance": high_variance,
-                "failure_patterns": _failure_patterns(signature, group, high_variance),
+                "failure_patterns": failure_patterns,
+                "risk": _cluster_risk(failure_patterns),
             }
         )
 
@@ -148,6 +150,20 @@ def _failure_patterns(
         patterns.append("high_length_variance")
 
     return patterns
+
+
+def _cluster_risk(failure_patterns: list[str]) -> str:
+    high_risk = {
+        "empty_response",
+        "refusal_response",
+        "invalid_json_for_json_prompt",
+        "missing_table_for_table_prompt",
+    }
+    if any(pattern in high_risk for pattern in failure_patterns):
+        return "high"
+    if "high_length_variance" in failure_patterns:
+        return "medium"
+    return "low"
 
 
 def _case_id(record: LogRecord, index: int) -> str:
