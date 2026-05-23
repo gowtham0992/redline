@@ -39,6 +39,17 @@ class DemoTests(unittest.TestCase):
             self.assertIn("redline init", output)
             self.assertIn("redline doctor --strict", output)
 
+    def test_format_demo_can_use_compact_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = run_demo(Path(directory) / "demo")
+
+            output = format_demo(result, compact=True)
+
+            self.assertIn("redline demo: cases=5 regression=4", output)
+            self.assertIn("REGRESSION", output)
+            self.assertIn("candidate missing JSON keys", output)
+            self.assertNotIn("  REGRESSION", output)
+
 
 if __name__ == "__main__":
     unittest.main()

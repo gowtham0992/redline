@@ -21,6 +21,20 @@ class CliConfigTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 0)
         self.assertIn("redline 0.1.0", output.getvalue())
 
+    def test_demo_command_can_print_compact_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(["demo", "--out", str(Path(directory) / "demo"), "--compact"]),
+                    0,
+                )
+
+            text = output.getvalue()
+            self.assertIn("redline demo: cases=5 regression=4", text)
+            self.assertIn("REGRESSION", text)
+
     def test_runners_command_lists_adapter_commands(self) -> None:
         output = io.StringIO()
 

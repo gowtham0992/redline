@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .diff import compare_suite_to_candidate, format_report
+from .diff import compare_suite_to_candidate, format_compact_report, format_report
 from .io import read_jsonl_records, write_json, write_jsonl, write_text
 from .reports import format_markdown_report
 from .suite import build_suite
@@ -106,7 +106,12 @@ def run_demo(output_dir: str | Path = ".redline/demo") -> dict[str, Any]:
     }
 
 
-def format_demo(result: dict[str, Any]) -> str:
+def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
+    report = (
+        format_compact_report(result["diff"], title="redline demo")
+        if compact
+        else format_report(result["diff"], title="redline demo")
+    )
     lines = [
         "redline demo",
         "",
@@ -118,7 +123,7 @@ def format_demo(result: dict[str, Any]) -> str:
         f"Suite:         {result['suite']}",
         f"Reports:       {result['report_json']}, {result['report_markdown']}",
         "",
-        format_report(result["diff"], title="redline demo").rstrip(),
+        report.rstrip(),
         "",
         "Next steps",
         f"- Inspect the Markdown report: {result['report_markdown']}",

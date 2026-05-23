@@ -25,6 +25,12 @@ The demo writes a realistic support-agent suite under `.redline/demo` and
 prints a behavioral diff where a shorter candidate prompt drops required
 production details.
 
+For a GIF-friendly terminal view:
+
+```bash
+redline demo --compact
+```
+
 For local development on redline itself:
 
 ```bash
