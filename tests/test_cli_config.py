@@ -46,6 +46,37 @@ class CliConfigTests(unittest.TestCase):
             self.assertTrue((root / "openai.sh").exists())
             self.assertIn("Replay:", output.getvalue())
 
+    def test_runners_command_can_copy_all_adapters(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                output = io.StringIO()
+
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["runners", "--copy", "all"]), 0)
+
+                self.assertTrue((root / "runners" / "openai_runner.sh").exists())
+                self.assertTrue((root / "runners" / "http_runner.py").exists())
+                self.assertIn("Replay commands:", output.getvalue())
+            finally:
+                os.chdir(previous)
+
+    def test_runners_command_refuses_out_with_copy_all(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(Path(directory))
+            try:
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = main(["runners", "--copy", "all", "--out", "runner.sh"])
+
+                self.assertEqual(code, 2)
+                self.assertIn("--out can only be used", stderr.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_init_can_write_github_action_workflow(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

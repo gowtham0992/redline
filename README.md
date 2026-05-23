@@ -68,6 +68,12 @@ Copy a runner into your project:
 redline runners --copy openai
 ```
 
+Or copy every built-in adapter:
+
+```bash
+redline runners --copy all
+```
+
 Store a default replay command in config:
 
 ```bash

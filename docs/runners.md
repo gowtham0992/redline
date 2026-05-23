@@ -12,6 +12,12 @@ To set replay config and copy a built-in runner in one step:
 redline init --runner openai --copy-runner
 ```
 
+To copy every built-in adapter for exploration:
+
+```bash
+redline runners --copy all
+```
+
 ## OpenAI Direct
 
 What you need: an OpenAI API key and a prompt file.

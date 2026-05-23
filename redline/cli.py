@@ -25,7 +25,12 @@ from .policy import parse_fail_on, should_fail
 from .reports import format_github_annotations, format_junit_report, format_markdown_report
 from .requirements import add_case_requirement, clear_case_requirements
 from .replay import read_prompt_template, replay_suite
-from .runners import copy_runner_adapter, format_runner_adapters, runner_adapters
+from .runners import (
+    copy_all_runner_adapters,
+    copy_runner_adapter,
+    format_runner_adapters,
+    runner_adapters,
+)
 from .summary import format_suite_summary, suite_summary
 from .suite import build_suite
 from .validate import format_validation_report, validate_suite
@@ -86,8 +91,8 @@ def build_parser() -> argparse.ArgumentParser:
     runners_parser = subparsers.add_parser("runners", help="list replay runner adapters")
     runners_parser.add_argument(
         "--copy",
-        choices=[adapter["id"] for adapter in runner_adapters()],
-        help="copy a runner adapter into this project",
+        choices=["all", *[adapter["id"] for adapter in runner_adapters()]],
+        help="copy one runner adapter, or all adapters, into this project",
     )
     runners_parser.add_argument("--out", help="output path for --copy; defaults to adapter file path")
     runners_parser.add_argument("--force", action="store_true", help="overwrite existing output path for --copy")
@@ -321,6 +326,19 @@ def cmd_demo(args: argparse.Namespace) -> int:
 
 def cmd_runners(args: argparse.Namespace) -> int:
     if args.copy:
+        if args.copy == "all":
+            if args.out:
+                raise ValueError("--out can only be used when copying one runner")
+            results = copy_all_runner_adapters(force=args.force)
+            if args.json:
+                print(json.dumps({"runners": results}, indent=2, sort_keys=True))
+            else:
+                for result in results:
+                    print(f"Wrote {Path(result['path'])}.")
+                print("Replay commands:")
+                for result in results:
+                    print(f"  {result['id']}: {result['replay']}")
+            return 0
         result = copy_runner_adapter(args.copy, output=args.out, force=args.force)
         if args.json:
             print(json.dumps(result, indent=2, sort_keys=True))

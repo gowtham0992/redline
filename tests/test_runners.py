@@ -6,7 +6,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.runners import copy_runner_adapter, format_runner_adapters, runner_adapters
+from redline.runners import (
+    copy_all_runner_adapters,
+    copy_runner_adapter,
+    format_runner_adapters,
+    runner_adapters,
+)
 
 
 class RunnerTests(unittest.TestCase):
@@ -57,6 +62,19 @@ class RunnerTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "already exists"):
                 copy_runner_adapter("openai", output=str(output))
+
+    def test_copy_all_runner_adapters_writes_each_template(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(directory)
+            try:
+                results = copy_all_runner_adapters()
+
+                self.assertEqual(len(results), len(runner_adapters()))
+                for adapter in runner_adapters():
+                    self.assertTrue(Path(adapter["file"]).exists())
+            finally:
+                os.chdir(previous)
 
     def test_openai_runner_fails_clearly_without_api_key(self) -> None:
         runner = Path("runners/openai_runner.sh")

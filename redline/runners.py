@@ -105,6 +105,21 @@ def copy_runner_adapter(
     }
 
 
+def copy_all_runner_adapters(*, force: bool = False) -> list[dict[str, str]]:
+    existing = [
+        Path(adapter["file"])
+        for adapter in RUNNER_ADAPTERS
+        if Path(adapter["file"]).exists()
+    ]
+    if existing and not force:
+        first = existing[0]
+        raise ValueError(f"{first} already exists; pass --force to overwrite")
+    return [
+        copy_runner_adapter(adapter["id"], force=force)
+        for adapter in RUNNER_ADAPTERS
+    ]
+
+
 def _runner_adapter(runner_id: str) -> dict[str, str]:
     for adapter in RUNNER_ADAPTERS:
         if adapter["id"] == runner_id:
