@@ -26,6 +26,12 @@ List the generated cases and IDs:
 python -m redline cases .redline/suite.json
 ```
 
+Summarize suite coverage:
+
+```bash
+python -m redline summary
+```
+
 Compare candidate outputs against that suite:
 
 ```bash
