@@ -50,6 +50,14 @@ the prompt on stdin and should print the candidate response to stdout:
 python -m redline eval .redline/suite.json --replay "python examples/replay_candidate.py"
 ```
 
+Save replayed candidate outputs for debugging or a later `diff` run:
+
+```bash
+python -m redline eval .redline/suite.json \
+  --replay "python examples/replay_candidate.py" \
+  --candidate-out .redline/runs/candidate.jsonl
+```
+
 If your command takes the prompt as an argument, use `{prompt}`:
 
 ```bash

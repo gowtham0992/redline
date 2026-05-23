@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .diff import compare_suite_to_candidate, format_report
-from .io import read_json, read_jsonl_records, write_json, write_text
+from .io import read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import DEFAULT_FAIL_ON, parse_fail_on, should_fail
 from .reports import format_markdown_report
@@ -66,6 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     eval_parser.add_argument("--out-json", help="write machine-readable JSON report")
     eval_parser.add_argument("--out-md", help="write Markdown report")
+    eval_parser.add_argument("--candidate-out", help="write replayed candidate prompt-response JSONL")
     eval_parser.add_argument(
         "--fail-on",
         default=",".join(DEFAULT_FAIL_ON),
@@ -120,6 +121,8 @@ def cmd_diff(args: argparse.Namespace) -> int:
 def cmd_eval(args: argparse.Namespace) -> int:
     suite = read_json(args.suite)
     replay = replay_suite(suite, args.replay, timeout_seconds=args.timeout)
+    if args.candidate_out:
+        write_jsonl(args.candidate_out, (record.raw for record in replay.records))
     result = compare_suite_to_candidate(suite, replay.records)
     result["replay"] = replay.to_metadata()
 

@@ -35,7 +35,12 @@ def read_jsonl_records(path: str | Path, input_field: str, output_field: str) ->
 
 
 def iter_jsonl(path: str | Path) -> Iterable[tuple[int, dict[str, Any]]]:
-    with Path(path).open("r", encoding="utf-8") as handle:
+    target = Path(path)
+    try:
+        handle = target.open("r", encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise ValueError(f"{path} not found") from exc
+    with handle:
         for line_number, line in enumerate(handle, 1):
             stripped = line.strip()
             if not stripped:
@@ -57,6 +62,15 @@ def write_json(path: str | Path, data: dict[str, Any]) -> None:
         handle.write("\n")
 
 
+def write_jsonl(path: str | Path, rows: Iterable[dict[str, Any]]) -> None:
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            json.dump(row, handle, sort_keys=True, ensure_ascii=False)
+            handle.write("\n")
+
+
 def write_text(path: str | Path, text: str) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -65,8 +79,11 @@ def write_text(path: str | Path, text: str) -> None:
 
 
 def read_json(path: str | Path) -> dict[str, Any]:
-    with Path(path).open("r", encoding="utf-8") as handle:
-        data = json.load(handle)
+    try:
+        with Path(path).open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except FileNotFoundError as exc:
+        raise ValueError(f"{path} not found") from exc
     if not isinstance(data, dict):
         raise ValueError(f"{path} expected a JSON object")
     return data
