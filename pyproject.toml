@@ -8,13 +8,12 @@ version = "0.1.0"
 description = "Generate eval suites from prompt logs and catch LLM regressions locally."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
 keywords = ["ai", "evals", "jsonl", "llm", "prompts", "regression-testing"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
   "Topic :: Software Development :: Testing",

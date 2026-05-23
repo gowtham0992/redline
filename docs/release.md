@@ -47,11 +47,13 @@ after it has been pushed.
 
 ## Publish
 
-For a PyPI release, build and upload from the same commit that was tagged:
+For a PyPI release, build into a fresh output directory from the same commit
+that was tagged. Do not upload an ignored local `dist/*`; it can contain stale
+dogfood artifacts from earlier builds.
 
 ```bash
-python -m build
-python -m twine upload dist/*
+bash scripts/build_release.sh /tmp/redline-dist-v0.1.0
+python -m twine upload /tmp/redline-dist-v0.1.0/*
 ```
 
 Then install in a fresh environment and run:

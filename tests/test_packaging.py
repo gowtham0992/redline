@@ -9,9 +9,14 @@ class PackagingTests(unittest.TestCase):
 
         self.assertEqual(pyproject["build-system"]["build-backend"], "setuptools.build_meta")
         self.assertEqual(pyproject["project"]["name"], "redline-ai")
+        self.assertEqual(pyproject["project"]["license"], "MIT")
         self.assertEqual(pyproject["project"]["scripts"]["redline"], "redline.cli:main")
         self.assertIn("Generate eval suites", pyproject["project"]["description"])
         self.assertEqual(pyproject["project"]["urls"]["Repository"], "https://github.com/gowtham0992/redline")
+        self.assertNotIn(
+            "License :: OSI Approved :: MIT License",
+            pyproject["project"]["classifiers"],
+        )
 
     def test_dev_dependencies_include_release_tools(self) -> None:
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
@@ -29,7 +34,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("scripts *.sh", manifest)
 
     def test_shell_scripts_are_executable(self) -> None:
-        for script_name in ("demo_terminal.sh", "release_check.sh"):
+        for script_name in ("build_release.sh", "demo_terminal.sh", "release_check.sh"):
             with self.subTest(script=script_name):
                 script = Path("scripts") / script_name
 
@@ -55,10 +60,21 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline history demo/reports/diff.json", script)
         self.assertIn("redline doctor", script)
 
+    def test_release_build_script_uses_fresh_output_dir(self) -> None:
+        script = Path("scripts/build_release.sh").read_text(encoding="utf-8")
+
+        self.assertIn("-m build --no-isolation --outdir", script)
+        self.assertIn("output directory is not empty", script)
+        self.assertIn("redline_ai-*.whl", script)
+        self.assertIn("redline_ai-*.tar.gz", script)
+        self.assertIn("-m twine check", script)
+
     def test_release_guide_documents_package_gate(self) -> None:
         guide = Path("docs/release.md").read_text(encoding="utf-8")
 
         self.assertIn("bash scripts/release_check.sh", guide)
+        self.assertIn("bash scripts/build_release.sh", guide)
+        self.assertIn("Do not upload an ignored local `dist/*`", guide)
         self.assertIn("docs/dogfood.md", guide)
         self.assertIn("pyproject.toml", guide)
         self.assertIn("redline/__init__.py", guide)
