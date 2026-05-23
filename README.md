@@ -67,6 +67,14 @@ python -m redline mark .redline/suite.json case_002_1612556e83 \
   --note "intentional response format change"
 ```
 
+Promote a reviewed candidate output into the suite baseline:
+
+```bash
+python -m redline accept case_002_1612556e83 \
+  --candidate .redline/runs/candidate.jsonl \
+  --note "new expected response"
+```
+
 Tune CI strictness with `--fail-on`. By default redline exits `1` for
 `regression` and `missing` cases. Use `none` for report-only runs:
 

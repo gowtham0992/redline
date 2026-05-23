@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
+from .accept import accept_candidate_baseline
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
 from .config import DEFAULT_CONFIG_PATH, create_config, load_config
 from .diff import compare_suite_to_candidate, format_report
@@ -124,6 +125,16 @@ def build_parser() -> argparse.ArgumentParser:
     clear_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     clear_parser.add_argument("--out", help="write updated suite to a new path")
     clear_parser.set_defaults(func=cmd_clear)
+
+    accept_parser = subparsers.add_parser("accept", help="promote candidate output into a suite baseline")
+    accept_parser.add_argument("paths", nargs="+", help="case id, or suite JSON plus case id")
+    accept_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
+    accept_parser.add_argument("--candidate", help="candidate JSONL file; defaults to configured run output")
+    accept_parser.add_argument("--input-field", help="candidate input field; defaults to suite/config field")
+    accept_parser.add_argument("--output-field", help="candidate output field; defaults to suite/config field")
+    accept_parser.add_argument("--note", default="", help="short reason for accepting the baseline")
+    accept_parser.add_argument("--out", help="write updated suite to a new path")
+    accept_parser.set_defaults(func=cmd_accept)
 
     return parser
 
@@ -248,6 +259,24 @@ def cmd_clear(args: argparse.Namespace) -> int:
         print(f"Cleared judgment for {case_id} in {Path(output)}.")
     else:
         print(f"No judgment found for {case_id} in {Path(output)}.")
+    return 0
+
+
+def cmd_accept(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    suite_path, case_id = _suite_case_args(args.paths, config)
+    suite = read_json(suite_path)
+    candidate_path = args.candidate or _config_candidate_path(config)
+    if not candidate_path:
+        raise ValueError("candidate JSONL required; pass --candidate or set runs.candidate in redline.json")
+    input_field = args.input_field or str(suite.get("input_field") or config.get("input_field", "prompt"))
+    output_field = args.output_field or str(suite.get("output_field") or config.get("output_field", "response"))
+    candidate = read_jsonl_records(candidate_path, input_field, output_field)
+    result = accept_candidate_baseline(suite, candidate, case_id, note=args.note)
+    output = args.out or suite_path
+    write_json(output, suite)
+    print(f"Accepted {case_id} from {Path(candidate_path)} line {result['candidate_line']}.")
+    print(f"Wrote {Path(output)}.")
     return 0
 
 
