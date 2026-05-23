@@ -17,7 +17,7 @@ python -m redline init
 Generate a suite from baseline logs:
 
 ```bash
-python -m redline suite examples/baseline.jsonl --out .redline/suite.json
+python -m redline suite examples/baseline.jsonl
 ```
 
 List the generated cases and IDs:
@@ -29,7 +29,7 @@ python -m redline cases .redline/suite.json
 Compare candidate outputs against that suite:
 
 ```bash
-python -m redline diff .redline/suite.json examples/candidate.jsonl
+python -m redline diff examples/candidate.jsonl
 ```
 
 Write reports for CI or PR comments:
