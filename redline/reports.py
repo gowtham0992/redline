@@ -34,6 +34,15 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
             for reason in item["reasons"]:
                 lines.append(f"- {reason}")
             lines.append("")
+            lines.append("Baseline:")
+            lines.append("")
+            lines.append(_code_block(str(item.get("baseline_response", ""))))
+            lines.append("")
+            if item.get("candidate_response") is not None:
+                lines.append("Candidate:")
+                lines.append("")
+                lines.append(_code_block(str(item.get("candidate_response", ""))))
+                lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
 
@@ -41,3 +50,9 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
 def _inline_code(value: str) -> str:
     compact = " ".join(value.split())
     return f"`{compact.replace('`', '')}`"
+
+
+def _code_block(value: str, limit: int = 1200) -> str:
+    text = value if len(value) <= limit else value[: limit - 1] + "..."
+    fence = "````" if "```" in text else "```"
+    return f"{fence}\n{text}\n{fence}"

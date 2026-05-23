@@ -29,6 +29,8 @@ class DiffTests(unittest.TestCase):
 
         self.assertEqual(result["summary"]["missing"], 1)
         self.assertEqual(result["diffs"][0]["status"], "missing")
+        self.assertEqual(result["diffs"][0]["baseline_response"], "30 days")
+        self.assertIsNone(result["diffs"][0]["candidate_response"])
 
     def test_compare_matches_candidate_by_case_id_before_prompt(self) -> None:
         suite = build_suite(
@@ -54,6 +56,7 @@ class DiffTests(unittest.TestCase):
 
         self.assertEqual(result["summary"]["missing"], 0)
         self.assertEqual(result["summary"]["neutral"], 1)
+        self.assertEqual(result["diffs"][0]["candidate_response"], '{"ok": true}')
 
 
 if __name__ == "__main__":

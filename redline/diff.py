@@ -13,6 +13,8 @@ class CaseDiff:
     case_id: str
     status: str
     prompt: str
+    baseline_response: str
+    candidate_response: str | None
     reasons: tuple[str, ...]
     baseline_features: dict[str, Any]
     candidate_features: dict[str, Any] | None
@@ -22,6 +24,8 @@ class CaseDiff:
             "case_id": self.case_id,
             "status": self.status,
             "prompt": self.prompt,
+            "baseline_response": self.baseline_response,
+            "candidate_response": self.candidate_response,
             "reasons": list(self.reasons),
             "baseline_features": self.baseline_features,
             "candidate_features": self.candidate_features,
@@ -42,6 +46,7 @@ def compare_suite_to_candidate(
     for case in suite.get("cases", []):
         case_id = str(case["id"])
         prompt = str(case["prompt"])
+        baseline_response = str(case["baseline_response"])
         candidate = _pop_candidate_by_case_id(candidate_case_index, case_id)
         if candidate is None:
             candidate = _pop_candidate(candidate_index, prompt)
@@ -56,6 +61,8 @@ def compare_suite_to_candidate(
                     case_id=case_id,
                     status=status,
                     prompt=prompt,
+                    baseline_response=baseline_response,
+                    candidate_response=None,
                     reasons=tuple(reasons),
                     baseline_features=dict(case.get("features", {})),
                     candidate_features=None,
@@ -63,7 +70,6 @@ def compare_suite_to_candidate(
             )
             continue
 
-        baseline_response = str(case["baseline_response"])
         baseline = extract_features(baseline_response)
         candidate_features = extract_features(candidate.response)
         status, reasons = classify_change(baseline.to_dict(), candidate_features.to_dict())
@@ -73,6 +79,8 @@ def compare_suite_to_candidate(
                 case_id=case_id,
                 status=status,
                 prompt=prompt,
+                baseline_response=baseline_response,
+                candidate_response=candidate.response,
                 reasons=tuple(reasons),
                 baseline_features=baseline.to_dict(),
                 candidate_features=candidate_features.to_dict(),

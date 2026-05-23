@@ -23,6 +23,8 @@ class ReportTests(unittest.TestCase):
                     "case_id": "case_001",
                     "status": "regression",
                     "prompt": "Return JSON",
+                    "baseline_response": '{"ok": true}',
+                    "candidate_response": "ok",
                     "reasons": ["candidate lost valid JSON format"],
                 }
             ],
@@ -33,6 +35,9 @@ class ReportTests(unittest.TestCase):
         self.assertIn("# redline eval", report)
         self.assertIn("| Regression | 1 |", report)
         self.assertIn("candidate lost valid JSON format", report)
+        self.assertIn("Baseline:", report)
+        self.assertIn('{"ok": true}', report)
+        self.assertIn("Candidate:", report)
 
     def test_report_files_create_parent_directories(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
