@@ -39,6 +39,10 @@ def suite_case_detail(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
     if not isinstance(judgments, dict):
         judgments = {}
     judgment = judgments.get(case_id)
+    requirements = suite.get("requirements", {})
+    if not isinstance(requirements, dict):
+        requirements = {}
+    requirement = requirements.get(case_id)
     return {
         "id": str(case["id"]),
         "source_line": case.get("source_line"),
@@ -47,6 +51,7 @@ def suite_case_detail(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
         "baseline_response": str(case.get("baseline_response", "")),
         "features": case.get("features", {}),
         "judgment": judgment if isinstance(judgment, dict) else None,
+        "requirements": requirement if isinstance(requirement, dict) else None,
     }
 
 
@@ -76,6 +81,11 @@ def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
     if detail["judgment"]:
         lines.extend(["", "Judgment:"])
         for key, value in detail["judgment"].items():
+            lines.append(f"  {key}: {value}")
+
+    if detail["requirements"]:
+        lines.extend(["", "Requirements:"])
+        for key, value in detail["requirements"].items():
             lines.append(f"  {key}: {value}")
 
     return "\n".join(lines).rstrip() + "\n"

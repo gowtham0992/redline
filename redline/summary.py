@@ -11,6 +11,9 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
     judgments = suite.get("judgments", {})
     if not isinstance(judgments, dict):
         judgments = {}
+    requirements = suite.get("requirements", {})
+    if not isinstance(requirements, dict):
+        requirements = {}
 
     judgment_counts = Counter()
     for value in judgments.values():
@@ -43,6 +46,7 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "max_cases": int(summary.get("max_cases", 0)),
         "high_variance_clusters": len(high_variance),
         "judgments": dict(sorted(judgment_counts.items())),
+        "requirements": len(requirements),
         "top_clusters": top_clusters,
     }
 
@@ -57,6 +61,7 @@ def format_suite_summary(suite: dict[str, Any]) -> str:
         f"Representative cases:   {summary['cases']}",
         f"Max cases:              {summary['max_cases']}",
         f"High-variance clusters: {summary['high_variance_clusters']}",
+        f"Cases with requirements:{summary['requirements']:>2}",
         "",
     ]
 

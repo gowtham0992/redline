@@ -2,6 +2,7 @@ import unittest
 
 from redline.io import LogRecord
 from redline.judgments import mark_suite_case
+from redline.requirements import add_case_requirement
 from redline.summary import format_suite_summary, suite_summary
 from redline.suite import build_suite
 
@@ -18,13 +19,16 @@ class SummaryTests(unittest.TestCase):
             output_field="response",
             max_cases=10,
         )
-        mark_suite_case(suite, suite["cases"][0]["id"], status="expected")
+        case_id = suite["cases"][0]["id"]
+        mark_suite_case(suite, case_id, status="expected")
+        add_case_requirement(suite, case_id, include=["ok"])
 
         summary = suite_summary(suite)
 
         self.assertEqual(summary["records_seen"], 2)
         self.assertEqual(summary["cases"], 2)
         self.assertEqual(summary["judgments"], {"expected": 1})
+        self.assertEqual(summary["requirements"], 1)
 
     def test_format_suite_summary_is_readable(self) -> None:
         suite = build_suite(
