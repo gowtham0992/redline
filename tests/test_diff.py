@@ -89,6 +89,9 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(result["diffs"][0]["status"], "missing")
         self.assertEqual(result["diffs"][0]["baseline_response"], "30 days")
         self.assertIsNone(result["diffs"][0]["candidate_response"])
+        self.assertEqual(result["diffs"][0]["source"], "memory")
+        self.assertEqual(result["diffs"][0]["source_line"], 1)
+        self.assertIn("cluster", result["diffs"][0])
 
     def test_compare_matches_candidate_by_case_id_before_prompt(self) -> None:
         suite = build_suite(

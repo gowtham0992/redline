@@ -14,6 +14,9 @@ from .requirements import case_requirements, requirement_reasons
 class CaseDiff:
     case_id: str
     status: str
+    source: str
+    source_line: Any
+    cluster: str
     prompt: str
     baseline_response: str
     candidate_response: str | None
@@ -25,6 +28,9 @@ class CaseDiff:
         return {
             "case_id": self.case_id,
             "status": self.status,
+            "source": self.source,
+            "source_line": self.source_line,
+            "cluster": self.cluster,
             "prompt": self.prompt,
             "baseline_response": self.baseline_response,
             "candidate_response": self.candidate_response,
@@ -44,11 +50,14 @@ def compare_suite_to_candidate(
     if not isinstance(judgments, dict):
         judgments = {}
     diffs: list[CaseDiff] = []
+    source = str(suite.get("source", ""))
 
     for case in suite.get("cases", []):
         case_id = str(case["id"])
         prompt = str(case["prompt"])
         baseline_response = str(case["baseline_response"])
+        source_line = case.get("source_line")
+        cluster = str(case.get("cluster", ""))
         candidate = _pop_candidate_by_case_id(candidate_case_index, case_id)
         if candidate is None:
             candidate = _pop_candidate(candidate_index, prompt)
@@ -62,6 +71,9 @@ def compare_suite_to_candidate(
                 CaseDiff(
                     case_id=case_id,
                     status=status,
+                    source=source,
+                    source_line=source_line,
+                    cluster=cluster,
                     prompt=prompt,
                     baseline_response=baseline_response,
                     candidate_response=None,
@@ -92,6 +104,9 @@ def compare_suite_to_candidate(
             CaseDiff(
                 case_id=case_id,
                 status=status,
+                source=source,
+                source_line=source_line,
+                cluster=cluster,
                 prompt=prompt,
                 baseline_response=baseline_response,
                 candidate_response=candidate.response,
@@ -239,7 +254,7 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
             continue
         lines.append(status.upper())
         for item in matching:
-            lines.append(f"- {item['case_id']}: {_preview(item['prompt'])}")
+            lines.append(f"- {_case_label(item)}: {_preview(item['prompt'])}")
             for reason in item["reasons"]:
                 lines.append(f"  - {reason}")
         lines.append("")
@@ -278,6 +293,28 @@ def _pop_candidate(indexed: dict[str, list[LogRecord]], prompt: str) -> LogRecor
     if not records:
         return None
     return records.pop(0)
+
+
+def _case_label(item: dict[str, Any]) -> str:
+    case_id = str(item.get("case_id", "unknown"))
+    location = _source_location(item)
+    cluster = str(item.get("cluster") or "")
+    details = [value for value in (location, cluster) if value]
+    if not details:
+        return case_id
+    return f"{case_id} [{', '.join(details)}]"
+
+
+def _source_location(item: dict[str, Any]) -> str:
+    source = str(item.get("source") or "")
+    source_line = item.get("source_line")
+    if source and source_line is not None:
+        return f"{source}:{source_line}"
+    if source_line is not None:
+        return f"line {source_line}"
+    if source:
+        return source
+    return ""
 
 
 def _case_judgment(judgments: dict[Any, Any], case_id: str) -> dict[str, Any] | None:

@@ -22,6 +22,9 @@ class ReportTests(unittest.TestCase):
                 {
                     "case_id": "case_001",
                     "status": "regression",
+                    "source": "baseline.jsonl",
+                    "source_line": 12,
+                    "cluster": "structured_json|json|short",
                     "prompt": "Return JSON",
                     "baseline_response": '{"ok": true}',
                     "candidate_response": "ok",
@@ -35,6 +38,8 @@ class ReportTests(unittest.TestCase):
         self.assertIn("# redline eval", report)
         self.assertIn("| Regression | 1 |", report)
         self.assertIn("candidate lost valid JSON format", report)
+        self.assertIn("Source: `baseline.jsonl:12`", report)
+        self.assertIn("Cluster: `structured_json|json|short`", report)
         self.assertIn("Baseline:", report)
         self.assertIn('{"ok": true}', report)
         self.assertIn("Candidate:", report)
@@ -64,6 +69,9 @@ class ReportTests(unittest.TestCase):
                 {
                     "case_id": "case_001",
                     "status": "regression",
+                    "source": "baseline.jsonl",
+                    "source_line": 12,
+                    "cluster": "structured_json|json|short",
                     "prompt": "Return JSON",
                     "reasons": ["candidate lost valid JSON format"],
                 }
@@ -75,6 +83,8 @@ class ReportTests(unittest.TestCase):
         self.assertIn('tests="1"', report)
         self.assertIn('failures="1"', report)
         self.assertIn("<failure", report)
+        self.assertIn('name="source" value="baseline.jsonl:12"', report)
+        self.assertIn('name="cluster" value="structured_json|json|short"', report)
         self.assertIn("candidate lost valid JSON format", report)
 
 

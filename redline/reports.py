@@ -32,6 +32,10 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
             lines.append("")
             lines.append(f"Prompt: {_inline_code(item['prompt'])}")
             lines.append("")
+            metadata = _metadata_lines(item)
+            if metadata:
+                lines.extend(metadata)
+                lines.append("")
             for reason in item["reasons"]:
                 lines.append(f"- {reason}")
             lines.append("")
@@ -81,6 +85,12 @@ def format_junit_report(result: dict[str, Any], *, suite_name: str = "redline") 
                 "name": case_id,
             },
         )
+        properties = _junit_properties(item)
+        if properties:
+            element = ElementTree.SubElement(testcase, "properties")
+            for name, value in properties.items():
+                ElementTree.SubElement(element, "property", {"name": name, "value": value})
+
         if status in {"regression", "missing"}:
             failure = ElementTree.SubElement(testcase, "failure", {"message": status})
             failure.text = "\n".join(str(reason) for reason in item.get("reasons", []))
@@ -100,3 +110,37 @@ def _code_block(value: str, limit: int = 1200) -> str:
     text = value if len(value) <= limit else value[: limit - 1] + "..."
     fence = "````" if "```" in text else "```"
     return f"{fence}\n{text}\n{fence}"
+
+
+def _metadata_lines(item: dict[str, Any]) -> list[str]:
+    lines = []
+    location = _source_location(item)
+    if location:
+        lines.append(f"Source: {_inline_code(location)}")
+    cluster = str(item.get("cluster") or "")
+    if cluster:
+        lines.append(f"Cluster: {_inline_code(cluster)}")
+    return lines
+
+
+def _junit_properties(item: dict[str, Any]) -> dict[str, str]:
+    properties = {}
+    location = _source_location(item)
+    if location:
+        properties["source"] = location
+    cluster = str(item.get("cluster") or "")
+    if cluster:
+        properties["cluster"] = cluster
+    return properties
+
+
+def _source_location(item: dict[str, Any]) -> str:
+    source = str(item.get("source") or "")
+    source_line = item.get("source_line")
+    if source and source_line is not None:
+        return f"{source}:{source_line}"
+    if source_line is not None:
+        return f"line {source_line}"
+    if source:
+        return source
+    return ""
