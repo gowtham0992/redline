@@ -528,6 +528,44 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_compare_can_write_json_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("before.json").write_text(
+                    json.dumps({"diffs": []}),
+                    encoding="utf-8",
+                )
+                Path("after.json").write_text(
+                    json.dumps({"diffs": []}),
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(
+                        main(
+                            [
+                                "compare",
+                                "before.json",
+                                "after.json",
+                                "--out-json",
+                                ".redline/reports/compare.json",
+                            ]
+                        ),
+                        0,
+                    )
+
+                report = json.loads(
+                    (root / ".redline" / "reports" / "compare.json").read_text(
+                        encoding="utf-8"
+                    )
+                )
+                self.assertEqual(report["summary"]["cases"], 0)
+            finally:
+                os.chdir(previous)
+
     def test_diff_uses_configured_judge_command_for_changed_cases(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

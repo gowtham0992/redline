@@ -242,6 +242,12 @@ report-only history checks, or include other directions such as `new`:
 python -m redline compare before.json after.json --fail-on worse,new
 ```
 
+Archive compare output for trend history:
+
+```bash
+python -m redline compare before.json after.json --out-json .redline/reports/compare.json
+```
+
 In GitHub Actions, append the Markdown report to the job summary:
 
 ```bash

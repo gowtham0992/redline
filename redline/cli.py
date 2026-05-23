@@ -195,6 +195,7 @@ def build_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("previous", help="previous redline JSON report")
     compare_parser.add_argument("current", help="current redline JSON report")
     compare_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    compare_parser.add_argument("--out-json", help="write machine-readable JSON comparison report")
     compare_parser.add_argument(
         "--fail-on",
         default=None,
@@ -539,6 +540,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
         previous_path=args.previous,
         current_path=args.current,
     )
+    if args.out_json:
+        write_json(args.out_json, result)
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
