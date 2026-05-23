@@ -6,6 +6,12 @@ prints only the candidate response to `stdout`. Logs belong on `stderr`.
 redline also sets `REDLINE_CASE_ID`, `REDLINE_SOURCE_LINE`, `REDLINE_CLUSTER`,
 and `REDLINE_PROMPT_PATH` for each replay.
 
+To set replay config and copy a built-in runner in one step:
+
+```bash
+redline init --runner openai --copy-runner
+```
+
 ## OpenAI Direct
 
 What you need: an OpenAI API key and a prompt file.

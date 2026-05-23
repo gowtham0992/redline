@@ -62,6 +62,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=[adapter["id"] for adapter in runner_adapters()],
         help="set replay from a built-in runner adapter",
     )
+    init_parser.add_argument(
+        "--copy-runner",
+        action="store_true",
+        help="copy the selected built-in runner adapter into this project",
+    )
     init_parser.add_argument("--github-action", action="store_true", help="also write a GitHub Actions workflow")
     init_parser.add_argument("--workflow", default=".github/workflows/redline.yml", help="workflow path for --github-action")
     init_parser.add_argument("--force", action="store_true", help="overwrite an existing config file")
@@ -250,6 +255,8 @@ def cmd_init(args: argparse.Namespace) -> int:
         raise ValueError(f"{Path(args.workflow)} already exists; pass --force to overwrite")
     if args.replay and args.runner:
         raise ValueError("use --replay or --runner, not both")
+    if args.copy_runner and not args.runner:
+        raise ValueError("use --copy-runner with --runner")
     replay = args.replay or _runner_replay(args.runner)
     config = create_config(
         args.config,
@@ -260,8 +267,14 @@ def cmd_init(args: argparse.Namespace) -> int:
         replay=replay,
         force=args.force,
     )
+    runner_result = None
+    if args.copy_runner:
+        runner_result = copy_runner_adapter(args.runner, force=args.force)
     write_json(args.config, config)
     print(f"Wrote {Path(args.config)}.")
+    if runner_result:
+        print(f"Wrote {Path(runner_result['path'])}.")
+        print(f"Replay: {runner_result['replay']}")
     if args.github_action:
         write_text(args.workflow, default_github_workflow())
         print(f"Wrote {Path(args.workflow)}.")

@@ -85,6 +85,30 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_init_can_copy_runner_adapter(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(["init", "--runner", "openai", "--copy-runner"]),
+                        0,
+                    )
+
+                runner = root / "runners" / "openai_runner.sh"
+                config = json.loads((root / "redline.json").read_text(encoding="utf-8"))
+                self.assertEqual(config["replay"], "./runners/openai_runner.sh")
+                self.assertTrue(runner.exists())
+                self.assertTrue(runner.stat().st_mode & 0o111)
+                self.assertIn("Wrote redline.json.", output.getvalue())
+                self.assertIn("Wrote runners/openai_runner.sh.", output.getvalue())
+                self.assertIn("Replay: ./runners/openai_runner.sh", output.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_init_refuses_runner_and_replay_together(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             previous = Path.cwd()
@@ -96,6 +120,21 @@ class CliConfigTests(unittest.TestCase):
 
                 self.assertEqual(code, 2)
                 self.assertIn("use --replay or --runner", stderr.getvalue())
+            finally:
+                os.chdir(previous)
+
+    def test_init_refuses_copy_runner_without_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(Path(directory))
+            try:
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = main(["init", "--copy-runner"])
+
+                self.assertEqual(code, 2)
+                self.assertIn("use --copy-runner with --runner", stderr.getvalue())
+                self.assertFalse(Path("redline.json").exists())
             finally:
                 os.chdir(previous)
 

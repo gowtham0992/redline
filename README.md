@@ -46,7 +46,7 @@ redline init --replay "python examples/replay_candidate.py" --github-action
 Or choose a built-in runner adapter:
 
 ```bash
-redline init --runner openai --github-action
+redline init --runner openai --copy-runner --github-action
 ```
 
 The generated `redline.json` includes a `$schema` reference for editor help.
