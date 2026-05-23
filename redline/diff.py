@@ -33,18 +33,27 @@ def compare_suite_to_candidate(
     candidate_records: list[LogRecord],
 ) -> dict[str, Any]:
     candidate_index = _index_by_prompt(candidate_records)
+    judgments = suite.get("judgments", {})
+    if not isinstance(judgments, dict):
+        judgments = {}
     diffs: list[CaseDiff] = []
 
     for case in suite.get("cases", []):
+        case_id = str(case["id"])
         prompt = str(case["prompt"])
         candidate = _pop_candidate(candidate_index, prompt)
         if candidate is None:
+            status, reasons = apply_judgment(
+                "missing",
+                ["candidate output missing for exact prompt"],
+                _case_judgment(judgments, case_id),
+            )
             diffs.append(
                 CaseDiff(
-                    case_id=str(case["id"]),
-                    status="missing",
+                    case_id=case_id,
+                    status=status,
                     prompt=prompt,
-                    reasons=("candidate output missing for exact prompt",),
+                    reasons=tuple(reasons),
                     baseline_features=dict(case.get("features", {})),
                     candidate_features=None,
                 )
@@ -55,9 +64,10 @@ def compare_suite_to_candidate(
         baseline = extract_features(baseline_response)
         candidate_features = extract_features(candidate.response)
         status, reasons = classify_change(baseline.to_dict(), candidate_features.to_dict())
+        status, reasons = apply_judgment(status, reasons, _case_judgment(judgments, case_id))
         diffs.append(
             CaseDiff(
-                case_id=str(case["id"]),
+                case_id=case_id,
                 status=status,
                 prompt=prompt,
                 reasons=tuple(reasons),
@@ -74,6 +84,8 @@ def compare_suite_to_candidate(
             "regression": counts["regression"],
             "changed": counts["changed"],
             "improved": counts["improved"],
+            "accepted": counts["accepted"],
+            "ignored": counts["ignored"],
             "neutral": counts["neutral"],
             "missing": counts["missing"],
         },
@@ -144,6 +156,27 @@ def classify_change(
     return "neutral", ["no high-signal behavioral change detected"]
 
 
+def apply_judgment(
+    status: str,
+    reasons: list[str],
+    judgment: dict[str, Any] | None,
+) -> tuple[str, list[str]]:
+    if not judgment:
+        return status, reasons
+
+    judgment_status = judgment.get("status")
+    note = str(judgment.get("note", "")).strip()
+    suffix = f": {note}" if note else ""
+
+    if judgment_status == "ignored":
+        return "ignored", [f"ignored by suite judgment{suffix}"] + reasons
+    if judgment_status == "expected" and status in {"regression", "changed", "improved"}:
+        return "accepted", [f"accepted by suite judgment{suffix}"] + reasons
+    if judgment_status == "regression" and status != "missing":
+        return "regression", [f"confirmed regression by suite judgment{suffix}"] + reasons
+    return status, reasons
+
+
 def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str:
     summary = result["summary"]
     lines = [
@@ -152,12 +185,14 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
         f"  REGRESSION {summary['regression']:>3}",
         f"  CHANGED    {summary['changed']:>3}",
         f"  IMPROVED   {summary['improved']:>3}",
+        f"  ACCEPTED   {summary['accepted']:>3}",
+        f"  IGNORED    {summary['ignored']:>3}",
         f"  NEUTRAL    {summary['neutral']:>3}",
         f"  MISSING    {summary['missing']:>3}",
         "",
     ]
 
-    for status in ("regression", "changed", "improved", "missing"):
+    for status in ("regression", "changed", "improved", "accepted", "ignored", "missing"):
         matching = [item for item in result["diffs"] if item["status"] == status]
         if not matching:
             continue
@@ -183,6 +218,13 @@ def _pop_candidate(indexed: dict[str, list[LogRecord]], prompt: str) -> LogRecor
     if not records:
         return None
     return records.pop(0)
+
+
+def _case_judgment(judgments: dict[Any, Any], case_id: str) -> dict[str, Any] | None:
+    judgment = judgments.get(case_id)
+    if isinstance(judgment, dict):
+        return judgment
+    return None
 
 
 def _length_reason(baseline_words: int, candidate_words: int) -> str | None:

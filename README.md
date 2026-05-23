@@ -28,6 +28,14 @@ python -m redline diff .redline/suite.json examples/candidate.jsonl \
   --out-md .redline/reports/diff.md
 ```
 
+Mark a known change as expected so future runs do not fail on that case:
+
+```bash
+python -m redline mark .redline/suite.json case_002_1612556e83 \
+  --status expected \
+  --note "intentional response format change"
+```
+
 Or let redline replay each suite case with a local command. The command receives
 the prompt on stdin and should print the candidate response to stdout:
 

@@ -10,15 +10,17 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
         "",
         "| Status | Count |",
         "| --- | ---: |",
-        f"| Regression | {summary['regression']} |",
-        f"| Changed | {summary['changed']} |",
-        f"| Improved | {summary['improved']} |",
-        f"| Neutral | {summary['neutral']} |",
-        f"| Missing | {summary['missing']} |",
+        f"| Regression | {summary.get('regression', 0)} |",
+        f"| Changed | {summary.get('changed', 0)} |",
+        f"| Improved | {summary.get('improved', 0)} |",
+        f"| Accepted | {summary.get('accepted', 0)} |",
+        f"| Ignored | {summary.get('ignored', 0)} |",
+        f"| Neutral | {summary.get('neutral', 0)} |",
+        f"| Missing | {summary.get('missing', 0)} |",
         "",
     ]
 
-    for status in ("regression", "changed", "improved", "missing", "neutral"):
+    for status in ("regression", "changed", "improved", "accepted", "ignored", "missing", "neutral"):
         matching = [item for item in result["diffs"] if item["status"] == status]
         if not matching:
             continue
