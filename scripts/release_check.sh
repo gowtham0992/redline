@@ -76,6 +76,16 @@ printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_pat
   printf '\n$ redline suite .redline/demo/baseline.jsonl --out all-suite.json --all-cases\n'
   "$venv_dir/bin/redline" suite .redline/demo/baseline.jsonl --out all-suite.json --all-cases
 
+  printf '\n$ redline suite add all-suite.json --prompt "Pinned refund URL" --response "Refund policy: https://example.com/refunds" --include "https://example.com/refunds" --out pinned-suite.json\n'
+  "$venv_dir/bin/redline" suite add all-suite.json \
+    --prompt "Pinned refund URL" \
+    --response "Refund policy: https://example.com/refunds" \
+    --include "https://example.com/refunds" \
+    --out pinned-suite.json
+
+  printf '\n$ redline validate pinned-suite.json\n'
+  "$venv_dir/bin/redline" validate pinned-suite.json
+
   printf '\n$ redline diff all-suite.json .redline/demo/candidate.jsonl --profile review --compact --fail-on none\n'
   "$venv_dir/bin/redline" diff all-suite.json .redline/demo/candidate.jsonl --profile review --compact --fail-on none
 

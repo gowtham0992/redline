@@ -18,6 +18,7 @@
 - Ship larger dogfood prompt logs that exercise several regression classes.
 - Normalize AI assistant session exports for private dogfood comparisons.
 - Include all fixed prompt rows with `redline suite --all-cases`.
+- Pin hand-picked edge cases into generated suites with `redline suite add`.
 - Include optional OpenAI-, Anthropic-, and LiteLLM-backed judge command templates for ambiguous changes.
 - Scaffold replay runners for OpenAI, Anthropic, HTTP APIs, Python chains, JSONL logs, and LiteLLM.
 - Initialize projects with config schema, runner setup, and GitHub Actions workflow generation.

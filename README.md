@@ -226,6 +226,15 @@ log, and wiring a replay runner.
 Use `--all-cases` when dogfooding small fixed prompt sets where every row should
 be compared instead of sampling representative clusters.
 
+Pin an important edge case the clustering did not select:
+
+```bash
+python -m redline suite add redline-suite.json \
+  --prompt "Answer refund questions with the policy URL" \
+  --response "Refund policy: https://example.com/policy/refunds" \
+  --include "https://example.com/policy/refunds"
+```
+
 Or generate it from the locally collected watch log:
 
 ```bash

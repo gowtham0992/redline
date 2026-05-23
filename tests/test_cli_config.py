@@ -436,6 +436,110 @@ class CliConfigTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("--all-cases cannot be combined with --max-cases", stderr.getvalue())
 
+    def test_suite_add_pins_case_and_requirements(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl", "--out", "suite.json"]), 0)
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "suite",
+                                "add",
+                                "suite.json",
+                                "--prompt",
+                                "Always mention refund URL",
+                                "--response",
+                                "Refund policy: https://example.com/refunds",
+                                "--include",
+                                "https://example.com/refunds",
+                                "--note",
+                                "critical policy edge case",
+                            ]
+                        ),
+                        0,
+                    )
+
+                suite = json.loads(Path("suite.json").read_text(encoding="utf-8"))
+                pinned = suite["cases"][-1]
+                self.assertEqual(suite["summary"]["cases"], 2)
+                self.assertEqual(suite["summary"]["pinned_cases"], 1)
+                self.assertEqual(pinned["source"], "manual")
+                self.assertTrue(pinned["pinned"])
+                self.assertIn("Added pinned case", output.getvalue())
+                self.assertEqual(
+                    suite["requirements"][pinned["id"]]["include"],
+                    ["https://example.com/refunds"],
+                )
+            finally:
+                os.chdir(previous)
+
+    def test_suite_add_reads_prompt_and_response_files(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("prompt.txt").write_text("Pinned prompt", encoding="utf-8")
+                Path("response.txt").write_text("Pinned response", encoding="utf-8")
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl", "--out", "suite.json"]), 0)
+                    self.assertEqual(
+                        main(
+                            [
+                                "suite",
+                                "add",
+                                "suite.json",
+                                "--prompt-file",
+                                "prompt.txt",
+                                "--response-file",
+                                "response.txt",
+                                "--out",
+                                "updated.json",
+                            ]
+                        ),
+                        0,
+                    )
+
+                suite = json.loads(Path("updated.json").read_text(encoding="utf-8"))
+                self.assertEqual(suite["cases"][-1]["prompt"], "Pinned prompt")
+                self.assertEqual(suite["cases"][-1]["baseline_response"], "Pinned response")
+                self.assertEqual(json.loads(Path("suite.json").read_text(encoding="utf-8"))["summary"]["cases"], 1)
+            finally:
+                os.chdir(previous)
+
+    def test_suite_add_reports_missing_prompt_file(self) -> None:
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(
+                [
+                    "suite",
+                    "add",
+                    "suite.json",
+                    "--prompt-file",
+                    "missing.txt",
+                    "--response",
+                    "expected",
+                ]
+            )
+
+        self.assertEqual(code, 2)
+        self.assertIn("prompt file not found: missing.txt", stderr.getvalue())
+
     def test_validate_reports_suite_health(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

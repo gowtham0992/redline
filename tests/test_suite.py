@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from redline.features import extract_features
 from redline.io import LogRecord
-from redline.suite import build_suite
+from redline.suite import add_suite_case, build_suite
 
 
 class SuiteTests(unittest.TestCase):
@@ -112,6 +112,47 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(suite["summary"]["max_cases"], 3)
         self.assertEqual(suite["summary"]["selection"], "all")
         self.assertEqual([case["source_line"] for case in suite["cases"]], [1, 2, 3])
+
+    def test_add_suite_case_pins_manual_case(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        case = add_suite_case(
+            suite,
+            prompt="Always mention the refund URL",
+            baseline_response="Refund policy: https://example.com/refunds",
+            note="critical policy edge case",
+        )
+
+        self.assertEqual(suite["summary"]["cases"], 2)
+        self.assertEqual(suite["summary"]["pinned_cases"], 1)
+        self.assertEqual(case["source"], "manual")
+        self.assertTrue(case["pinned"])
+        self.assertEqual(case["note"], "critical policy edge case")
+        self.assertIn("https://example.com/refunds", case["features"]["urls"])
+
+    def test_add_suite_case_refuses_duplicate_case_id(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        case_id = suite["cases"][0]["id"]
+
+        with self.assertRaisesRegex(ValueError, "case id already exists"):
+            add_suite_case(
+                suite,
+                prompt="Another edge",
+                baseline_response="expected",
+                case_id=case_id,
+            )
 
 
 if __name__ == "__main__":

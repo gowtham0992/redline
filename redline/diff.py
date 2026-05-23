@@ -60,13 +60,14 @@ def compare_suite_to_candidate(
     if not isinstance(judgments, dict):
         judgments = {}
     diffs: list[CaseDiff] = []
-    source = str(suite.get("source", ""))
+    suite_source = str(suite.get("source", ""))
 
     for case in suite.get("cases", []):
         case_id = str(case["id"])
         prompt = str(case["prompt"])
         baseline_response = str(case["baseline_response"])
         source_line = case.get("source_line")
+        source = str(case.get("source") or suite_source)
         cluster = str(case.get("cluster", ""))
         candidate = _pop_candidate_by_case_id(candidate_case_index, case_id)
         if candidate is None:

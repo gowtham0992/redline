@@ -182,6 +182,22 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(result["profile"], "strict")
         self.assertEqual(result["diffs"][0]["candidate_response"], '{"ok": true}')
 
+    def test_compare_uses_case_source_when_present(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        suite["cases"][0]["source"] = "manual"
+        suite["cases"][0]["source_line"] = None
+
+        result = compare_suite_to_candidate(suite, [])
+
+        self.assertEqual(result["diffs"][0]["source"], "manual")
+        self.assertIsNone(result["diffs"][0]["source_line"])
+
     def test_summarize_decision_recommends_review_for_changed_cases(self) -> None:
         decision = summarize_decision({"cases": 3, "changed": 1})
 

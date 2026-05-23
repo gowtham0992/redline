@@ -85,6 +85,60 @@ def build_suite(
     }
 
 
+def add_suite_case(
+    suite: dict[str, Any],
+    *,
+    prompt: str,
+    baseline_response: str,
+    source: str = "manual",
+    source_line: int | None = None,
+    case_id: str | None = None,
+    note: str = "",
+) -> dict[str, Any]:
+    prompt = prompt.strip()
+    if not prompt:
+        raise ValueError("prompt must not be empty")
+    if not baseline_response.strip():
+        raise ValueError("response must not be empty")
+
+    cases = suite.setdefault("cases", [])
+    if not isinstance(cases, list):
+        raise ValueError("suite cases must be a JSON array")
+
+    existing_ids = {
+        str(case.get("id"))
+        for case in cases
+        if isinstance(case, dict) and case.get("id")
+    }
+    index = len(cases) + 1
+    record = LogRecord(source_line or 0, prompt, baseline_response, {})
+    new_id = case_id.strip() if case_id else _case_id(record, index)
+    if not new_id:
+        raise ValueError("case id must not be empty")
+    if new_id in existing_ids:
+        raise ValueError(f"case id already exists: {new_id}")
+
+    features = extract_features(baseline_response)
+    signature = _behavior_signature(prompt, features)
+    case: dict[str, Any] = {
+        "id": new_id,
+        "source": source,
+        "source_line": source_line,
+        "cluster": signature,
+        "prompt": prompt,
+        "baseline_response": baseline_response,
+        "features": features.to_dict(),
+        "pinned": True,
+        "added_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if note.strip():
+        case["note"] = note.strip()
+    cases.append(case)
+    _upsert_manual_cluster(suite, signature, baseline_response)
+    _refresh_summary(suite, len(cases))
+    return case
+
+
 def _select_representatives(
     grouped: dict[str, list[LogRecord]],
     max_cases: int,
@@ -203,6 +257,61 @@ def _cluster_risk(failure_patterns: list[str]) -> str:
     if "high_length_variance" in failure_patterns:
         return "medium"
     return "low"
+
+
+def _upsert_manual_cluster(suite: dict[str, Any], signature: str, response: str) -> None:
+    clusters = suite.setdefault("clusters", [])
+    if not isinstance(clusters, list):
+        suite["clusters"] = []
+        clusters = suite["clusters"]
+
+    word_count = len(response.split())
+    for cluster in clusters:
+        if not isinstance(cluster, dict) or cluster.get("signature") != signature:
+            continue
+        size = int(cluster.get("size", 0))
+        cluster["size"] = size + 1
+        minimum = cluster.get("word_count_min")
+        maximum = cluster.get("word_count_max")
+        if isinstance(minimum, int):
+            cluster["word_count_min"] = min(minimum, word_count)
+        else:
+            cluster["word_count_min"] = word_count
+        if isinstance(maximum, int):
+            cluster["word_count_max"] = max(maximum, word_count)
+        else:
+            cluster["word_count_max"] = word_count
+        return
+
+    clusters.append(
+        {
+            "signature": signature,
+            "size": 1,
+            "word_count_min": word_count,
+            "word_count_max": word_count,
+            "high_variance": False,
+            "failure_patterns": [],
+            "risk": "low",
+            "manual": True,
+        }
+    )
+
+
+def _refresh_summary(suite: dict[str, Any], case_count: int) -> None:
+    summary = suite.setdefault("summary", {})
+    if not isinstance(summary, dict):
+        summary = {}
+        suite["summary"] = summary
+    clusters = suite.get("clusters")
+    cases = suite.get("cases")
+    summary["cases"] = case_count
+    summary["clusters"] = len(clusters) if isinstance(clusters, list) else 0
+    if isinstance(cases, list):
+        summary["pinned_cases"] = sum(
+            1
+            for case in cases
+            if isinstance(case, dict) and bool(case.get("pinned"))
+        )
 
 
 def _case_id(record: LogRecord, index: int) -> str:
