@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from typing import Any
 
 from .features import extract_features
@@ -72,7 +73,12 @@ def compare_suite_to_candidate(
 
         baseline = extract_features(baseline_response)
         candidate_features = extract_features(candidate.response)
-        status, reasons = classify_change(baseline.to_dict(), candidate_features.to_dict())
+        status, reasons = classify_change(
+            baseline.to_dict(),
+            candidate_features.to_dict(),
+            baseline_text=baseline_response,
+            candidate_text=candidate.response,
+        )
         status, reasons = apply_judgment(status, reasons, _case_judgment(judgments, case_id))
         diffs.append(
             CaseDiff(
@@ -107,6 +113,9 @@ def compare_suite_to_candidate(
 def classify_change(
     baseline: dict[str, Any],
     candidate: dict[str, Any],
+    *,
+    baseline_text: str | None = None,
+    candidate_text: str | None = None,
 ) -> tuple[str, list[str]]:
     reasons: list[str] = []
     regression_reasons: list[str] = []
@@ -157,6 +166,11 @@ def classify_change(
 
     if baseline["shape"] != candidate["shape"]:
         reasons.append(f"shape changed: {baseline['shape']} -> {candidate['shape']}")
+
+    if baseline["shape"] == candidate["shape"]:
+        content_reason = _content_reason(baseline_text, candidate_text)
+        if content_reason:
+            reasons.append(content_reason)
 
     if regression_reasons:
         return "regression", regression_reasons + reasons
@@ -267,6 +281,25 @@ def _length_reason(baseline_words: int, candidate_words: int) -> str | None:
         return f"candidate much shorter: {baseline_words} -> {candidate_words} words"
     if ratio >= 2.0 and candidate_words - baseline_words >= 40:
         return f"candidate much longer: {baseline_words} -> {candidate_words} words"
+    return None
+
+
+def _content_reason(baseline_text: str | None, candidate_text: str | None) -> str | None:
+    if baseline_text is None or candidate_text is None:
+        return None
+    baseline = " ".join(baseline_text.split())
+    candidate = " ".join(candidate_text.split())
+    if baseline == candidate or not baseline or not candidate:
+        return None
+
+    baseline_tokens = baseline.lower().split()
+    candidate_tokens = candidate.lower().split()
+    if len(baseline_tokens) <= 3 and len(candidate_tokens) <= 3:
+        return "short answer changed"
+
+    ratio = SequenceMatcher(None, baseline.lower(), candidate.lower()).ratio()
+    if ratio < 0.85:
+        return f"content changed substantially: similarity {ratio:.2f}"
     return None
 
 

@@ -16,6 +16,36 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(status, "regression")
         self.assertIn("candidate lost valid JSON format", reasons)
 
+    def test_classify_same_shape_content_drift_as_changed(self) -> None:
+        baseline_text = "The ticket should be routed to billing support."
+        candidate_text = "The ticket should be routed to security review."
+        baseline = extract_features(baseline_text).to_dict()
+        candidate = extract_features(candidate_text).to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text=baseline_text,
+            candidate_text=candidate_text,
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertTrue(any("content changed" in reason for reason in reasons))
+
+    def test_classify_short_answer_change(self) -> None:
+        baseline = extract_features("billing").to_dict()
+        candidate = extract_features("security").to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text="billing",
+            candidate_text="security",
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertIn("short answer changed", reasons)
+
     def test_compare_detects_missing_candidate(self) -> None:
         suite = build_suite(
             [LogRecord(1, "What is the refund window?", "30 days", {})],
