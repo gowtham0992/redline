@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .cases import format_suite_cases, suite_case_rows
+from .config import DEFAULT_CONFIG_PATH, create_config
 from .diff import compare_suite_to_candidate, format_report
 from .io import read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
@@ -32,6 +33,14 @@ def build_parser() -> argparse.ArgumentParser:
         description="Local-first prompt regression diffs from JSONL logs.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    init_parser = subparsers.add_parser("init", help="create a redline config file")
+    init_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to create")
+    init_parser.add_argument("--input-field", default="prompt", help="default JSONL input field")
+    init_parser.add_argument("--output-field", default="response", help="default JSONL output field")
+    init_parser.add_argument("--max-cases", type=int, default=42, help="default maximum suite cases")
+    init_parser.add_argument("--force", action="store_true", help="overwrite an existing config file")
+    init_parser.set_defaults(func=cmd_init)
 
     suite_parser = subparsers.add_parser("suite", help="generate a representative suite")
     suite_parser.add_argument("log", help="baseline JSONL file")
@@ -95,6 +104,19 @@ def build_parser() -> argparse.ArgumentParser:
     clear_parser.set_defaults(func=cmd_clear)
 
     return parser
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    config = create_config(
+        args.config,
+        input_field=args.input_field,
+        output_field=args.output_field,
+        max_cases=args.max_cases,
+        force=args.force,
+    )
+    write_json(args.config, config)
+    print(f"Wrote {Path(args.config)}.")
+    return 0
 
 
 def cmd_suite(args: argparse.Namespace) -> int:

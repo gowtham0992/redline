@@ -1,0 +1,39 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from redline.config import create_config, default_config
+
+
+class ConfigTests(unittest.TestCase):
+    def test_default_config_contains_project_defaults(self) -> None:
+        config = default_config()
+
+        self.assertEqual(config["suite"], ".redline/suite.json")
+        self.assertEqual(config["input_field"], "prompt")
+        self.assertEqual(config["output_field"], "response")
+        self.assertEqual(config["fail_on"], ["regression", "missing"])
+
+    def test_create_config_refuses_existing_file_without_force(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "redline.json"
+            path.write_text("{}", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "already exists"):
+                create_config(path)
+
+    def test_create_config_allows_custom_fields(self) -> None:
+        config = create_config(
+            "redline.json",
+            input_field="input",
+            output_field="output",
+            max_cases=12,
+        )
+
+        self.assertEqual(config["input_field"], "input")
+        self.assertEqual(config["output_field"], "output")
+        self.assertEqual(config["max_cases"], 12)
+
+
+if __name__ == "__main__":
+    unittest.main()

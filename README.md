@@ -8,6 +8,12 @@ run against the baseline.
 
 ## Quick Start
 
+Create a project config:
+
+```bash
+python -m redline init
+```
+
 Generate a suite from baseline logs:
 
 ```bash
