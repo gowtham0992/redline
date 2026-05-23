@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Sequence
@@ -13,7 +14,7 @@ from .config import DEFAULT_CONFIG_PATH, create_config, load_config
 from .demo import format_demo, run_demo
 from .diff import compare_suite_to_candidate, format_report
 from .doctor import doctor_report, format_doctor_report
-from .io import read_json, read_jsonl_records, write_json, write_jsonl, write_text
+from .io import append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import parse_fail_on, should_fail
 from .reports import format_junit_report, format_markdown_report
@@ -126,6 +127,7 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("--out-json", help="write machine-readable JSON report")
     diff_parser.add_argument("--out-md", help="write Markdown report")
     diff_parser.add_argument("--out-junit", help="write JUnit XML report")
+    diff_parser.add_argument("--github-summary", action="store_true", help="append Markdown report to GITHUB_STEP_SUMMARY")
     diff_parser.add_argument(
         "--fail-on",
         default=None,
@@ -146,6 +148,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--out-json", help="write machine-readable JSON report")
     eval_parser.add_argument("--out-md", help="write Markdown report")
     eval_parser.add_argument("--out-junit", help="write JUnit XML report")
+    eval_parser.add_argument("--github-summary", action="store_true", help="append Markdown report to GITHUB_STEP_SUMMARY")
     eval_parser.add_argument("--candidate-out", help="write replayed candidate prompt-response JSONL")
     eval_parser.add_argument("--run-metadata", help="write replay run metadata JSON")
     eval_parser.add_argument(
@@ -488,12 +491,15 @@ def _emit_result(
     out_json = args.out_json or _config_report_path(config, "json", report_key)
     out_md = args.out_md or _config_report_path(config, "markdown", report_key)
     out_junit = args.out_junit or _config_report_path(config, "junit", report_key)
+    markdown_report = format_markdown_report(result, title=title)
     if out_json:
         write_json(out_json, result)
     if out_md:
-        write_text(out_md, format_markdown_report(result, title=title))
+        write_text(out_md, markdown_report)
     if out_junit:
         write_text(out_junit, format_junit_report(result, suite_name=title.replace(" ", ".")))
+    if getattr(args, "github_summary", False):
+        _append_github_step_summary(markdown_report)
 
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
@@ -501,6 +507,14 @@ def _emit_result(
         print(format_report(result, title=title), end="")
 
     return 1 if should_fail(result, fail_on) else 0
+
+
+def _append_github_step_summary(markdown_report: str) -> None:
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        raise ValueError("--github-summary requires GITHUB_STEP_SUMMARY")
+    text = markdown_report if markdown_report.endswith("\n") else f"{markdown_report}\n"
+    append_text(summary_path, text)
 
 
 def _config_value(

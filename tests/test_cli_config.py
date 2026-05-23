@@ -54,6 +54,43 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_diff_can_append_github_step_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            previous_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps({"suite": ".redline/suite.json", "fail_on": "none"}),
+                    encoding="utf-8",
+                )
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+                summary_path = root / "github" / "summary.md"
+                os.environ["GITHUB_STEP_SUMMARY"] = str(summary_path)
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
+                    self.assertEqual(main(["diff", "candidate.jsonl", "--github-summary"]), 0)
+
+                summary = summary_path.read_text(encoding="utf-8")
+                self.assertIn("# redline diff", summary)
+                self.assertIn("**Confidence:** HIGH", summary)
+                self.assertIn("candidate lost valid JSON format", summary)
+            finally:
+                if previous_summary is None:
+                    os.environ.pop("GITHUB_STEP_SUMMARY", None)
+                else:
+                    os.environ["GITHUB_STEP_SUMMARY"] = previous_summary
+                os.chdir(previous)
+
     def test_watch_uses_configured_observed_log_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

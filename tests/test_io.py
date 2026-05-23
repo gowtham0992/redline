@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.io import append_jsonl, read_jsonl_records, read_jsonl_records_from_offset, write_jsonl
+from redline.io import append_jsonl, append_text, read_jsonl_records, read_jsonl_records_from_offset, write_jsonl
 
 
 class IoTests(unittest.TestCase):
@@ -31,6 +31,15 @@ class IoTests(unittest.TestCase):
             records = read_jsonl_records(path, "prompt", "response")
 
             self.assertEqual([record.prompt for record in records], ["one", "two"])
+
+    def test_append_text_creates_parent_and_appends(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nested" / "summary.md"
+
+            append_text(path, "one\n")
+            append_text(path, "two\n")
+
+            self.assertEqual(path.read_text(encoding="utf-8"), "one\ntwo\n")
 
     def test_read_jsonl_records_from_offset_reads_only_new_lines(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

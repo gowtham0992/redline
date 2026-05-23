@@ -122,6 +122,13 @@ def write_text(path: str | Path, text: str) -> None:
         handle.write(text)
 
 
+def append_text(path: str | Path, text: str) -> None:
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("a", encoding="utf-8") as handle:
+        handle.write(text)
+
+
 def read_json(path: str | Path) -> dict[str, Any]:
     try:
         with Path(path).open("r", encoding="utf-8") as handle:
