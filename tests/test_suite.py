@@ -92,6 +92,27 @@ class SuiteTests(unittest.TestCase):
 
         self.assertEqual(wrapped.call_count, len(records))
 
+    def test_build_suite_can_include_all_records(self) -> None:
+        records = [
+            LogRecord(1, "Return JSON for Ada", '{"name":"Ada"}', {}),
+            LogRecord(2, "Return JSON for Bob", '{"name":"Bob"}', {}),
+            LogRecord(3, "Return JSON for Cy", '{"name":"Cy"}', {}),
+        ]
+
+        suite = build_suite(
+            records,
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=1,
+            all_cases=True,
+        )
+
+        self.assertEqual(suite["summary"]["cases"], 3)
+        self.assertEqual(suite["summary"]["max_cases"], 3)
+        self.assertEqual(suite["summary"]["selection"], "all")
+        self.assertEqual([case["source_line"] for case in suite["cases"]], [1, 2, 3])
+
 
 if __name__ == "__main__":
     unittest.main()

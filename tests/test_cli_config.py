@@ -377,6 +377,44 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_suite_all_cases_keeps_every_log_row(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON for Ada", "response": "{\\"name\\":\\"Ada\\"}"}\n'
+                    '{"prompt": "Return JSON for Bob", "response": "{\\"name\\":\\"Bob\\"}"}\n'
+                    '{"prompt": "Return JSON for Cy", "response": "{\\"name\\":\\"Cy\\"}"}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(
+                        main(["suite", "baseline.jsonl", "--out", "suite.json", "--max-cases", "1"]),
+                        0,
+                    )
+                representative = json.loads(Path("suite.json").read_text(encoding="utf-8"))
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl", "--out", "all.json", "--all-cases"]), 0)
+                all_cases = json.loads(Path("all.json").read_text(encoding="utf-8"))
+
+                self.assertEqual(representative["summary"]["cases"], 1)
+                self.assertEqual(all_cases["summary"]["cases"], 3)
+                self.assertEqual(all_cases["summary"]["selection"], "all")
+            finally:
+                os.chdir(previous)
+
+    def test_suite_all_cases_rejects_max_cases(self) -> None:
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = main(["suite", "baseline.jsonl", "--all-cases", "--max-cases", "1"])
+
+        self.assertEqual(code, 2)
+        self.assertIn("--all-cases cannot be combined with --max-cases", stderr.getvalue())
+
     def test_validate_reports_suite_health(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

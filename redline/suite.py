@@ -20,6 +20,7 @@ def build_suite(
     input_field: str,
     output_field: str,
     max_cases: int = 42,
+    all_cases: bool = False,
 ) -> dict[str, Any]:
     if max_cases < 1:
         raise ValueError("max_cases must be at least 1")
@@ -33,7 +34,7 @@ def build_suite(
         signatures[id(record)] = signature
         grouped[signature].append(record)
 
-    selected = _select_representatives(grouped, max_cases, feature_cache)
+    selected = records if all_cases else _select_representatives(grouped, max_cases, feature_cache)
     cases = []
     for index, record in enumerate(selected, 1):
         signature = signatures[id(record)]
@@ -76,7 +77,8 @@ def build_suite(
             "records_seen": len(records),
             "clusters": len(grouped),
             "cases": len(cases),
-            "max_cases": max_cases,
+            "max_cases": len(records) if all_cases else max_cases,
+            "selection": "all" if all_cases else "representative",
         },
         "clusters": clusters,
         "cases": cases,

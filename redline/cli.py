@@ -155,6 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
     cluster_parser.add_argument("--input-field", help="JSONL input field")
     cluster_parser.add_argument("--output-field", help="JSONL output field")
     cluster_parser.add_argument("--max-cases", type=int, help="maximum representative cases")
+    cluster_parser.add_argument("--all-cases", action="store_true", help="select every record instead of representatives")
     cluster_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     cluster_parser.set_defaults(func=cmd_cluster)
 
@@ -165,6 +166,7 @@ def build_parser() -> argparse.ArgumentParser:
     suite_parser.add_argument("--input-field", help="JSONL input field")
     suite_parser.add_argument("--output-field", help="JSONL output field")
     suite_parser.add_argument("--max-cases", type=int, help="maximum suite cases")
+    suite_parser.add_argument("--all-cases", action="store_true", help="include every record instead of representative cases")
     suite_parser.set_defaults(func=cmd_suite)
 
     cases_parser = subparsers.add_parser("cases", help="list cases in a suite")
@@ -474,6 +476,8 @@ def cmd_watch(args: argparse.Namespace) -> int:
 
 
 def cmd_cluster(args: argparse.Namespace) -> int:
+    if args.all_cases and args.max_cases is not None:
+        raise ValueError("--all-cases cannot be combined with --max-cases")
     config = load_config(args.config)
     input_field = str(_config_value(args.input_field, config, "input_field", "prompt"))
     output_field = str(_config_value(args.output_field, config, "output_field", "response"))
@@ -486,6 +490,7 @@ def cmd_cluster(args: argparse.Namespace) -> int:
         input_field=input_field,
         output_field=output_field,
         max_cases=max_cases,
+        all_cases=args.all_cases,
     )
     if args.json:
         print(json.dumps(cluster_report(suite), indent=2, sort_keys=True))
@@ -495,6 +500,8 @@ def cmd_cluster(args: argparse.Namespace) -> int:
 
 
 def cmd_suite(args: argparse.Namespace) -> int:
+    if args.all_cases and args.max_cases is not None:
+        raise ValueError("--all-cases cannot be combined with --max-cases")
     config = load_config(args.config)
     input_field = _config_value(args.input_field, config, "input_field", "prompt")
     output_field = _config_value(args.output_field, config, "output_field", "response")
@@ -508,6 +515,7 @@ def cmd_suite(args: argparse.Namespace) -> int:
         input_field=input_field,
         output_field=output_field,
         max_cases=max_cases,
+        all_cases=args.all_cases,
     )
     write_json(output, suite)
     summary = suite["summary"]

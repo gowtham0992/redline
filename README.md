@@ -206,6 +206,9 @@ python -m redline suite examples/baseline.jsonl
 The suite command prints next steps for inspecting cases, comparing a candidate
 log, and wiring a replay runner.
 
+Use `--all-cases` when dogfooding small fixed prompt sets where every row should
+be compared instead of sampling representative clusters.
+
 Or generate it from the locally collected watch log:
 
 ```bash

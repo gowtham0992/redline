@@ -76,7 +76,7 @@ python scripts/normalize_ai_session_logs.py \
 
 redline suite .redline/private/normalized/claude.jsonl \
   --out .redline/private/normalized/claude-suite.json \
-  --max-cases 10
+  --all-cases
 
 redline diff .redline/private/normalized/claude-suite.json \
   .redline/private/normalized/kiro.jsonl \
