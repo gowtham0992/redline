@@ -91,6 +91,58 @@ class CliConfigTests(unittest.TestCase):
                     os.environ["GITHUB_STEP_SUMMARY"] = previous_summary
                 os.chdir(previous)
 
+    def test_diff_uses_configured_judge_command_for_changed_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("judge.py").write_text(
+                    "import json, sys\n"
+                    "payload = json.loads(sys.stdin.read())\n"
+                    "assert payload['deterministic_status'] == 'changed'\n"
+                    "print(json.dumps({"
+                    "'status': 'neutral', "
+                    "'confidence': 'medium', "
+                    "'reason': 'same routing intent'"
+                    "}))\n",
+                    encoding="utf-8",
+                )
+                Path("redline.json").write_text(
+                    json.dumps(
+                        {
+                            "suite": ".redline/suite.json",
+                            "fail_on": "none",
+                            "judge": {
+                                "command": f"{sys.executable} judge.py",
+                                "timeout_seconds": 2.0,
+                            },
+                            "reports": {"json": ".redline/reports/{command}.json"},
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Route this ticket", "response": "billing"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Route this ticket", "response": "security"}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
+                    self.assertEqual(main(["diff", "candidate.jsonl"]), 0)
+
+                report = json.loads((root / ".redline" / "reports" / "diff.json").read_text(encoding="utf-8"))
+                self.assertEqual(report["summary"]["neutral"], 1)
+                self.assertEqual(report["summary"]["changed"], 0)
+                self.assertEqual(report["judge"]["cases"], 1)
+                self.assertEqual(report["diffs"][0]["judge"]["reason"], "same routing intent")
+            finally:
+                os.chdir(previous)
+
     def test_watch_uses_configured_observed_log_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

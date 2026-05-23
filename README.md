@@ -186,6 +186,17 @@ question directly:
 Confidence: HIGH  |  Recommended action: fix blocking cases before shipping
 ```
 
+Add an optional judge command for ambiguous `changed` cases. Redline still runs
+deterministic checks first and only sends changed cases to the judge command as
+JSON on stdin:
+
+```bash
+python -m redline diff examples/candidate.jsonl --judge "python scripts/judge.py"
+```
+
+The judge command should print JSON with `status`, `confidence`, and `reason`.
+Accepted statuses are `regression`, `changed`, `improved`, and `neutral`.
+
 Save replayed candidate outputs for debugging or a later `diff` run:
 
 ```bash

@@ -15,6 +15,7 @@ from .demo import format_demo, run_demo
 from .diff import compare_suite_to_candidate, format_report
 from .doctor import doctor_report, format_doctor_report
 from .io import append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
+from .judge import apply_judge
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import parse_fail_on, should_fail
 from .reports import format_junit_report, format_markdown_report
@@ -128,6 +129,8 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("--out-md", help="write Markdown report")
     diff_parser.add_argument("--out-junit", help="write JUnit XML report")
     diff_parser.add_argument("--github-summary", action="store_true", help="append Markdown report to GITHUB_STEP_SUMMARY")
+    diff_parser.add_argument("--judge", help="command that judges ambiguous changed cases from JSON on stdin")
+    diff_parser.add_argument("--judge-timeout", type=float, help="per-case judge timeout in seconds")
     diff_parser.add_argument(
         "--fail-on",
         default=None,
@@ -149,6 +152,8 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--out-md", help="write Markdown report")
     eval_parser.add_argument("--out-junit", help="write JUnit XML report")
     eval_parser.add_argument("--github-summary", action="store_true", help="append Markdown report to GITHUB_STEP_SUMMARY")
+    eval_parser.add_argument("--judge", help="command that judges ambiguous changed cases from JSON on stdin")
+    eval_parser.add_argument("--judge-timeout", type=float, help="per-case judge timeout in seconds")
     eval_parser.add_argument("--candidate-out", help="write replayed candidate prompt-response JSONL")
     eval_parser.add_argument("--run-metadata", help="write replay run metadata JSON")
     eval_parser.add_argument(
@@ -374,6 +379,7 @@ def cmd_diff(args: argparse.Namespace) -> int:
     output_field = args.output_field or str(suite.get("output_field") or config.get("output_field", "response"))
     candidate = read_jsonl_records(candidate_path, input_field, output_field)
     result = compare_suite_to_candidate(suite, candidate)
+    result = _maybe_apply_judge(args, result, config)
 
     return _emit_result(args, result, title="redline diff", config=config, report_key="diff")
 
@@ -398,6 +404,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
     if candidate_out:
         write_jsonl(candidate_out, (record.raw for record in replay.records))
     result = compare_suite_to_candidate(suite, replay.records)
+    result = _maybe_apply_judge(args, result, config)
     result["replay"] = replay.to_metadata()
     run_metadata_out = args.run_metadata or _config_run_metadata_path(config)
     if run_metadata_out:
@@ -517,6 +524,21 @@ def _append_github_step_summary(markdown_report: str) -> None:
     append_text(summary_path, text)
 
 
+def _maybe_apply_judge(
+    args: argparse.Namespace,
+    result: dict[str, object],
+    config: dict[str, object],
+) -> dict[str, object]:
+    judge_command = args.judge or _config_judge(config)
+    if not judge_command:
+        return result
+    return apply_judge(
+        result,
+        judge_command,
+        timeout_seconds=float(_config_judge_timeout(args.judge_timeout, config)),
+    )
+
+
 def _config_value(
     explicit: object | None,
     config: dict[str, object],
@@ -627,6 +649,31 @@ def _config_replay(config: dict[str, object]) -> str | None:
     return None
 
 
+def _config_judge(config: dict[str, object]) -> str | None:
+    value = config.get("judge")
+    if isinstance(value, str) and value:
+        return value
+    if isinstance(value, dict):
+        command = value.get("command")
+        if isinstance(command, str) and command:
+            return command
+    return None
+
+
+def _config_judge_timeout(explicit: float | None, config: dict[str, object]) -> float:
+    if explicit is not None:
+        return explicit
+    value = config.get("judge_timeout_seconds")
+    if isinstance(value, (int, float)):
+        return float(value)
+    judge = config.get("judge")
+    if isinstance(judge, dict):
+        timeout = judge.get("timeout_seconds")
+        if isinstance(timeout, (int, float)):
+            return float(timeout)
+    return 30.0
+
+
 def _run_metadata(
     replay: dict[str, object],
     suite_path: str,
@@ -640,6 +687,8 @@ def _run_metadata(
         "summary": result.get("summary", {}),
         "decision": result.get("decision", {}),
     }
+    if result.get("judge"):
+        metadata["judge"] = result["judge"]
     if candidate_path:
         metadata["candidate"] = candidate_path
     return metadata
