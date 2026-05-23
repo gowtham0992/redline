@@ -75,6 +75,12 @@ python -m redline accept case_002_1612556e83 \
   --note "new expected response"
 ```
 
+Accept all cases previously marked `expected`:
+
+```bash
+python -m redline accept --all-expected --candidate .redline/runs/candidate.jsonl
+```
+
 Tune CI strictness with `--fail-on`. By default redline exits `1` for
 `regression` and `missing` cases. Use `none` for report-only runs:
 

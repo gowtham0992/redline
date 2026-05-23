@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from .accept import accept_candidate_baseline
+from .accept import accept_candidate_baseline, expected_case_ids
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
 from .config import DEFAULT_CONFIG_PATH, create_config, load_config
 from .diff import compare_suite_to_candidate, format_report
@@ -127,9 +127,10 @@ def build_parser() -> argparse.ArgumentParser:
     clear_parser.set_defaults(func=cmd_clear)
 
     accept_parser = subparsers.add_parser("accept", help="promote candidate output into a suite baseline")
-    accept_parser.add_argument("paths", nargs="+", help="case id, or suite JSON plus case id")
+    accept_parser.add_argument("paths", nargs="*", help="case id, or suite JSON plus case id")
     accept_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     accept_parser.add_argument("--candidate", help="candidate JSONL file; defaults to configured run output")
+    accept_parser.add_argument("--all-expected", action="store_true", help="accept every case marked expected")
     accept_parser.add_argument("--input-field", help="candidate input field; defaults to suite/config field")
     accept_parser.add_argument("--output-field", help="candidate output field; defaults to suite/config field")
     accept_parser.add_argument("--note", default="", help="short reason for accepting the baseline")
@@ -264,18 +265,26 @@ def cmd_clear(args: argparse.Namespace) -> int:
 
 def cmd_accept(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    suite_path, case_id = _suite_case_args(args.paths, config)
+    suite_path, case_ids = _accept_args(args.paths, config, all_expected=args.all_expected)
     suite = read_json(suite_path)
+    if args.all_expected:
+        case_ids = expected_case_ids(suite)
+        if not case_ids:
+            raise ValueError("no expected judgments found to accept")
     candidate_path = args.candidate or _config_candidate_path(config)
     if not candidate_path:
         raise ValueError("candidate JSONL required; pass --candidate or set runs.candidate in redline.json")
     input_field = args.input_field or str(suite.get("input_field") or config.get("input_field", "prompt"))
     output_field = args.output_field or str(suite.get("output_field") or config.get("output_field", "response"))
     candidate = read_jsonl_records(candidate_path, input_field, output_field)
-    result = accept_candidate_baseline(suite, candidate, case_id, note=args.note)
+    results = [
+        accept_candidate_baseline(suite, candidate, case_id, note=args.note)
+        for case_id in case_ids
+    ]
     output = args.out or suite_path
     write_json(output, suite)
-    print(f"Accepted {case_id} from {Path(candidate_path)} line {result['candidate_line']}.")
+    for result in results:
+        print(f"Accepted {result['case_id']} from {Path(candidate_path)} line {result['candidate_line']}.")
     print(f"Wrote {Path(output)}.")
     return 0
 
@@ -338,6 +347,22 @@ def _suite_case_args(paths: list[str], config: dict[str, object]) -> tuple[str, 
     if len(paths) == 2:
         return paths[0], paths[1]
     raise ValueError("expected case id, or suite JSON plus case id")
+
+
+def _accept_args(
+    paths: list[str],
+    config: dict[str, object],
+    *,
+    all_expected: bool,
+) -> tuple[str, list[str]]:
+    if all_expected:
+        if len(paths) == 0:
+            return _suite_arg(None, config), []
+        if len(paths) == 1:
+            return paths[0], []
+        raise ValueError("accept --all-expected expects an optional suite JSON path")
+    suite_path, case_id = _suite_case_args(paths, config)
+    return suite_path, [case_id]
 
 
 def _config_fail_on(explicit: str | None, config: dict[str, object]) -> str | None:

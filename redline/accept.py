@@ -48,6 +48,17 @@ def accept_candidate_baseline(
     }
 
 
+def expected_case_ids(suite: dict[str, Any]) -> list[str]:
+    judgments = suite.get("judgments", {})
+    if not isinstance(judgments, dict):
+        return []
+    return sorted(
+        case_id
+        for case_id, judgment in judgments.items()
+        if isinstance(judgment, dict) and judgment.get("status") == "expected"
+    )
+
+
 def _find_case(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
     for case in suite.get("cases", []):
         if isinstance(case, dict) and str(case.get("id")) == case_id:
