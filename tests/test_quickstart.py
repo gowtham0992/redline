@@ -15,6 +15,7 @@ class QuickstartTests(unittest.TestCase):
         baseline = repo / "examples" / "baseline.jsonl"
         candidate = repo / "examples" / "candidate.jsonl"
         replay = f"{sys.executable} {repo / 'examples' / 'replay_candidate.py'}"
+        judge = f"{sys.executable} {repo / 'examples' / 'judge_changed.py'}"
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -65,6 +66,8 @@ class QuickstartTests(unittest.TestCase):
                         "init",
                         "--replay",
                         replay,
+                        "--judge",
+                        judge,
                         "--github-action",
                     ]
                 )
@@ -73,6 +76,7 @@ class QuickstartTests(unittest.TestCase):
                 self.assertIn("OK    config", doctor_output)
                 self.assertIn("OK    suite", doctor_output)
                 self.assertIn("OK    replay", doctor_output)
+                self.assertIn("OK    judge", doctor_output)
             finally:
                 os.chdir(previous)
 
