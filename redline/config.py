@@ -18,6 +18,8 @@ def default_config(
     max_cases: int = 42,
     timeout_seconds: float = 30.0,
     replay: str | None = None,
+    judge: str | None = None,
+    judge_timeout_seconds: float | None = None,
 ) -> dict[str, Any]:
     config: dict[str, Any] = {
         "$schema": DEFAULT_SCHEMA_URL,
@@ -44,6 +46,14 @@ def default_config(
     }
     if replay:
         config["replay"] = replay
+    if judge:
+        if judge_timeout_seconds is None:
+            config["judge"] = judge
+        else:
+            config["judge"] = {
+                "command": judge,
+                "timeout_seconds": judge_timeout_seconds,
+            }
     return config
 
 
@@ -55,6 +65,8 @@ def create_config(
     max_cases: int = 42,
     timeout_seconds: float = 30.0,
     replay: str | None = None,
+    judge: str | None = None,
+    judge_timeout_seconds: float | None = None,
     force: bool = False,
 ) -> dict[str, Any]:
     target = Path(path)
@@ -64,12 +76,16 @@ def create_config(
         raise ValueError("max_cases must be at least 1")
     if timeout_seconds <= 0:
         raise ValueError("timeout_seconds must be greater than 0")
+    if judge_timeout_seconds is not None and judge_timeout_seconds <= 0:
+        raise ValueError("judge_timeout_seconds must be greater than 0")
     return default_config(
         input_field=input_field,
         output_field=output_field,
         max_cases=max_cases,
         timeout_seconds=timeout_seconds,
         replay=replay,
+        judge=judge,
+        judge_timeout_seconds=judge_timeout_seconds,
     )
 
 

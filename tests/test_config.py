@@ -42,6 +42,8 @@ class ConfigTests(unittest.TestCase):
             max_cases=12,
             timeout_seconds=4.5,
             replay="python runner.py",
+            judge="python judge.py",
+            judge_timeout_seconds=6.5,
         )
 
         self.assertEqual(config["input_field"], "input")
@@ -49,10 +51,23 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config["max_cases"], 12)
         self.assertEqual(config["timeout_seconds"], 4.5)
         self.assertEqual(config["replay"], "python runner.py")
+        self.assertEqual(
+            config["judge"],
+            {"command": "python judge.py", "timeout_seconds": 6.5},
+        )
+
+    def test_create_config_allows_judge_string_without_timeout(self) -> None:
+        config = create_config("redline.json", judge="python judge.py")
+
+        self.assertEqual(config["judge"], "python judge.py")
 
     def test_create_config_refuses_non_positive_timeout(self) -> None:
         with self.assertRaisesRegex(ValueError, "timeout_seconds"):
             create_config("redline.json", timeout_seconds=0)
+
+    def test_create_config_refuses_non_positive_judge_timeout(self) -> None:
+        with self.assertRaisesRegex(ValueError, "judge_timeout_seconds"):
+            create_config("redline.json", judge="python judge.py", judge_timeout_seconds=0)
 
     def test_load_config_returns_empty_when_missing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

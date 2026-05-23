@@ -93,6 +93,12 @@ Store a default replay command in config:
 python -m redline init --replay "python examples/replay_candidate.py" --force
 ```
 
+Store a default judge command in config:
+
+```bash
+python -m redline init --judge "python examples/judge_changed.py" --force
+```
+
 Set a default per-case replay timeout in config:
 
 ```bash

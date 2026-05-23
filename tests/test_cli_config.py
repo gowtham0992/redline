@@ -116,6 +116,52 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_init_can_store_judge_command(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(
+                        main(
+                            [
+                                "init",
+                                "--judge",
+                                "python examples/judge_changed.py",
+                                "--judge-timeout",
+                                "6.5",
+                            ]
+                        ),
+                        0,
+                    )
+
+                config = json.loads((root / "redline.json").read_text(encoding="utf-8"))
+                self.assertEqual(
+                    config["judge"],
+                    {
+                        "command": "python examples/judge_changed.py",
+                        "timeout_seconds": 6.5,
+                    },
+                )
+            finally:
+                os.chdir(previous)
+
+    def test_init_refuses_judge_timeout_without_judge(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(Path(directory))
+            try:
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = main(["init", "--judge-timeout", "6.5"])
+
+                self.assertEqual(code, 2)
+                self.assertIn("use --judge-timeout with --judge", stderr.getvalue())
+                self.assertFalse(Path("redline.json").exists())
+            finally:
+                os.chdir(previous)
+
     def test_init_can_store_runner_adapter_replay_command(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

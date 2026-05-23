@@ -62,6 +62,8 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--max-cases", type=int, default=42, help="default maximum suite cases")
     init_parser.add_argument("--timeout", type=float, default=30.0, help="default replay timeout in seconds")
     init_parser.add_argument("--replay", help="default eval replay command")
+    init_parser.add_argument("--judge", help="default judge command for ambiguous changed cases")
+    init_parser.add_argument("--judge-timeout", type=float, help="default judge timeout in seconds")
     init_parser.add_argument(
         "--runner",
         choices=[adapter["id"] for adapter in runner_adapters()],
@@ -263,6 +265,8 @@ def cmd_init(args: argparse.Namespace) -> int:
         raise ValueError("use --replay or --runner, not both")
     if args.copy_runner and not args.runner:
         raise ValueError("use --copy-runner with --runner")
+    if args.judge_timeout is not None and not args.judge:
+        raise ValueError("use --judge-timeout with --judge")
     replay = args.replay or _runner_replay(args.runner)
     config = create_config(
         args.config,
@@ -271,6 +275,8 @@ def cmd_init(args: argparse.Namespace) -> int:
         max_cases=args.max_cases,
         timeout_seconds=args.timeout,
         replay=replay,
+        judge=args.judge,
+        judge_timeout_seconds=args.judge_timeout,
         force=args.force,
     )
     runner_result = None
