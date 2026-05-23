@@ -25,6 +25,18 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(suite["summary"]["clusters"], 2)
         self.assertTrue(all("baseline_response" in case for case in suite["cases"]))
 
+    def test_suite_features_include_entities(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return support owner", "Ada owns ACME support", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        self.assertIn("Ada", suite["cases"][0]["features"]["entities"])
+        self.assertIn("ACME", suite["cases"][0]["features"]["entities"])
+
 
 if __name__ == "__main__":
     unittest.main()

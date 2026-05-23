@@ -17,6 +17,28 @@ _BULLET_RE = re.compile(r"(?m)^\s*[-*+]\s+")
 _NUMBERED_RE = re.compile(r"(?m)^\s*\d+[.)]\s+")
 _URL_RE = re.compile(r"https?://\S+")
 _NUMBER_RE = re.compile(r"(?<![\w.])-?\d+(?:\.\d+)?%?")
+_ENTITY_RE = re.compile(r"\b(?:[A-Z]{2,}(?:-[A-Z0-9]+)*|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b")
+_ENTITY_STOPWORDS = {
+    "A",
+    "An",
+    "The",
+    "This",
+    "That",
+    "These",
+    "Those",
+    "Customer",
+    "Customers",
+    "Added",
+    "Changed",
+    "Fixed",
+    "Improved",
+    "Removed",
+    "Return",
+    "Route",
+    "Updated",
+    "User",
+    "Users",
+}
 
 
 @dataclass(frozen=True)
@@ -35,6 +57,7 @@ class TextFeatures:
     refusal: bool
     url_count: int
     numbers: tuple[str, ...]
+    entities: tuple[str, ...]
     shape: str
     length_bucket: str
 
@@ -54,6 +77,7 @@ class TextFeatures:
             "refusal": self.refusal,
             "url_count": self.url_count,
             "numbers": list(self.numbers),
+            "entities": list(self.entities),
             "shape": self.shape,
             "length_bucket": self.length_bucket,
         }
@@ -83,6 +107,7 @@ def extract_features(text: str) -> TextFeatures:
     has_table = _looks_like_markdown_table(text)
     refusal = bool(_REFUSAL_RE.search(text))
     numbers = tuple(_NUMBER_RE.findall(text))
+    entities = _entities(text)
     length_bucket = _length_bucket(len(words))
     shape = _shape(
         empty=not stripped,
@@ -109,6 +134,7 @@ def extract_features(text: str) -> TextFeatures:
         refusal=refusal,
         url_count=len(_URL_RE.findall(text)),
         numbers=numbers,
+        entities=entities,
         shape=shape,
         length_bucket=length_bucket,
     )
@@ -192,3 +218,15 @@ def _looks_like_markdown_table(text: str) -> bool:
         if "|" in line and re.fullmatch(r"\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?", next_line):
             return True
     return False
+
+
+def _entities(text: str) -> tuple[str, ...]:
+    entities = set()
+    for match in _ENTITY_RE.findall(text):
+        words = match.split()
+        while len(words) > 1 and words[0] in _ENTITY_STOPWORDS:
+            words = words[1:]
+        entity = " ".join(words)
+        if entity not in _ENTITY_STOPWORDS:
+            entities.add(entity)
+    return tuple(sorted(entities))

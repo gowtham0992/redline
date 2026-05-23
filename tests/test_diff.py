@@ -46,6 +46,20 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(status, "changed")
         self.assertIn("short answer changed", reasons)
 
+    def test_classify_missing_entity_as_regression(self) -> None:
+        baseline = extract_features("Route Ada Lovelace to ACME support.").to_dict()
+        candidate = extract_features("Route the customer to support.").to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text="Route Ada Lovelace to ACME support.",
+            candidate_text="Route the customer to support.",
+        )
+
+        self.assertEqual(status, "regression")
+        self.assertTrue(any("candidate missing entities" in reason for reason in reasons))
+
     def test_compare_detects_missing_candidate(self) -> None:
         suite = build_suite(
             [LogRecord(1, "What is the refund window?", "30 days", {})],

@@ -160,6 +160,10 @@ def classify_change(
     if lost_numbers:
         regression_reasons.append(f"candidate missing numbers: {', '.join(lost_numbers[:8])}")
 
+    lost_entities = sorted(set(baseline.get("entities") or []) - set(candidate.get("entities") or []))
+    if lost_entities:
+        regression_reasons.append(f"candidate missing entities: {', '.join(lost_entities[:8])}")
+
     length_reason = _length_reason(baseline["words"], candidate["words"])
     if length_reason:
         reasons.append(length_reason)
