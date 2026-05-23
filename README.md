@@ -14,6 +14,12 @@ Generate a suite from baseline logs:
 python -m redline suite examples/baseline.jsonl --out .redline/suite.json
 ```
 
+List the generated cases and IDs:
+
+```bash
+python -m redline cases .redline/suite.json
+```
+
 Compare candidate outputs against that suite:
 
 ```bash
