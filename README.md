@@ -121,6 +121,15 @@ python -m redline eval .redline/suite.json \
   --candidate-out .redline/runs/candidate.jsonl
 ```
 
+When `runs.metadata` is configured, `eval` also writes replay metadata with the
+suite path, candidate artifact path, replay command, and diff summary:
+
+```bash
+python -m redline eval .redline/suite.json \
+  --replay "python examples/replay_candidate.py" \
+  --run-metadata .redline/runs/replay.json
+```
+
 If your command takes the prompt as an argument, use `{prompt}`:
 
 ```bash

@@ -56,6 +56,10 @@ class CliConfigTests(unittest.TestCase):
                             "suite": ".redline/suite.json",
                             "replay": replay,
                             "fail_on": "none",
+                            "runs": {
+                                "candidate": ".redline/runs/candidate.jsonl",
+                                "metadata": ".redline/runs/replay.json",
+                            },
                         }
                     ),
                     encoding="utf-8",
@@ -68,6 +72,16 @@ class CliConfigTests(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
                     self.assertEqual(main(["eval"]), 0)
+
+                candidate = root / ".redline" / "runs" / "candidate.jsonl"
+                metadata_path = root / ".redline" / "runs" / "replay.json"
+                self.assertTrue(candidate.exists())
+                self.assertTrue(metadata_path.exists())
+                metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+                self.assertEqual(metadata["suite"], ".redline/suite.json")
+                self.assertEqual(metadata["candidate"], ".redline/runs/candidate.jsonl")
+                self.assertEqual(metadata["replay"]["command"], replay)
+                self.assertEqual(metadata["summary"]["neutral"], 1)
             finally:
                 os.chdir(previous)
 

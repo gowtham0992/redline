@@ -30,6 +30,7 @@ def default_config(
         },
         "runs": {
             "candidate": ".redline/runs/candidate.jsonl",
+            "metadata": ".redline/runs/replay.json",
         },
     }
     if replay:

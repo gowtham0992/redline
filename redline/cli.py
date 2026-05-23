@@ -112,6 +112,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--out-md", help="write Markdown report")
     eval_parser.add_argument("--out-junit", help="write JUnit XML report")
     eval_parser.add_argument("--candidate-out", help="write replayed candidate prompt-response JSONL")
+    eval_parser.add_argument("--run-metadata", help="write replay run metadata JSON")
     eval_parser.add_argument(
         "--fail-on",
         default=None,
@@ -274,6 +275,12 @@ def cmd_eval(args: argparse.Namespace) -> int:
         write_jsonl(candidate_out, (record.raw for record in replay.records))
     result = compare_suite_to_candidate(suite, replay.records)
     result["replay"] = replay.to_metadata()
+    run_metadata_out = args.run_metadata or _config_run_metadata_path(config)
+    if run_metadata_out:
+        write_json(
+            run_metadata_out,
+            _run_metadata(replay.to_metadata(), suite_path, candidate_out, result),
+        )
 
     return _emit_result(args, result, title="redline eval", config=config, report_key="eval")
 
@@ -457,8 +464,35 @@ def _config_candidate_path(config: dict[str, object]) -> str | None:
     return None
 
 
+def _config_run_metadata_path(config: dict[str, object]) -> str | None:
+    runs = config.get("runs")
+    if not isinstance(runs, dict):
+        return None
+    value = runs.get("metadata")
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
 def _config_replay(config: dict[str, object]) -> str | None:
     value = config.get("replay")
     if isinstance(value, str) and value:
         return value
     return None
+
+
+def _run_metadata(
+    replay: dict[str, object],
+    suite_path: str,
+    candidate_path: str | None,
+    result: dict[str, object],
+) -> dict[str, object]:
+    metadata = {
+        "version": "0.1",
+        "suite": suite_path,
+        "replay": replay,
+        "summary": result.get("summary", {}),
+    }
+    if candidate_path:
+        metadata["candidate"] = candidate_path
+    return metadata
