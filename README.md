@@ -47,6 +47,9 @@ The generated `redline.json` includes a `$schema` reference for editor help.
 Regressions and missing outputs fail CI by default through `fail_on`; set
 `fail_on` to `"none"` during setup if you want report-only runs.
 
+Need to connect your app? See [runner adapters](docs/runners.md) for copy-paste
+replay commands, starting with OpenAI direct.
+
 Store a default replay command in config:
 
 ```bash
