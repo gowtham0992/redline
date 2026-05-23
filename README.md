@@ -21,8 +21,9 @@ Run the first-use demo:
 redline demo
 ```
 
-The demo writes a tiny local suite under `.redline/demo` and prints a behavioral
-diff with intentional regressions.
+The demo writes a realistic support-agent suite under `.redline/demo` and
+prints a behavioral diff where a shorter candidate prompt drops required
+production details.
 
 For local development on redline itself:
 
@@ -361,8 +362,8 @@ Entity and refusal checks are deliberately conservative so sentence starters,
 supportive apologies, and ordinary support-ticket words do not become noisy
 regression signals.
 
-The next iterations should add stronger built-in judge templates, previous-run
-comparison, and release packaging.
+The next iterations should add stronger built-in judge templates, larger
+dogfood logs, trend history, and public release polish.
 
 See [examples/github-action.yml](examples/github-action.yml) for a GitHub
 Actions starting point.

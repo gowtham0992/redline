@@ -5,16 +5,21 @@ import sys
 
 def main() -> int:
     prompt = sys.stdin.read()
-    if "JSON" in prompt:
-        print('{"name":"Ada"')
-    elif "three bullets" in prompt:
-        print("The release adds CSV export, fixes invoice retries, and improves admin search.")
-    elif "refund window" in prompt:
-        print("Customers can request a refund after purchase.")
-    elif "Python function" in prompt:
-        print("def add(a, b):")
-        print("    return a + b")
-    elif "Classify" in prompt:
+    if "Maya Chen" in prompt:
+        print('{"category": "billing", "priority": "normal"}')
+    elif "Enterprise annual plans" in prompt:
+        print(
+            "Enterprise annual plans may be eligible for a refund depending on account usage. "
+            "Ask the customer success team to review the request."
+        )
+    elif "SEC-441" in prompt:
+        print("Sorry, I can't access internal security escalations. Please ask your admin to contact support.")
+    elif "Markdown table" in prompt:
+        print(
+            "EU search indexing was delayed briefly, but the issue is now mitigated. "
+            "The search team owns follow-up and will post another update soon."
+        )
+    elif "SSO migration" in prompt:
         print("authentication")
     else:
         print("")

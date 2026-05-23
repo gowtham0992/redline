@@ -19,6 +19,18 @@ class FeatureTests(unittest.TestCase):
         self.assertNotIn("Docs", features.entities)
         self.assertNotIn("Ticket", features.entities)
 
+    def test_extract_entities_ignores_common_table_headers(self) -> None:
+        features = extract_features(
+            "| Impact | Status | Owner | Next update |\n"
+            "| --- | --- | --- | --- |\n"
+            "| Search delayed | Mitigated | Search Platform | 09:30 UTC |"
+        )
+
+        self.assertNotIn("Impact", features.entities)
+        self.assertNotIn("Owner", features.entities)
+        self.assertNotIn("Next", features.entities)
+        self.assertIn("Search Platform", features.entities)
+
     def test_extract_urls(self) -> None:
         features = extract_features("Read https://example.com/docs for details.")
 

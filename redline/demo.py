@@ -11,46 +11,46 @@ from .suite import build_suite
 
 DEMO_BASELINE = [
     {
-        "prompt": "Return JSON with name and status for customer Ada.",
-        "response": '{"name":"Ada","status":"active"}',
+        "prompt": "Classify this support ticket for Maya Chen: double charged invoice INV-1042 after upgrading to Pro. Return JSON with category, priority, owner, and required_action.",
+        "response": '{"category": "billing", "priority": "high", "owner": "Billing Ops", "required_action": "open refund review for invoice INV-1042"}',
     },
     {
-        "prompt": "Summarize the release note in three bullets.",
-        "response": "- Added CSV export\n- Fixed invoice retries\n- Improved admin search",
+        "prompt": "Answer the customer asking whether Enterprise annual plans can be refunded. Include the refund window and the policy URL.",
+        "response": "Enterprise annual plans can be refunded within 30 days of purchase when the workspace has fewer than 5 active seats. Policy: https://docs.redline.ai/policies/refunds",
     },
     {
-        "prompt": "What is the refund window? Include the number of days.",
-        "response": "Customers can request a refund within 30 days of purchase.",
+        "prompt": "Draft a support reply for ticket SEC-441 about a failed SOC 2 evidence export. Include escalation owner and response ETA.",
+        "response": "Thanks for reporting ticket SEC-441. I escalated this to Security Operations and we will send an update within 4 hours. You can retry the SOC 2 export from Compliance > Evidence while we investigate.",
     },
     {
-        "prompt": "Write a Python function that adds two numbers.",
-        "response": "```python\ndef add(a, b):\n    return a + b\n```",
+        "prompt": "Summarize this incident update as a Markdown table with columns Impact, Status, Owner, and Next update: EU search indexing delayed for 12 minutes; mitigated; Search Platform owns follow-up; next update 09:30 UTC.",
+        "response": "| Impact | Status | Owner | Next update |\n| --- | --- | --- | --- |\n| EU search indexing delayed for 12 minutes | Mitigated | Search Platform | 09:30 UTC |",
     },
     {
-        "prompt": "Classify this ticket: Cannot log in after password reset.",
+        "prompt": "Classify this login ticket: user cannot sign in after SSO migration.",
         "response": "authentication",
     },
 ]
 
 DEMO_CANDIDATE = [
     {
-        "prompt": "Return JSON with name and status for customer Ada.",
-        "response": '{"name":"Ada"',
+        "prompt": "Classify this support ticket for Maya Chen: double charged invoice INV-1042 after upgrading to Pro. Return JSON with category, priority, owner, and required_action.",
+        "response": '{"category": "billing", "priority": "normal"}',
     },
     {
-        "prompt": "Summarize the release note in three bullets.",
-        "response": "The release adds CSV export, fixes invoice retries, and improves admin search.",
+        "prompt": "Answer the customer asking whether Enterprise annual plans can be refunded. Include the refund window and the policy URL.",
+        "response": "Enterprise annual plans may be eligible for a refund depending on account usage. Ask the customer success team to review the request.",
     },
     {
-        "prompt": "What is the refund window? Include the number of days.",
-        "response": "Customers can request a refund after purchase.",
+        "prompt": "Draft a support reply for ticket SEC-441 about a failed SOC 2 evidence export. Include escalation owner and response ETA.",
+        "response": "Sorry, I can't access internal security escalations. Please ask your admin to contact support.",
     },
     {
-        "prompt": "Write a Python function that adds two numbers.",
-        "response": "def add(a, b):\n    return a + b",
+        "prompt": "Summarize this incident update as a Markdown table with columns Impact, Status, Owner, and Next update: EU search indexing delayed for 12 minutes; mitigated; Search Platform owns follow-up; next update 09:30 UTC.",
+        "response": "EU search indexing was delayed briefly, but the issue is now mitigated. The search team owns follow-up and will post another update soon.",
     },
     {
-        "prompt": "Classify this ticket: Cannot log in after password reset.",
+        "prompt": "Classify this login ticket: user cannot sign in after SSO migration.",
         "response": "authentication",
     },
 ]
@@ -110,7 +110,8 @@ def format_demo(result: dict[str, Any]) -> str:
     lines = [
         "redline demo",
         "",
-        "Generated a local prompt-regression demo with an intentional candidate regression.",
+        "Generated a local support-agent regression demo.",
+        "Scenario: a shorter candidate prompt sounds cleaner but drops required production details.",
         f"Baseline log: {result['baseline']}",
         f"Candidate log: {result['candidate']}",
         f"Prompt file:   {result['prompt']}",

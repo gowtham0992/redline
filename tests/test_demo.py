@@ -30,9 +30,11 @@ class DemoTests(unittest.TestCase):
             output = format_demo(result)
 
             self.assertIn("redline demo", output)
-            self.assertIn("intentional candidate regression", output)
+            self.assertIn("support-agent regression demo", output)
+            self.assertIn("drops required production details", output)
             self.assertIn("REGRESSION", output)
-            self.assertIn("candidate lost valid JSON format", output)
+            self.assertIn("candidate missing JSON keys", output)
+            self.assertIn("candidate missing URLs", output)
             self.assertIn("Next steps", output)
             self.assertIn("redline init", output)
             self.assertIn("redline doctor --strict", output)
