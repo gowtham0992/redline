@@ -128,8 +128,9 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
         "Next steps",
         f"- Inspect the Markdown report: {result['report_markdown']}",
         f"- List demo cases: redline cases {result['suite']}",
-        '- Initialize your project: redline init --replay "python your_runner.py" --github-action',
-        "- Build a real suite: redline suite path/to/baseline.jsonl",
+        "- Connect a runner: redline init --runner openai --copy-runner --github-action",
+        "- Explore adapters: redline runners --copy all",
+        "- Build a real suite: redline suite path/to/baseline.jsonl --out redline-suite.json",
         "- Check setup before CI: redline doctor --strict",
     ]
     return "\n".join(lines).rstrip() + "\n"

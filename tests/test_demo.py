@@ -36,7 +36,9 @@ class DemoTests(unittest.TestCase):
             self.assertIn("candidate missing JSON keys", output)
             self.assertIn("candidate missing URLs", output)
             self.assertIn("Next steps", output)
-            self.assertIn("redline init", output)
+            self.assertIn("redline init --runner openai --copy-runner --github-action", output)
+            self.assertIn("redline runners --copy all", output)
+            self.assertIn("redline suite path/to/baseline.jsonl --out redline-suite.json", output)
             self.assertIn("redline doctor --strict", output)
 
     def test_format_demo_can_use_compact_report(self) -> None:
