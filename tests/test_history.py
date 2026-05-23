@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from redline.cli import main
-from redline.history import format_history, history_entry
+from redline.history import format_history, format_markdown_history, history_entry
 
 
 class HistoryTests(unittest.TestCase):
@@ -40,6 +40,23 @@ class HistoryTests(unittest.TestCase):
         self.assertIn("prompt-v2", text)
         self.assertIn("cases=5 regression=2 neutral=3", text)
 
+    def test_format_markdown_history_prints_report_table(self) -> None:
+        text = format_markdown_history(
+            [
+                {
+                    "timestamp": "2026-05-23T12:00:00Z",
+                    "label": "prompt-v2",
+                    "report": ".redline/reports/eval.json",
+                    "summary": {"cases": 5, "regression": 2, "neutral": 3},
+                }
+            ]
+        )
+
+        self.assertIn("# redline history", text)
+        self.assertIn("| Timestamp | Label | Report | Summary |", text)
+        self.assertIn("prompt-v2", text)
+        self.assertIn("cases=5 regression=2 neutral=3", text)
+
     def test_cli_appends_report_to_history(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -57,6 +74,35 @@ class HistoryTests(unittest.TestCase):
             rows = [json.loads(line) for line in history.read_text(encoding="utf-8").splitlines()]
             self.assertEqual(len(rows), 1)
             self.assertEqual(rows[0]["summary"]["regression"], 1)
+
+    def test_cli_writes_markdown_history(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "eval.json"
+            history = root / "history.jsonl"
+            markdown = root / "history.md"
+            report.write_text(
+                json.dumps({"summary": {"cases": 2, "regression": 1, "neutral": 1}}),
+                encoding="utf-8",
+            )
+
+            _run_cli(
+                [
+                    "history",
+                    str(report),
+                    "--label",
+                    "prompt-v2",
+                    "--out",
+                    str(history),
+                    "--out-md",
+                    str(markdown),
+                ]
+            )
+
+            text = markdown.read_text(encoding="utf-8")
+            self.assertIn("# redline history", text)
+            self.assertIn("prompt-v2", text)
+            self.assertIn("regression=1", text)
 
     def test_cli_rejects_negative_limit(self) -> None:
         output = io.StringIO()

@@ -24,7 +24,7 @@ from .config import DEFAULT_CONFIG_PATH, create_config, load_config
 from .demo import format_demo, run_demo
 from .diff import compare_suite_to_candidate, format_compact_report, format_report
 from .doctor import doctor_report, format_doctor_report
-from .history import format_history, history_entry, read_history
+from .history import format_history, format_markdown_history, history_entry, read_history
 from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judge import apply_judge
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
@@ -234,6 +234,7 @@ def build_parser() -> argparse.ArgumentParser:
     history_parser = subparsers.add_parser("history", help="append or show report history")
     history_parser.add_argument("report", nargs="?", help="redline JSON report to append to history")
     history_parser.add_argument("--out", default=".redline/history.jsonl", help="history JSONL path")
+    history_parser.add_argument("--out-md", help="write Markdown history report")
     history_parser.add_argument("--label", default="", help="label for an appended report")
     history_parser.add_argument("--limit", type=int, default=10, help="entries to show; use 0 for all")
     history_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
@@ -612,6 +613,8 @@ def cmd_history(args: argparse.Namespace) -> int:
     entries = read_history(args.out)
     limit = None if args.limit == 0 else args.limit
     shown = entries[-limit:] if limit is not None and limit > 0 else entries
+    if args.out_md:
+        write_text(args.out_md, format_markdown_history(shown))
     if args.json:
         print(json.dumps({"version": "0.1", "history": shown}, indent=2, sort_keys=True))
     else:

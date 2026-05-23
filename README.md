@@ -265,13 +265,14 @@ Archive report summaries for trend history:
 ```bash
 python -m redline history .redline/reports/eval.json \
   --label prompt-v2 \
-  --out .redline/history.jsonl
-python -m redline history --out .redline/history.jsonl
+  --out .redline/history.jsonl \
+  --out-md .redline/history.md
+python -m redline history --out .redline/history.jsonl --out-md .redline/history.md
 ```
 
 The generated GitHub Actions workflow also runs this comparison when
 `.redline/reports/eval-before.json` exists, records `.redline/history.jsonl`,
-then uploads the history and report artifacts.
+renders `.redline/history.md`, then uploads the history and report artifacts.
 
 In GitHub Actions, append the Markdown report to the job summary:
 

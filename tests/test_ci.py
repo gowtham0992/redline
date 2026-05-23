@@ -24,6 +24,8 @@ class CiTests(unittest.TestCase):
         self.assertIn("python -m redline history", workflow)
         self.assertIn('--label "${{ github.sha }}"', workflow)
         self.assertIn(".redline/history.jsonl", workflow)
+        self.assertIn("--out-md .redline/history.md", workflow)
+        self.assertIn(".redline/history.md", workflow)
         self.assertIn("actions/upload-artifact@v4", workflow)
 
     def test_example_workflow_matches_generated_default(self) -> None:

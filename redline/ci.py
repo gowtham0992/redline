@@ -65,7 +65,8 @@ jobs:
             python -m redline history \\
               .redline/reports/eval.json \\
               --label "${{ github.sha }}" \\
-              --out .redline/history.jsonl
+              --out .redline/history.jsonl \\
+              --out-md .redline/history.md
           else
             echo "No redline eval report found at .redline/reports/eval.json; skipping history."
           fi
@@ -78,4 +79,5 @@ jobs:
           path: |
             .redline/reports/
             .redline/history.jsonl
+            .redline/history.md
 """

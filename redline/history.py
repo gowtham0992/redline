@@ -70,6 +70,31 @@ def format_history(entries: list[dict[str, Any]], *, limit: int | None = None) -
     return "\n".join(lines).rstrip() + "\n"
 
 
+def format_markdown_history(entries: list[dict[str, Any]], *, limit: int | None = None) -> str:
+    rows = entries[-limit:] if limit is not None and limit > 0 else entries
+    lines = ["# redline history", ""]
+    if not rows:
+        lines.append("No history entries.")
+        return "\n".join(lines).rstrip() + "\n"
+
+    lines.extend(
+        [
+            "| Timestamp | Label | Report | Summary |",
+            "| --- | --- | --- | --- |",
+        ]
+    )
+    for entry in rows:
+        summary = entry.get("summary") if isinstance(entry.get("summary"), dict) else {}
+        cells = [
+            _markdown_cell(entry.get("timestamp") or "-"),
+            _markdown_cell(entry.get("label") or "-"),
+            _markdown_cell(entry.get("report") or "-"),
+            _markdown_cell(_summary_text(summary) or "-"),
+        ]
+        lines.append(f"| {' | '.join(cells)} |")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _summary_counts(summary: dict[str, Any]) -> dict[str, int]:
     counts = {}
     for key in SUMMARY_KEYS:
@@ -96,6 +121,13 @@ def _int_count(value: Any, key: str) -> int:
         return int(value)
     except (TypeError, ValueError) as exc:
         raise ValueError(f"summary.{key} must be an integer") from exc
+
+
+def _markdown_cell(value: Any) -> str:
+    text = str(value).replace("\n", " ").strip()
+    if not text:
+        return "-"
+    return text.replace("|", r"\|")
 
 
 def _utc_now() -> str:
