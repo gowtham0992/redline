@@ -49,6 +49,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("-m pip wheel . --no-deps --no-build-isolation", script)
         self.assertIn("-m venv", script)
         self.assertIn("redline demo --compact", script)
+        self.assertIn("redline history demo/reports/diff.json", script)
         self.assertIn("redline doctor", script)
 
     def test_release_guide_documents_package_gate(self) -> None:
