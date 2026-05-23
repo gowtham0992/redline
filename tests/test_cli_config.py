@@ -11,6 +11,49 @@ from redline.cli import main
 
 
 class CliConfigTests(unittest.TestCase):
+    def test_init_can_write_github_action_workflow(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(["init", "--replay", "python runner.py", "--github-action"]),
+                        0,
+                    )
+
+                workflow = root / ".github" / "workflows" / "redline.yml"
+                config = json.loads((root / "redline.json").read_text(encoding="utf-8"))
+                self.assertEqual(config["replay"], "python runner.py")
+                self.assertTrue(workflow.exists())
+                self.assertIn("--github-annotations", workflow.read_text(encoding="utf-8"))
+                self.assertIn("Wrote redline.json.", output.getvalue())
+                self.assertIn("Wrote .github/workflows/redline.yml.", output.getvalue())
+            finally:
+                os.chdir(previous)
+
+    def test_init_refuses_existing_github_action_without_force(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                workflow = root / ".github" / "workflows" / "redline.yml"
+                workflow.parent.mkdir(parents=True)
+                workflow.write_text("existing\n", encoding="utf-8")
+
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = main(["init", "--github-action"])
+
+                self.assertEqual(code, 2)
+                self.assertIn("already exists", stderr.getvalue())
+                self.assertFalse((root / "redline.json").exists())
+            finally:
+                os.chdir(previous)
+
     def test_suite_and_diff_use_config_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

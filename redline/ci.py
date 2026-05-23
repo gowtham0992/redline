@@ -1,4 +1,8 @@
-name: redline
+from __future__ import annotations
+
+
+def default_github_workflow() -> str:
+    return """name: redline
 
 on:
   pull_request:
@@ -25,11 +29,11 @@ jobs:
 
       - name: Run redline eval
         run: |
-          python -m redline eval \
-            --github-summary \
-            --github-annotations \
-            --out-json .redline/reports/eval.json \
-            --out-md .redline/reports/eval.md \
+          python -m redline eval \\
+            --github-summary \\
+            --github-annotations \\
+            --out-json .redline/reports/eval.json \\
+            --out-md .redline/reports/eval.md \\
             --out-junit .redline/reports/eval.xml
 
       - name: Upload redline reports
@@ -38,3 +42,4 @@ jobs:
         with:
           name: redline-reports
           path: .redline/reports/
+"""

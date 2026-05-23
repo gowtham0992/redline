@@ -23,6 +23,12 @@ Create a project config:
 python -m redline init
 ```
 
+Create config plus a GitHub Actions workflow:
+
+```bash
+python -m redline init --replay "python examples/replay_candidate.py" --github-action
+```
+
 Store a default replay command in config:
 
 ```bash

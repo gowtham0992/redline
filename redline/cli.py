@@ -9,6 +9,7 @@ from typing import Sequence
 
 from .accept import accept_candidate_baseline, expected_case_ids
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
+from .ci import default_github_workflow
 from .clusters import cluster_report, format_cluster_report
 from .config import DEFAULT_CONFIG_PATH, create_config, load_config
 from .demo import format_demo, run_demo
@@ -50,6 +51,8 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--max-cases", type=int, default=42, help="default maximum suite cases")
     init_parser.add_argument("--timeout", type=float, default=30.0, help="default replay timeout in seconds")
     init_parser.add_argument("--replay", help="default eval replay command")
+    init_parser.add_argument("--github-action", action="store_true", help="also write a GitHub Actions workflow")
+    init_parser.add_argument("--workflow", default=".github/workflows/redline.yml", help="workflow path for --github-action")
     init_parser.add_argument("--force", action="store_true", help="overwrite an existing config file")
     init_parser.set_defaults(func=cmd_init)
 
@@ -204,6 +207,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def cmd_init(args: argparse.Namespace) -> int:
+    if args.github_action and Path(args.workflow).exists() and not args.force:
+        raise ValueError(f"{Path(args.workflow)} already exists; pass --force to overwrite")
     config = create_config(
         args.config,
         input_field=args.input_field,
@@ -215,6 +220,9 @@ def cmd_init(args: argparse.Namespace) -> int:
     )
     write_json(args.config, config)
     print(f"Wrote {Path(args.config)}.")
+    if args.github_action:
+        write_text(args.workflow, default_github_workflow())
+        print(f"Wrote {Path(args.workflow)}.")
     return 0
 
 
