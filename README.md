@@ -9,10 +9,16 @@ or dangerously different.
 
 ## Quick Start
 
+Install from GitHub:
+
+```bash
+python -m pip install "git+https://github.com/gowtham0992/redline.git@develop"
+```
+
 Run the first-use demo:
 
 ```bash
-python -m redline demo
+redline demo
 ```
 
 The demo writes a tiny local suite under `.redline/demo` and prints a behavioral
@@ -28,13 +34,13 @@ python -m unittest discover
 Create a project config:
 
 ```bash
-python -m redline init
+redline init
 ```
 
 Create config plus a GitHub Actions workflow:
 
 ```bash
-python -m redline init --replay "python examples/replay_candidate.py" --github-action
+redline init --replay "python examples/replay_candidate.py" --github-action
 ```
 
 The generated `redline.json` includes a `$schema` reference for editor help.

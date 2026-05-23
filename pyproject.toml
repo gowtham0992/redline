@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "redline-local"
 version = "0.1.0"
@@ -17,6 +21,11 @@ classifiers = [
 ]
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/gowtham0992/redline"
+Repository = "https://github.com/gowtham0992/redline"
+Issues = "https://github.com/gowtham0992/redline/issues"
+
 [project.optional-dependencies]
 dev = [
   "mypy>=1.11",
@@ -26,6 +35,12 @@ dev = [
 
 [project.scripts]
 redline = "redline.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["redline*"]
+
+[tool.setuptools.package-data]
+redline = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
