@@ -36,6 +36,45 @@ def read_jsonl_records(path: str | Path, input_field: str, output_field: str) ->
     return records
 
 
+def read_jsonl_records_from_offset(
+    path: str | Path,
+    input_field: str,
+    output_field: str,
+    *,
+    offset: int = 0,
+    start_line_number: int = 1,
+) -> tuple[list[LogRecord], int, int]:
+    records: list[LogRecord] = []
+    target = Path(path)
+    try:
+        handle = target.open("r", encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise ValueError(f"{path} not found") from exc
+    with handle:
+        handle.seek(offset)
+        line_number = start_line_number
+        for line in handle:
+            stripped = line.strip()
+            if stripped:
+                obj = _parse_jsonl_object(path, line_number, stripped)
+                missing = [field for field in (input_field, output_field) if _get_field(obj, field) is _MISSING]
+                if missing:
+                    joined = ", ".join(missing)
+                    raise ValueError(f"{path}:{line_number} missing required field(s): {joined}")
+                prompt = _get_field(obj, input_field)
+                response = _get_field(obj, output_field)
+                records.append(
+                    LogRecord(
+                        line_number=line_number,
+                        prompt=_stringify(prompt),
+                        response=_stringify(response),
+                        raw=obj,
+                    )
+                )
+            line_number += 1
+        return records, handle.tell(), line_number
+
+
 def iter_jsonl(path: str | Path) -> Iterable[tuple[int, dict[str, Any]]]:
     target = Path(path)
     try:
@@ -47,13 +86,7 @@ def iter_jsonl(path: str | Path) -> Iterable[tuple[int, dict[str, Any]]]:
             stripped = line.strip()
             if not stripped:
                 continue
-            try:
-                obj = json.loads(stripped)
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"{path}:{line_number} invalid JSON: {exc.msg}") from exc
-            if not isinstance(obj, dict):
-                raise ValueError(f"{path}:{line_number} expected a JSON object")
-            yield line_number, obj
+            yield line_number, _parse_jsonl_object(path, line_number, stripped)
 
 
 def write_json(path: str | Path, data: dict[str, Any]) -> None:
@@ -107,6 +140,16 @@ def _stringify(value: Any) -> str:
 
 
 _MISSING = object()
+
+
+def _parse_jsonl_object(path: str | Path, line_number: int, stripped: str) -> dict[str, Any]:
+    try:
+        obj = json.loads(stripped)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path}:{line_number} invalid JSON: {exc.msg}") from exc
+    if not isinstance(obj, dict):
+        raise ValueError(f"{path}:{line_number} expected a JSON object")
+    return obj
 
 
 def _get_field(obj: dict[str, Any], field: str) -> Any:

@@ -1,6 +1,8 @@
 import tempfile
 import unittest
 from pathlib import Path
+from threading import Thread
+from time import sleep
 
 from redline.io import read_jsonl_records
 from redline.watch import collect_log, follow_log, format_watch_stats, watch_stats
@@ -133,7 +135,36 @@ class WatchTests(unittest.TestCase):
 
             self.assertEqual(result["records"], 1)
             self.assertGreaterEqual(result["iterations"], 2)
-            self.assertGreaterEqual(result["skipped_duplicates"], 1)
+            self.assertEqual(result["skipped_duplicates"], 0)
+
+    def test_follow_log_collects_lines_appended_after_start(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.jsonl"
+            output = root / "observed.jsonl"
+            source.write_text('{"prompt": "one", "response": "1"}\n', encoding="utf-8")
+
+            def append_later() -> None:
+                sleep(0.02)
+                with source.open("a", encoding="utf-8") as handle:
+                    handle.write('{"prompt": "two", "response": "2"}\n')
+
+            writer = Thread(target=append_later)
+            writer.start()
+            try:
+                result = follow_log(
+                    source,
+                    output=output,
+                    poll_interval=0.01,
+                    max_records=2,
+                )
+            finally:
+                writer.join()
+
+            records = read_jsonl_records(output, "prompt", "response")
+            self.assertEqual(result["records"], 2)
+            self.assertEqual([record.prompt for record in records], ["one", "two"])
+            self.assertEqual(records[1].raw["source_line"], 2)
 
 
 if __name__ == "__main__":

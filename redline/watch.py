@@ -6,7 +6,14 @@ from time import monotonic, sleep
 from typing import Any
 
 from .features import behavior_signature
-from .io import LogRecord, append_jsonl, iter_jsonl, read_jsonl_records, write_jsonl
+from .io import (
+    LogRecord,
+    append_jsonl,
+    iter_jsonl,
+    read_jsonl_records,
+    read_jsonl_records_from_offset,
+    write_jsonl,
+)
 
 
 def collect_log(
@@ -130,26 +137,53 @@ def follow_log(
     iterations = 0
     idle_started: float | None = None
     append = not replace
+    offset = 0
+    next_line_number = 1
+    existing_keys = _existing_keys(output) if append and dedupe else set()
+    if replace:
+        write_jsonl(output, [])
 
     while True:
-        result = collect_log(
+        records, offset, next_line_number = read_jsonl_records_from_offset(
             source,
-            output=output,
-            input_field=input_field,
-            output_field=output_field,
-            append=append,
-            dedupe=dedupe,
+            input_field,
+            output_field,
+            offset=offset,
+            start_line_number=next_line_number,
         )
-        append = True
+        rows = [
+            _observed_row(
+                record,
+                source,
+                input_field=input_field,
+                output_field=output_field,
+            )
+            for record in records
+        ]
+        skipped_duplicates = 0
+        if dedupe:
+            pending = []
+            for row in rows:
+                key = _row_key(row)
+                if key and key in existing_keys:
+                    skipped_duplicates += 1
+                    continue
+                if key:
+                    existing_keys.add(key)
+                pending.append(row)
+            rows = pending
+        if rows:
+            append_jsonl(output, rows)
+
         iterations += 1
-        collected += int(result["records"])
-        seen += int(result["records_seen"])
-        skipped += int(result["skipped_duplicates"])
+        collected += len(rows)
+        seen += len(records)
+        skipped += skipped_duplicates
 
         if max_records is not None and collected >= max_records:
             break
 
-        if result["records"]:
+        if rows:
             idle_started = None
         elif idle_timeout is not None:
             if idle_started is None:

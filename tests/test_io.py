@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.io import append_jsonl, read_jsonl_records, write_jsonl
+from redline.io import append_jsonl, read_jsonl_records, read_jsonl_records_from_offset, write_jsonl
 
 
 class IoTests(unittest.TestCase):
@@ -31,6 +31,28 @@ class IoTests(unittest.TestCase):
             records = read_jsonl_records(path, "prompt", "response")
 
             self.assertEqual([record.prompt for record in records], ["one", "two"])
+
+    def test_read_jsonl_records_from_offset_reads_only_new_lines(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "observed.jsonl"
+            path.write_text('{"prompt": "one", "response": "1"}\n', encoding="utf-8")
+            records, offset, next_line = read_jsonl_records_from_offset(path, "prompt", "response")
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write('{"prompt": "two", "response": "2"}\n')
+
+            new_records, new_offset, new_next_line = read_jsonl_records_from_offset(
+                path,
+                "prompt",
+                "response",
+                offset=offset,
+                start_line_number=next_line,
+            )
+
+            self.assertEqual([record.prompt for record in records], ["one"])
+            self.assertEqual([record.prompt for record in new_records], ["two"])
+            self.assertEqual(new_records[0].line_number, 2)
+            self.assertGreater(new_offset, offset)
+            self.assertEqual(new_next_line, 3)
 
     def test_read_jsonl_records_supports_nested_field_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
