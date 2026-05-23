@@ -29,7 +29,17 @@ class DoctorTests(unittest.TestCase):
     def test_format_doctor_report_is_readable(self) -> None:
         report = doctor_report(
             config_path="redline.json",
-            config={"replay": "python runner.py"},
+            config={
+                "replay": "python runner.py",
+                "reports": {
+                    "json": ".redline/reports/doctor.json",
+                    "junit": ".redline/reports/doctor.xml",
+                },
+                "runs": {
+                    "candidate": ".redline/runs/candidate.jsonl",
+                    "metadata": ".redline/runs/replay.json",
+                },
+            },
             suite={"cases": [{}, {}]},
         )
 
@@ -38,6 +48,20 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("redline doctor", output)
         self.assertIn("suite: found", output)
         self.assertIn("replay: configured", output)
+        self.assertIn("reports: json=.redline/reports/doctor.json", output)
+        self.assertIn("junit=.redline/reports/doctor.xml", output)
+        self.assertIn("runs: candidate=.redline/runs/candidate.jsonl", output)
+
+    def test_doctor_warns_for_empty_artifact_sections(self) -> None:
+        report = doctor_report(
+            config_path="pyproject.toml",
+            config={"reports": {}, "runs": {}},
+            suite={"cases": []},
+        )
+
+        self.assertEqual(report["warnings"], 3)
+        self.assertTrue(any(check["name"] == "reports" for check in report["checks"]))
+        self.assertTrue(any(check["name"] == "runs" for check in report["checks"]))
 
 
 if __name__ == "__main__":

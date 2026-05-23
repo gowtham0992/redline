@@ -41,6 +41,18 @@ def doctor_report(
     else:
         checks.append({"status": "warn", "name": "replay", "message": "not configured"})
 
+    report_paths = _configured_paths(config.get("reports"), ("json", "markdown", "junit"))
+    if report_paths:
+        checks.append({"status": "ok", "name": "reports", "message": ", ".join(report_paths)})
+    elif "reports" in config:
+        checks.append({"status": "warn", "name": "reports", "message": "not configured"})
+
+    run_paths = _configured_paths(config.get("runs"), ("candidate", "metadata"))
+    if run_paths:
+        checks.append({"status": "ok", "name": "runs", "message": ", ".join(run_paths)})
+    elif "runs" in config:
+        checks.append({"status": "warn", "name": "runs", "message": "not configured"})
+
     errors = sum(1 for check in checks if check["status"] == "error")
     warnings = sum(1 for check in checks if check["status"] == "warn")
     return {
@@ -60,3 +72,14 @@ def format_doctor_report(report: dict[str, Any]) -> str:
     lines.append(f"Errors: {report['errors']}")
     lines.append(f"Warnings: {report['warnings']}")
     return "\n".join(lines) + "\n"
+
+
+def _configured_paths(value: object, keys: tuple[str, ...]) -> list[str]:
+    if not isinstance(value, dict):
+        return []
+    paths = []
+    for key in keys:
+        path = value.get(key)
+        if isinstance(path, str) and path:
+            paths.append(f"{key}={path}")
+    return paths
