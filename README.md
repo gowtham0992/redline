@@ -44,6 +44,13 @@ python -m pip install -e ".[dev]"
 python -m unittest discover
 ```
 
+Before cutting a release or asking someone else to try a branch, run the full
+local gate:
+
+```bash
+bash scripts/release_check.sh
+```
+
 Create a project config:
 
 ```bash

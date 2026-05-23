@@ -20,12 +20,29 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline/runner_templates", manifest)
         self.assertIn("scripts *.sh", manifest)
 
-    def test_demo_recording_script_is_executable(self) -> None:
+    def test_shell_scripts_are_executable(self) -> None:
+        for script_name in ("demo_terminal.sh", "release_check.sh"):
+            with self.subTest(script=script_name):
+                script = Path("scripts") / script_name
+
+                self.assertTrue(script.exists())
+                self.assertTrue(script.stat().st_mode & 0o111)
+
+    def test_demo_recording_script_runs_compact_demo(self) -> None:
         script = Path("scripts/demo_terminal.sh")
 
-        self.assertTrue(script.exists())
-        self.assertTrue(script.stat().st_mode & 0o111)
         self.assertIn("redline demo --compact", script.read_text(encoding="utf-8"))
+
+    def test_release_check_builds_and_smokes_installed_wheel(self) -> None:
+        script = Path("scripts/release_check.sh").read_text(encoding="utf-8")
+
+        self.assertIn("-m unittest discover", script)
+        self.assertIn("-m compileall redline tests examples", script)
+        self.assertIn("git diff --check", script)
+        self.assertIn("-m pip wheel . --no-deps --no-build-isolation", script)
+        self.assertIn("-m venv", script)
+        self.assertIn("redline demo --compact", script)
+        self.assertIn("redline doctor", script)
 
     def test_pyproject_includes_runner_templates(self) -> None:
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
