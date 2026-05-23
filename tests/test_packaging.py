@@ -12,6 +12,13 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("Generate eval suites", pyproject["project"]["description"])
         self.assertEqual(pyproject["project"]["urls"]["Repository"], "https://github.com/gowtham0992/redline")
 
+    def test_dev_dependencies_include_release_tools(self) -> None:
+        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        dev_dependencies = pyproject["project"]["optional-dependencies"]["dev"]
+
+        self.assertIn("build>=1.2", dev_dependencies)
+        self.assertIn("twine>=5", dev_dependencies)
+
     def test_package_is_marked_typed(self) -> None:
         self.assertTrue(Path("redline/py.typed").exists())
         manifest = Path("MANIFEST.in").read_text(encoding="utf-8")

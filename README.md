@@ -425,8 +425,8 @@ Entity and refusal checks are deliberately conservative so sentence starters,
 supportive apologies, and ordinary support-ticket words do not become noisy
 regression signals.
 
-The next iterations should add stronger built-in judge templates, larger
-dogfood logs, trend history, and public release polish.
+The next iterations should focus on external dogfood feedback, richer judge
+templates, and the public demo/PyPI release path.
 
 See [examples/github-action.yml](examples/github-action.yml) for a GitHub
 Actions starting point.
