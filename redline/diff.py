@@ -271,6 +271,46 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
     return "\n".join(lines).rstrip() + "\n"
 
 
+def format_compact_report(result: dict[str, Any], *, title: str = "redline diff") -> str:
+    summary = result["summary"]
+    lines = [
+        (
+            f"{title}: cases={summary['cases']} "
+            f"regression={summary['regression']} changed={summary['changed']} "
+            f"improved={summary['improved']} accepted={summary['accepted']} "
+            f"ignored={summary['ignored']} missing={summary['missing']} "
+            f"neutral={summary['neutral']}"
+        )
+    ]
+    decision = result.get("decision")
+    if isinstance(decision, dict):
+        confidence = str(decision.get("confidence") or "").upper()
+        action = str(decision.get("recommended_action") or "")
+        if confidence and action:
+            lines.append(f"Confidence: {confidence} | {action}")
+
+    actionable = [
+        item
+        for item in result.get("diffs", [])
+        if isinstance(item, dict) and item.get("status") != "neutral"
+    ]
+    if not actionable:
+        lines.append("No blocking or reviewable cases.")
+        return "\n".join(lines) + "\n"
+
+    lines.append("")
+    for item in actionable:
+        status = str(item.get("status", "unknown")).upper()
+        case_id = str(item.get("case_id", "unknown"))
+        location = _source_location(item)
+        location_text = f" [{location}]" if location else ""
+        reasons = item.get("reasons")
+        reason = str(reasons[0]) if isinstance(reasons, list) and reasons else status.lower()
+        prompt = _preview(str(item.get("prompt") or ""), limit=64)
+        lines.append(f"{status:<10} {case_id}{location_text}: {_preview(reason, 96)} | {prompt}")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def summarize_decision(summary: dict[str, Any]) -> dict[str, Any]:
     cases = _summary_count(summary, "cases")
     regression = _summary_count(summary, "regression")

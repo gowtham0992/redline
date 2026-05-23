@@ -33,6 +33,7 @@ jobs:
       - name: Run redline eval
         run: |
           python -m redline eval \\
+            --compact \\
             --github-summary \\
             --github-annotations \\
             --out-json .redline/reports/eval.json \\

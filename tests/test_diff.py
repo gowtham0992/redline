@@ -1,6 +1,12 @@
 import unittest
 
-from redline.diff import classify_change, compare_suite_to_candidate, format_report, summarize_decision
+from redline.diff import (
+    classify_change,
+    compare_suite_to_candidate,
+    format_compact_report,
+    format_report,
+    summarize_decision,
+)
 from redline.features import extract_features
 from redline.io import LogRecord
 from redline.suite import build_suite
@@ -150,6 +156,47 @@ class DiffTests(unittest.TestCase):
 
         self.assertIn("Confidence: HIGH", report)
         self.assertIn("Recommended action: ship candidate; no blocking changes detected", report)
+
+    def test_format_compact_report_outputs_one_line_per_actionable_case(self) -> None:
+        result = {
+            "summary": {
+                "cases": 2,
+                "regression": 1,
+                "changed": 1,
+                "improved": 0,
+                "accepted": 0,
+                "ignored": 0,
+                "neutral": 0,
+                "missing": 0,
+            },
+            "decision": {
+                "confidence": "high",
+                "recommended_action": "fix blocking cases before shipping",
+            },
+            "diffs": [
+                {
+                    "case_id": "case_001",
+                    "status": "regression",
+                    "source": "baseline.jsonl",
+                    "source_line": 12,
+                    "prompt": "Return JSON",
+                    "reasons": ["candidate lost valid JSON format"],
+                },
+                {
+                    "case_id": "case_002",
+                    "status": "changed",
+                    "prompt": "Route this ticket",
+                    "reasons": ["short answer changed"],
+                },
+            ],
+        }
+
+        report = format_compact_report(result, title="redline eval")
+
+        self.assertIn("redline eval: cases=2 regression=1 changed=1", report)
+        self.assertIn("Confidence: HIGH | fix blocking cases before shipping", report)
+        self.assertIn("REGRESSION case_001 [baseline.jsonl:12]: candidate lost valid JSON format", report)
+        self.assertIn("CHANGED    case_002: short answer changed", report)
 
 
 if __name__ == "__main__":

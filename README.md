@@ -169,11 +169,14 @@ The default config writes JSON, Markdown, and JUnit XML reports under
 In GitHub Actions, append the Markdown report to the job summary:
 
 ```bash
-python -m redline eval --github-summary --github-annotations
+python -m redline eval --compact --github-summary --github-annotations
 ```
 
 `--github-annotations` emits PR-check annotations for regressions, missing
 outputs, and ambiguous changed cases.
+
+Use `--compact` in CI logs when you want one line per blocking or reviewable
+case while still writing full JSON, Markdown, and JUnit reports.
 
 Mark a known change as expected so future runs do not fail on that case:
 

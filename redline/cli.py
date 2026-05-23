@@ -15,7 +15,7 @@ from .ci import default_github_workflow
 from .clusters import cluster_report, format_cluster_report
 from .config import DEFAULT_CONFIG_PATH, create_config, load_config
 from .demo import format_demo, run_demo
-from .diff import compare_suite_to_candidate, format_report
+from .diff import compare_suite_to_candidate, format_compact_report, format_report
 from .doctor import doctor_report, format_doctor_report
 from .io import append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judge import apply_judge
@@ -132,6 +132,7 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("--input-field", help="candidate input field; defaults to suite input field")
     diff_parser.add_argument("--output-field", help="candidate output field; defaults to suite output field")
     diff_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    diff_parser.add_argument("--compact", action="store_true", help="print compact one-line-per-case output")
     diff_parser.add_argument("--out-json", help="write machine-readable JSON report")
     diff_parser.add_argument("--out-md", help="write Markdown report")
     diff_parser.add_argument("--out-junit", help="write JUnit XML report")
@@ -157,6 +158,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--timeout", type=float, help="per-case timeout in seconds")
     eval_parser.add_argument("--workers", type=int, help="number of replay cases to run concurrently")
     eval_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    eval_parser.add_argument("--compact", action="store_true", help="print compact one-line-per-case output")
     eval_parser.add_argument("--out-json", help="write machine-readable JSON report")
     eval_parser.add_argument("--out-md", help="write Markdown report")
     eval_parser.add_argument("--out-junit", help="write JUnit XML report")
@@ -544,6 +546,8 @@ def _emit_result(
 
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
+    elif getattr(args, "compact", False):
+        print(format_compact_report(result, title=title), end="")
     else:
         print(format_report(result, title=title), end="")
 
