@@ -337,6 +337,46 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_diff_profile_review_downgrades_number_and_entity_loss(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps(
+                        {
+                            "suite": ".redline/suite.json",
+                            "diff_profile": "review",
+                            "fail_on": "none",
+                            "reports": {"json": ".redline/reports/{command}.json"},
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Route this support ticket", "response": "Route Ada Lovelace to ACME support within 30 minutes."}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Route this support ticket", "response": "Route the customer to support soon."}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
+                    self.assertEqual(main(["diff", "candidate.jsonl"]), 0)
+
+                report = json.loads((root / ".redline" / "reports" / "diff.json").read_text(encoding="utf-8"))
+                self.assertEqual(report["profile"], "review")
+                self.assertEqual(report["summary"]["regression"], 0)
+                self.assertEqual(report["summary"]["changed"], 1)
+                self.assertTrue(
+                    any("candidate missing numbers" in reason for reason in report["diffs"][0]["reasons"])
+                )
+            finally:
+                os.chdir(previous)
+
     def test_validate_reports_suite_health(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

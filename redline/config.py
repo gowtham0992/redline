@@ -30,6 +30,7 @@ def default_config(
         "max_cases": max_cases,
         "timeout_seconds": timeout_seconds,
         "workers": 1,
+        "diff_profile": "strict",
         "fail_on": list(DEFAULT_FAIL_ON),
         "reports": {
             "json": ".redline/reports/{command}.json",

@@ -22,7 +22,7 @@ from .compare import (
 )
 from .config import DEFAULT_CONFIG_PATH, create_config, load_config
 from .demo import format_demo, run_demo
-from .diff import compare_suite_to_candidate, format_compact_report, format_report
+from .diff import DIFF_PROFILES, compare_suite_to_candidate, format_compact_report, format_report
 from .doctor import doctor_report, format_doctor_report
 from .history import format_history, format_markdown_history, history_entry, read_history
 from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
@@ -206,6 +206,7 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("--out-json", help="write machine-readable JSON report")
     diff_parser.add_argument("--out-md", help="write Markdown report")
     diff_parser.add_argument("--out-junit", help="write JUnit XML report")
+    diff_parser.add_argument("--profile", choices=DIFF_PROFILES, help="diff signal profile; default comes from config or strict")
     diff_parser.add_argument("--github-summary", action="store_true", help="append Markdown report to GITHUB_STEP_SUMMARY")
     diff_parser.add_argument("--github-annotations", action="store_true", help="emit GitHub error/warning annotations")
     diff_parser.add_argument("--judge", help="command that judges ambiguous changed cases from JSON on stdin")
@@ -256,6 +257,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--out-json", help="write machine-readable JSON report")
     eval_parser.add_argument("--out-md", help="write Markdown report")
     eval_parser.add_argument("--out-junit", help="write JUnit XML report")
+    eval_parser.add_argument("--profile", choices=DIFF_PROFILES, help="diff signal profile; default comes from config or strict")
     eval_parser.add_argument("--github-summary", action="store_true", help="append Markdown report to GITHUB_STEP_SUMMARY")
     eval_parser.add_argument("--github-annotations", action="store_true", help="emit GitHub error/warning annotations")
     eval_parser.add_argument("--judge", help="command that judges ambiguous changed cases from JSON on stdin")
@@ -576,7 +578,7 @@ def cmd_diff(args: argparse.Namespace) -> int:
     input_field = args.input_field or str(suite.get("input_field") or config.get("input_field", "prompt"))
     output_field = args.output_field or str(suite.get("output_field") or config.get("output_field", "response"))
     candidate = read_jsonl_records(candidate_path, input_field, output_field)
-    result = compare_suite_to_candidate(suite, candidate)
+    result = compare_suite_to_candidate(suite, candidate, profile=_config_diff_profile(args.profile, config))
     result = _maybe_apply_judge(args, result, config)
 
     return _emit_result(args, result, title="redline diff", config=config, report_key="diff")
@@ -655,7 +657,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
     candidate_out = args.candidate_out or _config_candidate_path(config)
     if candidate_out:
         write_jsonl(candidate_out, (record.raw for record in replay.records))
-    result = compare_suite_to_candidate(suite, replay.records)
+    result = compare_suite_to_candidate(suite, replay.records, profile=_config_diff_profile(args.profile, config))
     result = _maybe_apply_judge(args, result, config)
     result["replay"] = replay.to_metadata()
     run_metadata_out = args.run_metadata or _config_run_metadata_path(config)
@@ -869,6 +871,15 @@ def _config_fail_on(explicit: str | None, config: dict[str, object]) -> str | No
     if value is None:
         return None
     return str(value)
+
+
+def _config_diff_profile(explicit: str | None, config: dict[str, object]) -> str:
+    value = explicit if explicit is not None else config.get("diff_profile", "strict")
+    profile = str(value)
+    if profile not in DIFF_PROFILES:
+        joined = ", ".join(DIFF_PROFILES)
+        raise ValueError(f"diff profile must be one of: {joined}")
+    return profile
 
 
 def _config_report_path(config: dict[str, object], format_key: str, report_key: str) -> str | None:

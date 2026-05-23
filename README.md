@@ -135,6 +135,7 @@ python -m redline init --timeout 10 --force
 | `max_cases` | Maximum representative cases selected for a suite. Default `42` keeps early runs broad while still reviewable. |
 | `timeout_seconds` | Per-case replay timeout for `redline eval`. |
 | `workers` | Number of replay cases `redline eval` may run concurrently. Default `1`. |
+| `diff_profile` | Diff signal profile. Use `strict` for CI blocking, or `review` to downgrade missing numbers/entities to changed signals in long-form assistant logs. |
 | `fail_on` | Statuses that fail `diff` or `eval`; use `"none"` for report-only mode. |
 | `reports` | JSON, Markdown, and JUnit output paths. `{command}` expands to `diff` or `eval`. |
 | `logs.observed` | Local watch output JSONL path. |
@@ -330,6 +331,14 @@ Tune CI strictness with `--fail-on`. By default redline exits `1` for
 
 ```bash
 python -m redline diff redline-suite.json examples/candidate.jsonl --fail-on none
+```
+
+For long-form assistant logs, use the review profile so missing incidental
+numbers and entities are treated as reviewable changes instead of blocking
+regressions:
+
+```bash
+python -m redline diff redline-suite.json candidate.jsonl --profile review --fail-on none
 ```
 
 Or let redline replay each suite case with a local command. The command receives

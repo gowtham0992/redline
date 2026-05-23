@@ -40,6 +40,11 @@
       "minimum": 1,
       "description": "Number of replay cases redline eval may run concurrently."
     },
+    "diff_profile": {
+      "type": "string",
+      "enum": ["strict", "review"],
+      "description": "Diff signal profile. strict treats missing numbers/entities as regressions; review downgrades them to changed signals for long-form assistant logs."
+    },
     "fail_on": {
       "description": "Statuses that produce a non-zero diff/eval exit. Use \"none\" for report-only mode.",
       "oneOf": [

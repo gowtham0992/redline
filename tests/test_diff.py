@@ -66,6 +66,45 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(status, "regression")
         self.assertTrue(any("candidate missing entities" in reason for reason in reasons))
 
+    def test_review_profile_downgrades_missing_entities_to_changed(self) -> None:
+        baseline = extract_features("Route Ada Lovelace to ACME support.").to_dict()
+        candidate = extract_features("Route the customer to support.").to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text="Route Ada Lovelace to ACME support.",
+            candidate_text="Route the customer to support.",
+            profile="review",
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertTrue(any("candidate missing entities" in reason for reason in reasons))
+
+    def test_review_profile_downgrades_missing_numbers_to_changed(self) -> None:
+        baseline = extract_features("Use timeout 30 seconds.").to_dict()
+        candidate = extract_features("Use the default timeout.").to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text="Use timeout 30 seconds.",
+            candidate_text="Use the default timeout.",
+            profile="review",
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertTrue(any("candidate missing numbers" in reason for reason in reasons))
+
+    def test_review_profile_keeps_json_regressions_blocking(self) -> None:
+        baseline = extract_features('{"name":"Ada","status":"active"}').to_dict()
+        candidate = extract_features('{"name":"Ada"').to_dict()
+
+        status, reasons = classify_change(baseline, candidate, profile="review")
+
+        self.assertEqual(status, "regression")
+        self.assertIn("candidate lost valid JSON format", reasons)
+
     def test_classify_supportive_apology_is_not_new_refusal(self) -> None:
         baseline = extract_features("Reset your password from account settings.").to_dict()
         candidate_text = "I'm sorry you're experiencing this. Reset your password from account settings."
@@ -140,6 +179,7 @@ class DiffTests(unittest.TestCase):
 
         self.assertEqual(result["summary"]["missing"], 0)
         self.assertEqual(result["summary"]["neutral"], 1)
+        self.assertEqual(result["profile"], "strict")
         self.assertEqual(result["diffs"][0]["candidate_response"], '{"ok": true}')
 
     def test_summarize_decision_recommends_review_for_changed_cases(self) -> None:

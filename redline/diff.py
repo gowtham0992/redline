@@ -10,6 +10,9 @@ from .io import LogRecord
 from .requirements import case_requirements, requirement_reasons
 
 
+DIFF_PROFILES = ("strict", "review")
+
+
 @dataclass(frozen=True)
 class CaseDiff:
     case_id: str
@@ -43,7 +46,10 @@ class CaseDiff:
 def compare_suite_to_candidate(
     suite: dict[str, Any],
     candidate_records: list[LogRecord],
+    *,
+    profile: str = "strict",
 ) -> dict[str, Any]:
+    profile = _diff_profile(profile)
     candidate_case_index = _index_by_case_id(candidate_records)
     candidate_index = _index_by_prompt(candidate_records)
     judgments = suite.get("judgments", {})
@@ -95,6 +101,7 @@ def compare_suite_to_candidate(
             candidate_features.to_dict(),
             baseline_text=baseline_response,
             candidate_text=candidate.response,
+            profile=profile,
         )
         if requirement_failures:
             status = "regression"
@@ -129,6 +136,7 @@ def compare_suite_to_candidate(
     }
     return {
         "version": "0.1",
+        "profile": profile,
         "summary": summary,
         "decision": summarize_decision(summary),
         "diffs": [diff.to_dict() for diff in diffs],
@@ -141,7 +149,9 @@ def classify_change(
     *,
     baseline_text: str | None = None,
     candidate_text: str | None = None,
+    profile: str = "strict",
 ) -> tuple[str, list[str]]:
+    profile = _diff_profile(profile)
     reasons: list[str] = []
     regression_reasons: list[str] = []
     improvement_reasons: list[str] = []
@@ -183,7 +193,12 @@ def classify_change(
 
     lost_numbers = sorted(set(baseline.get("numbers") or []) - set(candidate.get("numbers") or []))
     if lost_numbers:
-        regression_reasons.append(f"candidate missing numbers: {', '.join(lost_numbers[:8])}")
+        _append_loss_reason(
+            profile,
+            regression_reasons,
+            reasons,
+            f"candidate missing numbers: {', '.join(lost_numbers[:8])}",
+        )
 
     lost_urls = sorted(set(baseline.get("urls") or []) - set(candidate.get("urls") or []))
     if lost_urls:
@@ -191,7 +206,12 @@ def classify_change(
 
     lost_entities = sorted(set(baseline.get("entities") or []) - set(candidate.get("entities") or []))
     if lost_entities:
-        regression_reasons.append(f"candidate missing entities: {', '.join(lost_entities[:8])}")
+        _append_loss_reason(
+            profile,
+            regression_reasons,
+            reasons,
+            f"candidate missing entities: {', '.join(lost_entities[:8])}",
+        )
 
     length_reason = _length_reason(baseline["words"], candidate["words"])
     if length_reason:
@@ -212,6 +232,25 @@ def classify_change(
     if reasons:
         return "changed", reasons
     return "neutral", ["no high-signal behavioral change detected"]
+
+
+def _append_loss_reason(
+    profile: str,
+    regression_reasons: list[str],
+    reasons: list[str],
+    reason: str,
+) -> None:
+    if profile == "review":
+        reasons.append(reason)
+    else:
+        regression_reasons.append(reason)
+
+
+def _diff_profile(value: str) -> str:
+    if value not in DIFF_PROFILES:
+        joined = ", ".join(DIFF_PROFILES)
+        raise ValueError(f"diff profile must be one of: {joined}")
+    return value
 
 
 def apply_judgment(
