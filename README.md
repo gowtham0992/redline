@@ -43,6 +43,12 @@ Create config plus a GitHub Actions workflow:
 redline init --replay "python examples/replay_candidate.py" --github-action
 ```
 
+Or choose a built-in runner adapter:
+
+```bash
+redline init --runner openai --github-action
+```
+
 The generated `redline.json` includes a `$schema` reference for editor help.
 Regressions and missing outputs fail CI by default through `fail_on`; set
 `fail_on` to `"none"` during setup if you want report-only runs.

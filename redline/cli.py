@@ -57,6 +57,11 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--max-cases", type=int, default=42, help="default maximum suite cases")
     init_parser.add_argument("--timeout", type=float, default=30.0, help="default replay timeout in seconds")
     init_parser.add_argument("--replay", help="default eval replay command")
+    init_parser.add_argument(
+        "--runner",
+        choices=[adapter["id"] for adapter in runner_adapters()],
+        help="set replay from a built-in runner adapter",
+    )
     init_parser.add_argument("--github-action", action="store_true", help="also write a GitHub Actions workflow")
     init_parser.add_argument("--workflow", default=".github/workflows/redline.yml", help="workflow path for --github-action")
     init_parser.add_argument("--force", action="store_true", help="overwrite an existing config file")
@@ -236,13 +241,16 @@ def build_parser() -> argparse.ArgumentParser:
 def cmd_init(args: argparse.Namespace) -> int:
     if args.github_action and Path(args.workflow).exists() and not args.force:
         raise ValueError(f"{Path(args.workflow)} already exists; pass --force to overwrite")
+    if args.replay and args.runner:
+        raise ValueError("use --replay or --runner, not both")
+    replay = args.replay or _runner_replay(args.runner)
     config = create_config(
         args.config,
         input_field=args.input_field,
         output_field=args.output_field,
         max_cases=args.max_cases,
         timeout_seconds=args.timeout,
-        replay=args.replay,
+        replay=replay,
         force=args.force,
     )
     write_json(args.config, config)
@@ -804,3 +812,12 @@ def _run_metadata(
     if candidate_path:
         metadata["candidate"] = candidate_path
     return metadata
+
+
+def _runner_replay(runner_id: str | None) -> str | None:
+    if runner_id is None:
+        return None
+    for adapter in runner_adapters():
+        if adapter["id"] == runner_id:
+            return adapter["replay"]
+    raise ValueError(f"unknown runner adapter: {runner_id}")

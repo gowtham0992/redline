@@ -57,6 +57,34 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_init_can_store_runner_adapter_replay_command(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["init", "--runner", "openai"]), 0)
+
+                config = json.loads((root / "redline.json").read_text(encoding="utf-8"))
+                self.assertEqual(config["replay"], "./runners/openai_runner.sh")
+            finally:
+                os.chdir(previous)
+
+    def test_init_refuses_runner_and_replay_together(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(Path(directory))
+            try:
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = main(["init", "--runner", "openai", "--replay", "python runner.py"])
+
+                self.assertEqual(code, 2)
+                self.assertIn("use --replay or --runner", stderr.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_init_refuses_existing_github_action_without_force(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
