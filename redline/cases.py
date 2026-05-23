@@ -8,8 +8,12 @@ def suite_case_rows(suite: dict[str, Any]) -> list[dict[str, Any]]:
     requirements = suite.get("requirements", {})
     if not isinstance(requirements, dict):
         requirements = {}
+    judgments = suite.get("judgments", {})
+    if not isinstance(judgments, dict):
+        judgments = {}
     for case in suite.get("cases", []):
         case_id = str(case["id"])
+        judgment = judgments.get(case_id)
         rows.append(
             {
                 "id": case_id,
@@ -19,6 +23,7 @@ def suite_case_rows(suite: dict[str, Any]) -> list[dict[str, Any]]:
                 "prompt_preview": _preview(str(case.get("prompt", ""))),
                 "baseline_preview": _preview(str(case.get("baseline_response", ""))),
                 "requirements": _requirement_count(requirements.get(case_id)),
+                "judgment": _judgment_status(judgment),
             }
         )
     return rows
@@ -30,12 +35,13 @@ def format_suite_cases(suite: dict[str, Any]) -> str:
     if not rows:
         return "redline cases\n\nNo cases found.\n"
 
-    lines.append(f"{'CASE':<24} {'LINE':>5} {'RULES':>5}  PROMPT")
-    lines.append(f"{'-' * 24} {'-' * 5} {'-' * 5}  {'-' * 60}")
+    lines.append(f"{'CASE':<24} {'LINE':>5} {'RULES':>5} {'JUDGMENT':<10} PROMPT")
+    lines.append(f"{'-' * 24} {'-' * 5} {'-' * 5} {'-' * 10} {'-' * 60}")
     for row in rows:
         source_line = "" if row["source_line"] is None else str(row["source_line"])
         lines.append(
-            f"{row['id']:<24} {source_line:>5} {row['requirements']:>5}  {row['prompt_preview']}"
+            f"{row['id']:<24} {source_line:>5} {row['requirements']:>5} "
+            f"{row['judgment']:<10} {row['prompt_preview']}"
         )
     return "\n".join(lines) + "\n"
 
@@ -114,6 +120,13 @@ def _requirement_count(requirement: object) -> int:
         if isinstance(values, list):
             count += len([value for value in values if str(value).strip()])
     return count or 1
+
+
+def _judgment_status(judgment: object) -> str:
+    if not isinstance(judgment, dict):
+        return ""
+    status = judgment.get("status")
+    return str(status) if status else ""
 
 
 def _find_case(suite: dict[str, Any], case_id: str) -> dict[str, Any]:

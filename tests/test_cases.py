@@ -2,6 +2,7 @@ import unittest
 
 from redline.cases import format_suite_cases, suite_case_rows
 from redline.io import LogRecord
+from redline.judgments import mark_suite_case
 from redline.requirements import add_case_requirement
 from redline.suite import build_suite
 
@@ -22,6 +23,7 @@ class CasesTests(unittest.TestCase):
         self.assertTrue(rows[0]["id"].startswith("case_"))
         self.assertEqual(rows[0]["prompt_preview"], "Return JSON for Ada")
         self.assertEqual(rows[0]["requirements"], 0)
+        self.assertEqual(rows[0]["judgment"], "")
 
     def test_suite_case_rows_count_requirements(self) -> None:
         suite = build_suite(
@@ -38,6 +40,21 @@ class CasesTests(unittest.TestCase):
 
         self.assertEqual(rows[0]["requirements"], 2)
 
+    def test_suite_case_rows_include_judgment_status(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON for Ada", '{"name": "Ada"}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        case_id = suite["cases"][0]["id"]
+        mark_suite_case(suite, case_id, status="expected")
+
+        rows = suite_case_rows(suite)
+
+        self.assertEqual(rows[0]["judgment"], "expected")
+
     def test_format_suite_cases_prints_reviewable_table(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Return JSON for Ada", '{"name": "Ada"}', {})],
@@ -51,6 +68,7 @@ class CasesTests(unittest.TestCase):
 
         self.assertIn("redline cases", output)
         self.assertIn("RULES", output)
+        self.assertIn("JUDGMENT", output)
         self.assertIn("Return JSON for Ada", output)
 
 
