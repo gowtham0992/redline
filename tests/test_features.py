@@ -49,6 +49,14 @@ class FeatureTests(unittest.TestCase):
         self.assertTrue(features.refusal)
         self.assertEqual(features.shape, "refusal")
 
+    def test_refusal_detection_ignores_quoted_examples(self) -> None:
+        features = extract_features(
+            "Detect refusals with examples such as `I cannot fulfill` or `I am unable to help`."
+        )
+
+        self.assertFalse(features.refusal)
+        self.assertEqual(features.shape, "prose")
+
     def test_refusal_detection_ignores_context_disclaimers(self) -> None:
         features = extract_features("I don't have enough context to answer confidently.")
 

@@ -162,7 +162,7 @@ def extract_features(text: str) -> TextFeatures:
     has_bullets = bool(_BULLET_RE.search(text))
     has_numbered = bool(_NUMBERED_RE.search(text))
     has_table = _looks_like_markdown_table(text)
-    refusal = bool(_REFUSAL_RE.search(text))
+    refusal = _has_refusal(text)
     urls = tuple(_URL_RE.findall(text))
     numbers = tuple(_NUMBER_RE.findall(text))
     entities = _entities(text)
@@ -276,6 +276,21 @@ def _looks_like_markdown_table(text: str) -> bool:
         next_line = lines[index + 1]
         if "|" in line and re.fullmatch(r"\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?", next_line):
             return True
+    return False
+
+
+def _has_refusal(text: str) -> bool:
+    checked = 0
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        checked += 1
+        normalized = re.sub(r"^(?:>\s*)?(?:[-*+]\s+|\d+[.)]\s+)?", "", line)
+        if _REFUSAL_RE.match(normalized):
+            return True
+        if checked >= 3:
+            return False
     return False
 
 
