@@ -206,3 +206,18 @@ class RunnerTests(unittest.TestCase):
             'redline eval --prompt prompts/v2.txt --replay "python runners/python_chain_runner.py"',
             docs,
         )
+
+    def test_runner_docs_follow_onboarding_order(self) -> None:
+        docs = Path("docs/runners.md").read_text(encoding="utf-8")
+        headings = [
+            "## OpenAI Direct",
+            "## Anthropic Direct",
+            "## LangChain Or LlamaIndex",
+            "## HTTP API",
+            "## App Logs To JSONL",
+            "## LiteLLM Or Model Proxy",
+        ]
+        positions = [docs.index(heading) for heading in headings]
+
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("REDLINE_CASE_ID", docs)
