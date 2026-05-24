@@ -1,3 +1,5 @@
+import asyncio
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -5,11 +7,121 @@ from threading import Thread
 from time import sleep
 from typing import Any
 
+from redline import watch as exported_watch
 from redline.io import read_jsonl_records
-from redline.watch import collect_log, follow_log, format_follow_records, format_watch_stats, watch_stats
+from redline.watch import collect_log, follow_log, format_follow_records, format_watch_stats, watch, watch_stats
 
 
 class WatchTests(unittest.TestCase):
+    def test_watch_decorator_records_sync_function_calls(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            @watch(log=log)
+            def generate_response(prompt: str) -> str:
+                return f"answer: {prompt}"
+
+            result = generate_response("refund policy")
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(result, "answer: refund policy")
+            self.assertEqual(records[0].prompt, "refund policy")
+            self.assertEqual(records[0].response, "answer: refund policy")
+            self.assertIn("python:", records[0].raw["source"])
+            self.assertIn("observed_at", records[0].raw)
+            self.assertEqual(
+                records[0].raw["metadata"]["function"],
+                "WatchTests.test_watch_decorator_records_sync_function_calls.<locals>.generate_response",
+            )
+
+    def test_watch_decorator_supports_import_from_package_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            @exported_watch(log=log, prompt_arg="question")
+            def answer(question: str) -> dict[str, str]:
+                return {"text": question.upper()}
+
+            answer(question="hello")
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(records[0].prompt, "hello")
+            self.assertEqual(records[0].response, '{"text": "HELLO"}')
+
+    def test_watch_decorator_records_async_function_calls(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            @watch(log=log)
+            async def generate_response(prompt: str) -> str:
+                return f"async: {prompt}"
+
+            result = asyncio.run(generate_response("status update"))
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(result, "async: status update")
+            self.assertEqual(records[0].prompt, "status update")
+            self.assertEqual(records[0].response, "async: status update")
+
+    def test_watch_decorator_can_be_used_without_parentheses(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path.cwd()
+            try:
+                # Keep the default log path local to this temp project.
+                os.chdir(directory)
+
+                @watch
+                def generate_response(prompt: str) -> str:
+                    return "ok"
+
+                generate_response("hello")
+
+                records = read_jsonl_records(".redline/logs/prompts.jsonl", "prompt", "response")
+                self.assertEqual(records[0].prompt, "hello")
+                self.assertEqual(records[0].response, "ok")
+            finally:
+                os.chdir(root)
+
+    def test_watch_decorator_metadata_can_be_static_or_callable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            @watch(log=log, metadata=lambda prompt: {"model": "test-model", "length": len(prompt)})
+            def generate_response(prompt: str) -> str:
+                return "ok"
+
+            generate_response("hello")
+
+            records = read_jsonl_records(log, "prompt", "response")
+            metadata = records[0].raw["metadata"]
+            self.assertEqual(metadata["model"], "test-model")
+            self.assertEqual(metadata["length"], 5)
+
+    def test_watch_decorator_stringifies_non_json_response_values(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            class Response:
+                def __str__(self) -> str:
+                    return "custom response"
+
+            @watch(log=log)
+            def generate_response(prompt: str) -> Response:
+                return Response()
+
+            generate_response("hello")
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(records[0].response, "custom response")
+
+    def test_watch_decorator_requires_prompt_when_it_cannot_infer_one(self) -> None:
+        @watch(log=Path(tempfile.gettempdir()) / "redline-missing-prompt.jsonl")
+        def generate_response() -> str:
+            return "ok"
+
+        with self.assertRaisesRegex(ValueError, "could not infer prompt"):
+            generate_response()
+
     def test_collect_log_writes_normalized_observed_records(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

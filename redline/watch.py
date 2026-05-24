@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime, timezone
+from functools import wraps
+from inspect import iscoroutinefunction, signature
+import json
 from pathlib import Path
 from time import monotonic, sleep
 from typing import Any
@@ -15,6 +18,64 @@ from .io import (
     read_jsonl_records_from_offset,
     write_jsonl,
 )
+
+DEFAULT_WATCH_LOG = ".redline/logs/prompts.jsonl"
+
+
+def watch(
+    func: Callable[..., Any] | None = None,
+    *,
+    log: str | Path = DEFAULT_WATCH_LOG,
+    prompt_arg: str | None = None,
+    metadata: dict[str, Any] | Callable[..., dict[str, Any]] | None = None,
+) -> Callable[..., Any]:
+    """Record prompt-response pairs from a Python function.
+
+    The wrapped function should receive a prompt-like argument and return the
+    response text or structured response value. Nothing leaves disk; records are
+    appended to the local JSONL log.
+    """
+
+    def decorate(target: Callable[..., Any]) -> Callable[..., Any]:
+        if iscoroutinefunction(target):
+
+            @wraps(target)
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+                prompt = _prompt_from_call(target, args, kwargs, prompt_arg=prompt_arg)
+                response = await target(*args, **kwargs)
+                _append_function_observation(
+                    target,
+                    prompt,
+                    response,
+                    log=log,
+                    metadata=metadata,
+                    args=args,
+                    kwargs=kwargs,
+                )
+                return response
+
+            return async_wrapper
+
+        @wraps(target)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            prompt = _prompt_from_call(target, args, kwargs, prompt_arg=prompt_arg)
+            response = target(*args, **kwargs)
+            _append_function_observation(
+                target,
+                prompt,
+                response,
+                log=log,
+                metadata=metadata,
+                args=args,
+                kwargs=kwargs,
+            )
+            return response
+
+        return wrapper
+
+    if func is None:
+        return decorate
+    return decorate(func)
 
 
 def collect_log(
@@ -242,6 +303,95 @@ def _observed_row(
     row.setdefault(input_field, record.prompt)
     row.setdefault(output_field, record.response)
     return row
+
+
+def _append_function_observation(
+    target: Callable[..., Any],
+    prompt: Any,
+    response: Any,
+    *,
+    log: str | Path,
+    metadata: dict[str, Any] | Callable[..., dict[str, Any]] | None,
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> None:
+    append_jsonl(
+        log,
+        [
+            {
+                "prompt": _stringify_value(prompt),
+                "response": _stringify_value(response),
+                "source": _function_source(target),
+                "source_line": _function_line(target),
+                "observed_at": datetime.now(timezone.utc).isoformat(),
+                "metadata": _function_metadata(target, metadata, args, kwargs),
+            }
+        ],
+    )
+
+
+def _prompt_from_call(
+    target: Callable[..., Any],
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+    *,
+    prompt_arg: str | None,
+) -> Any:
+    bound = signature(target).bind_partial(*args, **kwargs)
+    if prompt_arg:
+        if prompt_arg in bound.arguments:
+            return bound.arguments[prompt_arg]
+        raise ValueError(f"prompt argument {prompt_arg!r} not found; pass prompt_arg=... for this function")
+    for name in ("prompt", "input", "message", "query"):
+        if name in bound.arguments:
+            return bound.arguments[name]
+    if args:
+        parameters = list(signature(target).parameters)
+        if parameters and parameters[0] in {"self", "cls"} and len(args) > 1:
+            return args[1]
+        return args[0]
+    if len(kwargs) == 1:
+        return next(iter(kwargs.values()))
+    raise ValueError("could not infer prompt argument; use @watch(prompt_arg='...')")
+
+
+def _function_metadata(
+    target: Callable[..., Any],
+    metadata: dict[str, Any] | Callable[..., dict[str, Any]] | None,
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> dict[str, Any]:
+    row = {
+        "module": str(getattr(target, "__module__", "")),
+        "function": str(getattr(target, "__qualname__", getattr(target, "__name__", "<unknown>"))),
+    }
+    if metadata is None:
+        return row
+    extra = metadata(*args, **kwargs) if callable(metadata) else metadata
+    if not isinstance(extra, dict):
+        raise ValueError("watch metadata must be a dict")
+    return {**row, **extra}
+
+
+def _function_source(target: Callable[..., Any]) -> str:
+    module = str(getattr(target, "__module__", ""))
+    name = str(getattr(target, "__qualname__", getattr(target, "__name__", "<unknown>")))
+    return f"python:{module}.{name}" if module else f"python:{name}"
+
+
+def _function_line(target: Callable[..., Any]) -> int | None:
+    code = getattr(target, "__code__", None)
+    line = getattr(code, "co_firstlineno", None)
+    return line if isinstance(line, int) else None
+
+
+def _stringify_value(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    try:
+        return json.dumps(value, sort_keys=True, ensure_ascii=False)
+    except TypeError:
+        return str(value)
 
 
 def _existing_keys(path: str | Path) -> set[tuple[str, str]]:

@@ -210,6 +210,21 @@ python -m redline watch --log examples/baseline.jsonl
 Repeated `watch` runs skip source lines that were already collected. Pass
 `--allow-duplicates` only when you intentionally want duplicate observations.
 
+Capture prompt-response pairs directly from Python code:
+
+```python
+from redline import watch
+
+@watch(log=".redline/logs/prompts.jsonl")
+def generate_response(prompt: str) -> str:
+    return call_llm(prompt)
+```
+
+The decorator appends local JSONL with `prompt`, `response`, source function,
+source line, timestamp, and metadata. It works with sync and async functions.
+Use `prompt_arg="question"` when your function does not name the prompt
+argument `prompt`.
+
 Keep polling a log during local development:
 
 ```bash
