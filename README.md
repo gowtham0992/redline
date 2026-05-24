@@ -190,9 +190,9 @@ Check local setup health:
 python -m redline doctor
 ```
 
-Doctor checks config, suite presence, report paths, and whether the configured
-replay command points at files that exist locally. When setup is incomplete, it
-prints the next command to run.
+Doctor checks config, suite presence, suite validation health, report paths,
+and whether the configured replay command points at files that exist locally.
+When setup is incomplete, it prints the next command to run.
 
 Use strict mode in CI to fail on missing setup pieces:
 

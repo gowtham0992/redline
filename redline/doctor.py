@@ -5,6 +5,8 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from .validate import validate_suite
+
 
 def doctor_report(
     *,
@@ -33,6 +35,16 @@ def doctor_report(
                 "message": f"found {suite_path} with {case_count} cases",
             }
         )
+        validation = validate_suite(suite, suite_path=suite_path)
+        validation_message = (
+            f"{validation['errors']} error(s), {validation['warnings']} warning(s)"
+        )
+        if validation["errors"]:
+            checks.append({"status": "error", "name": "suite-validation", "message": validation_message})
+        elif validation["warnings"]:
+            checks.append({"status": "warn", "name": "suite-validation", "message": validation_message})
+        else:
+            checks.append({"status": "ok", "name": "suite-validation", "message": "valid"})
     elif suite_error:
         checks.append({"status": "error", "name": "suite", "message": suite_error})
     else:
@@ -148,6 +160,10 @@ def _next_steps(checks: list[dict[str, str]]) -> list[str]:
         )
     elif suite and suite["status"] == "error":
         steps.append("Fix suite JSON, then rerun: redline doctor")
+
+    suite_validation = by_name.get("suite-validation")
+    if suite_validation and suite_validation["status"] in {"error", "warn"}:
+        steps.append("Review suite health: redline validate")
 
     replay = by_name.get("replay")
     if replay and replay["status"] == "error":

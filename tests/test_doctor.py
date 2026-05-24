@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 
 from redline.doctor import doctor_report, format_doctor_report
+from redline.io import LogRecord
+from redline.suite import build_suite
 
 
 class DoctorTests(unittest.TestCase):
@@ -62,6 +64,13 @@ class DoctorTests(unittest.TestCase):
                 os.chdir(previous)
 
     def test_format_doctor_report_is_readable(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
         report = doctor_report(
             config_path="pyproject.toml",
             config={
@@ -77,13 +86,14 @@ class DoctorTests(unittest.TestCase):
                     "metadata": ".redline/runs/replay.json",
                 },
             },
-            suite={"cases": [{}, {}]},
+            suite=suite,
         )
 
         output = format_doctor_report(report)
 
         self.assertIn("redline doctor", output)
         self.assertIn("suite: found", output)
+        self.assertIn("suite-validation: valid", output)
         self.assertIn("replay: configured", output)
         self.assertIn("judge: configured", output)
         self.assertIn("coverage: structural checks only", output)
@@ -112,23 +122,73 @@ class DoctorTests(unittest.TestCase):
             suite={"cases": []},
         )
 
-        self.assertEqual(report["warnings"], 3)
+        self.assertEqual(report["warnings"], 4)
         self.assertTrue(any(check["name"] == "reports" for check in report["checks"]))
         self.assertTrue(any(check["name"] == "runs" for check in report["checks"]))
 
     def test_doctor_warns_when_suite_is_git_ignored(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
         report = doctor_report(
             config_path="pyproject.toml",
             config={
                 "suite": ".redline/suite.json",
                 "replay": f"{sys.executable} -c pass",
             },
-            suite={"cases": [{}]},
+            suite=suite,
             suite_git_ignored=True,
         )
 
         self.assertEqual(report["warnings"], 1)
         self.assertTrue(any(check["name"] == "suite-git" for check in report["checks"]))
+
+    def test_doctor_surfaces_suite_validation_warnings(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        del suite["cases"][0]["content_hash"]
+
+        report = doctor_report(
+            config_path="pyproject.toml",
+            config={"replay": f"{sys.executable} -c pass"},
+            suite=suite,
+        )
+
+        validation = next(check for check in report["checks"] if check["name"] == "suite-validation")
+        self.assertEqual(validation["status"], "warn")
+        self.assertIn("1 warning", validation["message"])
+        self.assertIn("Review suite health: redline validate", report["next_steps"])
+
+    def test_doctor_surfaces_suite_validation_errors(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        suite["cases"][0]["features"]["valid_json"] = False
+
+        report = doctor_report(
+            config_path="pyproject.toml",
+            config={"replay": f"{sys.executable} -c pass"},
+            suite=suite,
+        )
+
+        validation = next(check for check in report["checks"] if check["name"] == "suite-validation")
+        self.assertFalse(report["ok"])
+        self.assertEqual(validation["status"], "error")
+        self.assertIn("1 error", validation["message"])
+        self.assertIn("Review suite health: redline validate", report["next_steps"])
 
     def test_doctor_errors_for_missing_replay_command_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
