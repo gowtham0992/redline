@@ -1,0 +1,62 @@
+name: redline eval
+description: Run redline as a local-first prompt regression gate in GitHub Actions.
+author: Gowtham
+
+inputs:
+  config:
+    description: Path to redline.json.
+    default: redline.json
+  suite:
+    description: Path to the committed redline suite.
+    default: redline-suite.json
+  prompt-path:
+    description: Optional prompt template file to evaluate.
+    default: ""
+  fail-on:
+    description: Comma-separated statuses that fail the action.
+    default: regression,missing
+  working-directory:
+    description: Repository directory where redline should run.
+    default: "."
+  extra-args:
+    description: Extra arguments appended to redline eval.
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Install redline
+      shell: bash
+      run: python -m pip install "${{ github.action_path }}"
+
+    - name: Run redline
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd "${{ inputs.working-directory }}"
+        mkdir -p .redline/reports
+
+        python -m redline doctor --config "${{ inputs.config }}" --strict
+        python -m redline validate "${{ inputs.suite }}" --config "${{ inputs.config }}" --strict
+
+        eval_args=(
+          "${{ inputs.suite }}"
+          --config "${{ inputs.config }}"
+          --compact
+          --github-summary
+          --github-annotations
+          --fail-on "${{ inputs.fail-on }}"
+          --out-json .redline/reports/eval.json
+          --out-md .redline/reports/eval.md
+          --out-html .redline/reports/eval.html
+          --out-junit .redline/reports/eval.xml
+        )
+        if [ -n "${{ inputs.prompt-path }}" ]; then
+          eval_args+=(--prompt "${{ inputs.prompt-path }}")
+        fi
+        if [ -n "${{ inputs.extra-args }}" ]; then
+          # shellcheck disable=SC2206
+          extra_args=( ${{ inputs.extra-args }} )
+          eval_args+=("${extra_args[@]}")
+        fi
+        python -m redline eval "${eval_args[@]}"

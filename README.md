@@ -108,6 +108,14 @@ Create config plus a GitHub Actions workflow:
 redline init --replay "python examples/replay_candidate.py" --github-action
 ```
 
+Or use redline as a composite GitHub Action from another repo:
+
+```yaml
+- uses: gowtham0992/redline@v0.1.0
+  with:
+    prompt-path: prompts/v2.txt
+```
+
 Or choose a built-in runner adapter:
 
 ```bash
@@ -616,5 +624,6 @@ The next iterations should focus on external dogfood feedback, PyPI/tagged
 release mechanics, and learning where real users need stronger adapters,
 requirements, or judge rubrics.
 
-See [examples/github-action.yml](examples/github-action.yml) for a GitHub
-Actions starting point.
+See [action.yml](action.yml) for the composite action contract and
+[examples/github-action.yml](examples/github-action.yml) for a full workflow
+starting point.

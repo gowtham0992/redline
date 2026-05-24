@@ -40,6 +40,18 @@ class CiTests(unittest.TestCase):
 
         self.assertEqual(workflow, default_github_workflow())
 
+    def test_composite_action_runs_redline_gate(self) -> None:
+        action = Path("action.yml").read_text(encoding="utf-8")
+
+        self.assertIn("using: composite", action)
+        self.assertIn("prompt-path:", action)
+        self.assertIn("python -m pip install", action)
+        self.assertIn("python -m redline doctor", action)
+        self.assertIn("python -m redline validate", action)
+        self.assertIn("python -m redline eval", action)
+        self.assertIn("--github-summary", action)
+        self.assertIn("--github-annotations", action)
+
 
 if __name__ == "__main__":
     unittest.main()

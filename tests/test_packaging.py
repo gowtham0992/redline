@@ -32,6 +32,7 @@ class PackagingTests(unittest.TestCase):
         manifest = Path("MANIFEST.in").read_text(encoding="utf-8")
 
         self.assertIn("redline py.typed", manifest)
+        self.assertIn("action.yml", manifest)
         self.assertIn("redline-suite.schema.json", manifest)
         self.assertIn("redline-report.schema.json", manifest)
         self.assertIn("redline/runner_templates", manifest)
