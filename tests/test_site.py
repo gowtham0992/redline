@@ -37,10 +37,14 @@ class GitHubPagesSiteTests(unittest.TestCase):
         self.assertIn("What redline does not pretend", html)
         self.assertIn("Release confidence", html)
         self.assertIn("A certified local product loop", html)
+        self.assertIn("Open source surface", html)
+        self.assertIn("Review the checks before you trust the gate", html)
         self.assertIn("bash scripts/release_check.sh", html)
         self.assertIn("bash scripts/action_smoke.sh", html)
         self.assertIn("redline history --fail-on worse", html)
         self.assertIn("bash scripts/certify_release.sh", html)
+        self.assertIn("CONTRIBUTING.md", html)
+        self.assertIn("SECURITY.md", html)
         self.assertIn("GitHub Pages", Path(".github/workflows/pages.yml").read_text(encoding="utf-8"))
 
     def test_site_links_stylesheet_and_preview_image(self) -> None:
@@ -50,6 +54,18 @@ class GitHubPagesSiteTests(unittest.TestCase):
         self.assertIn("styles.css", parser.stylesheets)
         self.assertIn("assets/redline-mark.svg", parser.icons)
         self.assertIn("https://github.com/gowtham0992/redline", parser.links)
+        self.assertIn(
+            "https://github.com/gowtham0992/redline/actions/workflows/ci.yml",
+            parser.links,
+        )
+        self.assertIn(
+            "https://github.com/gowtham0992/redline/blob/develop/CONTRIBUTING.md",
+            parser.links,
+        )
+        self.assertIn(
+            "https://github.com/gowtham0992/redline/blob/develop/SECURITY.md",
+            parser.links,
+        )
         self.assertIn(
             ("assets/redline-preview.png", "redline terminal and dashboard preview showing four prompt regressions caught"),
             parser.images,
