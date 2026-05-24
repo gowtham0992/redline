@@ -130,6 +130,8 @@ quality; add case requirements or an optional judge for those risks.
 Need to connect your app? See [runner adapters](docs/runners.md) for
 provider-neutral replay commands first, then optional OpenAI, Anthropic,
 LiteLLM, HTTP, and framework examples.
+Log import adapters such as `jsonl-logs` are for building suites from exported
+logs, not for `redline eval` replay.
 
 Or list the available adapters from the CLI:
 

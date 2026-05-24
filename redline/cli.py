@@ -7,7 +7,7 @@ import subprocess
 import sys
 import webbrowser
 from pathlib import Path
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from . import __version__
 from .accept import accept_candidate_baseline, expected_case_ids
@@ -446,16 +446,16 @@ def cmd_runners(args: argparse.Namespace) -> int:
             else:
                 for result in results:
                     print(f"Wrote {Path(result['path'])}.")
-                print("Replay commands:")
+                print("Adapter commands:")
                 for result in results:
-                    print(f"  {result['id']}: {result['replay']}")
+                    print(f"  {result['id']} ({_adapter_command_label(result)}): {result['replay']}")
             return 0
         result = copy_runner_adapter(args.copy, output=args.out, force=args.force)
         if args.json:
             print(json.dumps(result, indent=2, sort_keys=True))
         else:
             print(f"Wrote {Path(result['path'])}.")
-            print(f"Replay: {result['replay']}")
+            print(f"{_adapter_command_label(result).title()}: {result['replay']}")
         return 0
     adapters = runner_adapters()
     if args.json:
@@ -1172,5 +1172,14 @@ def _runner_replay(runner_id: str | None) -> str | None:
         return None
     for adapter in runner_adapters():
         if adapter["id"] == runner_id:
+            if adapter.get("kind") != "replay":
+                raise ValueError(
+                    f"{runner_id} converts logs and cannot be used as eval replay; "
+                    f"use redline runners --copy {runner_id}"
+                )
             return adapter["replay"]
     raise ValueError(f"unknown runner adapter: {runner_id}")
+
+
+def _adapter_command_label(adapter: Mapping[str, object]) -> str:
+    return "replay" if adapter.get("kind") == "replay" else "command"

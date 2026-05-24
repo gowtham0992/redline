@@ -11,6 +11,7 @@ from redline.runners import (
     copy_all_runner_adapters,
     copy_runner_adapter,
     format_runner_adapters,
+    replay_runner_adapters,
     runner_adapters,
 )
 
@@ -28,6 +29,13 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("jsonl-logs", ids)
         self.assertIn("litellm", ids)
 
+    def test_replay_runner_adapters_exclude_log_importers(self) -> None:
+        ids = {adapter["id"] for adapter in replay_runner_adapters()}
+
+        self.assertIn("stdio", ids)
+        self.assertIn("openai", ids)
+        self.assertNotIn("jsonl-logs", ids)
+
     def test_format_runner_adapters_prints_replay_commands(self) -> None:
         output = format_runner_adapters()
 
@@ -39,6 +47,7 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("./runners/openai_runner.sh", output)
         self.assertIn("python runners/stdio_runner.py", output)
         self.assertIn("python runners/http_runner.py", output)
+        self.assertIn("Command: python runners/jsonl_log_adapter.py", output)
 
     def test_packaged_runner_templates_match_repo_runners(self) -> None:
         for adapter in runner_adapters():

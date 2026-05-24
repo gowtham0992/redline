@@ -106,7 +106,8 @@ class CliConfigTests(unittest.TestCase):
 
                 self.assertTrue((root / "runners" / "openai_runner.sh").exists())
                 self.assertTrue((root / "runners" / "http_runner.py").exists())
-                self.assertIn("Replay commands:", output.getvalue())
+                self.assertIn("Adapter commands:", output.getvalue())
+                self.assertIn("jsonl-logs (command):", output.getvalue())
             finally:
                 os.chdir(previous)
 
@@ -278,6 +279,21 @@ class CliConfigTests(unittest.TestCase):
 
                 self.assertEqual(code, 2)
                 self.assertIn("use --replay or --runner", stderr.getvalue())
+            finally:
+                os.chdir(previous)
+
+    def test_init_refuses_log_adapter_as_replay_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(Path(directory))
+            try:
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = main(["init", "--runner", "jsonl-logs"])
+
+                self.assertEqual(code, 2)
+                self.assertIn("jsonl-logs converts logs", stderr.getvalue())
+                self.assertFalse(Path("redline.json").exists())
             finally:
                 os.chdir(previous)
 

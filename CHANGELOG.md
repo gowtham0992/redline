@@ -42,6 +42,7 @@
 - Lead `redline runners` output with the provider-agnostic stdin/stdout contract.
 - Print adapter-specific setup hints after copying runner templates.
 - Warn from `redline doctor` when copied runner adapters are missing required environment variables.
+- Prevent log import adapters from being configured as eval replay runners.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.

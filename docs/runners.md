@@ -22,6 +22,9 @@ To copy every built-in adapter for exploration:
 redline runners --copy all
 ```
 
+Replay runners are for `redline eval`. Log adapters, such as `jsonl-logs`, are
+for converting exported app logs into redline JSONL before `redline suite`.
+
 ## Custom Stdio Command
 
 What you need: any command that reads prompt text from `stdin` and prints only
