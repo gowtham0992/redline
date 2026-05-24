@@ -179,13 +179,16 @@ class PackagingTests(unittest.TestCase):
     def test_readme_marks_repo_only_script_commands(self) -> None:
         readme = Path("README.md").read_text(encoding="utf-8")
 
-        self.assertIn("site/assets/redline-product-demo.gif", readme)
+        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-product-demo.gif", readme)
         self.assertIn("Automatic eval suites from the prompt logs you already have", readme)
         self.assertIn("Product Promise", readme)
+        self.assertIn("python -m pip install redline-ai", readme)
         self.assertIn("From a repo checkout, record the public demo", readme)
         self.assertIn("scripts/normalize_ai_session_logs.py", readme)
-        self.assertIn("actions/workflows/ci.yml/badge.svg?branch=develop", readme)
-        self.assertIn("actions/workflows/pages.yml/badge.svg?branch=develop", readme)
+        self.assertIn("actions/workflows/ci.yml/badge.svg?branch=main", readme)
+        self.assertIn("actions/workflows/pages.yml/badge.svg?branch=main", readme)
+        self.assertNotIn("redline.git@develop", readme)
+        self.assertNotIn("branch=develop", readme)
         self.assertIn("python -m pytest -q", readme)
         self.assertIn("python -m ruff check .", readme)
         self.assertIn("python -m mypy redline tests scripts examples", readme)
@@ -219,7 +222,7 @@ class PackagingTests(unittest.TestCase):
         readme = Path("README.md").read_text(encoding="utf-8")
 
         self.assertIn("redline-demo.gif", guide)
-        self.assertIn("site/assets/redline-product-demo.gif", guide)
+        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-product-demo.gif", guide)
         self.assertIn("python -m pip install redline-ai", guide)
         self.assertIn("Website Checklist", guide)
         self.assertIn("Demo GIF Storyboard", guide)
@@ -315,6 +318,13 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("bash scripts/action_smoke.sh", workflow)
         self.assertIn('bash scripts/build_release.sh "$RUNNER_TEMP/redline-dist"', workflow)
 
+    def test_pages_workflow_deploys_public_site_from_main_only(self) -> None:
+        workflow = Path(".github/workflows/pages.yml").read_text(encoding="utf-8")
+
+        self.assertIn("- main", workflow)
+        self.assertNotIn("- develop", workflow)
+        self.assertIn("path: site", workflow)
+
     def test_release_workflow_builds_artifacts_without_publishing(self) -> None:
         workflow = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
         guide = Path("docs/release.md").read_text(encoding="utf-8")
@@ -372,6 +382,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("private vulnerability reporting", guide)
         self.assertIn("Dependabot alerts", guide)
         self.assertIn(".github/workflows/pages.yml", guide)
+        self.assertIn("on `main`", guide)
         self.assertIn("bash scripts/certify_release.sh /tmp/redline-certify-v0.1.0", guide)
         self.assertIn("docs/repository.md", readme)
 

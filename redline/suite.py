@@ -13,7 +13,7 @@ from .io import LogRecord
 
 FeatureCache = dict[int, TextFeatures]
 ClusterInfo = dict[str, Any]
-SUITE_SCHEMA_URL = "https://raw.githubusercontent.com/gowtham0992/redline/develop/redline-suite.schema.json"
+SUITE_SCHEMA_URL = "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-suite.schema.json"
 
 
 def build_suite(

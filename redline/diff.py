@@ -12,7 +12,7 @@ from .requirements import case_requirements, requirement_reasons
 
 
 DIFF_PROFILES = ("strict", "review")
-REPORT_SCHEMA_URL = "https://raw.githubusercontent.com/gowtham0992/redline/develop/redline-report.schema.json"
+REPORT_SCHEMA_URL = "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-report.schema.json"
 TRUST_SCOPE = (
     "structural checks only; review factual correctness, tone, hallucinations, "
     "and subtle reasoning separately"

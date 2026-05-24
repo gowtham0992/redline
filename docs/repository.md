@@ -50,9 +50,9 @@ reports.
 
 ## GitHub Pages
 
-Deploy Pages from `site/` through `.github/workflows/pages.yml`. The site should
-link to the GitHub repo, CI status, contributor guide, security policy, and the
-quickstart.
+Deploy Pages from `site/` through `.github/workflows/pages.yml` on `main`.
+The site should link to the GitHub repo, CI status, contributor guide, security
+policy, and the quickstart.
 
 ## Launch Check
 
@@ -64,6 +64,6 @@ bash scripts/certify_release.sh /tmp/redline-certify-v0.1.0
 bash scripts/demo_gif.sh .redline/launch .redline/launch/redline-demo.gif
 ```
 
-Confirm the working tree is clean, `develop` is pushed, the release gate passed,
+Confirm the working tree is clean, `main` is pushed, the release gate passed,
 and the demo GIF or transcript is generated from the same code users will
 install.

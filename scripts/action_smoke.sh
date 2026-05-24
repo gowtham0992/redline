@@ -51,7 +51,7 @@ PY
 
 cat > redline.json <<'JSON'
 {
-  "$schema": "https://raw.githubusercontent.com/gowtham0992/redline/develop/redline.schema.json",
+  "$schema": "https://raw.githubusercontent.com/gowtham0992/redline/main/redline.schema.json",
   "suite": "redline-suite.json",
   "input_field": "prompt",
   "output_field": "response",

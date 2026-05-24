@@ -14,7 +14,7 @@ failure a stranger would hit.
 ## Pass 1: First-Run Demo
 
 ```bash
-python -m pip install "git+https://github.com/gowtham0992/redline.git@develop"
+python -m pip install redline-ai
 redline demo
 redline cases .redline/demo/suite.json
 redline dashboard --reports-dir .redline/demo/reports --out .redline/dashboard.html

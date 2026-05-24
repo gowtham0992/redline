@@ -27,7 +27,7 @@ jobs:
           cache: "pip"
 
       - name: Install redline
-        run: pip install -e .
+        run: python -m pip install redline-ai
 
       - name: Check redline setup
         run: python -m redline doctor --strict

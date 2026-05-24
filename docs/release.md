@@ -1,6 +1,7 @@
 # Release Checklist
 
-Use this checklist when preparing a public alpha release from `develop`.
+Use this checklist when preparing a public alpha release. Run it on `develop`
+before merge, then repeat the certification pass on `main` before tagging.
 After this checklist passes, use [docs/launch.md](launch.md) for the public
 alpha post, demo GIF, and first feedback loops. Use
 [docs/repository.md](repository.md) to verify GitHub branch protection, tag,
@@ -8,7 +9,8 @@ security, and Pages settings before announcing.
 
 ## Preflight
 
-- Work from a clean `develop` branch that is pushed to `origin/develop`.
+- Work from a clean release branch that is pushed to origin.
+- Before tagging, merge to `main` and rerun `bash scripts/certify_release.sh`.
 - Update the version in `pyproject.toml` and `redline/__init__.py`.
 - Update `CHANGELOG.md` with the user-visible changes.
 - Run the packaged release gate:
@@ -38,11 +40,12 @@ or README asset path is chosen.
 
 ## Public Alpha Smoke
 
-Run the first five minutes exactly like a new user. Use the full dogfood pass in
-[docs/dogfood.md](dogfood.md) before tagging.
+Before tagging, use the full dogfood pass in [docs/dogfood.md](dogfood.md) from
+the checkout. After the PyPI upload, run the first five minutes exactly like a
+new user:
 
 ```bash
-python -m pip install "git+https://github.com/gowtham0992/redline.git@develop"
+python -m pip install redline-ai
 redline demo
 redline demo --public --compact
 redline dashboard --reports-dir .redline/demo/reports --out .redline/dashboard.html

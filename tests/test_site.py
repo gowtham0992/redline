@@ -59,11 +59,11 @@ class GitHubPagesSiteTests(unittest.TestCase):
             parser.links,
         )
         self.assertIn(
-            "https://github.com/gowtham0992/redline/blob/develop/CONTRIBUTING.md",
+            "https://github.com/gowtham0992/redline/blob/main/CONTRIBUTING.md",
             parser.links,
         )
         self.assertIn(
-            "https://github.com/gowtham0992/redline/blob/develop/SECURITY.md",
+            "https://github.com/gowtham0992/redline/blob/main/SECURITY.md",
             parser.links,
         )
         self.assertIn(
@@ -99,10 +99,11 @@ class GitHubPagesSiteTests(unittest.TestCase):
         self.assertNotIn("letter-spacing: -", css)
         self.assertNotIn("font-size: clamp(", css)
 
-    def test_pages_workflow_deploys_site_directory_from_develop(self) -> None:
+    def test_pages_workflow_deploys_site_directory_from_main(self) -> None:
         workflow = Path(".github/workflows/pages.yml").read_text(encoding="utf-8")
 
-        self.assertIn("- develop", workflow)
+        self.assertIn("- main", workflow)
+        self.assertNotIn("- develop", workflow)
         self.assertIn("actions/upload-pages-artifact@v3", workflow)
         self.assertIn("path: site", workflow)
         self.assertIn("actions/deploy-pages@v4", workflow)

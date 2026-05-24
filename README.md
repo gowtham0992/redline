@@ -2,8 +2,8 @@
 
 <!-- mcp-name: io.github.gowtham0992/redline -->
 
-[![CI](https://github.com/gowtham0992/redline/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/gowtham0992/redline/actions/workflows/ci.yml)
-[![GitHub Pages](https://github.com/gowtham0992/redline/actions/workflows/pages.yml/badge.svg?branch=develop)](https://github.com/gowtham0992/redline/actions/workflows/pages.yml)
+[![CI](https://github.com/gowtham0992/redline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gowtham0992/redline/actions/workflows/ci.yml)
+[![GitHub Pages](https://github.com/gowtham0992/redline/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/gowtham0992/redline/actions/workflows/pages.yml)
 
 [Website](https://gowtham0992.github.io/redline/) · [Docs](#project-docs) · [MCP](docs/mcp.md) · [Security](SECURITY.md)
 
@@ -13,7 +13,7 @@ redline turns real prompt-response logs into regression tests. It watches or
 imports existing outputs, selects representative cases, replays your changed
 prompt, and shows the behavioral diff before a bad prompt ships.
 
-![redline product demo](site/assets/redline-product-demo.gif)
+![redline product demo](https://gowtham0992.github.io/redline/assets/redline-product-demo.gif)
 
 ## Product Promise
 
@@ -42,10 +42,10 @@ redline makes the first suite free:
 
 ## Start Here
 
-Install from GitHub:
+Install from PyPI:
 
 ```bash
-python -m pip install "git+https://github.com/gowtham0992/redline.git@develop"
+python -m pip install redline-ai
 ```
 
 Run the public proof:
@@ -305,4 +305,4 @@ bash scripts/release_check.sh
 - [SECURITY.md](SECURITY.md): privacy and vulnerability reporting
 
 Website source for GitHub Pages lives in [site/](site/) and deploys from the
-committed static assets on `main` and `develop`.
+committed static assets on `main`.

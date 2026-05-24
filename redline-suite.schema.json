@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/gowtham0992/redline/develop/redline-suite.schema.json",
+  "$id": "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-suite.schema.json",
   "title": "redline suite",
   "description": "Portable prompt-response regression suite generated from existing logs. Suites are local-first and can be consumed by redline or compatible tools.",
   "type": "object",

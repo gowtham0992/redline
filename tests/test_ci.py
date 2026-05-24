@@ -11,6 +11,8 @@ class CiTests(unittest.TestCase):
         self.assertIn("python -m redline doctor --strict", workflow)
         self.assertIn("python -m redline validate --strict", workflow)
         self.assertIn("python -m redline eval", workflow)
+        self.assertIn("python -m pip install redline-ai", workflow)
+        self.assertNotIn("pip install -e .", workflow)
         self.assertIn("--compact", workflow)
         self.assertIn("--github-summary", workflow)
         self.assertIn("--github-annotations", workflow)

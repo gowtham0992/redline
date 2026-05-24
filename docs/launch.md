@@ -29,7 +29,7 @@ What not to claim:
 
 ## Asset Checklist
 
-Generate launch artifacts from a clean `develop` checkout:
+Generate launch artifacts from a clean release checkout:
 
 ```bash
 bash scripts/release_check.sh
@@ -75,7 +75,7 @@ should sell the loop, not the package manager.
 
 ## Publish Sequence
 
-1. Confirm `develop` is clean and pushed.
+1. Confirm `main` is clean, pushed, and certified.
 2. Tag the exact commit:
 
    ```bash
@@ -90,8 +90,8 @@ should sell the loop, not the package manager.
    ```
 
 4. Create the GitHub release from `v0.1.0`.
-5. Attach the demo GIF or link the committed README asset:
-   `site/assets/redline-product-demo.gif`.
+5. Attach the demo GIF or link the public README asset:
+   `https://gowtham0992.github.io/redline/assets/redline-product-demo.gif`.
 
 ## Launch Post
 
