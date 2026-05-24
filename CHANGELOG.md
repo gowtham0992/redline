@@ -38,6 +38,7 @@
 - Show source log provenance in `redline case` detail output.
 - Mark pinned cases in `redline cases` table and JSON rows.
 - Show pinned status in `redline case` detail output.
+- Guard generated config keys against schema documentation drift.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.

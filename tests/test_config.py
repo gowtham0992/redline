@@ -84,16 +84,18 @@ class ConfigTests(unittest.TestCase):
 
     def test_schema_file_documents_generated_config_keys(self) -> None:
         schema = json.loads(Path("redline.schema.json").read_text(encoding="utf-8"))
+        config = default_config()
 
-        self.assertEqual(schema["$id"], default_config()["$schema"])
+        self.assertEqual(schema["$id"], config["$schema"])
         self.assertIn("structural and high-signal", schema["description"])
-        self.assertIn("suite", schema["properties"])
+        for key in config:
+            self.assertIn(key, schema["properties"])
+        for section in ("reports", "logs", "runs"):
+            for key in config[section]:
+                self.assertIn(key, schema["properties"][section]["properties"])
         self.assertIn("replay", schema["properties"])
         self.assertIn("judge", schema["properties"])
-        self.assertIn("fail_on", schema["properties"])
-        self.assertIn("workers", schema["properties"])
-        self.assertIn("diff_profile", schema["properties"])
-        self.assertIn("html", schema["properties"]["reports"]["properties"])
+        self.assertIn("judge_timeout_seconds", schema["properties"])
 
 
 if __name__ == "__main__":
