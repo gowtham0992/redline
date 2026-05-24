@@ -510,6 +510,9 @@ python -m redline eval redline-suite.json \
   --candidate-out .redline/runs/candidate.jsonl
 ```
 
+Candidate rows include `content_hash` for the replayed response and
+`baseline_content_hash` for the suite case they were compared against.
+
 When `runs.metadata` is configured, `eval` also writes replay metadata with the
 suite path, candidate artifact path, replay command, and diff summary:
 

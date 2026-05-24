@@ -24,6 +24,8 @@ class ReplayTests(unittest.TestCase):
 
         self.assertEqual(replay.records[0].prompt, "hello")
         self.assertEqual(replay.records[0].response, "HELLO")
+        self.assertEqual(len(replay.records[0].raw["content_hash"]), 64)
+        self.assertEqual(replay.records[0].raw["baseline_content_hash"], suite["cases"][0]["content_hash"])
 
     def test_replay_output_can_be_compared(self) -> None:
         suite = build_suite(

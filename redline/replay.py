@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .hashes import prompt_response_hash
 from .io import LogRecord
 
 
@@ -115,6 +116,7 @@ def _replay_case(
         output = _run_replay(argv_template, rendered_prompt, timeout_seconds, extra_env)
     except ValueError as exc:
         raise ValueError(f"{case_id}: {exc}") from exc
+    content_hash = prompt_response_hash(case_prompt, output)
     return LogRecord(
         line_number=line_number,
         prompt=case_prompt,
@@ -124,6 +126,8 @@ def _replay_case(
             "prompt": case_prompt,
             "rendered_prompt": rendered_prompt,
             "response": output,
+            "content_hash": content_hash,
+            "baseline_content_hash": str(case.get("content_hash", "")),
         },
     )
 
