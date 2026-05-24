@@ -303,6 +303,31 @@ class DoctorTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_doctor_rejects_log_adapter_as_replay(self) -> None:
+        report = doctor_report(
+            config_path="redline.json",
+            config={
+                "replay": (
+                    "python runners/jsonl_log_adapter.py logs/export.jsonl "
+                    "--input-field request.prompt --output-field response.text "
+                    "--out .redline/logs/prompts.jsonl"
+                )
+            },
+            suite={"cases": []},
+        )
+
+        self.assertFalse(report["ok"])
+        self.assertEqual(report["errors"], 1)
+        replay_check = next(check for check in report["checks"] if check["name"] == "replay")
+        self.assertEqual(replay_check["status"], "error")
+        self.assertIn("jsonl-logs", replay_check["message"])
+        self.assertIn("cannot be used as eval replay", replay_check["message"])
+        self.assertIn(
+            "Convert exported logs first: redline runners --copy jsonl-logs, "
+            "then redline suite .redline/logs/prompts.jsonl --out redline-suite.json",
+            report["next_steps"],
+        )
+
     def test_doctor_errors_for_missing_replay_script_without_directory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             previous = Path.cwd()

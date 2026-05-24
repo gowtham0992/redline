@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from .runners import runner_adapters
 from .validate import validate_suite
 
 
@@ -61,7 +62,7 @@ def doctor_report(
 
     replay = config.get("replay")
     if isinstance(replay, str) and replay:
-        replay_check = _command_check("replay", replay)
+        replay_check = _replay_adapter_misuse_check(replay) or _command_check("replay", replay)
         checks.append(replay_check)
         if replay_check["status"] == "ok":
             replay_env_check = _replay_env_check(replay)
@@ -199,6 +200,11 @@ def _check_has(
 
 
 def _replay_next_step(message: str) -> str:
+    if "converts logs" in message or "jsonl_log_adapter.py" in message:
+        return (
+            "Convert exported logs first: redline runners --copy jsonl-logs, "
+            "then redline suite .redline/logs/prompts.jsonl --out redline-suite.json"
+        )
     if "stdio_runner.py" in message:
         return "Copy missing runner: redline runners --copy stdio"
     if "openai_runner.sh" in message:
@@ -209,11 +215,31 @@ def _replay_next_step(message: str) -> str:
         return "Copy missing runner: redline runners --copy python-chain"
     if "http_runner.py" in message:
         return "Copy missing runner: redline runners --copy http"
-    if "jsonl_log_adapter.py" in message:
-        return "Copy missing runner: redline runners --copy jsonl-logs"
     if "litellm_runner.sh" in message:
         return "Copy missing runner: redline runners --copy litellm"
     return "Fix replay command in redline.json, then rerun: redline doctor"
+
+
+def _replay_adapter_misuse_check(command_line: str) -> dict[str, str] | None:
+    try:
+        argv = shlex.split(command_line)
+    except ValueError:
+        return None
+    command_text = " ".join(argv)
+    for adapter in runner_adapters():
+        if adapter.get("kind") != "log":
+            continue
+        markers = {adapter["template"], Path(adapter["file"]).name}
+        if any(marker in command_text for marker in markers):
+            return {
+                "status": "error",
+                "name": "replay",
+                "message": (
+                    f"{adapter['id']} ({adapter['template']}) converts logs and "
+                    "cannot be used as eval replay"
+                ),
+            }
+    return None
 
 
 def _replay_env_check(command_line: str) -> dict[str, str] | None:
