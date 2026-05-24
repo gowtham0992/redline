@@ -214,6 +214,23 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("Where did you hesitate?", dogfood)
         self.assertIn("blank_issues_enabled: true", config)
 
+    def test_repository_ci_runs_full_release_gate(self) -> None:
+        workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+        self.assertIn("pull_request:", workflow)
+        self.assertIn("- develop", workflow)
+        self.assertIn("- main", workflow)
+        self.assertIn("actions/checkout@v4", workflow)
+        self.assertIn("actions/setup-python@v5", workflow)
+        self.assertIn('cache: "pip"', workflow)
+        self.assertIn('python -m pip install -e ".[dev]"', workflow)
+        self.assertIn("bash -n scripts/*.sh", workflow)
+        self.assertIn("python -m pytest -q", workflow)
+        self.assertIn("python -m ruff check .", workflow)
+        self.assertIn("python -m mypy redline tests scripts examples", workflow)
+        self.assertIn("bash scripts/action_smoke.sh", workflow)
+        self.assertIn('bash scripts/build_release.sh "$RUNNER_TEMP/redline-dist"', workflow)
+
     def test_dogfood_protocol_exercises_first_run_loop(self) -> None:
         guide = Path("docs/dogfood.md").read_text(encoding="utf-8")
 
