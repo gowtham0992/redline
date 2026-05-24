@@ -20,6 +20,8 @@ from .io import (
 )
 
 DEFAULT_WATCH_LOG = ".redline/logs/prompts.jsonl"
+READY_RECORDS = 5
+READY_PATTERNS = 3
 
 
 def watch(
@@ -172,13 +174,16 @@ def watch_stats(
         for record in records
         if record.raw.get("source")
     }
+    records_count = len(records)
+    patterns_count = len(signatures)
     return {
         "log": str(path),
-        "records": len(records),
+        "records": records_count,
         "sources": len(sources),
-        "behavior_patterns": len(signatures),
+        "behavior_patterns": patterns_count,
         "first_observed_at": observed_at[0] if observed_at else None,
         "last_observed_at": observed_at[-1] if observed_at else None,
+        "readiness": _readiness(records_count, patterns_count),
     }
 
 
@@ -194,6 +199,10 @@ def format_watch_stats(stats: dict[str, Any]) -> str:
     if stats["first_observed_at"] or stats["last_observed_at"]:
         lines.append(f"First observed:    {stats['first_observed_at'] or '<unknown>'}")
         lines.append(f"Last observed:     {stats['last_observed_at'] or '<unknown>'}")
+    readiness = stats.get("readiness")
+    if isinstance(readiness, dict):
+        lines.append(f"Readiness:         {readiness['message']}")
+        lines.append(f"Next:              {readiness['next_step']}")
     return "\n".join(lines) + "\n"
 
 
@@ -326,6 +335,30 @@ def _observed_row(
     row.setdefault(input_field, record.prompt)
     row.setdefault(output_field, record.response)
     return row
+
+
+def _readiness(records: int, patterns: int) -> dict[str, Any]:
+    ready = records >= READY_RECORDS and patterns >= READY_PATTERNS
+    if ready:
+        return {
+            "ready": True,
+            "message": "ready to generate suite",
+            "next_step": "redline suite",
+            "minimum_records": READY_RECORDS,
+            "minimum_behavior_patterns": READY_PATTERNS,
+        }
+    needs = []
+    if records < READY_RECORDS:
+        needs.append(f"{READY_RECORDS - records} more record(s)")
+    if patterns < READY_PATTERNS:
+        needs.append(f"{READY_PATTERNS - patterns} more behavior pattern(s)")
+    return {
+        "ready": False,
+        "message": "collect more evidence: " + ", ".join(needs),
+        "next_step": "redline watch --follow",
+        "minimum_records": READY_RECORDS,
+        "minimum_behavior_patterns": READY_PATTERNS,
+    }
 
 
 def _append_function_observation(

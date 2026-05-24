@@ -235,8 +235,34 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(stats["records"], 2)
             self.assertEqual(stats["sources"], 1)
             self.assertEqual(stats["behavior_patterns"], 2)
+            self.assertFalse(stats["readiness"]["ready"])
             self.assertIn("Behavior patterns: 2", text)
             self.assertIn("First observed:", text)
+            self.assertIn("Readiness:         collect more evidence", text)
+            self.assertIn("Next:              redline watch --follow", text)
+
+    def test_watch_stats_reports_suite_readiness(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.jsonl"
+            output = root / "observed.jsonl"
+            source.write_text(
+                '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n'
+                '{"prompt": "Summarize", "response": "- one\\n- two"}\n'
+                '{"prompt": "Write code", "response": "```python\\nprint(1)\\n```"}\n'
+                '{"prompt": "Answer policy", "response": "Policy URL: https://example.com"}\n'
+                '{"prompt": "List steps", "response": "1. Start\\n2. Finish"}\n',
+                encoding="utf-8",
+            )
+            collect_log(source, output=output)
+
+            stats = watch_stats(output)
+            text = format_watch_stats(stats)
+
+            self.assertTrue(stats["readiness"]["ready"])
+            self.assertEqual(stats["readiness"]["next_step"], "redline suite")
+            self.assertIn("Readiness:         ready to generate suite", text)
+            self.assertIn("Next:              redline suite", text)
 
     def test_follow_log_collects_until_max_records(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
