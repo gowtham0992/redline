@@ -251,6 +251,18 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("Private prompts", template)
         self.assertIn("CONTRIBUTING.md", readme)
 
+    def test_security_policy_documents_local_privacy_boundary(self) -> None:
+        policy = Path("SECURITY.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn("does not call any cloud model", policy)
+        self.assertIn(".redline/private/", policy)
+        self.assertIn("Do not commit private logs", policy)
+        self.assertIn("redline doctor", policy)
+        self.assertIn("redline runners", policy)
+        self.assertIn("GitHub private vulnerability reporting", policy)
+        self.assertIn("SECURITY.md", readme)
+
     def test_dogfood_protocol_exercises_first_run_loop(self) -> None:
         guide = Path("docs/dogfood.md").read_text(encoding="utf-8")
 

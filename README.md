@@ -14,6 +14,7 @@ requirements or optional judges where semantic judgment matters.
 
 Website source for GitHub Pages lives in [site/](site/) and deploys from the
 committed static assets on `main` and `develop`.
+Security and privacy guidance lives in [SECURITY.md](SECURITY.md).
 
 ## Quick Start
 
