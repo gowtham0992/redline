@@ -3,6 +3,7 @@ include README.md
 include CHANGELOG.md
 include redline.schema.json
 include redline-suite.schema.json
+include redline-report.schema.json
 recursive-include examples *.jsonl *.md *.py *.sh *.yml
 recursive-include docs *.md *.jsonl
 recursive-include scripts *.py *.sh

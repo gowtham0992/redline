@@ -1,6 +1,9 @@
+import json
 import unittest
+from pathlib import Path
 
 from redline.diff import (
+    REPORT_SCHEMA_URL,
     classify_change,
     compare_suite_to_candidate,
     format_compact_report,
@@ -13,6 +16,15 @@ from redline.suite import build_suite
 
 
 class DiffTests(unittest.TestCase):
+    def test_report_schema_documents_generated_report_fields(self) -> None:
+        schema = json.loads(Path("redline-report.schema.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(schema["$id"], REPORT_SCHEMA_URL)
+        self.assertIn("Machine-readable prompt regression report", schema["description"])
+        self.assertIn("summary", schema["properties"])
+        self.assertIn("decision", schema["properties"])
+        self.assertIn("diffs", schema["properties"])
+
     def test_classify_json_regression(self) -> None:
         baseline = extract_features('{"name":"Ada","status":"active"}').to_dict()
         candidate = extract_features('{"name":"Ada"').to_dict()
@@ -196,6 +208,7 @@ class DiffTests(unittest.TestCase):
 
         result = compare_suite_to_candidate(suite, [])
 
+        self.assertEqual(result["$schema"], REPORT_SCHEMA_URL)
         self.assertEqual(result["summary"]["missing"], 1)
         self.assertEqual(result["decision"]["confidence"], "high")
         self.assertEqual(result["decision"]["recommended_action"], "fix blocking cases before shipping")

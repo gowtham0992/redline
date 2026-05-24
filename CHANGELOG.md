@@ -32,6 +32,7 @@
 - Store stable prompt-response content hashes on suite cases and refresh them when accepting new baselines.
 - Publish `redline-suite.schema.json` and embed it in generated suites.
 - Include candidate and baseline content hashes in replayed eval candidate rows.
+- Publish `redline-report.schema.json` and embed it in diff/eval JSON reports.
 - Expose suite case content hashes to replay commands and prompt templates.
 - Include suite case content hashes in machine-readable case listings.
 - Refuse duplicate `redline suite add` prompt-response pairs unless explicitly allowed.

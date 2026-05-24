@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/gowtham0992/redline/develop/redline-report.schema.json",
+  "title": "redline report",
+  "description": "Machine-readable prompt regression report emitted by redline diff and redline eval.",
+  "type": "object",
+  "required": ["version", "profile", "summary", "decision", "diffs"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URL for compatible tooling."
+    },
+    "version": {
+      "type": "string",
+      "description": "Report format version."
+    },
+    "profile": {
+      "type": "string",
+      "enum": ["strict", "review"],
+      "description": "Diff profile used to classify missing numbers and entities."
+    },
+    "summary": {
+      "type": "object",
+      "required": ["cases", "regression", "changed", "improved", "accepted", "ignored", "neutral", "missing"],
+      "properties": {
+        "cases": {"type": "integer", "minimum": 0},
+        "regression": {"type": "integer", "minimum": 0},
+        "changed": {"type": "integer", "minimum": 0},
+        "improved": {"type": "integer", "minimum": 0},
+        "accepted": {"type": "integer", "minimum": 0},
+        "ignored": {"type": "integer", "minimum": 0},
+        "neutral": {"type": "integer", "minimum": 0},
+        "missing": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "decision": {
+      "type": "object",
+      "required": ["confidence", "recommended_action", "scope"],
+      "properties": {
+        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+        "recommended_action": {"type": "string"},
+        "scope": {"type": "string"},
+        "rationale": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "warnings": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "diffs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "case_id",
+          "status",
+          "prompt",
+          "baseline_response",
+          "reasons",
+          "baseline_features"
+        ],
+        "properties": {
+          "case_id": {"type": "string"},
+          "status": {
+            "type": "string",
+            "enum": ["regression", "changed", "improved", "accepted", "ignored", "neutral", "missing"]
+          },
+          "source": {"type": "string"},
+          "source_line": {"type": ["integer", "string", "null"]},
+          "cluster": {"type": "string"},
+          "prompt": {"type": "string"},
+          "baseline_response": {"type": "string"},
+          "candidate_response": {"type": ["string", "null"]},
+          "reasons": {"type": "array", "items": {"type": "string"}},
+          "baseline_features": {"type": "object", "additionalProperties": true},
+          "candidate_features": {"type": ["object", "null"], "additionalProperties": true},
+          "judge": {"type": "object", "additionalProperties": true}
+        },
+        "additionalProperties": true
+      }
+    },
+    "judge": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "replay": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

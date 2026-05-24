@@ -389,6 +389,9 @@ python -m redline diff redline-suite.json examples/candidate.jsonl \
 
 The default config writes JSON, Markdown, self-contained HTML, and JUnit XML reports under
 `.redline/reports/` for `diff` and `eval` runs.
+JSON diff/eval reports include a `$schema` reference to
+[redline-report.schema.json](redline-report.schema.json) for CI tools,
+dashboards, and compatible importers.
 
 Compare two redline JSON reports to see whether a prompt fix made the run
 better or worse:

@@ -12,6 +12,7 @@ from .requirements import case_requirements, requirement_reasons
 
 
 DIFF_PROFILES = ("strict", "review")
+REPORT_SCHEMA_URL = "https://raw.githubusercontent.com/gowtham0992/redline/develop/redline-report.schema.json"
 TRUST_SCOPE = (
     "structural checks only; review factual correctness, tone, hallucinations, "
     "and subtle reasoning separately"
@@ -191,6 +192,7 @@ def compare_suite_to_candidate(
         "missing": counts["missing"],
     }
     return {
+        "$schema": REPORT_SCHEMA_URL,
         "version": "0.1",
         "profile": profile,
         "summary": summary,
