@@ -287,13 +287,32 @@ class WatchTests(unittest.TestCase):
             text = format_watch_stats(stats)
 
             self.assertEqual(stats["records"], 2)
+            self.assertEqual(stats["unique_prompt_response_pairs"], 2)
+            self.assertEqual(stats["duplicate_prompt_response_pairs"], 0)
             self.assertEqual(stats["sources"], 1)
             self.assertEqual(stats["behavior_patterns"], 2)
             self.assertFalse(stats["readiness"]["ready"])
             self.assertIn("Behavior patterns: 2", text)
+            self.assertIn("Unique pairs:      2", text)
             self.assertIn("First observed:", text)
             self.assertIn("Readiness:         collect more evidence", text)
             self.assertIn("Next:              redline watch --follow", text)
+
+    def test_watch_stats_uses_unique_pairs_for_suite_readiness(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "observed.jsonl"
+            for _ in range(5):
+                record("hello", "world", log=output, dedupe=False)
+
+            stats = watch_stats(output)
+            text = format_watch_stats(stats)
+
+            self.assertEqual(stats["records"], 5)
+            self.assertEqual(stats["unique_prompt_response_pairs"], 1)
+            self.assertEqual(stats["duplicate_prompt_response_pairs"], 4)
+            self.assertFalse(stats["readiness"]["ready"])
+            self.assertIn("Duplicate pairs:   4", text)
+            self.assertIn("collect more evidence", text)
 
     def test_watch_stats_reports_suite_readiness(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -314,6 +333,7 @@ class WatchTests(unittest.TestCase):
             text = format_watch_stats(stats)
 
             self.assertTrue(stats["readiness"]["ready"])
+            self.assertEqual(stats["unique_prompt_response_pairs"], 5)
             self.assertEqual(stats["readiness"]["next_step"], "redline suite")
             self.assertIn("Readiness:         ready to generate suite", text)
             self.assertIn("Next:              redline suite", text)

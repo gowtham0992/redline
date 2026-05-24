@@ -255,9 +255,10 @@ Summarize collected evidence:
 python -m redline watch --stats
 ```
 
-Stats include a basic readiness hint. When enough records and behavior patterns
-are present, redline points you to `redline suite`; otherwise it tells you to
-collect more evidence.
+Stats include unique prompt-response pairs, duplicate pairs, and a basic
+readiness hint. When enough unique pairs and behavior patterns are present,
+redline points you to `redline suite`; otherwise it tells you to collect more
+evidence.
 
 Inspect behavioral clusters before generating a suite:
 

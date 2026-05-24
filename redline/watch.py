@@ -177,6 +177,7 @@ def watch_stats(
         for record in records
         if isinstance(record.raw.get("observed_at"), str)
     )
+    content_hashes = {_record_content_hash(record) for record in records}
     signatures = {
         behavior_signature(record.prompt, record.response)
         for record in records
@@ -187,15 +188,18 @@ def watch_stats(
         if record.raw.get("source")
     }
     records_count = len(records)
+    unique_pairs = len(content_hashes)
     patterns_count = len(signatures)
     return {
         "log": str(path),
         "records": records_count,
+        "unique_prompt_response_pairs": unique_pairs,
+        "duplicate_prompt_response_pairs": records_count - unique_pairs,
         "sources": len(sources),
         "behavior_patterns": patterns_count,
         "first_observed_at": observed_at[0] if observed_at else None,
         "last_observed_at": observed_at[-1] if observed_at else None,
-        "readiness": _readiness(records_count, patterns_count),
+        "readiness": _readiness(unique_pairs, patterns_count),
     }
 
 
@@ -205,6 +209,8 @@ def format_watch_stats(stats: dict[str, Any]) -> str:
         "",
         f"Log:               {stats['log']}",
         f"Records:           {stats['records']}",
+        f"Unique pairs:      {stats['unique_prompt_response_pairs']}",
+        f"Duplicate pairs:   {stats['duplicate_prompt_response_pairs']}",
         f"Sources:           {stats['sources']}",
         f"Behavior patterns: {stats['behavior_patterns']}",
     ]
@@ -468,6 +474,13 @@ def _content_hash(prompt: str, response: str) -> str:
         separators=(",", ":"),
     )
     return sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _record_content_hash(record: LogRecord) -> str:
+    content_hash = record.raw.get("content_hash")
+    if isinstance(content_hash, str) and content_hash:
+        return content_hash
+    return _content_hash(record.prompt, record.response)
 
 
 def _existing_content_hashes(path: str | Path) -> set[str]:
