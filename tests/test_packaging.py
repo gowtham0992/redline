@@ -50,7 +50,7 @@ class PackagingTests(unittest.TestCase):
 
         self.assertEqual(pyproject["project"]["license"], "MIT")
         self.assertIn("MIT License", license_text)
-        self.assertIn("Copyright (c) 2026 Gowtham", license_text)
+        self.assertIn("Copyright (c) 2026 Gowtham Sarveswaran", license_text)
         self.assertIn("Permission is hereby granted, free of charge", license_text)
         self.assertIn('THE SOFTWARE IS PROVIDED "AS IS"', license_text)
 
