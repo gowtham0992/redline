@@ -1,5 +1,8 @@
 # redline
 
+[![CI](https://github.com/gowtham0992/redline/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/gowtham0992/redline/actions/workflows/ci.yml)
+[![GitHub Pages](https://github.com/gowtham0992/redline/actions/workflows/pages.yml/badge.svg?branch=develop)](https://github.com/gowtham0992/redline/actions/workflows/pages.yml)
+
 Local-first prompt regression diffs from JSONL logs.
 
 redline turns prompt-response logs you already have into a representative eval
