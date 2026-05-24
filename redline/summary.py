@@ -88,8 +88,8 @@ def format_suite_summary(suite: dict[str, Any]) -> str:
         f"Pinned cases:           {summary['pinned_cases']}",
         f"Max cases:              {summary['max_cases']}",
         f"High-variance clusters: {summary['high_variance_clusters']}",
-        f"Failure-pattern clusters:{summary['failure_pattern_clusters']:>2}",
-        f"Cases with requirements:{summary['requirements']:>2}",
+        f"Failure-pattern clusters: {summary['failure_pattern_clusters']:>2}",
+        f"Cases with requirements: {summary['requirements']:>2}",
         "",
     ]
 
