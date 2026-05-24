@@ -427,6 +427,11 @@ python -m redline history .redline/reports/eval.json \
 python -m redline history --out .redline/history.jsonl --out-md .redline/history.md
 ```
 
+`history` now prints a trend diagnosis before the run table. It compares the
+latest two entries by blocking cases (`regression + missing`), shows whether the
+suite is getting better, worse, or flat, and gives the next action before you
+accept a new baseline.
+
 Render a self-contained local dashboard that links latest JSON, Markdown, and
 HTML reports plus recent trend entries:
 

@@ -7,7 +7,7 @@ from typing import Any
 from urllib.parse import quote
 
 from .diff import TRUST_SCOPE
-from .history import read_history
+from .history import history_trend, read_history
 from .io import read_json
 
 
@@ -21,12 +21,14 @@ def build_dashboard(
         raise ValueError("dashboard --limit must be 0 or greater")
     reports, report_errors = _collect_reports(Path(reports_dir), limit=limit)
     history, history_errors = _collect_history(Path(history_path), limit=limit)
+    trend = history_trend(list(reversed(history))) if history else history_trend([])
     return {
         "version": "0.1",
         "reports_dir": str(reports_dir),
         "history_path": str(history_path),
         "reports": reports,
         "history": history,
+        "trend": trend,
         "errors": report_errors + history_errors,
         "scope": TRUST_SCOPE,
     }
@@ -47,6 +49,8 @@ def format_dashboard_html(
     errors = dashboard.get("errors")
     if not isinstance(errors, list):
         errors = []
+    raw_trend = dashboard.get("trend")
+    trend = raw_trend if isinstance(raw_trend, dict) else history_trend(list(reversed(history)))
     latest = reports[0] if reports and isinstance(reports[0], dict) else {}
     return "\n".join(
         [
@@ -67,6 +71,7 @@ def format_dashboard_html(
             '<p class="lede">Local prompt regression review center.</p>',
             "</header>",
             _overview(latest, len(reports), len(history)),
+            _trend_panel(trend),
             _scope(str(dashboard.get("scope") or TRUST_SCOPE)),
             _errors(errors),
             _reports_table(reports, output_path=output_path),
@@ -189,6 +194,26 @@ def _scope(scope: str) -> str:
         f"<p>{_h(scope)}</p>"
         "</section>"
     )
+
+
+def _trend_panel(trend: dict[str, Any]) -> str:
+    direction = str(trend.get("direction") or "unknown").replace("_", " ").title()
+    summary = str(trend.get("summary") or "-")
+    recommendation = str(trend.get("recommendation") or "-")
+    return (
+        f'<section class="notice trend {_trend_class(direction)}">'
+        "<h2>Trend</h2>"
+        f"<p><strong>{_h(direction)}</strong>: {_h(summary)}</p>"
+        f"<p>{_h(recommendation)}</p>"
+        "</section>"
+    )
+
+
+def _trend_class(direction: str) -> str:
+    normalized = direction.lower().replace(" ", "-")
+    if normalized in {"worse", "better", "flat", "baseline", "more-changed", "less-changed"}:
+        return normalized
+    return "unknown"
 
 
 def _errors(errors: list[Any]) -> str:

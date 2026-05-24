@@ -28,7 +28,7 @@ from .dashboard import build_dashboard, format_dashboard_html
 from .demo import format_demo, run_demo
 from .diff import DIFF_PROFILES, compare_suite_to_candidate, format_compact_report, format_report
 from .doctor import doctor_report, format_doctor_report
-from .history import format_history, format_markdown_history, history_entry, read_history
+from .history import format_history, format_markdown_history, history_entry, history_trend, read_history
 from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judge import apply_judge
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
@@ -739,18 +739,19 @@ def cmd_history(args: argparse.Namespace) -> int:
     entries = read_history(args.out)
     limit = None if args.limit == 0 else args.limit
     shown = entries[-limit:] if limit is not None and limit > 0 else entries
-    markdown_history = format_markdown_history(shown)
+    trend = history_trend(entries)
+    markdown_history = format_markdown_history(entries, limit=limit)
     if args.out_md:
         write_text(args.out_md, markdown_history)
     if args.github_summary:
         _append_github_step_summary(markdown_history)
     if args.json:
-        print(json.dumps({"version": "0.1", "history": shown}, indent=2, sort_keys=True))
+        print(json.dumps({"version": "0.1", "trend": trend, "history": shown}, indent=2, sort_keys=True))
     else:
         if args.report:
             print(f"Recorded {Path(args.report)} in {Path(args.out)}.")
             print()
-        print(format_history(shown), end="")
+        print(format_history(entries, limit=limit), end="")
     return 0
 
 

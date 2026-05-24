@@ -46,8 +46,10 @@ class DashboardTests(unittest.TestCase):
 
             self.assertEqual(len(dashboard["reports"]), 1)
             self.assertEqual(len(dashboard["history"]), 1)
+            self.assertEqual(dashboard["trend"]["direction"], "baseline")
             self.assertIn("<title>redline dashboard</title>", html)
             self.assertIn("eval.json", html)
+            self.assertIn("<h2>Trend</h2>", html)
             self.assertIn("regression 1", html)
             self.assertIn("prompt-v2", html)
             self.assertIn("reports/eval.html", html)

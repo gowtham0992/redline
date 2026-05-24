@@ -24,6 +24,8 @@ SUMMARY_KEYS = (
     "unchanged",
 )
 
+TREND_VERSION = "0.1"
+
 
 def history_entry(
     report: dict[str, Any],
@@ -54,6 +56,51 @@ def read_history(path: str | Path) -> list[dict[str, Any]]:
     return entries
 
 
+def history_trend(entries: list[dict[str, Any]]) -> dict[str, Any]:
+    comparable = [entry for entry in entries if isinstance(entry.get("summary"), dict)]
+    if not comparable:
+        return {
+            "version": TREND_VERSION,
+            "direction": "no_history",
+            "summary": "no history entries recorded yet",
+            "recommendation": "record a redline report to start tracking prompt quality",
+            "latest": {},
+            "previous": {},
+            "delta": {},
+        }
+
+    latest = _entry_metrics(comparable[-1])
+    if len(comparable) == 1:
+        return {
+            "version": TREND_VERSION,
+            "direction": "baseline",
+            "summary": f"baseline recorded with {_blocking_text(latest)}",
+            "recommendation": "record another run to see whether prompt quality is improving or regressing",
+            "latest": latest,
+            "previous": {},
+            "delta": {},
+        }
+
+    previous = _entry_metrics(comparable[-2])
+    delta = {
+        "blocking": latest["blocking"] - previous["blocking"],
+        "regression": latest["regression"] - previous["regression"],
+        "missing": latest["missing"] - previous["missing"],
+        "changed": latest["changed"] - previous["changed"],
+        "blocking_rate": _rate_delta(latest.get("blocking_rate"), previous.get("blocking_rate")),
+    }
+    direction = _trend_direction(latest, previous, delta)
+    return {
+        "version": TREND_VERSION,
+        "direction": direction,
+        "summary": _trend_summary(direction, latest, previous, delta),
+        "recommendation": _trend_recommendation(direction, latest),
+        "latest": latest,
+        "previous": previous,
+        "delta": delta,
+    }
+
+
 def format_history(entries: list[dict[str, Any]], *, limit: int | None = None) -> str:
     rows = entries[-limit:] if limit is not None and limit > 0 else entries
     lines = ["redline history", ""]
@@ -61,6 +108,8 @@ def format_history(entries: list[dict[str, Any]], *, limit: int | None = None) -
         lines.append("No history entries.")
         return "\n".join(lines).rstrip() + "\n"
 
+    lines.append(format_history_trend(history_trend(entries)))
+    lines.append("")
     for entry in rows:
         timestamp = str(entry.get("timestamp") or "-")
         label = str(entry.get("label") or "-")
@@ -78,6 +127,19 @@ def format_markdown_history(entries: list[dict[str, Any]], *, limit: int | None 
         lines.append("No history entries.")
         return "\n".join(lines).rstrip() + "\n"
 
+    trend = history_trend(entries)
+    lines.extend(
+        [
+            "## Trend",
+            "",
+            f"**{str(trend.get('direction') or 'unknown').replace('_', ' ').title()}**: {trend.get('summary') or '-'}",
+            "",
+            f"Recommendation: {trend.get('recommendation') or '-'}",
+            "",
+            "## Runs",
+            "",
+        ]
+    )
     lines.extend(
         [
             "| Timestamp | Label | Report | Summary |",
@@ -95,6 +157,13 @@ def format_markdown_history(entries: list[dict[str, Any]], *, limit: int | None 
         ]
         lines.append(f"| {' | '.join(cells)} |")
     return "\n".join(lines).rstrip() + "\n"
+
+
+def format_history_trend(trend: dict[str, Any]) -> str:
+    direction = str(trend.get("direction") or "unknown").replace("_", " ").upper()
+    summary = str(trend.get("summary") or "-")
+    recommendation = str(trend.get("recommendation") or "-")
+    return f"Trend: {direction} - {summary}. {recommendation}."
 
 
 def _summary_counts(summary: dict[str, Any]) -> dict[str, int]:
@@ -130,6 +199,103 @@ def _markdown_cell(value: Any) -> str:
     if not text:
         return "-"
     return text.replace("|", r"\|")
+
+
+def _entry_metrics(entry: dict[str, Any]) -> dict[str, Any]:
+    raw_summary = entry.get("summary")
+    summary = raw_summary if isinstance(raw_summary, dict) else {}
+    cases = _int_count(summary.get("cases", 0), "cases")
+    regression = _int_count(summary.get("regression", 0), "regression")
+    missing = _int_count(summary.get("missing", 0), "missing")
+    changed = _int_count(summary.get("changed", 0), "changed")
+    blocking = regression + missing
+    return {
+        "timestamp": str(entry.get("timestamp") or ""),
+        "label": str(entry.get("label") or ""),
+        "report": str(entry.get("report") or ""),
+        "cases": cases,
+        "regression": regression,
+        "missing": missing,
+        "changed": changed,
+        "blocking": blocking,
+        "blocking_rate": (blocking / cases) if cases > 0 else None,
+    }
+
+
+def _trend_direction(latest: dict[str, Any], previous: dict[str, Any], delta: dict[str, Any]) -> str:
+    latest_rate = latest.get("blocking_rate")
+    previous_rate = previous.get("blocking_rate")
+    if isinstance(latest_rate, float) and isinstance(previous_rate, float):
+        rate_delta = latest_rate - previous_rate
+        if rate_delta < -0.0001:
+            return "better"
+        if rate_delta > 0.0001:
+            return "worse"
+    if delta["blocking"] < 0:
+        return "better"
+    if delta["blocking"] > 0:
+        return "worse"
+    if delta["changed"] > 0:
+        return "more_changed"
+    if delta["changed"] < 0:
+        return "less_changed"
+    return "flat"
+
+
+def _trend_summary(direction: str, latest: dict[str, Any], previous: dict[str, Any], delta: dict[str, Any]) -> str:
+    delta_text = _signed(int(delta.get("blocking") or 0))
+    changed_delta = int(delta.get("changed") or 0)
+    if direction in {"better", "worse", "flat"}:
+        return (
+            f"{_blocking_text(latest)} was {_blocking_text(previous)} "
+            f"(blocking {delta_text}, changed {_signed(changed_delta)})"
+        )
+    return (
+        f"blocking stayed at {_blocking_text(latest)} "
+        f"while changed cases moved {_signed(changed_delta)}"
+    )
+
+
+def _trend_recommendation(direction: str, latest: dict[str, Any]) -> str:
+    blocking = int(latest.get("blocking") or 0)
+    changed = int(latest.get("changed") or 0)
+    if direction == "worse":
+        return "investigate before accepting this run as the new baseline"
+    if direction == "better":
+        if blocking:
+            return "quality is improving, but blocking cases remain"
+        return "latest run has no blocking cases; review changed cases before accepting"
+    if direction == "more_changed":
+        return "review newly changed cases so expected behavior is marked deliberately"
+    if direction == "less_changed":
+        return "changed-case noise is down; keep tracking until blocking cases stay at zero"
+    if blocking:
+        return "blocking cases are unchanged; fix or mark expected before accepting"
+    if changed:
+        return "no blocking cases, but changed cases still need review"
+    return "no blocking cases in the latest trend window"
+
+
+def _blocking_text(metrics: dict[str, Any]) -> str:
+    cases = int(metrics.get("cases") or 0)
+    blocking = int(metrics.get("blocking") or 0)
+    regression = int(metrics.get("regression") or 0)
+    missing = int(metrics.get("missing") or 0)
+    rate = metrics.get("blocking_rate")
+    rate_text = f" ({float(rate) * 100:.1f}%)" if isinstance(rate, float) else ""
+    return f"blocking={blocking}/{cases}{rate_text} regression={regression} missing={missing}"
+
+
+def _rate_delta(latest: Any, previous: Any) -> float | None:
+    if isinstance(latest, float) and isinstance(previous, float):
+        return latest - previous
+    return None
+
+
+def _signed(value: int) -> str:
+    if value > 0:
+        return f"+{value}"
+    return str(value)
 
 
 def _utc_now() -> str:

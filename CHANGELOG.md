@@ -16,6 +16,7 @@
 - Show the mark/accept review loop in the first-run demo so users can train the suite as prompts evolve.
 - Flag obvious allow/deny policy wording flips as changed cases instead of neutral drift.
 - Add `redline dashboard` for a self-contained local HTML index of reports and trend history.
+- Diagnose history trends as better, worse, or flat based on blocking regressions across recent runs.
 - Add HTML output for `redline compare` so trend comparisons are inspectable in CI artifacts.
 - Render and upload `.redline/dashboard.html` from the generated GitHub Actions workflow.
 - Add a composite GitHub Action entrypoint for running redline in external repos.

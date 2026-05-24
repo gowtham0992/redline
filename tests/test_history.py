@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from redline.cli import main
-from redline.history import format_history, format_markdown_history, history_entry
+from redline.history import format_history, format_markdown_history, history_entry, history_trend
 
 
 class HistoryTests(unittest.TestCase):
@@ -38,8 +38,54 @@ class HistoryTests(unittest.TestCase):
         )
 
         self.assertIn("redline history", text)
+        self.assertIn("Trend: BASELINE", text)
         self.assertIn("prompt-v2", text)
         self.assertIn("cases=5 regression=2 neutral=3", text)
+
+    def test_history_trend_flags_worse_blocking_rate(self) -> None:
+        trend = history_trend(
+            [
+                {
+                    "timestamp": "2026-05-23T12:00:00Z",
+                    "label": "prompt-v1",
+                    "report": "eval-v1.json",
+                    "summary": {"cases": 10, "regression": 1, "missing": 0, "changed": 2},
+                },
+                {
+                    "timestamp": "2026-05-23T13:00:00Z",
+                    "label": "prompt-v2",
+                    "report": "eval-v2.json",
+                    "summary": {"cases": 10, "regression": 2, "missing": 1, "changed": 3},
+                },
+            ]
+        )
+
+        self.assertEqual(trend["direction"], "worse")
+        self.assertEqual(trend["latest"]["blocking"], 3)
+        self.assertEqual(trend["delta"]["blocking"], 2)
+        self.assertIn("investigate", trend["recommendation"])
+
+    def test_format_history_prints_trend_before_rows(self) -> None:
+        text = format_history(
+            [
+                {
+                    "timestamp": "2026-05-23T12:00:00Z",
+                    "label": "prompt-v1",
+                    "report": "eval-v1.json",
+                    "summary": {"cases": 10, "regression": 3, "missing": 0, "changed": 1},
+                },
+                {
+                    "timestamp": "2026-05-23T13:00:00Z",
+                    "label": "prompt-v2",
+                    "report": "eval-v2.json",
+                    "summary": {"cases": 10, "regression": 1, "missing": 0, "changed": 1},
+                },
+            ]
+        )
+
+        self.assertIn("Trend: BETTER", text)
+        self.assertIn("blocking=1/10 (10.0%)", text)
+        self.assertIn("blocking -2", text)
 
     def test_format_markdown_history_prints_report_table(self) -> None:
         text = format_markdown_history(
@@ -54,6 +100,7 @@ class HistoryTests(unittest.TestCase):
         )
 
         self.assertIn("# redline history", text)
+        self.assertIn("## Trend", text)
         self.assertIn("| Timestamp | Label | Report | Summary |", text)
         self.assertIn("prompt-v2", text)
         self.assertIn("cases=5 regression=2 neutral=3", text)
@@ -75,6 +122,43 @@ class HistoryTests(unittest.TestCase):
             rows = [json.loads(line) for line in history.read_text(encoding="utf-8").splitlines()]
             self.assertEqual(len(rows), 1)
             self.assertEqual(rows[0]["summary"]["regression"], 1)
+
+    def test_cli_json_includes_history_trend(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            history = root / "history.jsonl"
+            history.write_text(
+                "\n".join(
+                    [
+                        json.dumps(
+                            {
+                                "version": "0.1",
+                                "timestamp": "2026-05-23T12:00:00Z",
+                                "label": "prompt-v1",
+                                "report": "eval-v1.json",
+                                "summary": {"cases": 4, "regression": 2, "missing": 0},
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "version": "0.1",
+                                "timestamp": "2026-05-23T13:00:00Z",
+                                "label": "prompt-v2",
+                                "report": "eval-v2.json",
+                                "summary": {"cases": 4, "regression": 1, "missing": 0},
+                            }
+                        ),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            output = _run_cli(["history", "--out", str(history), "--json"])
+            payload = json.loads(output)
+
+        self.assertEqual(payload["trend"]["direction"], "better")
+        self.assertEqual(payload["trend"]["delta"]["blocking"], -1)
 
     def test_cli_writes_markdown_history(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
