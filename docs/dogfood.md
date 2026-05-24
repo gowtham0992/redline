@@ -39,11 +39,15 @@ that the missing suite is solved by `redline suite path/to/log.jsonl`.
 ```bash
 redline suite .redline/demo/baseline.jsonl --out redline-suite.json
 redline diff redline-suite.json .redline/demo/candidate.jsonl --compact --fail-on none
+redline mark redline-suite.json <case_id> --status expected --note "intentional prompt change"
+redline accept redline-suite.json --all-expected --candidate .redline/demo/candidate.jsonl --note "accepted prompt v2"
 redline eval redline-suite.json --replay "python path/to/replay.py" --fail-on none
 ```
 
 If replay is not available, mark the exact point where the workflow stops and
-what command or example would have unblocked it.
+what command or example would have unblocked it. The mark/accept commands should
+make it clear that redline catches changes first, then lets the user teach the
+suite which reviewed changes are now the baseline.
 
 ## Pass 4: Larger Sample
 

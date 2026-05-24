@@ -23,7 +23,9 @@ redline demo
 
 The demo writes a realistic support-agent suite under `.redline/demo` and
 prints a behavioral diff where a shorter candidate prompt drops required
-production details.
+production details. It also prints the review loop: inspect the report, mark an
+intentional change, accept reviewed outputs into the baseline, and keep the
+suite moving with your prompt.
 
 For a GIF-friendly terminal view:
 
@@ -347,6 +349,10 @@ Accept all cases previously marked `expected`:
 ```bash
 python -m redline accept --all-expected --candidate .redline/runs/candidate.jsonl
 ```
+
+That mark-and-accept loop is how redline learns from your decisions without an
+LLM judge. Catch regressions, mark intentional changes, promote the reviewed
+candidate output, then the next run compares against the new baseline.
 
 Add a deterministic requirement for a case:
 

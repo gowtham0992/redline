@@ -5,7 +5,7 @@ from typing import Any
 
 from .diff import compare_suite_to_candidate, format_compact_report, format_report
 from .io import read_jsonl_records, write_json, write_jsonl, write_text
-from .reports import format_markdown_report
+from .reports import format_html_report, format_markdown_report
 from .suite import build_suite
 
 
@@ -158,6 +158,7 @@ def run_demo(output_dir: str | Path = ".redline/demo", *, public: bool = False) 
     suite_path = root / ("public_suite.json" if public else "suite.json")
     report_json_path = root / "reports" / ("public_diff.json" if public else "diff.json")
     report_md_path = root / "reports" / ("public_diff.md" if public else "diff.md")
+    report_html_path = root / "reports" / ("public_diff.html" if public else "diff.html")
     baseline_rows = PUBLIC_DEMO_BASELINE if public else DEMO_BASELINE
     candidate_rows = PUBLIC_DEMO_CANDIDATE if public else DEMO_CANDIDATE
 
@@ -181,6 +182,7 @@ def run_demo(output_dir: str | Path = ".redline/demo", *, public: bool = False) 
     write_json(report_json_path, result)
     title = "redline public dogfood" if public else "redline demo"
     write_text(report_md_path, format_markdown_report(result, title=title))
+    write_text(report_html_path, format_html_report(result, title=title))
 
     return {
         "title": title,
@@ -201,6 +203,7 @@ def run_demo(output_dir: str | Path = ".redline/demo", *, public: bool = False) 
         "suite": str(suite_path),
         "report_json": str(report_json_path),
         "report_markdown": str(report_md_path),
+        "report_html": str(report_html_path),
         "summary": result["summary"],
         "decision": result["decision"],
         "diff": result,
@@ -219,6 +222,7 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
         f"redline history {result['report_json']} --label {history_label} "
         "--out .redline/history.jsonl --out-md .redline/history.md"
     )
+    review_case_id = _first_reviewable_case_id(result["diff"])
     lines = [
         result["title"],
         "",
@@ -228,13 +232,16 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
         f"Candidate log: {result['candidate']}",
         f"Prompt file:   {result['prompt']}",
         f"Suite:         {result['suite']}",
-        f"Reports:       {result['report_json']}, {result['report_markdown']}",
+        f"Reports:       {result['report_json']}, {result['report_markdown']}, {result['report_html']}",
         "",
         report.rstrip(),
         "",
         "Next steps",
+        f"- Inspect the HTML report: {result['report_html']}",
         f"- Inspect the Markdown report: {result['report_markdown']}",
         f"- List demo cases: redline cases {result['suite']}",
+        f"- Mark an intentional change: redline mark {result['suite']} {review_case_id} --status expected --note \"intentional prompt change\"",
+        f"- Promote reviewed changes: redline accept {result['suite']} --all-expected --candidate {result['candidate']} --note \"accepted prompt v2\"",
         f"- Record a trend entry: {history_command}",
         "- Connect a runner: redline init --runner stdio --copy-runner --github-action",
         "- Explore adapters: redline runners --copy all",
@@ -244,3 +251,13 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
     if not result.get("public"):
         lines.insert(-2, "- Run public proof from any install: redline demo --public --compact")
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _first_reviewable_case_id(result: dict[str, Any]) -> str:
+    diffs = result.get("diffs", [])
+    if isinstance(diffs, list):
+        for status in ("regression", "changed", "improved"):
+            for item in diffs:
+                if isinstance(item, dict) and item.get("status") == status and item.get("case_id"):
+                    return str(item["case_id"])
+    return "<case_id>"
