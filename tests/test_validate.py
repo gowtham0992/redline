@@ -1,4 +1,6 @@
+import tempfile
 import unittest
+from pathlib import Path
 
 from redline.io import LogRecord
 from redline.suite import build_suite
@@ -115,6 +117,29 @@ class ValidateTests(unittest.TestCase):
         self.assertTrue(any("missing stable prompt-response hash" in item["message"] for item in report["items"]))
         self.assertIn(
             "Regenerate suite metadata from trusted logs: redline suite logs/baseline.jsonl --out redline-suite.json",
+            report["next_steps"],
+        )
+
+    def test_validate_suite_warns_when_source_log_is_newer_than_suite(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "baseline.jsonl"
+            source.write_text('{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n', encoding="utf-8")
+            suite = build_suite(
+                [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+                source=source,
+                input_field="prompt",
+                output_field="response",
+                max_cases=10,
+            )
+            suite["created_at"] = "2000-01-01T00:00:00+00:00"
+
+            report = validate_suite(suite, suite_path="redline-suite.json")
+
+        self.assertTrue(report["valid"])
+        self.assertEqual(report["warnings"], 1)
+        self.assertTrue(any(item["path"] == "source" for item in report["items"]))
+        self.assertIn(
+            f"Regenerate suite from newer source log: redline suite {source} --out redline-suite.json",
             report["next_steps"],
         )
 

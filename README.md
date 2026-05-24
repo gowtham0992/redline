@@ -380,8 +380,9 @@ python -m redline validate
 ```
 
 Validation catches duplicate case IDs, stale stored features, missing or stale
-case hashes, broken requirements, and redundant duplicate prompt-response cases.
-When validation finds a problem, it prints a repair-oriented next step.
+case hashes, source logs newer than the suite, broken requirements, and
+redundant duplicate prompt-response cases. When validation finds a problem, it
+prints a repair-oriented next step.
 
 Compare candidate outputs against that suite:
 

@@ -41,6 +41,7 @@
 - Include suite case content hashes in machine-readable case listings.
 - Refuse duplicate `redline suite add` prompt-response pairs unless explicitly allowed.
 - Warn when suite validation finds cases missing stable content hashes.
+- Warn when a suite's source log is newer than the suite generation timestamp.
 - Record per-case selection reasons and cluster risk in generated suites.
 - Print repair-oriented next steps from `redline validate` when suite health checks fail.
 - Show suite provenance, selection mode, and pinned-case counts in `redline summary`.

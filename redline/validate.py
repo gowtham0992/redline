@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from .features import extract_features
@@ -84,6 +86,7 @@ def validate_suite(suite: dict[str, Any], *, suite_path: str = "") -> dict[str, 
     _validate_summary(items, suite, len(cases))
     _validate_references(items, suite.get("requirements"), case_ids, "requirements")
     _validate_references(items, suite.get("judgments"), case_ids, "judgments")
+    _validate_source_staleness(items, suite)
 
     error_count = _count(items, "error")
     warning_count = _count(items, "warning")
@@ -193,6 +196,11 @@ def _next_steps(items: list[dict[str, str]], *, suite_path: str, source: object)
         steps.append(
             f"Regenerate suite metadata from trusted logs: redline suite {source_arg} --out {suite_arg}"
         )
+    if any(
+        item["level"] == "warning" and item["path"] == "source" and "newer than suite" in item["message"]
+        for item in items
+    ):
+        steps.append(f"Regenerate suite from newer source log: redline suite {source_arg} --out {suite_arg}")
 
     if items and not steps:
         steps.append(f"Fix findings, then rerun: redline validate {suite_arg}")
@@ -204,6 +212,39 @@ def _source_arg(source: object) -> str:
     if isinstance(source, str) and source.strip() and source not in {"manual", "memory"}:
         return source
     return "path/to/baseline.jsonl"
+
+
+def _validate_source_staleness(items: list[dict[str, str]], suite: dict[str, Any]) -> None:
+    source = suite.get("source")
+    if not isinstance(source, str) or not source.strip() or source in {"manual", "memory"}:
+        return
+    source_path = Path(source)
+    if not source_path.exists() or not source_path.is_file():
+        return
+    created_at = _parse_created_at(suite.get("created_at"))
+    if created_at is None:
+        _add(items, "warning", "created_at", "missing or invalid suite creation timestamp")
+        return
+    source_updated_at = datetime.fromtimestamp(source_path.stat().st_mtime, timezone.utc)
+    if source_updated_at > created_at:
+        _add(
+            items,
+            "warning",
+            "source",
+            f"source log {source} is newer than suite created_at; regenerate before relying on coverage",
+        )
+
+
+def _parse_created_at(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _dedupe(values: list[str]) -> list[str]:
