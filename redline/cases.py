@@ -61,6 +61,7 @@ def suite_case_detail(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
     requirement = requirements.get(case_id)
     return {
         "id": str(case["id"]),
+        "pinned": bool(case.get("pinned")),
         "source": str(case.get("source") or suite.get("source") or ""),
         "source_line": case.get("source_line"),
         "cluster": str(case.get("cluster", "")),
@@ -78,6 +79,7 @@ def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
     lines = [
         f"redline case {detail['id']}",
         "",
+        f"Pinned:     {_format_bool(detail['pinned'])}",
         f"Source:      {_format_source(detail['source'], detail['source_line'])}",
         f"Cluster:     {detail['cluster']}",
         f"Content hash: {detail['content_hash']}",
@@ -108,6 +110,10 @@ def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
             lines.append(f"  {key}: {value}")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _format_bool(value: object) -> str:
+    return "yes" if value else "no"
 
 
 def _format_source(source: object, source_line: object) -> str:

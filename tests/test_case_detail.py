@@ -20,6 +20,7 @@ class CaseDetailTests(unittest.TestCase):
         detail = suite_case_detail(suite, case_id)
 
         self.assertEqual(detail["id"], case_id)
+        self.assertFalse(detail["pinned"])
         self.assertEqual(detail["source"], "logs/baseline.jsonl")
         self.assertEqual(detail["source_line"], 1)
         self.assertEqual(detail["prompt"], "Return JSON")
@@ -53,6 +54,7 @@ class CaseDetailTests(unittest.TestCase):
         output = format_suite_case_detail(suite, case_id)
 
         self.assertIn(f"redline case {case_id}", output)
+        self.assertIn("Pinned:     no", output)
         self.assertIn("Source:      logs/baseline.jsonl:1", output)
         self.assertIn("Baseline response:", output)
 

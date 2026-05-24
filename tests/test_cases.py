@@ -41,9 +41,28 @@ class CasesTests(unittest.TestCase):
         text = format_suite_case_detail(suite, case_id)
 
         self.assertEqual(detail["content_hash"], suite["cases"][0]["content_hash"])
+        self.assertFalse(detail["pinned"])
+        self.assertIn("Pinned:     no", text)
         self.assertEqual(detail["source"], "logs/baseline.jsonl")
         self.assertIn("Source:      logs/baseline.jsonl:1", text)
         self.assertIn("Content hash:", text)
+
+    def test_suite_case_detail_marks_pinned_case(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON for Ada", '{"name": "Ada"}', {})],
+            source="logs/baseline.jsonl",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        suite["cases"][0]["pinned"] = True
+        case_id = suite["cases"][0]["id"]
+
+        detail = suite_case_detail(suite, case_id)
+        text = format_suite_case_detail(suite, case_id)
+
+        self.assertTrue(detail["pinned"])
+        self.assertIn("Pinned:     yes", text)
 
     def test_suite_case_rows_count_requirements(self) -> None:
         suite = build_suite(
