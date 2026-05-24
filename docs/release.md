@@ -19,8 +19,8 @@ bash scripts/release_check.sh
 
 The release gate runs the unit suite, bytecode compilation, whitespace checks, a
 Ruff lint, mypy type checking, a wheel build, clean virtualenv install,
-`redline demo --compact`, runner listing, `redline init --runner stdio
---copy-runner`, and `redline doctor`. Run it from an environment where
+`redline demo --compact`, `redline-mcp` stdio smoke checks, runner listing,
+`redline init --runner stdio --copy-runner`, and `redline doctor`. Run it from an environment where
 `python -m pip install -e ".[dev]"` has already completed.
 
 ## Demo GIF
@@ -110,3 +110,24 @@ Then install in a fresh environment and run:
 redline --version
 redline demo --compact
 ```
+
+## MCP Registry
+
+redline ships [server.json](../server.json) for the official MCP Registry. The
+manifest is PyPI-backed, so publish order matters:
+
+1. Publish the `redline-ai` package to PyPI from the tagged commit.
+2. Confirm PyPI renders this README with the hidden
+   `mcp-name: io.github.gowtham0992/redline` marker.
+3. Confirm `server.json`, `pyproject.toml`, and `redline/__init__.py` all use
+   the same version.
+4. Install `mcp-publisher`, authenticate with GitHub, and publish the registry
+   metadata:
+
+```bash
+mcp-publisher login github
+mcp-publisher publish
+```
+
+The registry only hosts metadata. Users still install and run the local server
+from PyPI via `redline-mcp` or `uvx --from redline-ai redline-mcp`.

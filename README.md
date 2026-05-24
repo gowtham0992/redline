@@ -1,5 +1,7 @@
 # redline
 
+<!-- mcp-name: io.github.gowtham0992/redline -->
+
 [![CI](https://github.com/gowtham0992/redline/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/gowtham0992/redline/actions/workflows/ci.yml)
 [![GitHub Pages](https://github.com/gowtham0992/redline/actions/workflows/pages.yml/badge.svg?branch=develop)](https://github.com/gowtham0992/redline/actions/workflows/pages.yml)
 

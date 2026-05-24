@@ -59,6 +59,31 @@ printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_pat
   printf '\n$ redline --version\n'
   "$venv_dir/bin/redline" --version
 
+  printf '\n$ redline-mcp --help\n'
+  "$venv_dir/bin/redline-mcp" --help
+
+  printf '\n$ redline-mcp tools/list smoke\n'
+  mcp_tools="$(printf '{"jsonrpc":"2.0","id":1,"method":"tools/list"}\n' | "$venv_dir/bin/redline-mcp")"
+  printf '%s\n' "$mcp_tools"
+  case "$mcp_tools" in
+    *redline_eval*) ;;
+    *)
+      echo "release check failed: redline-mcp tools/list did not include redline_eval" >&2
+      exit 1
+      ;;
+  esac
+
+  printf '\n$ redline-mcp prompts/list smoke\n'
+  mcp_prompts="$(printf '{"jsonrpc":"2.0","id":2,"method":"prompts/list"}\n' | "$venv_dir/bin/redline-mcp")"
+  printf '%s\n' "$mcp_prompts"
+  case "$mcp_prompts" in
+    *check_prompt_change*) ;;
+    *)
+      echo "release check failed: redline-mcp prompts/list did not include check_prompt_change" >&2
+      exit 1
+      ;;
+  esac
+
   printf '\n$ redline\n'
   "$venv_dir/bin/redline"
 

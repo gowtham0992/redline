@@ -32,6 +32,19 @@ redline-mcp
 Run it from the project root, or pass `cwd` in tool arguments so redline runs in
 the intended repository.
 
+For clients that prefer an explicit package runner, use `uvx`:
+
+```json
+{
+  "mcpServers": {
+    "redline": {
+      "command": "uvx",
+      "args": ["--from", "redline-ai", "redline-mcp"]
+    }
+  }
+}
+```
+
 ## Tools
 
 The first MCP surface is intentionally safe. It can generate suites, inspect
@@ -98,3 +111,15 @@ The MCP server inherits redline's trust model:
 - human review closes the loop before baselines are changed
 
 Keep private prompt logs under ignored local paths such as `.redline/private/`.
+
+## Registry
+
+The root [server.json](../server.json) is the MCP Registry manifest for
+`io.github.gowtham0992/redline`. It points at the PyPI package `redline-ai`,
+uses stdio transport, and declares the `uvx --from redline-ai==<version>
+redline-mcp` startup path.
+
+The package README includes the hidden `mcp-name: io.github.gowtham0992/redline`
+verification marker required for PyPI-backed MCP registry entries. Keep
+`server.json`, `pyproject.toml`, and `redline/__init__.py` versions aligned
+before publishing.

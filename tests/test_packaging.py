@@ -34,6 +34,7 @@ class PackagingTests(unittest.TestCase):
 
         self.assertIn("redline py.typed", manifest)
         self.assertIn("action.yml", manifest)
+        self.assertIn("server.json", manifest)
         self.assertIn("redline-suite.schema.json", manifest)
         self.assertIn("redline-report.schema.json", manifest)
         self.assertIn("redline/runner_templates", manifest)
@@ -92,6 +93,10 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("-m pip wheel . --no-deps --no-build-isolation", script)
         self.assertIn("-m venv", script)
         self.assertIn("redline --version", script)
+        self.assertIn("redline-mcp --help", script)
+        self.assertIn("redline-mcp tools/list smoke", script)
+        self.assertIn("redline-mcp prompts/list smoke", script)
+        self.assertIn("check_prompt_change", script)
         self.assertIn("$ redline\\n", script)
         self.assertIn("redline demo --compact", script)
         self.assertIn("redline demo --public --compact", script)
@@ -167,6 +172,9 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline demo --public --compact", guide)
         self.assertIn("bash scripts/demo_gif.sh", guide)
         self.assertIn("redline init --runner stdio --copy-runner", guide)
+        self.assertIn("MCP Registry", guide)
+        self.assertIn("server.json", guide)
+        self.assertIn("mcp-publisher publish", guide)
 
     def test_readme_marks_repo_only_script_commands(self) -> None:
         readme = Path("README.md").read_text(encoding="utf-8")
@@ -199,6 +207,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline compare", changelog)
         self.assertIn("richer judge rubrics", changelog)
         self.assertIn("redline-mcp", changelog)
+        self.assertIn("MCP Registry metadata", changelog)
         self.assertIn("public alpha launch playbook", changelog)
 
     def test_launch_playbook_covers_assets_and_feedback(self) -> None:
@@ -228,7 +237,49 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("build_suite_from_logs", guide)
         self.assertIn("does not expose baseline mutation commands", guide)
         self.assertIn("Exit code `1` means redline found blocking regressions", guide)
+        self.assertIn("uvx --from redline-ai", guide)
+        self.assertIn("io.github.gowtham0992/redline", guide)
         self.assertIn("docs/mcp.md", readme)
+
+    def test_mcp_registry_manifest_matches_package_metadata(self) -> None:
+        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        manifest = json.loads(Path("server.json").read_text(encoding="utf-8"))
+        readme = Path("README.md").read_text(encoding="utf-8")
+        init = Path("redline/__init__.py").read_text(encoding="utf-8")
+        package = manifest["packages"][0]
+
+        self.assertEqual(
+            manifest["$schema"],
+            "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+        )
+        self.assertEqual(manifest["name"], "io.github.gowtham0992/redline")
+        self.assertLessEqual(len(manifest["description"]), 100)
+        self.assertEqual(manifest["version"], pyproject["project"]["version"])
+        self.assertIn(f'__version__ = "{manifest["version"]}"', init)
+        self.assertIn("mcp-name: io.github.gowtham0992/redline", readme)
+        self.assertEqual(package["registryType"], "pypi")
+        self.assertEqual(package["registryBaseUrl"], "https://pypi.org")
+        self.assertEqual(package["identifier"], pyproject["project"]["name"])
+        self.assertEqual(package["version"], pyproject["project"]["version"])
+        self.assertEqual(package["runtimeHint"], "uvx")
+        self.assertEqual(package["transport"]["type"], "stdio")
+        self.assertIn(
+            {
+                "type": "named",
+                "name": "--from",
+                "value": f'redline-ai=={pyproject["project"]["version"]}',
+                "description": "Install the redline-ai package version that matches this registry entry.",
+            },
+            package["runtimeArguments"],
+        )
+        self.assertIn(
+            {
+                "type": "positional",
+                "value": "redline-mcp",
+                "description": "Run the redline MCP stdio entrypoint.",
+            },
+            package["runtimeArguments"],
+        )
 
     def test_github_issue_templates_collect_bug_and_dogfood_feedback(self) -> None:
         bug = Path(".github/ISSUE_TEMPLATE/bug_report.yml").read_text(encoding="utf-8")
