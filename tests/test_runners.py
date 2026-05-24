@@ -32,6 +32,7 @@ class RunnerTests(unittest.TestCase):
         output = format_runner_adapters()
 
         self.assertIn("redline runners", output)
+        self.assertIn("Model- and provider-agnostic", output)
         self.assertIn("Custom stdio command", output)
         self.assertIn("./runners/openai_runner.sh", output)
         self.assertIn("python runners/stdio_runner.py", output)

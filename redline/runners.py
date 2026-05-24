@@ -71,7 +71,12 @@ def runner_adapters() -> list[dict[str, str]]:
 
 def format_runner_adapters(adapters: list[dict[str, Any]] | None = None) -> str:
     items = adapters if adapters is not None else RUNNER_ADAPTERS
-    lines = ["redline runners", ""]
+    lines = [
+        "redline runners",
+        "",
+        "Model- and provider-agnostic: any command that reads stdin and writes stdout can be a runner.",
+        "",
+    ]
     for adapter in items:
         lines.extend(
             [
