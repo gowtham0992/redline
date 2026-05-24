@@ -17,6 +17,19 @@ The release gate runs the unit suite, bytecode compilation, whitespace checks, a
 wheel build, clean virtualenv install, `redline demo --compact`, runner listing,
 `redline init --runner stdio --copy-runner`, and `redline doctor`.
 
+## Demo GIF
+
+Record the launch GIF from a clean checkout after the release gate passes:
+
+```bash
+bash scripts/demo_gif.sh .redline/launch .redline/launch/redline-demo.gif
+```
+
+The script uses VHS when available, falls back to `asciinema` plus `agg`, and
+writes `.redline/launch/redline-demo-transcript.txt` when neither recorder is
+installed. Keep generated GIFs under `.redline/launch/` until the release post
+or README asset path is chosen.
+
 ## Public Alpha Smoke
 
 Run the first five minutes exactly like a new user. Use the full dogfood pass in

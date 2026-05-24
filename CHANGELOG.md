@@ -18,6 +18,7 @@
 - Add HTML output for `redline compare` so trend comparisons are inspectable in CI artifacts.
 - Render and upload `.redline/dashboard.html` from the generated GitHub Actions workflow.
 - Add richer judge rubrics for support, structured extraction, and safety/compliance review.
+- Add repeatable demo GIF tooling with VHS/asciinema support and a transcript fallback.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.

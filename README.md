@@ -49,6 +49,7 @@ To record the public demo from a repeatable script:
 
 ```bash
 bash scripts/demo_terminal.sh
+bash scripts/demo_gif.sh .redline/launch .redline/launch/redline-demo.gif
 ```
 
 From a repo checkout, the raw dogfood fixtures are also available as JSONL:

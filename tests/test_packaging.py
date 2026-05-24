@@ -36,7 +36,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("scripts *.sh", manifest)
 
     def test_shell_scripts_are_executable(self) -> None:
-        for script_name in ("build_release.sh", "demo_terminal.sh", "release_check.sh"):
+        for script_name in ("build_release.sh", "demo_gif.sh", "demo_terminal.sh", "release_check.sh"):
             with self.subTest(script=script_name):
                 script = Path("scripts") / script_name
 
@@ -50,6 +50,16 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline demo --compact", text)
         self.assertIn("redline history", text)
         self.assertIn("--out-md", text)
+
+    def test_demo_gif_script_records_or_writes_transcript(self) -> None:
+        script = Path("scripts/demo_gif.sh")
+        text = script.read_text(encoding="utf-8")
+
+        self.assertIn("redline-demo.gif", text)
+        self.assertIn("vhs", text)
+        self.assertIn("asciinema", text)
+        self.assertIn("redline-demo-transcript.txt", text)
+        self.assertIn("redline demo --public --compact", text)
 
     def test_release_check_builds_and_smokes_installed_wheel(self) -> None:
         script = Path("scripts/release_check.sh").read_text(encoding="utf-8")
@@ -99,6 +109,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("CHANGELOG.md", guide)
         self.assertIn("redline demo --compact", guide)
         self.assertIn("redline demo --public --compact", guide)
+        self.assertIn("bash scripts/demo_gif.sh", guide)
         self.assertIn("redline init --runner stdio --copy-runner", guide)
 
     def test_changelog_mentions_release_ready_workflows(self) -> None:
