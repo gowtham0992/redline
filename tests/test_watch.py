@@ -72,6 +72,55 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(len(records), 2)
             self.assertEqual(records[1].response, "friend")
 
+    def test_record_extracts_openai_chat_response_text_and_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            response = {
+                "id": "chatcmpl_test",
+                "model": "gpt-test",
+                "choices": [
+                    {
+                        "message": {"content": "Hello from the model"},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 4,
+                    "completion_tokens": 5,
+                    "total_tokens": 9,
+                },
+            }
+
+            record("hello", response, log=log)
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(records[0].response, "Hello from the model")
+            metadata = records[0].raw["metadata"]
+            self.assertEqual(metadata["id"], "chatcmpl_test")
+            self.assertEqual(metadata["model"], "gpt-test")
+            self.assertEqual(metadata["finish_reason"], "stop")
+            self.assertEqual(metadata["prompt_tokens"], 4)
+            self.assertEqual(metadata["completion_tokens"], 5)
+            self.assertEqual(metadata["total_tokens"], 9)
+
+    def test_record_extracts_anthropic_style_content_blocks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            response = {
+                "model": "claude-test",
+                "content": [{"type": "text", "text": "First"}, {"type": "text", "text": "Second"}],
+                "usage": {"input_tokens": 3, "output_tokens": 4},
+            }
+
+            record("hello", response, log=log)
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(records[0].response, "First\nSecond")
+            metadata = records[0].raw["metadata"]
+            self.assertEqual(metadata["model"], "claude-test")
+            self.assertEqual(metadata["prompt_tokens"], 3)
+            self.assertEqual(metadata["completion_tokens"], 4)
+
     def test_record_exports_from_package_root(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             log = Path(directory) / "observed.jsonl"
@@ -102,6 +151,25 @@ class WatchTests(unittest.TestCase):
                 records[0].raw["metadata"]["function"],
                 "WatchTests.test_watch_decorator_records_sync_function_calls.<locals>.generate_response",
             )
+            self.assertIsInstance(records[0].raw["metadata"]["latency_ms"], int)
+
+    def test_watch_decorator_supports_custom_response_extractor(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            class Response:
+                def __init__(self, text: str) -> None:
+                    self.text = text
+
+            @watch(log=log, response_extractor=lambda response: response.text)
+            def generate_response(prompt: str) -> Response:
+                return Response(f"answer: {prompt}")
+
+            response = generate_response("refund policy")
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(response.text, "answer: refund policy")
+            self.assertEqual(records[0].response, "answer: refund policy")
 
     def test_watch_decorator_skips_duplicate_prompt_response_observations_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

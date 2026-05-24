@@ -230,11 +230,25 @@ def generate_response(prompt: str) -> str:
 ```
 
 The decorator appends local JSONL with `prompt`, `response`, a stable
-`content_hash`, source function, source line, timestamp, and metadata. It works
-with sync and async functions. Exact duplicate prompt-response pairs are skipped
-by default; pass `dedupe=False` when you intentionally want repeated identical
-observations. Use `prompt_arg="question"` when your function does not name the
-prompt argument `prompt`.
+`content_hash`, source function, source line, timestamp, latency, and metadata.
+It works with sync and async functions. Exact duplicate prompt-response pairs
+are skipped by default; pass `dedupe=False` when you intentionally want repeated
+identical observations. Use `prompt_arg="question"` when your function does not
+name the prompt argument `prompt`.
+
+Provider-shaped responses from OpenAI chat completions, OpenAI responses,
+Anthropic messages, LangChain messages, and LlamaIndex responses are normalized
+to assistant text when possible. Metadata such as model, finish reason, and
+token counts is captured when present. For custom SDK objects, pass a response
+extractor:
+
+```python
+from redline import watch
+
+@watch(response_extractor=lambda result: result.message.text)
+def generate_response(prompt: str):
+    return app.run(prompt)
+```
 
 Or record one observation manually when your app already has the prompt and
 response in hand:

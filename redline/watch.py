@@ -30,6 +30,7 @@ def watch(
     *,
     log: str | Path = DEFAULT_WATCH_LOG,
     prompt_arg: str | None = None,
+    response_extractor: Callable[[Any], Any] | None = None,
     metadata: dict[str, Any] | Callable[..., dict[str, Any]] | None = None,
     dedupe: bool = True,
 ) -> Callable[..., Any]:
@@ -47,15 +48,19 @@ def watch(
             @wraps(target)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 prompt = _prompt_from_call(target, args, kwargs, prompt_arg=prompt_arg)
+                started = monotonic()
                 response = await target(*args, **kwargs)
+                latency_ms = _elapsed_ms(started)
                 _append_function_observation(
                     target,
                     prompt,
                     response,
                     log=log,
+                    response_extractor=response_extractor,
                     metadata=metadata,
                     args=args,
                     kwargs=kwargs,
+                    latency_ms=latency_ms,
                     dedupe=dedupe,
                 )
                 return response
@@ -65,15 +70,19 @@ def watch(
         @wraps(target)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             prompt = _prompt_from_call(target, args, kwargs, prompt_arg=prompt_arg)
+            started = monotonic()
             response = target(*args, **kwargs)
+            latency_ms = _elapsed_ms(started)
             _append_function_observation(
                 target,
                 prompt,
                 response,
                 log=log,
+                response_extractor=response_extractor,
                 metadata=metadata,
                 args=args,
                 kwargs=kwargs,
+                latency_ms=latency_ms,
                 dedupe=dedupe,
             )
             return response
@@ -98,7 +107,8 @@ def record(
     """Append one prompt-response observation to a local JSONL log."""
 
     prompt_text = _stringify_value(prompt)
-    response_text = _stringify_value(response)
+    response_text = _stringify_value(_response_value(response))
+    provider_metadata = _provider_metadata(response)
     content_hash = prompt_response_hash(prompt_text, response_text)
     row = {
         "prompt": prompt_text,
@@ -106,7 +116,7 @@ def record(
         "source": source,
         "source_line": source_line,
         "observed_at": datetime.now(timezone.utc).isoformat(),
-        "metadata": metadata or {},
+        "metadata": {**provider_metadata, **(metadata or {})},
         "content_hash": content_hash,
     }
     if dedupe and content_hash in _existing_content_hashes(log):
@@ -386,18 +396,25 @@ def _append_function_observation(
     response: Any,
     *,
     log: str | Path,
+    response_extractor: Callable[[Any], Any] | None,
     metadata: dict[str, Any] | Callable[..., dict[str, Any]] | None,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
+    latency_ms: int,
     dedupe: bool,
 ) -> None:
+    response_value = response_extractor(response) if response_extractor else response
+    observation_metadata = {
+        **_provider_metadata(response),
+        **_function_metadata(target, metadata, args, kwargs, latency_ms=latency_ms),
+    }
     record(
         prompt,
-        response,
+        response_value,
         log=log,
         source=_function_source(target),
         source_line=_function_line(target),
-        metadata=_function_metadata(target, metadata, args, kwargs),
+        metadata=observation_metadata,
         dedupe=dedupe,
     )
 
@@ -432,10 +449,13 @@ def _function_metadata(
     metadata: dict[str, Any] | Callable[..., dict[str, Any]] | None,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
+    *,
+    latency_ms: int,
 ) -> dict[str, Any]:
     row = {
         "module": str(getattr(target, "__module__", "")),
         "function": str(getattr(target, "__qualname__", getattr(target, "__name__", "<unknown>"))),
+        "latency_ms": latency_ms,
     }
     if metadata is None:
         return row
@@ -464,6 +484,105 @@ def _stringify_value(value: Any) -> str:
         return json.dumps(value, sort_keys=True, ensure_ascii=False)
     except TypeError:
         return str(value)
+
+
+def _elapsed_ms(started: float) -> int:
+    return max(0, round((monotonic() - started) * 1000))
+
+
+def _response_value(value: Any) -> Any:
+    provider_text = _provider_response_text(value)
+    return provider_text if provider_text is not None else value
+
+
+def _provider_response_text(value: Any) -> str | None:
+    output_text = _field(value, "output_text")
+    if isinstance(output_text, str) and output_text:
+        return output_text
+
+    choices = _field(value, "choices")
+    if isinstance(choices, list) and choices:
+        text = _choice_text(choices[0])
+        if text:
+            return text
+
+    output = _field(value, "output")
+    text = _blocks_text(output)
+    if text:
+        return text
+
+    content = _field(value, "content")
+    if isinstance(content, str) and not isinstance(value, dict):
+        return content
+    text = _blocks_text(content)
+    if text:
+        return text
+
+    response = _field(value, "response")
+    if isinstance(response, str) and not isinstance(value, dict):
+        return response
+    return None
+
+
+def _choice_text(choice: Any) -> str | None:
+    message = _field(choice, "message")
+    content = _field(message, "content")
+    if isinstance(content, str):
+        return content
+    text = _blocks_text(content)
+    if text:
+        return text
+    return None
+
+
+def _blocks_text(value: Any) -> str | None:
+    if not isinstance(value, list):
+        return None
+    parts = []
+    for item in value:
+        text = _field(item, "text")
+        if isinstance(text, str) and text:
+            parts.append(text)
+            continue
+        content = _field(item, "content")
+        nested = _blocks_text(content)
+        if nested:
+            parts.append(nested)
+    return "\n".join(parts) if parts else None
+
+
+def _provider_metadata(value: Any) -> dict[str, Any]:
+    metadata: dict[str, Any] = {}
+    for field in ("id", "model"):
+        item = _field(value, field)
+        if isinstance(item, str) and item:
+            metadata[field] = item
+
+    choices = _field(value, "choices")
+    if isinstance(choices, list) and choices:
+        finish_reason = _field(choices[0], "finish_reason")
+        if isinstance(finish_reason, str) and finish_reason:
+            metadata["finish_reason"] = finish_reason
+
+    usage = _field(value, "usage")
+    if usage is not None:
+        for source, target in (
+            ("prompt_tokens", "prompt_tokens"),
+            ("completion_tokens", "completion_tokens"),
+            ("input_tokens", "prompt_tokens"),
+            ("output_tokens", "completion_tokens"),
+            ("total_tokens", "total_tokens"),
+        ):
+            count = _field(usage, source)
+            if isinstance(count, int):
+                metadata[target] = count
+    return metadata
+
+
+def _field(value: Any, name: str) -> Any:
+    if isinstance(value, dict):
+        return value.get(name)
+    return getattr(value, name, None)
 
 
 def _record_content_hash(record: LogRecord) -> str:
