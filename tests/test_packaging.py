@@ -126,6 +126,24 @@ class PackagingTests(unittest.TestCase):
 
         self.assertIn("From a repo checkout, record the public demo", readme)
         self.assertIn("scripts/normalize_ai_session_logs.py", readme)
+        self.assertIn("docs/vision.md", readme)
+
+    def test_private_product_docs_stay_ignored(self) -> None:
+        ignore = Path(".gitignore").read_text(encoding="utf-8")
+
+        self.assertIn("redline_product_vision*.docx", ignore)
+        self.assertIn("ROADMAP.md", ignore)
+
+    def test_vision_doc_captures_v2_product_direction(self) -> None:
+        vision = Path("docs/vision.md").read_text(encoding="utf-8")
+
+        self.assertIn("local-first regression-test primitive", vision)
+        self.assertIn("Watch: Passive Evidence Collection", vision)
+        self.assertIn("Suite: Automatic Eval Generation", vision)
+        self.assertIn("Eval: The Regression Gate", vision)
+        self.assertIn("CI: The Merge Gate", vision)
+        self.assertIn("History: Behavioral Drift Over Time", vision)
+        self.assertIn("Format as the Moat", vision)
 
     def test_changelog_mentions_release_ready_workflows(self) -> None:
         changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
