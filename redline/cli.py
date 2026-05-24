@@ -39,6 +39,7 @@ from .runners import (
     copy_all_runner_adapters,
     copy_runner_adapter,
     format_runner_adapters,
+    replay_runner_adapters,
     runner_adapters,
 )
 from .summary import format_suite_summary, suite_summary
@@ -83,6 +84,11 @@ Run `redline <command> --help` for command details.
 """
 
 
+def _replay_runner_metavar() -> str:
+    choices = ",".join(adapter["id"] for adapter in replay_runner_adapters())
+    return f"{{{choices}}}"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="redline",
@@ -102,8 +108,8 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--judge-timeout", type=float, help="default judge timeout in seconds")
     init_parser.add_argument(
         "--runner",
-        choices=[adapter["id"] for adapter in runner_adapters()],
-        help="set replay from a built-in runner adapter",
+        metavar=_replay_runner_metavar(),
+        help="set replay from a built-in replay runner adapter",
     )
     init_parser.add_argument(
         "--copy-runner",
@@ -132,11 +138,11 @@ def build_parser() -> argparse.ArgumentParser:
     demo_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     demo_parser.set_defaults(func=cmd_demo)
 
-    runners_parser = subparsers.add_parser("runners", help="list replay runner adapters")
+    runners_parser = subparsers.add_parser("runners", help="list replay runners and log adapters")
     runners_parser.add_argument(
         "--copy",
         choices=["all", *[adapter["id"] for adapter in runner_adapters()]],
-        help="copy one runner adapter, or all adapters, into this project",
+        help="copy one adapter, or all adapters, into this project",
     )
     runners_parser.add_argument("--out", help="output path for --copy; defaults to adapter file path")
     runners_parser.add_argument("--force", action="store_true", help="overwrite existing output path for --copy")

@@ -33,6 +33,18 @@ class CliConfigTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 0)
         self.assertIn("redline 0.1.0", output.getvalue())
 
+    def test_init_help_lists_only_replay_runners(self) -> None:
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output):
+            with self.assertRaises(SystemExit) as raised:
+                main(["init", "--help"])
+
+        self.assertEqual(raised.exception.code, 0)
+        text = output.getvalue()
+        self.assertIn("{stdio,openai,anthropic,python-chain,http,litellm}", text)
+        self.assertNotIn("jsonl-logs", text)
+
     def test_demo_command_can_print_compact_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = io.StringIO()
