@@ -455,6 +455,9 @@ def cmd_runners(args: argparse.Namespace) -> int:
                 print("Adapter commands:")
                 for result in results:
                     print(f"  {result['id']} ({_adapter_command_label(result)}): {result['replay']}")
+                print("Next:")
+                for step in _adapter_copy_all_next_steps(results):
+                    print(f"  - {step}")
             return 0
         result = copy_runner_adapter(args.copy, output=args.out, force=args.force)
         if args.json:
@@ -1191,3 +1194,18 @@ def _runner_replay(runner_id: str | None) -> str | None:
 
 def _adapter_command_label(adapter: Mapping[str, object]) -> str:
     return "replay" if adapter.get("kind") == "replay" else "command"
+
+
+def _adapter_copy_all_next_steps(results: Sequence[Mapping[str, object]]) -> list[str]:
+    steps: list[str] = []
+    replay = next((result for result in results if result.get("kind") == "replay"), None)
+    if replay is not None:
+        next_step = replay.get("next")
+        if isinstance(next_step, str):
+            steps.append(next_step)
+    log = next((result for result in results if result.get("kind") == "log"), None)
+    if log is not None:
+        next_step = log.get("next")
+        if isinstance(next_step, str):
+            steps.append(next_step)
+    return steps

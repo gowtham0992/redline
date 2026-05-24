@@ -141,6 +141,9 @@ class CliConfigTests(unittest.TestCase):
                 self.assertTrue((root / "runners" / "http_runner.py").exists())
                 self.assertIn("Adapter commands:", output.getvalue())
                 self.assertIn("jsonl-logs (command):", output.getvalue())
+                self.assertIn("Next:", output.getvalue())
+                self.assertIn("Configure replay: redline init --replay", output.getvalue())
+                self.assertIn("Run adapter command, then build a suite", output.getvalue())
             finally:
                 os.chdir(previous)
 
