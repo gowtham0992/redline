@@ -16,6 +16,7 @@ class McpServerTests(unittest.TestCase):
         self.assertEqual(response["id"], 1)
         self.assertEqual(response["result"]["serverInfo"]["name"], "redline")
         self.assertIn("tools", response["result"]["capabilities"])
+        self.assertIn("prompts", response["result"]["capabilities"])
         self.assertIn("local-first", response["result"]["instructions"])
 
     def test_tools_list_exposes_safe_redline_tools(self) -> None:
@@ -33,6 +34,56 @@ class McpServerTests(unittest.TestCase):
         self.assertNotIn("redline_accept", names)
         self.assertNotIn("redline_mark", names)
         self.assertNotIn("redline_require", names)
+
+    def test_prompts_list_exposes_agent_workflows(self) -> None:
+        response = handle_jsonrpc_line(
+            json.dumps({"jsonrpc": "2.0", "id": 30, "method": "prompts/list"})
+        )
+
+        assert response is not None
+        names = {prompt["name"] for prompt in response["result"]["prompts"]}
+        self.assertIn("check_prompt_change", names)
+        self.assertIn("build_suite_from_logs", names)
+        self.assertIn("review_candidate_outputs", names)
+
+    def test_prompt_get_builds_check_prompt_change_workflow(self) -> None:
+        response = handle_jsonrpc_line(
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 31,
+                    "method": "prompts/get",
+                    "params": {
+                        "name": "check_prompt_change",
+                        "arguments": {"prompt_path": "prompts/v2.txt", "suite_path": "redline-suite.json"},
+                    },
+                }
+            )
+        )
+
+        assert response is not None
+        text = response["result"]["messages"][0]["content"]["text"]
+        self.assertIn("redline_doctor", text)
+        self.assertIn("redline_eval", text)
+        self.assertIn("prompts/v2.txt", text)
+        self.assertIn("redline-suite.json", text)
+        self.assertIn("Do not call baseline mutation commands", text)
+
+    def test_unknown_prompt_returns_jsonrpc_error(self) -> None:
+        response = handle_jsonrpc_line(
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 32,
+                    "method": "prompts/get",
+                    "params": {"name": "missing_prompt", "arguments": {}},
+                }
+            )
+        )
+
+        assert response is not None
+        self.assertEqual(response["error"]["code"], -32602)
+        self.assertIn("unknown prompt", response["error"]["message"])
 
     def test_tool_call_runs_doctor_and_returns_structured_exit_code(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

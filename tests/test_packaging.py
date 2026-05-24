@@ -224,6 +224,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline_doctor", guide)
         self.assertIn("redline_eval", guide)
         self.assertIn("redline_diff", guide)
+        self.assertIn("check_prompt_change", guide)
+        self.assertIn("build_suite_from_logs", guide)
         self.assertIn("does not expose baseline mutation commands", guide)
         self.assertIn("Exit code `1` means redline found blocking regressions", guide)
         self.assertIn("docs/mcp.md", readme)

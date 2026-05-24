@@ -155,7 +155,9 @@ logs, not for `redline eval` replay.
 
 Using an AI coding assistant? See [MCP server](docs/mcp.md) to let Claude,
 Codex, Cursor, Kiro, or another MCP client run local redline checks before it
-recommends shipping a prompt change.
+recommends shipping a prompt change. The server includes prompt templates for
+checking a changed prompt, building a suite from logs, and reviewing candidate
+outputs without letting the agent mutate baselines.
 
 Or list the available adapters from the CLI:
 

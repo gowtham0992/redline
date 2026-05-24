@@ -70,6 +70,35 @@ class ToolSpec:
         }
 
 
+@dataclass(frozen=True)
+class PromptArgument:
+    name: str
+    description: str
+    required: bool = False
+
+    def as_mcp_argument(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "required": self.required,
+        }
+
+
+@dataclass(frozen=True)
+class PromptSpec:
+    name: str
+    description: str
+    arguments: tuple[PromptArgument, ...]
+    build_text: Callable[[dict[str, Any]], str]
+
+    def as_mcp_prompt(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "arguments": [argument.as_mcp_argument() for argument in self.arguments],
+        }
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if args and args[0] in {"-h", "--help"}:
@@ -123,7 +152,7 @@ def handle_request(request: dict[str, Any]) -> dict[str, Any] | None:
             request_id,
             {
                 "protocolVersion": PROTOCOL_VERSION,
-                "capabilities": {"tools": {}},
+                "capabilities": {"tools": {}, "prompts": {}},
                 "serverInfo": {"name": "redline", "version": __version__},
                 "instructions": (
                     "Use redline tools to generate prompt regression suites, "
@@ -139,6 +168,13 @@ def handle_request(request: dict[str, Any]) -> dict[str, Any] | None:
         return _result(request_id, {"tools": [tool.as_mcp_tool() for tool in _tools()]})
     if method == "tools/call":
         return _handle_tool_call(request_id, request.get("params"))
+    if method == "prompts/list":
+        return _result(
+            request_id,
+            {"prompts": [prompt.as_mcp_prompt() for prompt in _prompts()]},
+        )
+    if method == "prompts/get":
+        return _handle_prompt_get(request_id, request.get("params"))
     return _error(request_id, -32601, f"method not found: {method}")
 
 
@@ -174,6 +210,31 @@ def _handle_tool_call(request_id: Any, params: object) -> dict[str, Any]:
     except ValueError as exc:
         return _error(request_id, -32602, str(exc))
     return _result(request_id, _tool_result_payload(result))
+
+
+def _handle_prompt_get(request_id: Any, params: object) -> dict[str, Any]:
+    if not isinstance(params, dict):
+        return _error(request_id, -32602, "prompts/get params must be an object")
+    name = params.get("name")
+    if not isinstance(name, str) or not name:
+        return _error(request_id, -32602, "prompts/get requires a prompt name")
+    arguments = params.get("arguments") or {}
+    if not isinstance(arguments, dict):
+        return _error(request_id, -32602, "prompts/get arguments must be an object")
+    prompt = _prompt_by_name(name)
+    if prompt is None:
+        return _error(request_id, -32602, f"unknown prompt: {name}")
+    try:
+        text = prompt.build_text(arguments)
+    except ValueError as exc:
+        return _error(request_id, -32602, str(exc))
+    return _result(
+        request_id,
+        {
+            "description": prompt.description,
+            "messages": [{"role": "user", "content": {"type": "text", "text": text}}],
+        },
+    )
 
 
 def _tool_result_payload(result: ToolResult) -> dict[str, Any]:
@@ -254,6 +315,107 @@ def _max_output_bytes(arguments: dict[str, Any]) -> int:
     value = arguments.get("max_output_bytes", DEFAULT_MAX_OUTPUT_BYTES)
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError("max_output_bytes must be an integer")
+    return value
+
+
+def _prompts() -> list[PromptSpec]:
+    return [
+        PromptSpec(
+            "check_prompt_change",
+            "Run the redline setup check and evaluate a changed prompt before shipping.",
+            (
+                PromptArgument("cwd", "Project directory where redline should run."),
+                PromptArgument("prompt_path", "Changed prompt template file to evaluate."),
+                PromptArgument("suite_path", "Optional suite JSON path."),
+            ),
+            _build_check_prompt_change_prompt,
+        ),
+        PromptSpec(
+            "build_suite_from_logs",
+            "Turn existing prompt-response logs into a suite and inspect coverage.",
+            (
+                PromptArgument("cwd", "Project directory where redline should run."),
+                PromptArgument("log_path", "Baseline JSONL prompt-response log.", required=True),
+                PromptArgument("suite_path", "Suite JSON output path."),
+            ),
+            _build_suite_from_logs_prompt,
+        ),
+        PromptSpec(
+            "review_candidate_outputs",
+            "Compare candidate JSONL outputs against a suite and summarize risky behavior changes.",
+            (
+                PromptArgument("cwd", "Project directory where redline should run."),
+                PromptArgument("candidate_path", "Candidate JSONL outputs to compare.", required=True),
+                PromptArgument("suite_path", "Optional suite JSON path."),
+            ),
+            _build_review_candidate_outputs_prompt,
+        ),
+    ]
+
+
+def _prompt_by_name(name: str) -> PromptSpec | None:
+    return next((prompt for prompt in _prompts() if prompt.name == name), None)
+
+
+def _build_check_prompt_change_prompt(arguments: dict[str, Any]) -> str:
+    cwd = _optional_prompt_argument(arguments, "cwd", "the current project")
+    prompt_path = _optional_prompt_argument(arguments, "prompt_path", "the changed prompt file")
+    suite_path = _optional_prompt_argument(arguments, "suite_path", "the configured suite")
+    return (
+        "Check whether my prompt change introduced regressions with redline.\n\n"
+        f"- Run in: {cwd}\n"
+        f"- Prompt file: {prompt_path}\n"
+        f"- Suite: {suite_path}\n\n"
+        "Use this workflow:\n"
+        "1. Call `redline_doctor` first. If setup has errors, stop and tell me the next fix.\n"
+        "2. Call `redline_eval` with the prompt file when provided and the suite when provided.\n"
+        "3. Treat exit code 1 as a redline finding, not a tool failure.\n"
+        "4. Summarize regressions, missing outputs, changed cases, and the recommended action.\n"
+        "5. Do not call baseline mutation commands or tell me the change is safe when redline only found neutral output.\n"
+    )
+
+
+def _build_suite_from_logs_prompt(arguments: dict[str, Any]) -> str:
+    log_path = _required_string(arguments, "log_path")
+    cwd = _optional_prompt_argument(arguments, "cwd", "the current project")
+    suite_path = _optional_prompt_argument(arguments, "suite_path", "redline-suite.json")
+    return (
+        "Build a redline regression suite from my existing prompt-response logs.\n\n"
+        f"- Run in: {cwd}\n"
+        f"- Baseline log: {log_path}\n"
+        f"- Suite output: {suite_path}\n\n"
+        "Use this workflow:\n"
+        "1. Call `redline_suite` for the baseline log and write the suite output.\n"
+        "2. Call `redline_validate` on the generated suite.\n"
+        "3. Call `redline_summary` so I can see coverage, clusters, pinned cases, and next steps.\n"
+        "4. Explain what behavior redline can catch from this suite and what still needs human review.\n"
+    )
+
+
+def _build_review_candidate_outputs_prompt(arguments: dict[str, Any]) -> str:
+    candidate_path = _required_string(arguments, "candidate_path")
+    cwd = _optional_prompt_argument(arguments, "cwd", "the current project")
+    suite_path = _optional_prompt_argument(arguments, "suite_path", "the configured suite")
+    return (
+        "Review candidate prompt outputs with redline and tell me what changed.\n\n"
+        f"- Run in: {cwd}\n"
+        f"- Candidate outputs: {candidate_path}\n"
+        f"- Suite: {suite_path}\n\n"
+        "Use this workflow:\n"
+        "1. Call `redline_diff` against the candidate outputs and suite when provided.\n"
+        "2. Treat exit code 1 as a redline finding, not a tool failure.\n"
+        "3. Lead with blocking regressions and missing outputs.\n"
+        "4. Then summarize changed cases that need human review.\n"
+        "5. Do not accept or modify the baseline.\n"
+    )
+
+
+def _optional_prompt_argument(arguments: dict[str, Any], key: str, fallback: str) -> str:
+    value = arguments.get(key)
+    if value is None or value == "":
+        return fallback
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be a string")
     return value
 
 

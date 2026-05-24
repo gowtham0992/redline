@@ -56,6 +56,19 @@ missing outputs; the MCP tool still returns successfully because that is a
 product finding, not a protocol failure. Exit code `2` and above indicates a
 setup or command error.
 
+## Prompts
+
+The server also exposes MCP prompt templates for the workflows agents should
+reach for most often:
+
+- `check_prompt_change`: run doctor, then eval a changed prompt file.
+- `build_suite_from_logs`: generate a suite, validate it, and summarize coverage.
+- `review_candidate_outputs`: diff candidate JSONL outputs and lead with blocking findings.
+
+These prompts are intentionally conservative. They tell the assistant to treat
+redline exit code `1` as a product finding, avoid baseline mutation, and avoid
+claiming a prompt is semantically safe when redline only found neutral output.
+
 ## Example Prompts
 
 Ask your assistant:
