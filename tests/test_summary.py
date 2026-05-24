@@ -31,6 +31,9 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["unique_prompt_response_pairs"], 2)
         self.assertEqual(summary["duplicate_prompt_response_pairs"], 0)
         self.assertEqual(summary["cases"], 2)
+        self.assertEqual(summary["covered_clusters"], 2)
+        self.assertEqual(summary["case_coverage"], 1.0)
+        self.assertEqual(summary["cluster_coverage"], 1.0)
         self.assertEqual(summary["pinned_cases"], 0)
         self.assertEqual(summary["judgments"], {"expected": 1})
         self.assertEqual(summary["requirements"], 1)
@@ -66,9 +69,36 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Records seen:", output)
         self.assertIn("Unique pairs:", output)
         self.assertIn("Duplicate pairs:", output)
+        self.assertIn("Cluster coverage:", output)
+        self.assertIn("Case coverage:", output)
         self.assertIn("Pinned cases:", output)
+        self.assertIn("High-risk clusters:", output)
         self.assertIn("Failure-pattern clusters:", output)
         self.assertIn("Top clusters:", output)
+
+    def test_suite_summary_recommends_more_coverage_when_budget_is_tight(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Return JSON", '{"ok": true}', {}),
+                LogRecord(2, "Summarize", "- one\n- two", {}),
+            ],
+            source="logs/baseline.jsonl",
+            input_field="prompt",
+            output_field="response",
+            max_cases=1,
+        )
+
+        summary = suite_summary(suite)
+        output = format_suite_summary(suite)
+
+        self.assertEqual(summary["cases"], 1)
+        self.assertEqual(summary["covered_clusters"], 1)
+        self.assertEqual(summary["clusters"], 2)
+        self.assertEqual(summary["case_coverage"], 0.5)
+        self.assertEqual(summary["cluster_coverage"], 0.5)
+        self.assertIn("Increase --max-cases", summary["next_steps"][0])
+        self.assertIn("Cluster coverage:       1/2 (50.0%)", output)
+        self.assertIn("Next:", output)
 
 
 if __name__ == "__main__":

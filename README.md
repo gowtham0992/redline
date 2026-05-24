@@ -371,7 +371,8 @@ python -m redline summary
 ```
 
 The summary includes suite provenance, selection mode, duplicate-log counts,
-pinned cases, requirements, judgments, and top behavioral clusters.
+cluster and case coverage, pinned cases, requirements, judgments, top behavioral
+clusters, and next steps when coverage looks thin.
 
 Validate a generated or hand-edited suite before relying on it:
 

@@ -46,6 +46,7 @@
 - Record per-case selection reasons and cluster risk in generated suites.
 - Print repair-oriented next steps from `redline validate` when suite health checks fail.
 - Show suite provenance, selection mode, and pinned-case counts in `redline summary`.
+- Show suite cluster/case coverage ratios and recommended next steps in `redline summary`.
 - Show source log provenance in `redline case` detail output.
 - Mark pinned cases in `redline cases` table and JSON rows.
 - Show pinned status in `redline case` detail output.
