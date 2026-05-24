@@ -16,6 +16,7 @@ from .ci import default_github_workflow
 from .clusters import cluster_report, format_cluster_report
 from .compare import (
     compare_reports,
+    format_html_comparison,
     format_markdown_comparison,
     format_report_comparison,
     parse_compare_fail_on,
@@ -251,6 +252,7 @@ def build_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     compare_parser.add_argument("--out-json", help="write machine-readable JSON comparison report")
     compare_parser.add_argument("--out-md", help="write Markdown comparison report")
+    compare_parser.add_argument("--out-html", help="write self-contained HTML comparison report")
     compare_parser.add_argument("--github-summary", action="store_true", help="append Markdown comparison to GITHUB_STEP_SUMMARY")
     compare_parser.add_argument(
         "--fail-on",
@@ -691,6 +693,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
     markdown_report = format_markdown_comparison(result)
     if args.out_md:
         write_text(args.out_md, markdown_report)
+    if args.out_html:
+        write_text(args.out_html, format_html_comparison(result))
     if args.github_summary:
         _append_github_step_summary(markdown_report)
     if args.json:

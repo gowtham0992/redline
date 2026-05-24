@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from html import escape
 from typing import Any
 
 
@@ -180,6 +181,44 @@ def format_markdown_comparison(result: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def format_html_comparison(result: dict[str, Any]) -> str:
+    summary = result.get("summary")
+    if not isinstance(summary, dict):
+        summary = {}
+    changes = result.get("changes")
+    if not isinstance(changes, list):
+        changes = []
+    previous = str(result.get("previous") or "")
+    current = str(result.get("current") or "")
+    return "\n".join(
+        [
+            "<!doctype html>",
+            '<html lang="en">',
+            "<head>",
+            '<meta charset="utf-8">',
+            '<meta name="viewport" content="width=device-width, initial-scale=1">',
+            "<title>redline compare</title>",
+            "<style>",
+            _COMPARE_CSS,
+            "</style>",
+            "</head>",
+            "<body>",
+            '<main class="page">',
+            "<header>",
+            "<h1>redline compare</h1>",
+            '<p class="lede">Trend comparison between two redline reports.</p>',
+            "</header>",
+            _html_compare_context(previous, current),
+            _html_compare_summary(summary),
+            _html_compare_changes(changes),
+            "</main>",
+            "</body>",
+            "</html>",
+            "",
+        ]
+    )
+
+
 def parse_compare_fail_on(value: str | None) -> set[str]:
     if value is None or value == "":
         return set()
@@ -268,3 +307,173 @@ def _inline_code(value: str) -> str:
     while fence in compact:
         fence += "`"
     return f"{fence}{compact}{fence}"
+
+
+def _html_compare_context(previous: str, current: str) -> str:
+    if not previous and not current:
+        return ""
+    return (
+        '<section class="panel context">'
+        "<h2>Inputs</h2>"
+        f"<p><strong>Previous:</strong> <code>{_h(previous or '-')}</code></p>"
+        f"<p><strong>Current:</strong> <code>{_h(current or '-')}</code></p>"
+        "</section>"
+    )
+
+
+def _html_compare_summary(summary: dict[str, Any]) -> str:
+    cards = [
+        ("Cases", "cases"),
+        ("Worse", "worse"),
+        ("Better", "better"),
+        ("Resolved", "resolved"),
+        ("New", "new"),
+        ("Removed", "removed"),
+        ("Changed", "changed"),
+    ]
+    cells = "\n".join(
+        f'<div class="card {key}"><span>{_h(label)}</span><strong>{_count_value(summary, key)}</strong></div>'
+        for label, key in cards
+    )
+    return (
+        '<section class="panel">'
+        "<h2>Summary</h2>"
+        f'<div class="cards">{cells}</div>'
+        "</section>"
+    )
+
+
+def _html_compare_changes(changes: list[Any]) -> str:
+    notable = [
+        item
+        for item in changes
+        if isinstance(item, dict) and item.get("direction") != "unchanged"
+    ]
+    if not notable:
+        return '<section class="panel empty"><h2>Changes</h2><p>No notable changes.</p></section>'
+    rows = []
+    for item in notable:
+        direction = str(item.get("direction") or "changed")
+        case_id = str(item.get("case_id") or "unknown")
+        before = str(item.get("previous_status") or "-")
+        after = str(item.get("current_status") or "-")
+        reason = str(item.get("reason") or "")
+        prompt = str(item.get("prompt") or "")
+        rows.append(
+            "<tr>"
+            f'<td><span class="badge {direction}">{_h(direction)}</span></td>'
+            f"<td><strong>{_h(case_id)}</strong></td>"
+            f"<td><code>{_h(before)}</code> -> <code>{_h(after)}</code></td>"
+            f"<td>{_h(reason or '-')}</td>"
+            f"<td>{_h(prompt or '-')}</td>"
+            "</tr>"
+        )
+    return (
+        '<section class="panel">'
+        "<h2>Notable Changes</h2>"
+        '<div class="table-wrap">'
+        "<table>"
+        "<thead><tr><th>Direction</th><th>Case</th><th>Status</th><th>Reason</th><th>Prompt</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table>"
+        "</div>"
+        "</section>"
+    )
+
+
+def _count_value(summary: dict[str, Any], key: str) -> int:
+    try:
+        return int(summary.get(key, 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _h(value: str) -> str:
+    return escape(value, quote=True)
+
+
+_COMPARE_CSS = """
+:root {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --text: #1f2937;
+  --muted: #5b6472;
+  --line: #d7dce3;
+  --danger: #b91c1c;
+  --warn: #a16207;
+  --ok: #166534;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.page {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 36px 0 48px;
+}
+header { margin-bottom: 24px; }
+h1, h2, p { margin: 0; }
+h1 { font-size: 34px; line-height: 1.1; }
+h2 { font-size: 18px; margin-bottom: 12px; }
+.lede { color: var(--muted); margin-top: 8px; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 18px;
+}
+.context p + p { margin-top: 8px; }
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+.card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfd;
+}
+.card span { display: block; color: var(--muted); font-size: 12px; }
+.card strong { display: block; font-size: 26px; margin-top: 4px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+}
+.worse, .new { color: var(--danger); border-color: #fecaca; background: #fff1f2; }
+.changed, .removed { color: var(--warn); border-color: #fde68a; background: #fffbeb; }
+.better, .resolved { color: var(--ok); border-color: #bbf7d0; background: #f0fdf4; }
+.empty p { color: var(--muted); }
+@media (max-width: 640px) {
+  .page { width: min(100% - 24px, 1180px); padding-top: 24px; }
+  h1 { font-size: 28px; }
+  th, td { padding: 10px 8px; }
+}
+"""

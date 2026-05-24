@@ -298,6 +298,7 @@ better or worse:
 
 ```bash
 python -m redline compare .redline/reports/eval-before.json .redline/reports/eval.json
+python -m redline compare before.json after.json --out-html .redline/reports/compare.html
 ```
 
 `compare` fails on `worse` cases by default. Use `--fail-on none` for

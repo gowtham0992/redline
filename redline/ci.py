@@ -53,6 +53,7 @@ jobs:
               .redline/reports/eval.json \\
               --out-json .redline/reports/compare.json \\
               --out-md .redline/reports/compare.md \\
+              --out-html .redline/reports/compare.html \\
               --github-summary \\
               --fail-on worse,new
           else

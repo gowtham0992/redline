@@ -73,6 +73,14 @@ printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_pat
   printf '\n$ redline history --out history.jsonl\n'
   "$venv_dir/bin/redline" history --out history.jsonl
 
+  printf '\n$ redline compare .redline/demo/reports/diff.json .redline/demo/reports/public_diff.json --out-html compare.html --fail-on none\n'
+  "$venv_dir/bin/redline" compare \
+    .redline/demo/reports/diff.json \
+    .redline/demo/reports/public_diff.json \
+    --out-html compare.html \
+    --fail-on none
+  test -s compare.html
+
   printf '\n$ redline dashboard --reports-dir .redline/demo/reports --history history.jsonl --out dashboard.html\n'
   "$venv_dir/bin/redline" dashboard \
     --reports-dir .redline/demo/reports \

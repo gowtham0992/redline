@@ -852,6 +852,8 @@ class CliConfigTests(unittest.TestCase):
                                 "after.json",
                                 "--out-md",
                                 ".redline/reports/compare.md",
+                                "--out-html",
+                                ".redline/reports/compare.html",
                                 "--github-summary",
                                 "--fail-on",
                                 "none",
@@ -863,9 +865,14 @@ class CliConfigTests(unittest.TestCase):
                 report = (root / ".redline" / "reports" / "compare.md").read_text(
                     encoding="utf-8"
                 )
+                html = (root / ".redline" / "reports" / "compare.html").read_text(
+                    encoding="utf-8"
+                )
                 summary = summary_path.read_text(encoding="utf-8")
                 self.assertIn("# redline compare", report)
                 self.assertIn("candidate lost valid JSON format", report)
+                self.assertIn("<title>redline compare</title>", html)
+                self.assertIn("candidate lost valid JSON format", html)
                 self.assertIn("# redline compare", summary)
             finally:
                 if previous_summary is None:

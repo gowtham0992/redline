@@ -2,6 +2,7 @@ import unittest
 
 from redline.compare import (
     compare_reports,
+    format_html_comparison,
     format_markdown_comparison,
     format_report_comparison,
     parse_compare_fail_on,
@@ -118,6 +119,42 @@ class CompareTests(unittest.TestCase):
         self.assertIn("Direction: **Worse**", text)
         self.assertIn("Status: `changed` -> `regression`", text)
         self.assertIn("Prompt: ``Return `JSON```", text)
+
+    def test_format_html_comparison_prints_summary_and_escapes_changes(self) -> None:
+        result = {
+            "previous": "before.json",
+            "current": "after.json",
+            "summary": {
+                "cases": 1,
+                "worse": 1,
+                "better": 0,
+                "new": 0,
+                "resolved": 0,
+                "removed": 0,
+                "unchanged": 0,
+                "changed": 0,
+            },
+            "changes": [
+                {
+                    "case_id": "case_001",
+                    "direction": "worse",
+                    "previous_status": "changed",
+                    "current_status": "regression",
+                    "prompt": "<script>alert(1)</script>",
+                    "reason": "candidate lost valid JSON format",
+                }
+            ],
+        }
+
+        text = format_html_comparison(result)
+
+        self.assertIn("<title>redline compare</title>", text)
+        self.assertIn("Worse", text)
+        self.assertIn("case_001", text)
+        self.assertIn("changed", text)
+        self.assertIn("regression", text)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", text)
+        self.assertNotIn("<script>alert(1)</script>", text)
 
     def test_parse_compare_fail_on_accepts_directions_and_none(self) -> None:
         self.assertEqual(parse_compare_fail_on("worse,new"), {"worse", "new"})

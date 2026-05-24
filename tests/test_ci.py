@@ -21,6 +21,7 @@ class CiTests(unittest.TestCase):
         self.assertIn("python -m redline compare", workflow)
         self.assertIn(".redline/reports/eval-before.json", workflow)
         self.assertIn("--out-md .redline/reports/compare.md", workflow)
+        self.assertIn("--out-html .redline/reports/compare.html", workflow)
         self.assertIn("--fail-on worse,new", workflow)
         self.assertIn("python -m redline history", workflow)
         self.assertIn('--label "${{ github.sha }}"', workflow)
