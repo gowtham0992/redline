@@ -195,6 +195,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("Automatic eval suites from the prompt logs you already have", readme)
         self.assertIn("Product Promise", readme)
         self.assertIn("[![PyPI](https://img.shields.io/pypi/v/redline-ai.svg)](https://pypi.org/project/redline-ai/)", readme)
+        self.assertIn("[![MCP Registry]", readme)
+        self.assertIn("registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline", readme)
         self.assertIn("[![License: MIT]", readme)
         self.assertIn("[License](LICENSE)", readme)
         self.assertIn("python -m pip install redline-ai", readme)
