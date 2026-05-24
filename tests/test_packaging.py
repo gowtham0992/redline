@@ -231,6 +231,26 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("bash scripts/action_smoke.sh", workflow)
         self.assertIn('bash scripts/build_release.sh "$RUNNER_TEMP/redline-dist"', workflow)
 
+    def test_contributor_docs_require_dogfood_and_validation(self) -> None:
+        guide = Path("CONTRIBUTING.md").read_text(encoding="utf-8")
+        template = Path(".github/pull_request_template.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn('python -m pip install -e ".[dev]"', guide)
+        self.assertIn("python -m pytest -q", guide)
+        self.assertIn("python -m ruff check .", guide)
+        self.assertIn("python -m mypy redline tests scripts examples", guide)
+        self.assertIn("bash scripts/action_smoke.sh /tmp/redline-action-smoke", guide)
+        self.assertIn("bash scripts/build_release.sh /tmp/redline-dist", guide)
+        self.assertIn("bash scripts/certify_release.sh /tmp/redline-certify", guide)
+        self.assertIn("Command: redline demo --public --compact", guide)
+        self.assertIn("A neutral result means", guide)
+        self.assertIn("Do not commit private prompts", guide)
+        self.assertIn("Dogfood evidence", template)
+        self.assertIn("Trust boundary", template)
+        self.assertIn("Private prompts", template)
+        self.assertIn("CONTRIBUTING.md", readme)
+
     def test_dogfood_protocol_exercises_first_run_loop(self) -> None:
         guide = Path("docs/dogfood.md").read_text(encoding="utf-8")
 

@@ -93,8 +93,9 @@ bash scripts/release_check.sh
 ```
 
 The full public-alpha checklist lives in [docs/release.md](docs/release.md), the
-launch playbook lives in [docs/launch.md](docs/launch.md), and the first-user
-dogfood pass lives in [docs/dogfood.md](docs/dogfood.md).
+launch playbook lives in [docs/launch.md](docs/launch.md), the first-user
+dogfood pass lives in [docs/dogfood.md](docs/dogfood.md), and contributor
+validation lives in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Create a project config:
 
