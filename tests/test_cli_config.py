@@ -539,6 +539,49 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_summary_on_jsonl_points_to_suite_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "one", "response": "1"}\n'
+                    '{"prompt": "two", "response": "2"}\n',
+                    encoding="utf-8",
+                )
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = main(["summary", "baseline.jsonl"])
+
+                self.assertEqual(code, 2)
+                self.assertIn("expected one JSON object", stderr.getvalue())
+                self.assertIn("redline suite baseline.jsonl --out redline-suite.json", stderr.getvalue())
+            finally:
+                os.chdir(previous)
+
+    def test_cases_output_points_to_full_case_detail(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON for Ada", "response": "{\\"name\\":\\"Ada\\"}"}\n',
+                    encoding="utf-8",
+                )
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl", "--out", "suite.json"]), 0)
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["cases", "suite.json"]), 0)
+
+                self.assertIn("Next:", output.getvalue())
+                self.assertIn("redline case suite.json case_", output.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_suite_all_cases_rejects_max_cases(self) -> None:
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):

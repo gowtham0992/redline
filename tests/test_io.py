@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.io import append_jsonl, append_text, read_jsonl_records, read_jsonl_records_from_offset, write_jsonl
+from redline.io import append_jsonl, append_text, read_json, read_jsonl_records, read_jsonl_records_from_offset, write_jsonl
 
 
 class IoTests(unittest.TestCase):
@@ -21,6 +21,18 @@ class IoTests(unittest.TestCase):
     def test_missing_jsonl_file_raises_value_error(self) -> None:
         with self.assertRaisesRegex(ValueError, "not found"):
             read_jsonl_records("missing.jsonl", "prompt", "response")
+
+    def test_read_json_gives_jsonl_next_step_for_extra_data(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "baseline.jsonl"
+            path.write_text(
+                '{"prompt": "one", "response": "1"}\n'
+                '{"prompt": "two", "response": "2"}\n',
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "redline suite .* --out redline-suite.json"):
+                read_json(path)
 
     def test_append_jsonl_adds_rows_without_replacing_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
