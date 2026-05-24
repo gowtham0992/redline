@@ -48,6 +48,7 @@
 - Keep `redline init --help` focused on replay-capable runner adapters.
 - Show replay and log-import next steps after copying all adapters.
 - Keep top-level `redline --help` on the curated first-run path.
+- Keep comma-formatted numbers, percentages, and times readable in regression reasons.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.

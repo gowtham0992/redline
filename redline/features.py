@@ -24,7 +24,7 @@ _REFUSAL_RE = re.compile(
 _BULLET_RE = re.compile(r"(?m)^\s*[-*+]\s+")
 _NUMBERED_RE = re.compile(r"(?m)^\s*\d+[.)]\s+")
 _URL_RE = re.compile(r"https?://\S+")
-_NUMBER_RE = re.compile(r"(?<![\w.])-?\d+(?:\.\d+)?%?")
+_NUMBER_RE = re.compile(r"(?<![\w.])-?\d+(?:(?:,\d{3})+|:\d{2})?(?:\.\d+)?%?")
 _ENTITY_RE = re.compile(r"\b(?:[A-Z]{2,}(?:-[A-Z0-9]+)*|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b")
 _ENTITY_STOPWORDS = {
     "A",

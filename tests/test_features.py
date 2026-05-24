@@ -37,6 +37,14 @@ class FeatureTests(unittest.TestCase):
         self.assertEqual(features.url_count, 1)
         self.assertEqual(features.urls, ("https://example.com/docs",))
 
+    def test_extract_numbers_keeps_common_operational_formats(self) -> None:
+        features = extract_features("ARR is $82,000, errors rose to 7%, and status is due at 09:30 UTC.")
+
+        self.assertIn("82,000", features.numbers)
+        self.assertIn("7%", features.numbers)
+        self.assertIn("09:30", features.numbers)
+        self.assertNotIn("000", features.numbers)
+
     def test_refusal_detection_ignores_supportive_apologies(self) -> None:
         features = extract_features("I'm sorry you're experiencing this. Try resetting your password.")
 
