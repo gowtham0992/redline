@@ -37,6 +37,7 @@ dev = [
 
 [project.scripts]
 redline = "redline.cli:main"
+redline-mcp = "redline.mcp:main"
 
 [tool.setuptools.packages.find]
 include = ["redline*"]

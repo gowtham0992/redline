@@ -153,6 +153,10 @@ LiteLLM, HTTP, and framework examples.
 Log import adapters such as `jsonl-logs` are for building suites from exported
 logs, not for `redline eval` replay.
 
+Using an AI coding assistant? See [MCP server](docs/mcp.md) to let Claude,
+Codex, Cursor, Kiro, or another MCP client run local redline checks before it
+recommends shipping a prompt change.
+
 Or list the available adapters from the CLI:
 
 ```bash

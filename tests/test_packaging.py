@@ -12,6 +12,7 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(pyproject["project"]["name"], "redline-ai")
         self.assertEqual(pyproject["project"]["license"], "MIT")
         self.assertEqual(pyproject["project"]["scripts"]["redline"], "redline.cli:main")
+        self.assertEqual(pyproject["project"]["scripts"]["redline-mcp"], "redline.mcp:main")
         self.assertIn("Generate eval suites", pyproject["project"]["description"])
         self.assertEqual(pyproject["project"]["urls"]["Repository"], "https://github.com/gowtham0992/redline")
         self.assertNotIn(
@@ -197,6 +198,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline dashboard", changelog)
         self.assertIn("redline compare", changelog)
         self.assertIn("richer judge rubrics", changelog)
+        self.assertIn("redline-mcp", changelog)
         self.assertIn("public alpha launch playbook", changelog)
 
     def test_launch_playbook_covers_assets_and_feedback(self) -> None:
@@ -212,6 +214,19 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("false-negative", guide)
         self.assertIn("Do not add a desktop app", guide)
         self.assertIn("docs/launch.md", readme)
+
+    def test_mcp_docs_explain_local_agent_server(self) -> None:
+        guide = Path("docs/mcp.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn("redline-mcp", guide)
+        self.assertIn("local Model Context Protocol server", guide)
+        self.assertIn("redline_doctor", guide)
+        self.assertIn("redline_eval", guide)
+        self.assertIn("redline_diff", guide)
+        self.assertIn("does not expose baseline mutation commands", guide)
+        self.assertIn("Exit code `1` means redline found blocking regressions", guide)
+        self.assertIn("docs/mcp.md", readme)
 
     def test_github_issue_templates_collect_bug_and_dogfood_feedback(self) -> None:
         bug = Path(".github/ISSUE_TEMPLATE/bug_report.yml").read_text(encoding="utf-8")
