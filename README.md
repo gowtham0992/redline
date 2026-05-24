@@ -102,9 +102,10 @@ Regressions and missing outputs fail CI by default through `fail_on`; set
 `fail_on` to `"none"` during setup if you want report-only runs.
 Redline is deterministic and structural by default: it catches lost formats,
 keys, URLs, numbers, entities, refusals, empty outputs, code blocks, tables, and
-lists. It does not prove factual correctness, tone, hallucination safety, or
-subtle reasoning quality; add case requirements or an optional judge for those
-risks.
+lists. It also flags obvious allow/deny policy wording flips as `changed` so
+they get reviewed instead of disappearing as neutral text drift. It does not
+prove factual correctness, tone, hallucination safety, or subtle reasoning
+quality; add case requirements or an optional judge for those risks.
 
 Need to connect your app? See [runner adapters](docs/runners.md) for
 provider-neutral replay commands first, then optional OpenAI, Anthropic,
@@ -472,7 +473,8 @@ structure, refusal behavior, and length bucket. Cluster reports flag failure
 patterns such as empty outputs, refusals, invalid JSON for JSON requests, missing
 tables for table requests, and high length variance. Diff reports format
 regressions, newly empty answers, new refusals, missing JSON keys, lost numbers,
-and other high-signal behavioral changes.
+obvious allow/deny policy wording flips, and other high-signal behavioral
+changes.
 
 Optional judge commands are supported for ambiguous `changed` cases, but redline
 does not call any cloud model unless you explicitly configure that command. A

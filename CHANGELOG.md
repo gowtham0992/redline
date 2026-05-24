@@ -13,6 +13,7 @@
 - Emit JSON, Markdown, JUnit, GitHub summary, and GitHub annotation reports.
 - Write self-contained HTML diff/eval reports for side-by-side inspection.
 - Show the mark/accept review loop in the first-run demo so users can train the suite as prompts evolve.
+- Flag obvious allow/deny policy wording flips as changed cases instead of neutral drift.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.

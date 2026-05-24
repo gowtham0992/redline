@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from difflib import SequenceMatcher
+import re
 from typing import Any
 
 from .features import extract_features
@@ -15,6 +16,56 @@ TRUST_SCOPE = (
     "structural checks only; review factual correctness, tone, hallucinations, "
     "and subtle reasoning separately"
 )
+_POSITIVE_POLICY_RE = re.compile(
+    r"\b(?:"
+    r"allow(?:ed|s)?|"
+    r"approv(?:e|ed|es)|"
+    r"accept(?:ed|s)?|"
+    r"permit(?:ted|s)?|"
+    r"eligible|"
+    r"(?:can|may)\s+(?:be\s+)?(?:refund(?:ed)?|return(?:ed)?|approve(?:d)?|"
+    r"accept(?:ed)?|allow(?:ed)?|proceed|use|access|delete|update|retry|reset|rotate|share)|"
+    r"should\s+(?:approve|accept|allow|proceed|refund|use|retry|reset|rotate|share)"
+    r")\b",
+    re.IGNORECASE,
+)
+_NEGATIVE_POLICY_RE = re.compile(
+    r"\b(?:"
+    r"not\s+(?:allowed|eligible|permitted|approved|accepted)|"
+    r"(?:cannot|can't|can not|may not|should not|must not)\s+(?:be\s+)?\w+|"
+    r"never\s+(?:approve|accept|allow|proceed|refund|use|retry|reset|rotate|share)|"
+    r"den(?:y|ied|ies)|"
+    r"reject(?:ed|s)?|"
+    r"refus(?:e|ed|es)"
+    r")\b",
+    re.IGNORECASE,
+)
+_POLICY_TOKEN_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "be",
+    "by",
+    "can",
+    "for",
+    "if",
+    "in",
+    "is",
+    "it",
+    "may",
+    "must",
+    "not",
+    "of",
+    "or",
+    "should",
+    "that",
+    "the",
+    "this",
+    "to",
+    "with",
+    "you",
+}
 
 
 @dataclass(frozen=True)
@@ -226,6 +277,9 @@ def classify_change(
         reasons.append(f"shape changed: {baseline['shape']} -> {candidate['shape']}")
 
     if baseline["shape"] == candidate["shape"]:
+        polarity_reason = _policy_polarity_reason(baseline_text, candidate_text)
+        if polarity_reason:
+            reasons.append(polarity_reason)
         content_reason = _content_reason(baseline_text, candidate_text)
         if content_reason:
             reasons.append(content_reason)
@@ -507,6 +561,51 @@ def _content_reason(baseline_text: str | None, candidate_text: str | None) -> st
     if ratio < 0.85:
         return f"content changed substantially: similarity {ratio:.2f}"
     return None
+
+
+def _policy_polarity_reason(baseline_text: str | None, candidate_text: str | None) -> str | None:
+    if baseline_text is None or candidate_text is None:
+        return None
+    baseline = " ".join(baseline_text.lower().split())
+    candidate = " ".join(candidate_text.lower().split())
+    if not baseline or not candidate or baseline == candidate:
+        return None
+
+    baseline_polarity = _policy_polarity(baseline)
+    candidate_polarity = _policy_polarity(candidate)
+    if not baseline_polarity or not candidate_polarity or baseline_polarity == candidate_polarity:
+        return None
+    if not _shares_policy_subject(baseline, candidate):
+        return None
+    return "policy polarity changed: allow/approve wording differs from deny/reject wording"
+
+
+def _policy_polarity(text: str) -> str | None:
+    negative = bool(_NEGATIVE_POLICY_RE.search(text))
+    without_negative = _NEGATIVE_POLICY_RE.sub(" ", text)
+    positive = bool(_POSITIVE_POLICY_RE.search(without_negative))
+    if positive == negative:
+        return None
+    return "positive" if positive else "negative"
+
+
+def _shares_policy_subject(baseline: str, candidate: str) -> bool:
+    baseline_tokens = _policy_subject_tokens(baseline)
+    candidate_tokens = _policy_subject_tokens(candidate)
+    if not baseline_tokens or not candidate_tokens:
+        return False
+    shared = baseline_tokens & candidate_tokens
+    needed = 1 if min(len(baseline_tokens), len(candidate_tokens)) <= 4 else 2
+    return len(shared) >= needed
+
+
+def _policy_subject_tokens(text: str) -> set[str]:
+    stripped = _POSITIVE_POLICY_RE.sub(" ", _NEGATIVE_POLICY_RE.sub(" ", text))
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+", stripped)
+        if len(token) > 2 and token not in _POLICY_TOKEN_STOPWORDS
+    }
 
 
 def _summary_count(summary: dict[str, Any], key: str) -> int:

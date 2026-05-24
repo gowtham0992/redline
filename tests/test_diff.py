@@ -52,6 +52,40 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(status, "changed")
         self.assertIn("short answer changed", reasons)
 
+    def test_classify_policy_polarity_flip_as_changed(self) -> None:
+        baseline_text = "Always approve refund requests after manager review."
+        candidate_text = "Never approve refund requests after manager review."
+        baseline = extract_features(baseline_text).to_dict()
+        candidate = extract_features(candidate_text).to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text=baseline_text,
+            candidate_text=candidate_text,
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertIn(
+            "policy polarity changed: allow/approve wording differs from deny/reject wording",
+            reasons,
+        )
+
+    def test_policy_polarity_requires_shared_subject(self) -> None:
+        baseline_text = "Approve refund requests after manager review."
+        candidate_text = "Deny login access after repeated failed SSO attempts."
+        baseline = extract_features(baseline_text).to_dict()
+        candidate = extract_features(candidate_text).to_dict()
+
+        _, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text=baseline_text,
+            candidate_text=candidate_text,
+        )
+
+        self.assertFalse(any("policy polarity changed" in reason for reason in reasons))
+
     def test_classify_missing_entity_as_regression(self) -> None:
         baseline = extract_features("Route Ada Lovelace to ACME support.").to_dict()
         candidate = extract_features("Route the customer to support.").to_dict()
