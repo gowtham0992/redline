@@ -4,8 +4,9 @@
 
 [![CI](https://github.com/gowtham0992/redline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gowtham0992/redline/actions/workflows/ci.yml)
 [![GitHub Pages](https://github.com/gowtham0992/redline/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/gowtham0992/redline/actions/workflows/pages.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[Website](https://gowtham0992.github.io/redline/) · [Docs](#project-docs) · [MCP](docs/mcp.md) · [Security](SECURITY.md)
+[Website](https://gowtham0992.github.io/redline/) · [Docs](#project-docs) · [MCP](docs/mcp.md) · [Security](SECURITY.md) · [License](LICENSE)
 
 **Automatic eval suites from the prompt logs you already have.**
 
@@ -303,6 +304,7 @@ bash scripts/release_check.sh
 - [docs/repository.md](docs/repository.md): GitHub repository controls
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributor validation
 - [SECURITY.md](SECURITY.md): privacy and vulnerability reporting
+- [LICENSE](LICENSE): MIT open source license
 
 Website source for GitHub Pages lives in [site/](site/) and deploys from the
 committed static assets on `main`.

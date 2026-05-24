@@ -32,6 +32,7 @@ class PackagingTests(unittest.TestCase):
         self.assertTrue(Path("redline/py.typed").exists())
         manifest = Path("MANIFEST.in").read_text(encoding="utf-8")
 
+        self.assertIn("include LICENSE", manifest)
         self.assertIn("redline py.typed", manifest)
         self.assertIn("action.yml", manifest)
         self.assertIn("server.json", manifest)
@@ -42,6 +43,16 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("docs *.md *.jsonl", manifest)
         self.assertIn("scripts *.py *.sh", manifest)
         self.assertIn("site *.html *.css *.png *.svg *.gif", manifest)
+
+    def test_license_file_matches_package_metadata(self) -> None:
+        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        license_text = Path("LICENSE").read_text(encoding="utf-8")
+
+        self.assertEqual(pyproject["project"]["license"], "MIT")
+        self.assertIn("MIT License", license_text)
+        self.assertIn("Copyright (c) 2026 redline contributors", license_text)
+        self.assertIn("Permission is hereby granted, free of charge", license_text)
+        self.assertIn('THE SOFTWARE IS PROVIDED "AS IS"', license_text)
 
     def test_shell_scripts_are_executable(self) -> None:
         for script_name in (
@@ -182,6 +193,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("https://gowtham0992.github.io/redline/assets/redline-product-demo.gif", readme)
         self.assertIn("Automatic eval suites from the prompt logs you already have", readme)
         self.assertIn("Product Promise", readme)
+        self.assertIn("[![License: MIT]", readme)
+        self.assertIn("[License](LICENSE)", readme)
         self.assertIn("python -m pip install redline-ai", readme)
         self.assertIn("From a repo checkout, record the public demo", readme)
         self.assertIn("scripts/normalize_ai_session_logs.py", readme)

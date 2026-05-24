@@ -48,11 +48,16 @@ Do not ask users to attach raw prompt logs to public issues. Use sanitized or
 synthetic reproductions and point reporters to `SECURITY.md` for sensitive
 reports.
 
+## License
+
+Keep the repository license visible as MIT in `LICENSE`, `pyproject.toml`, the
+README badge, the PyPI package metadata, and the GitHub Pages resource links.
+
 ## GitHub Pages
 
 Deploy Pages from `site/` through `.github/workflows/pages.yml` on `main`.
 The site should link to the GitHub repo, CI status, contributor guide, security
-policy, and the quickstart.
+policy, MIT license, and the quickstart.
 
 ## Launch Check
 

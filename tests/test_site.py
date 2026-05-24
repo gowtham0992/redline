@@ -67,6 +67,10 @@ class GitHubPagesSiteTests(unittest.TestCase):
             parser.links,
         )
         self.assertIn(
+            "https://github.com/gowtham0992/redline/blob/main/LICENSE",
+            parser.links,
+        )
+        self.assertIn(
             ("assets/redline-preview.png", "redline terminal and dashboard preview showing four prompt regressions caught"),
             parser.images,
         )
