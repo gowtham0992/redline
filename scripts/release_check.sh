@@ -73,6 +73,13 @@ printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_pat
   printf '\n$ redline history --out history.jsonl\n'
   "$venv_dir/bin/redline" history --out history.jsonl
 
+  printf '\n$ redline dashboard --reports-dir .redline/demo/reports --history history.jsonl --out dashboard.html\n'
+  "$venv_dir/bin/redline" dashboard \
+    --reports-dir .redline/demo/reports \
+    --history history.jsonl \
+    --out dashboard.html
+  test -s dashboard.html
+
   printf '\n$ redline suite .redline/demo/baseline.jsonl --out all-suite.json --all-cases\n'
   "$venv_dir/bin/redline" suite .redline/demo/baseline.jsonl --out all-suite.json --all-cases
 

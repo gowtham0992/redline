@@ -33,6 +33,12 @@ For a GIF-friendly terminal view:
 redline demo --compact
 ```
 
+Write a local dashboard from reports and history:
+
+```bash
+redline dashboard --open
+```
+
 Run the larger public-pattern proof from any install:
 
 ```bash
@@ -310,6 +316,13 @@ python -m redline history .redline/reports/eval.json \
   --out-md .redline/history.md \
   --github-summary
 python -m redline history --out .redline/history.jsonl --out-md .redline/history.md
+```
+
+Render a self-contained local dashboard that links latest JSON, Markdown, and
+HTML reports plus recent trend entries:
+
+```bash
+python -m redline dashboard --out .redline/dashboard.html
 ```
 
 The generated GitHub Actions workflow also runs this comparison when

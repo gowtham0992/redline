@@ -26,6 +26,7 @@ Run the first five minutes exactly like a new user. Use the full dogfood pass in
 python -m pip install "git+https://github.com/gowtham0992/redline.git@develop"
 redline demo
 redline demo --public --compact
+redline dashboard --reports-dir .redline/demo/reports --out .redline/dashboard.html
 redline runners
 redline init --runner stdio --copy-runner
 redline doctor
@@ -33,6 +34,7 @@ redline doctor
 
 Confirm the demo ends with actionable next steps, shows the mark/accept review
 loop, and catches the intentional support-agent regressions. Confirm the
+dashboard opens as a self-contained local report index. Confirm the
 public-pattern proof works from the installed package without relying on
 repo-local `examples/` paths.
 

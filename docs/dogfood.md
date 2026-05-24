@@ -17,12 +17,14 @@ failure a stranger would hit.
 python -m pip install "git+https://github.com/gowtham0992/redline.git@develop"
 redline demo
 redline cases .redline/demo/suite.json
+redline dashboard --reports-dir .redline/demo/reports --out .redline/dashboard.html
 redline runners
 redline doctor
 ```
 
 Expected result: the demo catches realistic support-agent regressions, the next
-steps are obvious, and the first warning explains exactly what to run next.
+steps are obvious, the dashboard links reports cleanly, and the first warning
+explains exactly what to run next.
 
 ## Pass 2: Real Replay Setup
 
