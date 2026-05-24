@@ -198,6 +198,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("[![MCP Registry]", readme)
         self.assertIn("registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline", readme)
         self.assertIn("[![License: MIT]", readme)
+        self.assertIn("[![Stars](https://img.shields.io/github/stars/gowtham0992/redline?style=social)]", readme)
         self.assertIn("[License](LICENSE)", readme)
         self.assertIn("python -m pip install redline-ai", readme)
         self.assertIn("From a repo checkout, record the public demo", readme)

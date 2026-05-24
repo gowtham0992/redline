@@ -7,6 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/redline-ai.svg)](https://pypi.org/project/redline-ai/)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.gowtham0992%2Fredline-blue)](https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/gowtham0992/redline?style=social)](https://github.com/gowtham0992/redline/stargazers)
 
 [Website](https://gowtham0992.github.io/redline/) · [Docs](#project-docs) · [MCP](docs/mcp.md) · [MCP Registry](https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline) · [Security](SECURITY.md) · [License](LICENSE)
 
