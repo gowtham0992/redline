@@ -190,6 +190,7 @@ def build_parser() -> argparse.ArgumentParser:
     suite_add_parser.add_argument("--include", action="append", default=[], help="text candidate output must include")
     suite_add_parser.add_argument("--exclude", action="append", default=[], help="text candidate output must not include")
     suite_add_parser.add_argument("--note", default="", help="short reason for pinning the case")
+    suite_add_parser.add_argument("--allow-duplicate", action="store_true", help="pin even when the exact prompt-response pair already exists")
     suite_add_parser.add_argument("--out", help="write updated suite to a new path")
     suite_add_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     suite_add_parser.set_defaults(func=cmd_suite_add)
@@ -583,6 +584,7 @@ def cmd_suite_add(args: argparse.Namespace) -> int:
         source="manual",
         case_id=args.case_id,
         note=args.note,
+        allow_duplicate=args.allow_duplicate,
     )
     requirements = None
     if args.include or args.exclude:

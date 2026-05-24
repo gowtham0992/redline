@@ -515,6 +515,72 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_suite_add_rejects_duplicate_prompt_response_pair(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl", "--out", "suite.json"]), 0)
+
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = main(
+                        [
+                            "suite",
+                            "add",
+                            "suite.json",
+                            "--prompt",
+                            "Return JSON",
+                            "--response",
+                            '{"ok": true}',
+                        ]
+                    )
+
+                self.assertEqual(code, 2)
+                self.assertIn("duplicate prompt-response pair", stderr.getvalue())
+                self.assertIn("--allow-duplicate", stderr.getvalue())
+            finally:
+                os.chdir(previous)
+
+    def test_suite_add_can_allow_duplicate_prompt_response_pair(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl", "--out", "suite.json"]), 0)
+                    self.assertEqual(
+                        main(
+                            [
+                                "suite",
+                                "add",
+                                "suite.json",
+                                "--prompt",
+                                "Return JSON",
+                                "--response",
+                                '{"ok": true}',
+                                "--allow-duplicate",
+                            ]
+                        ),
+                        0,
+                    )
+
+                suite = json.loads(Path("suite.json").read_text(encoding="utf-8"))
+                self.assertEqual(suite["summary"]["cases"], 2)
+            finally:
+                os.chdir(previous)
+
     def test_suite_add_reads_prompt_and_response_files(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

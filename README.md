@@ -292,6 +292,10 @@ python -m redline suite add redline-suite.json \
   --include "https://example.com/policy/refunds"
 ```
 
+`suite add` refuses exact duplicate prompt-response pairs and prints the
+existing case ID. Pass `--allow-duplicate` only when you intentionally want a
+second pinned case for the same prompt and baseline response.
+
 Or generate it from the locally collected watch log:
 
 ```bash

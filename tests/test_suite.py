@@ -180,6 +180,42 @@ class SuiteTests(unittest.TestCase):
                 case_id=case_id,
             )
 
+    def test_add_suite_case_refuses_duplicate_prompt_response_pair(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        existing_id = suite["cases"][0]["id"]
+
+        with self.assertRaisesRegex(ValueError, f"already covered by {existing_id}"):
+            add_suite_case(
+                suite,
+                prompt="Return JSON",
+                baseline_response='{"ok": true}',
+            )
+
+    def test_add_suite_case_can_allow_duplicate_prompt_response_pair(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        case = add_suite_case(
+            suite,
+            prompt="Return JSON",
+            baseline_response='{"ok": true}',
+            allow_duplicate=True,
+        )
+
+        self.assertEqual(suite["summary"]["cases"], 2)
+        self.assertNotEqual(case["id"], suite["cases"][0]["id"])
+
 
 if __name__ == "__main__":
     unittest.main()

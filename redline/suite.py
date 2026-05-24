@@ -99,6 +99,7 @@ def add_suite_case(
     source_line: int | None = None,
     case_id: str | None = None,
     note: str = "",
+    allow_duplicate: bool = False,
 ) -> dict[str, Any]:
     prompt = prompt.strip()
     if not prompt:
@@ -123,6 +124,14 @@ def add_suite_case(
     if new_id in existing_ids:
         raise ValueError(f"case id already exists: {new_id}")
 
+    content_hash = prompt_response_hash(prompt, baseline_response)
+    duplicate_id = _duplicate_case_id(cases, prompt, baseline_response, content_hash)
+    if duplicate_id and not allow_duplicate:
+        raise ValueError(
+            f"duplicate prompt-response pair already covered by {duplicate_id}; "
+            "pass --allow-duplicate to pin it anyway"
+        )
+
     features = extract_features(baseline_response)
     signature = _behavior_signature(prompt, features)
     case: dict[str, Any] = {
@@ -132,7 +141,7 @@ def add_suite_case(
         "cluster": signature,
         "prompt": prompt,
         "baseline_response": baseline_response,
-        "content_hash": prompt_response_hash(prompt, baseline_response),
+        "content_hash": content_hash,
         "features": features.to_dict(),
         "pinned": True,
         "added_at": datetime.now(timezone.utc).isoformat(),
@@ -190,6 +199,25 @@ def _unique_prompt_response_records(records: list[LogRecord]) -> list[LogRecord]
         seen.add(key)
         unique.append(record)
     return unique
+
+
+def _duplicate_case_id(
+    cases: list[Any],
+    prompt: str,
+    baseline_response: str,
+    content_hash: str,
+) -> str | None:
+    for case in cases:
+        if not isinstance(case, dict):
+            continue
+        case_id = case.get("id")
+        if not isinstance(case_id, str) or not case_id:
+            continue
+        if case.get("content_hash") == content_hash:
+            return case_id
+        if case.get("prompt") == prompt and case.get("baseline_response") == baseline_response:
+            return case_id
+    return None
 
 
 def _median_length_record(group: list[LogRecord]) -> LogRecord:
