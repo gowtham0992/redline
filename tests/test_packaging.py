@@ -237,6 +237,22 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("bash scripts/action_smoke.sh", workflow)
         self.assertIn('bash scripts/build_release.sh "$RUNNER_TEMP/redline-dist"', workflow)
 
+    def test_release_workflow_builds_artifacts_without_publishing(self) -> None:
+        workflow = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
+        guide = Path("docs/release.md").read_text(encoding="utf-8")
+
+        self.assertIn("- \"v*\"", workflow)
+        self.assertIn("actions/setup-python@v5", workflow)
+        self.assertIn('cache: "pip"', workflow)
+        self.assertIn('python -m pip install -e ".[dev]"', workflow)
+        self.assertIn('bash scripts/certify_release.sh "$RUNNER_TEMP/redline-certify"', workflow)
+        self.assertIn("actions/upload-artifact@v4", workflow)
+        self.assertIn("redline-release-distributions", workflow)
+        self.assertIn("redline-release-certification", workflow)
+        self.assertNotIn("pypa/gh-action-pypi-publish", workflow)
+        self.assertIn("Release Artifacts", guide)
+        self.assertIn("It does not publish to PyPI", guide)
+
     def test_dependabot_tracks_actions_and_python_tooling(self) -> None:
         config = Path(".github/dependabot.yml").read_text(encoding="utf-8")
 

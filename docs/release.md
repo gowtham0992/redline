@@ -85,7 +85,10 @@ git push origin v0.1.0
 ```
 
 Use a new tag for every public release. Do not move an existing release tag
-after it has been pushed.
+after it has been pushed. Pushing a `v*` tag also runs the Release Artifacts
+workflow, which certifies the release and uploads the wheel, source
+distribution, and certification summary as GitHub Actions artifacts.
+It does not publish to PyPI.
 
 ## Publish
 
