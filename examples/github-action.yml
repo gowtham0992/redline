@@ -70,6 +70,10 @@ jobs:
             echo "No redline eval report found at .redline/reports/eval.json; skipping history."
           fi
 
+      - name: Render redline dashboard
+        if: always()
+        run: python -m redline dashboard --out .redline/dashboard.html
+
       - name: Upload redline reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -79,3 +83,4 @@ jobs:
             .redline/reports/
             .redline/history.jsonl
             .redline/history.md
+            .redline/dashboard.html

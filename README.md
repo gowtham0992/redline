@@ -328,8 +328,9 @@ python -m redline dashboard --out .redline/dashboard.html
 
 The generated GitHub Actions workflow also runs this comparison when
 `.redline/reports/eval-before.json` exists, records `.redline/history.jsonl`,
-renders `.redline/history.md`, appends the trend table to the job summary, then
-uploads the history and report artifacts.
+renders `.redline/history.md` and `.redline/dashboard.html`, appends the trend
+table to the job summary, then uploads the history, dashboard, and report
+artifacts.
 
 In GitHub Actions, append the Markdown report to the job summary:
 

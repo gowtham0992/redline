@@ -16,6 +16,7 @@
 - Flag obvious allow/deny policy wording flips as changed cases instead of neutral drift.
 - Add `redline dashboard` for a self-contained local HTML index of reports and trend history.
 - Add HTML output for `redline compare` so trend comparisons are inspectable in CI artifacts.
+- Render and upload `.redline/dashboard.html` from the generated GitHub Actions workflow.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.

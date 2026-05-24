@@ -28,6 +28,8 @@ class CiTests(unittest.TestCase):
         self.assertIn(".redline/history.jsonl", workflow)
         self.assertIn("--out-md .redline/history.md", workflow)
         self.assertIn(".redline/history.md", workflow)
+        self.assertIn("python -m redline dashboard --out .redline/dashboard.html", workflow)
+        self.assertIn(".redline/dashboard.html", workflow)
         self.assertIn("--github-summary", workflow)
         self.assertIn("actions/upload-artifact@v4", workflow)
 
