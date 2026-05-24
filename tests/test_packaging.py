@@ -236,6 +236,16 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("bash scripts/action_smoke.sh", workflow)
         self.assertIn('bash scripts/build_release.sh "$RUNNER_TEMP/redline-dist"', workflow)
 
+    def test_dependabot_tracks_actions_and_python_tooling(self) -> None:
+        config = Path(".github/dependabot.yml").read_text(encoding="utf-8")
+
+        self.assertIn('package-ecosystem: "github-actions"', config)
+        self.assertIn('package-ecosystem: "pip"', config)
+        self.assertEqual(config.count('interval: "weekly"'), 2)
+        self.assertIn('"dependencies"', config)
+        self.assertIn('"github-actions"', config)
+        self.assertIn('"python"', config)
+
     def test_contributor_docs_require_dogfood_and_validation(self) -> None:
         guide = Path("CONTRIBUTING.md").read_text(encoding="utf-8")
         template = Path(".github/pull_request_template.md").read_text(encoding="utf-8")
