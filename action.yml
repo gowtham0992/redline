@@ -21,6 +21,15 @@ inputs:
   extra-args:
     description: Extra arguments appended to redline eval.
     default: ""
+  record-history:
+    description: Append eval results to .redline/history.jsonl and GitHub summary.
+    default: "true"
+  history-label:
+    description: Label for the history entry. Defaults to GITHUB_SHA when empty.
+    default: ""
+  render-dashboard:
+    description: Render .redline/dashboard.html after eval.
+    default: "true"
 
 runs:
   using: composite
@@ -59,4 +68,28 @@ runs:
           extra_args=( ${{ inputs.extra-args }} )
           eval_args+=("${extra_args[@]}")
         fi
+
+        set +e
         python -m redline eval "${eval_args[@]}"
+        redline_status=$?
+        set -e
+
+        if [ "${{ inputs.record-history }}" = "true" ] && [ -f .redline/reports/eval.json ]; then
+          history_label="${{ inputs.history-label }}"
+          if [ -z "$history_label" ]; then
+            history_label="${GITHUB_SHA:-redline-action}"
+          fi
+          python -m redline history \
+            .redline/reports/eval.json \
+            --label "$history_label" \
+            --out .redline/history.jsonl \
+            --out-md .redline/history.md \
+            --github-summary \
+            --fail-on none
+        fi
+
+        if [ "${{ inputs.render-dashboard }}" = "true" ]; then
+          python -m redline dashboard --out .redline/dashboard.html
+        fi
+
+        exit "$redline_status"

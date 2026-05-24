@@ -7,7 +7,14 @@ import unittest
 from pathlib import Path
 
 from redline.cli import main
-from redline.history import format_history, format_markdown_history, history_entry, history_trend
+from redline.history import (
+    format_history,
+    format_markdown_history,
+    history_entry,
+    history_trend,
+    parse_history_fail_on,
+    should_fail_history,
+)
 
 
 class HistoryTests(unittest.TestCase):
@@ -159,6 +166,58 @@ class HistoryTests(unittest.TestCase):
 
         self.assertEqual(payload["trend"]["direction"], "better")
         self.assertEqual(payload["trend"]["delta"]["blocking"], -1)
+
+    def test_parse_history_fail_on_accepts_directions_and_none(self) -> None:
+        self.assertEqual(parse_history_fail_on("worse,more_changed"), {"worse", "more_changed"})
+        self.assertEqual(parse_history_fail_on("none"), set())
+
+    def test_parse_history_fail_on_rejects_unknown_direction(self) -> None:
+        with self.assertRaisesRegex(ValueError, "history --fail-on"):
+            parse_history_fail_on("regression")
+
+    def test_should_fail_history_uses_trend_direction(self) -> None:
+        trend = {"direction": "worse"}
+
+        self.assertTrue(should_fail_history(trend, {"worse"}))
+        self.assertFalse(should_fail_history(trend, {"better"}))
+
+    def test_cli_history_fail_on_uses_trend_direction(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            history = root / "history.jsonl"
+            history.write_text(
+                "\n".join(
+                    [
+                        json.dumps(
+                            {
+                                "version": "0.1",
+                                "timestamp": "2026-05-23T12:00:00Z",
+                                "label": "prompt-v1",
+                                "report": "eval-v1.json",
+                                "summary": {"cases": 4, "regression": 0, "missing": 0},
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "version": "0.1",
+                                "timestamp": "2026-05-23T13:00:00Z",
+                                "label": "prompt-v2",
+                                "report": "eval-v2.json",
+                                "summary": {"cases": 4, "regression": 1, "missing": 0},
+                            }
+                        ),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = main(["history", "--out", str(history), "--fail-on", "worse"])
+
+        self.assertEqual(code, 1)
+        self.assertIn("Trend: WORSE", output.getvalue())
 
     def test_cli_writes_markdown_history(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

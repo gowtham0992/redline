@@ -116,6 +116,10 @@ Or use redline as a composite GitHub Action from another repo:
     prompt-path: prompts/v2.txt
 ```
 
+The composite action writes JSON, Markdown, HTML, JUnit, history, and dashboard
+artifacts under `.redline/`, appends the report and trend summary to the GitHub
+step summary, and still exits with the eval gate status.
+
 Or choose a built-in runner adapter:
 
 ```bash
@@ -430,7 +434,12 @@ python -m redline history --out .redline/history.jsonl --out-md .redline/history
 `history` now prints a trend diagnosis before the run table. It compares the
 latest two entries by blocking cases (`regression + missing`), shows whether the
 suite is getting better, worse, or flat, and gives the next action before you
-accept a new baseline.
+accept a new baseline. Use `--fail-on worse` when a CI job should fail on a
+worsening trend:
+
+```bash
+python -m redline history --out .redline/history.jsonl --fail-on worse
+```
 
 Render a self-contained local dashboard that links latest JSON, Markdown, and
 HTML reports plus recent trend entries:

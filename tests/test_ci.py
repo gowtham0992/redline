@@ -45,10 +45,18 @@ class CiTests(unittest.TestCase):
 
         self.assertIn("using: composite", action)
         self.assertIn("prompt-path:", action)
+        self.assertIn("record-history:", action)
+        self.assertIn("history-label:", action)
+        self.assertIn("render-dashboard:", action)
         self.assertIn("python -m pip install", action)
         self.assertIn("python -m redline doctor", action)
         self.assertIn("python -m redline validate", action)
         self.assertIn("python -m redline eval", action)
+        self.assertIn("redline_status=$?", action)
+        self.assertIn("python -m redline history", action)
+        self.assertIn("--fail-on none", action)
+        self.assertIn("python -m redline dashboard --out .redline/dashboard.html", action)
+        self.assertIn('exit "$redline_status"', action)
         self.assertIn("--github-summary", action)
         self.assertIn("--github-annotations", action)
 

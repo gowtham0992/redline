@@ -20,6 +20,8 @@
 - Add HTML output for `redline compare` so trend comparisons are inspectable in CI artifacts.
 - Render and upload `.redline/dashboard.html` from the generated GitHub Actions workflow.
 - Add a composite GitHub Action entrypoint for running redline in external repos.
+- Preserve eval reports, trend history, and dashboard output from the composite GitHub Action before returning the eval status.
+- Allow `redline history --fail-on` to gate CI on worsening trend directions.
 - Add richer judge rubrics for support, structured extraction, and safety/compliance review.
 - Add repeatable demo GIF tooling with VHS/asciinema support and a transcript fallback.
 - Add a public alpha launch playbook with positioning, asset checklist, launch copy, and feedback triage.

@@ -25,6 +25,15 @@ SUMMARY_KEYS = (
 )
 
 TREND_VERSION = "0.1"
+HISTORY_DIRECTIONS = (
+    "worse",
+    "better",
+    "flat",
+    "baseline",
+    "no_history",
+    "more_changed",
+    "less_changed",
+)
 
 
 def history_entry(
@@ -164,6 +173,23 @@ def format_history_trend(trend: dict[str, Any]) -> str:
     summary = str(trend.get("summary") or "-")
     recommendation = str(trend.get("recommendation") or "-")
     return f"Trend: {direction} - {summary}. {recommendation}."
+
+
+def parse_history_fail_on(value: str | None) -> set[str]:
+    if value is None or value == "":
+        return set()
+    if value.strip().lower() == "none":
+        return set()
+    directions = {item.strip().lower() for item in value.split(",") if item.strip()}
+    unknown = sorted(directions - set(HISTORY_DIRECTIONS))
+    if unknown:
+        allowed = ", ".join(sorted(set(HISTORY_DIRECTIONS) | {"none"}))
+        raise ValueError(f"history --fail-on must use: {allowed}")
+    return directions
+
+
+def should_fail_history(trend: dict[str, Any], fail_on: set[str]) -> bool:
+    return str(trend.get("direction") or "") in fail_on
 
 
 def _summary_counts(summary: dict[str, Any]) -> dict[str, int]:

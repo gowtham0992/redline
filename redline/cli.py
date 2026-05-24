@@ -28,7 +28,15 @@ from .dashboard import build_dashboard, format_dashboard_html
 from .demo import format_demo, run_demo
 from .diff import DIFF_PROFILES, compare_suite_to_candidate, format_compact_report, format_report
 from .doctor import doctor_report, format_doctor_report
-from .history import format_history, format_markdown_history, history_entry, history_trend, read_history
+from .history import (
+    format_history,
+    format_markdown_history,
+    history_entry,
+    history_trend,
+    parse_history_fail_on,
+    read_history,
+    should_fail_history,
+)
 from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judge import apply_judge
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
@@ -277,6 +285,11 @@ def build_parser() -> argparse.ArgumentParser:
     history_parser.add_argument("--label", default="", help="label for an appended report")
     history_parser.add_argument("--limit", type=int, default=10, help="entries to show; use 0 for all")
     history_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    history_parser.add_argument(
+        "--fail-on",
+        default=None,
+        help="comma-separated trend directions that produce exit code 1; use 'none' for report-only",
+    )
     history_parser.set_defaults(func=cmd_history)
 
     dashboard_parser = subparsers.add_parser("dashboard", help="write a local HTML report dashboard")
@@ -752,7 +765,8 @@ def cmd_history(args: argparse.Namespace) -> int:
             print(f"Recorded {Path(args.report)} in {Path(args.out)}.")
             print()
         print(format_history(entries, limit=limit), end="")
-    return 0
+    fail_on = parse_history_fail_on(args.fail_on)
+    return 1 if should_fail_history(trend, fail_on) else 0
 
 
 def cmd_dashboard(args: argparse.Namespace) -> int:
