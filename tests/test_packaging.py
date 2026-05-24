@@ -166,6 +166,9 @@ class PackagingTests(unittest.TestCase):
 
         self.assertIn("From a repo checkout, record the public demo", readme)
         self.assertIn("scripts/normalize_ai_session_logs.py", readme)
+        self.assertIn("python -m pytest -q", readme)
+        self.assertIn("python -m ruff check .", readme)
+        self.assertIn("python -m mypy redline tests scripts examples", readme)
 
     def test_private_product_docs_stay_ignored(self) -> None:
         ignore = Path(".gitignore").read_text(encoding="utf-8")

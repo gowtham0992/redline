@@ -83,7 +83,9 @@ For local development on redline itself:
 
 ```bash
 python -m pip install -e ".[dev]"
-python -m unittest discover
+python -m pytest -q
+python -m ruff check .
+python -m mypy redline tests scripts examples
 ```
 
 Before cutting a release or asking someone else to try a branch, run the full
