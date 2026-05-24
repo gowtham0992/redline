@@ -49,6 +49,8 @@
 - Show replay and log-import next steps after copying all adapters.
 - Keep top-level `redline --help` on the curated first-run path.
 - Keep comma-formatted numbers, percentages, and times readable in regression reasons.
+- Preserve baseline order when reporting missing numbers, URLs, and entities.
+- Strip trailing sentence punctuation from extracted URLs.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.

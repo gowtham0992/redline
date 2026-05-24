@@ -247,7 +247,7 @@ def classify_change(
         elif not baseline[feature] and candidate[feature]:
             reasons.append(f"candidate added {label} structure")
 
-    lost_numbers = sorted(set(baseline.get("numbers") or []) - set(candidate.get("numbers") or []))
+    lost_numbers = _missing_values(baseline.get("numbers"), candidate.get("numbers"))
     if lost_numbers:
         _append_loss_reason(
             profile,
@@ -256,11 +256,11 @@ def classify_change(
             f"candidate missing numbers: {', '.join(lost_numbers[:8])}",
         )
 
-    lost_urls = sorted(set(baseline.get("urls") or []) - set(candidate.get("urls") or []))
+    lost_urls = _missing_values(baseline.get("urls"), candidate.get("urls"))
     if lost_urls:
         regression_reasons.append(f"candidate missing URLs: {', '.join(lost_urls[:4])}")
 
-    lost_entities = sorted(set(baseline.get("entities") or []) - set(candidate.get("entities") or []))
+    lost_entities = _missing_values(baseline.get("entities"), candidate.get("entities"))
     if lost_entities:
         _append_loss_reason(
             profile,
@@ -303,6 +303,25 @@ def _append_loss_reason(
         reasons.append(reason)
     else:
         regression_reasons.append(reason)
+
+
+def _missing_values(baseline_values: object, candidate_values: object) -> list[str]:
+    baseline_items = _string_sequence(baseline_values)
+    candidate_items = set(_string_sequence(candidate_values))
+    missing: list[str] = []
+    seen: set[str] = set()
+    for value in baseline_items:
+        if value in candidate_items or value in seen:
+            continue
+        missing.append(value)
+        seen.add(value)
+    return missing
+
+
+def _string_sequence(value: object) -> list[str]:
+    if not isinstance(value, (list, tuple, set)):
+        return []
+    return [str(item) for item in value]
 
 
 def _diff_profile(value: str) -> str:

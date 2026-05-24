@@ -163,7 +163,7 @@ def extract_features(text: str) -> TextFeatures:
     has_numbered = bool(_NUMBERED_RE.search(text))
     has_table = _looks_like_markdown_table(text)
     refusal = _has_refusal(text)
-    urls = tuple(_URL_RE.findall(text))
+    urls = tuple(_clean_url(url) for url in _URL_RE.findall(text))
     numbers = tuple(_NUMBER_RE.findall(text))
     entities = _entities(text)
     length_bucket = _length_bucket(len(words))
@@ -292,6 +292,10 @@ def _has_refusal(text: str) -> bool:
         if checked >= 3:
             return False
     return False
+
+
+def _clean_url(value: str) -> str:
+    return value.rstrip(".,;:!?)")
 
 
 def _entities(text: str) -> tuple[str, ...]:

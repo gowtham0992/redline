@@ -130,6 +130,23 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(status, "changed")
         self.assertTrue(any("candidate missing numbers" in reason for reason in reasons))
 
+    def test_missing_value_reasons_follow_baseline_order(self) -> None:
+        baseline = extract_features(
+            "Use limits 100 then 2. See https://b.example and https://a.example."
+        ).to_dict()
+        candidate = extract_features("Use the defaults.").to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text="Use limits 100 then 2. See https://b.example and https://a.example.",
+            candidate_text="Use the defaults.",
+        )
+
+        self.assertEqual(status, "regression")
+        self.assertIn("candidate missing numbers: 100, 2", reasons)
+        self.assertIn("candidate missing URLs: https://b.example, https://a.example", reasons)
+
     def test_review_profile_keeps_json_regressions_blocking(self) -> None:
         baseline = extract_features('{"name":"Ada","status":"active"}').to_dict()
         candidate = extract_features('{"name":"Ada"').to_dict()

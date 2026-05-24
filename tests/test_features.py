@@ -37,6 +37,11 @@ class FeatureTests(unittest.TestCase):
         self.assertEqual(features.url_count, 1)
         self.assertEqual(features.urls, ("https://example.com/docs",))
 
+    def test_extract_urls_strips_sentence_punctuation(self) -> None:
+        features = extract_features("Read https://example.com/docs, then https://example.com/refunds.")
+
+        self.assertEqual(features.urls, ("https://example.com/docs", "https://example.com/refunds"))
+
     def test_extract_numbers_keeps_common_operational_formats(self) -> None:
         features = extract_features("ARR is $82,000, errors rose to 7%, and status is due at 09:30 UTC.")
 
