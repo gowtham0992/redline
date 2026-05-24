@@ -748,6 +748,7 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
         print(f"Wrote {Path(args.out)}.")
         print(f"Reports: {len(dashboard['reports'])}")
         print(f"History: {len(dashboard['history'])}")
+        print(f"Warnings: {len(dashboard.get('errors', []))}")
         if args.open:
             print("Opened dashboard in the default browser.")
         else:

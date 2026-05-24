@@ -19,14 +19,15 @@ def build_dashboard(
 ) -> dict[str, Any]:
     if limit < 0:
         raise ValueError("dashboard --limit must be 0 or greater")
-    reports = _collect_reports(Path(reports_dir), limit=limit)
-    history = _collect_history(Path(history_path), limit=limit)
+    reports, report_errors = _collect_reports(Path(reports_dir), limit=limit)
+    history, history_errors = _collect_history(Path(history_path), limit=limit)
     return {
         "version": "0.1",
         "reports_dir": str(reports_dir),
         "history_path": str(history_path),
         "reports": reports,
         "history": history,
+        "errors": report_errors + history_errors,
         "scope": TRUST_SCOPE,
     }
 
@@ -43,6 +44,9 @@ def format_dashboard_html(
     history = dashboard.get("history")
     if not isinstance(history, list):
         history = []
+    errors = dashboard.get("errors")
+    if not isinstance(errors, list):
+        errors = []
     latest = reports[0] if reports and isinstance(reports[0], dict) else {}
     return "\n".join(
         [
@@ -64,6 +68,7 @@ def format_dashboard_html(
             "</header>",
             _overview(latest, len(reports), len(history)),
             _scope(str(dashboard.get("scope") or TRUST_SCOPE)),
+            _errors(errors),
             _reports_table(reports, output_path=output_path),
             _history_table(history, output_path=output_path),
             "</main>",
@@ -74,9 +79,9 @@ def format_dashboard_html(
     )
 
 
-def _collect_reports(reports_dir: Path, *, limit: int) -> list[dict[str, Any]]:
+def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     if not reports_dir.exists():
-        return []
+        return [], []
     report_paths = sorted(
         (path for path in reports_dir.glob("*.json") if path.is_file()),
         key=lambda path: (path.stat().st_mtime, path.name),
@@ -86,10 +91,16 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> list[dict[str, Any]]:
         report_paths = report_paths[:limit]
 
     reports = []
+    errors = []
     for path in report_paths:
-        report = read_json(path)
+        try:
+            report = read_json(path)
+        except ValueError as exc:
+            errors.append({"path": str(path), "message": str(exc)})
+            continue
         summary = report.get("summary")
         if not isinstance(summary, dict):
+            errors.append({"path": str(path), "message": "missing summary object"})
             continue
         reports.append(
             {
@@ -102,16 +113,19 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> list[dict[str, Any]]:
                 "markdown_path": _existing_sibling(path, ".md"),
             }
         )
-    return reports
+    return reports, errors
 
 
-def _collect_history(history_path: Path, *, limit: int) -> list[dict[str, Any]]:
+def _collect_history(history_path: Path, *, limit: int) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     if not history_path.exists():
-        return []
-    entries = read_history(history_path)
+        return [], []
+    try:
+        entries = read_history(history_path)
+    except ValueError as exc:
+        return [], [{"path": str(history_path), "message": str(exc)}]
     if limit:
         entries = entries[-limit:]
-    return list(reversed(entries))
+    return list(reversed(entries)), []
 
 
 def _report_kind(report: dict[str, Any], path: Path) -> str:
@@ -172,6 +186,25 @@ def _scope(scope: str) -> str:
         '<section class="notice">'
         "<h2>Trust Scope</h2>"
         f"<p>{_h(scope)}</p>"
+        "</section>"
+    )
+
+
+def _errors(errors: list[Any]) -> str:
+    rows = []
+    for error in errors:
+        if not isinstance(error, dict):
+            continue
+        path = str(error.get("path") or "-")
+        message = str(error.get("message") or "unknown error")
+        rows.append(f"<li><code>{_h(path)}</code>: {_h(message)}</li>")
+    if not rows:
+        return ""
+    return (
+        '<section class="panel warning">'
+        "<h2>Skipped Files</h2>"
+        "<p>Some local files could not be rendered as redline reports.</p>"
+        f"<ul>{''.join(rows)}</ul>"
         "</section>"
     )
 
@@ -326,6 +359,9 @@ h2 { font-size: 18px; margin-bottom: 12px; }
   margin-bottom: 18px;
 }
 .notice { border-left: 4px solid var(--accent); }
+.warning { border-left: 4px solid var(--warn); }
+.warning p { color: var(--muted); margin-bottom: 8px; }
+.warning ul { margin: 0; padding-left: 20px; }
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

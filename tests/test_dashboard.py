@@ -74,6 +74,23 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;.json", html)
         self.assertIn("&lt;b&gt;ship&lt;/b&gt;", html)
 
+    def test_dashboard_skips_invalid_local_files_with_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / ".redline" / "reports"
+            reports.mkdir(parents=True)
+            (reports / "bad.json").write_text("{not json\n", encoding="utf-8")
+            write_json(reports / "note.json", {"not": "a redline report"})
+
+            dashboard = build_dashboard(reports_dir=reports, history_path=root / "missing.jsonl")
+            html = format_dashboard_html(dashboard)
+
+            self.assertEqual(dashboard["reports"], [])
+            self.assertEqual(len(dashboard["errors"]), 2)
+            self.assertIn("Skipped Files", html)
+            self.assertIn("bad.json", html)
+            self.assertIn("missing summary object", html)
+
     def test_cli_writes_dashboard_html(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
