@@ -44,6 +44,7 @@
 - Warn from `redline doctor` when copied runner adapters are missing required environment variables.
 - Prevent log import adapters from being configured as eval replay runners.
 - Explain from `redline doctor` when a log adapter is manually configured as replay.
+- Print setup and next-step commands after copying a single runner or log adapter.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.

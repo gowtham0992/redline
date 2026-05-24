@@ -456,6 +456,8 @@ def cmd_runners(args: argparse.Namespace) -> int:
         else:
             print(f"Wrote {Path(result['path'])}.")
             print(f"{_adapter_command_label(result).title()}: {result['replay']}")
+            print(f"Setup:  {result['setup']}")
+            print(f"Next:   {result['next']}")
         return 0
     adapters = runner_adapters()
     if args.json:

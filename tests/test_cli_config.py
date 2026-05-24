@@ -91,7 +91,28 @@ class CliConfigTests(unittest.TestCase):
                 )
 
             self.assertTrue((root / "openai.sh").exists())
-            self.assertIn("Replay:", output.getvalue())
+            text = output.getvalue()
+            self.assertIn("Replay:", text)
+            self.assertIn("Setup:  Set OPENAI_API_KEY", text)
+            self.assertIn("Next:   Configure replay: redline init --replay", text)
+
+    def test_runners_command_prints_log_adapter_next_step(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(["runners", "--copy", "jsonl-logs", "--out", str(root / "adapter.py")]),
+                    0,
+                )
+
+            self.assertTrue((root / "adapter.py").exists())
+            text = output.getvalue()
+            self.assertIn("Command:", text)
+            self.assertIn("Setup:  Export app logs as JSONL", text)
+            self.assertIn("Next:   Run adapter command, then build a suite", text)
+            self.assertIn("redline suite .redline/logs/prompts.jsonl", text)
 
     def test_runners_command_can_copy_all_adapters(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

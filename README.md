@@ -145,6 +145,8 @@ Copy a provider-neutral runner into your project:
 redline runners --copy stdio
 ```
 
+Copying one adapter prints its setup requirement and the next command to run.
+
 Or copy every built-in adapter:
 
 ```bash

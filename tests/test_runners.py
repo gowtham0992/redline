@@ -68,9 +68,19 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(result["id"], "openai")
             self.assertEqual(result["path"], str(output))
             self.assertIn("OPENAI_API_KEY", result["setup"])
+            self.assertIn("redline init --replay", result["next"])
             self.assertTrue(output.exists())
             self.assertIn("OPENAI_API_KEY", output.read_text(encoding="utf-8"))
             self.assertTrue(output.stat().st_mode & 0o111)
+
+    def test_copy_log_adapter_returns_suite_next_step(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "jsonl_log_adapter.py"
+
+            result = copy_runner_adapter("jsonl-logs", output=str(output))
+
+            self.assertEqual(result["kind"], "log")
+            self.assertIn("redline suite .redline/logs/prompts.jsonl", result["next"])
 
     def test_copy_runner_adapter_refuses_existing_without_force(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

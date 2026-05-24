@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -129,13 +130,15 @@ def copy_runner_adapter(
         current_mode = target.stat().st_mode
         target.chmod(current_mode | 0o755)
 
+    command = _replay_for_target(adapter, target)
     return {
         "id": adapter["id"],
         "name": adapter["name"],
         "path": str(target),
-        "replay": _replay_for_target(adapter, target),
+        "replay": command,
         "setup": adapter["setup"],
         "kind": adapter["kind"],
+        "next": _next_step_for_adapter(adapter, command),
     }
 
 
@@ -174,3 +177,12 @@ def _replay_for_target(adapter: dict[str, str], target: Path) -> str:
 
 def _command_label(adapter: dict[str, Any]) -> str:
     return "Replay" if adapter.get("kind") == "replay" else "Command"
+
+
+def _next_step_for_adapter(adapter: dict[str, str], command: str) -> str:
+    if adapter.get("kind") == "log":
+        return (
+            "Run adapter command, then build a suite: "
+            "redline suite .redline/logs/prompts.jsonl --out redline-suite.json"
+        )
+    return f"Configure replay: redline init --replay {shlex.quote(command)} --force"
