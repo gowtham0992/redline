@@ -194,6 +194,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("https://gowtham0992.github.io/redline/assets/redline-product-demo.gif", readme)
         self.assertIn("Automatic eval suites from the prompt logs you already have", readme)
         self.assertIn("Product Promise", readme)
+        self.assertIn("[![PyPI](https://img.shields.io/pypi/v/redline-ai.svg)](https://pypi.org/project/redline-ai/)", readme)
         self.assertIn("[![License: MIT]", readme)
         self.assertIn("[License](LICENSE)", readme)
         self.assertIn("python -m pip install redline-ai", readme)
@@ -360,6 +361,7 @@ class PackagingTests(unittest.TestCase):
 
         self.assertIn('package-ecosystem: "github-actions"', config)
         self.assertIn('package-ecosystem: "pip"', config)
+        self.assertEqual(config.count('target-branch: "develop"'), 2)
         self.assertEqual(config.count('interval: "weekly"'), 2)
         self.assertIn('"dependencies"', config)
         self.assertIn('"github-actions"', config)

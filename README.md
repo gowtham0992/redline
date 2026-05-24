@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/gowtham0992/redline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gowtham0992/redline/actions/workflows/ci.yml)
 [![GitHub Pages](https://github.com/gowtham0992/redline/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/gowtham0992/redline/actions/workflows/pages.yml)
+[![PyPI](https://img.shields.io/pypi/v/redline-ai.svg)](https://pypi.org/project/redline-ai/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 [Website](https://gowtham0992.github.io/redline/) · [Docs](#project-docs) · [MCP](docs/mcp.md) · [Security](SECURITY.md) · [License](LICENSE)
