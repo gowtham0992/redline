@@ -194,7 +194,8 @@ python -m redline doctor
 ```
 
 Doctor checks config, suite presence, suite validation health, report paths,
-and whether the configured replay command points at files that exist locally.
+whether the configured replay command points at files that exist locally, and
+whether copied runner adapters are missing required environment variables.
 When setup is incomplete, it prints the next command to run.
 
 Use strict mode in CI to fail on missing setup pieces:

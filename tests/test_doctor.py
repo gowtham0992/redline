@@ -242,6 +242,44 @@ class DoctorTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_doctor_warns_for_missing_runner_environment(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            previous_env = os.environ.pop("REDLINE_STDIO_COMMAND", None)
+            os.chdir(root)
+            try:
+                runner = root / "runners" / "stdio_runner.py"
+                runner.parent.mkdir()
+                runner.write_text("print('ok')\n", encoding="utf-8")
+
+                report = doctor_report(
+                    config_path=".",
+                    config={"replay": f"{sys.executable} runners/stdio_runner.py"},
+                    suite=suite,
+                )
+
+                self.assertTrue(report["ok"])
+                self.assertEqual(report["warnings"], 1)
+                env_check = next(check for check in report["checks"] if check["name"] == "replay-env")
+                self.assertEqual(env_check["status"], "warn")
+                self.assertIn("REDLINE_STDIO_COMMAND", env_check["message"])
+                self.assertIn(
+                    "Set runner environment: missing REDLINE_STDIO_COMMAND for stdio_runner.py",
+                    report["next_steps"],
+                )
+            finally:
+                os.chdir(previous)
+                if previous_env is not None:
+                    os.environ["REDLINE_STDIO_COMMAND"] = previous_env
+
     def test_doctor_errors_for_missing_replay_script_argument(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             previous = Path.cwd()

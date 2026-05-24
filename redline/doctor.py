@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shlex
 import shutil
 from pathlib import Path
@@ -60,7 +61,12 @@ def doctor_report(
 
     replay = config.get("replay")
     if isinstance(replay, str) and replay:
-        checks.append(_command_check("replay", replay))
+        replay_check = _command_check("replay", replay)
+        checks.append(replay_check)
+        if replay_check["status"] == "ok":
+            replay_env_check = _replay_env_check(replay)
+            if replay_env_check:
+                checks.append(replay_env_check)
     else:
         checks.append({"status": "warn", "name": "replay", "message": "not configured"})
 
@@ -169,6 +175,10 @@ def _next_steps(checks: list[dict[str, str]], *, suite_path: str) -> list[str]:
     if replay and replay["status"] == "error":
         steps.append(_replay_next_step(replay["message"]))
 
+    replay_env = by_name.get("replay-env")
+    if replay_env and replay_env["status"] == "warn":
+        steps.append(f"Set runner environment: {replay_env['message']}")
+
     judge = by_name.get("judge")
     if judge and judge["status"] in {"error", "warn"}:
         steps.append("Fix judge command in redline.json, then rerun: redline doctor")
@@ -204,6 +214,34 @@ def _replay_next_step(message: str) -> str:
     if "litellm_runner.sh" in message:
         return "Copy missing runner: redline runners --copy litellm"
     return "Fix replay command in redline.json, then rerun: redline doctor"
+
+
+def _replay_env_check(command_line: str) -> dict[str, str] | None:
+    try:
+        argv = shlex.split(command_line)
+    except ValueError:
+        return None
+    command_text = " ".join(argv)
+    requirements = {
+        "stdio_runner.py": ("REDLINE_STDIO_COMMAND",),
+        "openai_runner.sh": ("OPENAI_API_KEY",),
+        "anthropic_runner.sh": ("ANTHROPIC_API_KEY",),
+        "python_chain_runner.py": ("REDLINE_PYTHON_RUNNER",),
+        "http_runner.py": ("REDLINE_HTTP_URL",),
+        "litellm_runner.sh": ("LITELLM_BASE_URL", "LITELLM_API_KEY", "LITELLM_MODEL"),
+    }
+    for marker, env_names in requirements.items():
+        if marker not in command_text:
+            continue
+        missing = [name for name in env_names if not os.environ.get(name)]
+        if not missing:
+            return None
+        return {
+            "status": "warn",
+            "name": "replay-env",
+            "message": f"missing {', '.join(missing)} for {marker}",
+        }
+    return None
 
 
 def _judge_check(value: object) -> dict[str, str]:
