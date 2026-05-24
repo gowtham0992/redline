@@ -140,6 +140,10 @@ redline init --runner stdio --copy-runner
 
 ## First 10 Feedback Loops
 
+Ask early users to file structured feedback with the GitHub dogfood issue
+template. Reports should include sanitized commands, what redline caught, where
+they hesitated, and any safe snippets from doctor, summary, history, or reports.
+
 Track every early user report as one of:
 
 - `blocked`: they could not install, run `redline demo`, or load their logs.

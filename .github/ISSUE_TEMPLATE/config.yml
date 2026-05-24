@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Start with the public demo
+    url: https://github.com/gowtham0992/redline#quick-start
+    about: Run the quickstart before filing setup feedback.

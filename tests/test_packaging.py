@@ -197,9 +197,22 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("Website Checklist", guide)
         self.assertIn("Demo GIF Storyboard", guide)
         self.assertIn("First 10 Feedback Loops", guide)
+        self.assertIn("GitHub dogfood issue", guide)
         self.assertIn("false-negative", guide)
         self.assertIn("Do not add a desktop app", guide)
         self.assertIn("docs/launch.md", readme)
+
+    def test_github_issue_templates_collect_bug_and_dogfood_feedback(self) -> None:
+        bug = Path(".github/ISSUE_TEMPLATE/bug_report.yml").read_text(encoding="utf-8")
+        dogfood = Path(".github/ISSUE_TEMPLATE/dogfood_feedback.yml").read_text(encoding="utf-8")
+        config = Path(".github/ISSUE_TEMPLATE/config.yml").read_text(encoding="utf-8")
+
+        self.assertIn("redline version", bug)
+        self.assertIn("redline doctor", bug)
+        self.assertIn("Dogfood feedback", dogfood)
+        self.assertIn("What did redline catch?", dogfood)
+        self.assertIn("Where did you hesitate?", dogfood)
+        self.assertIn("blank_issues_enabled: true", config)
 
     def test_dogfood_protocol_exercises_first_run_loop(self) -> None:
         guide = Path("docs/dogfood.md").read_text(encoding="utf-8")
