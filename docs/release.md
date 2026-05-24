@@ -1,6 +1,8 @@
 # Release Checklist
 
 Use this checklist when preparing a public alpha release from `develop`.
+After this checklist passes, use [docs/launch.md](launch.md) for the public
+alpha post, demo GIF, and first feedback loops.
 
 ## Preflight
 

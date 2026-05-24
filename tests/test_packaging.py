@@ -102,6 +102,7 @@ class PackagingTests(unittest.TestCase):
 
         self.assertIn("bash scripts/release_check.sh", guide)
         self.assertIn("bash scripts/build_release.sh", guide)
+        self.assertIn("docs/launch.md", guide)
         self.assertIn("Do not upload an ignored local `dist/*`", guide)
         self.assertIn("docs/dogfood.md", guide)
         self.assertIn("pyproject.toml", guide)
@@ -125,6 +126,18 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline dashboard", changelog)
         self.assertIn("redline compare", changelog)
         self.assertIn("richer judge rubrics", changelog)
+        self.assertIn("public alpha launch playbook", changelog)
+
+    def test_launch_playbook_covers_assets_and_feedback(self) -> None:
+        guide = Path("docs/launch.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn("redline-demo.gif", guide)
+        self.assertIn("python -m pip install redline-ai", guide)
+        self.assertIn("First 10 Feedback Loops", guide)
+        self.assertIn("false-negative", guide)
+        self.assertIn("Do not add a desktop app", guide)
+        self.assertIn("docs/launch.md", readme)
 
     def test_dogfood_protocol_exercises_first_run_loop(self) -> None:
         guide = Path("docs/dogfood.md").read_text(encoding="utf-8")
