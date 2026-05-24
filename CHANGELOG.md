@@ -20,6 +20,7 @@
 - Add richer judge rubrics for support, structured extraction, and safety/compliance review.
 - Add repeatable demo GIF tooling with VHS/asciinema support and a transcript fallback.
 - Add a public alpha launch playbook with positioning, asset checklist, launch copy, and feedback triage.
+- Add a GitHub Pages website with static launch UI, product preview artwork, and a Pages deploy workflow.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.

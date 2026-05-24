@@ -7,6 +7,9 @@ suite, then compares new prompt runs against the baseline. It is built for the
 fast local loop: change a prompt, run one command, see what got better, worse,
 or dangerously different.
 
+Website source for GitHub Pages lives in [site/](site/) and deploys from the
+committed static assets on `main` and `develop`.
+
 ## Quick Start
 
 Install from GitHub:
