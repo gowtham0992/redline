@@ -110,6 +110,8 @@ def _replay_case(
         "REDLINE_CASE_ID": case_id,
         "REDLINE_SOURCE_LINE": str(case.get("source_line", "")),
         "REDLINE_CLUSTER": str(case.get("cluster", "")),
+        "REDLINE_CONTENT_HASH": str(case.get("content_hash", "")),
+        "REDLINE_BASELINE_CONTENT_HASH": str(case.get("content_hash", "")),
         "REDLINE_PROMPT_PATH": prompt_path or "",
     }
     try:
@@ -142,6 +144,7 @@ def render_prompt_template(template: str | None, case: dict[str, Any]) -> str:
         "source_line": str(case.get("source_line", "")),
         "cluster": str(case.get("cluster", "")),
         "baseline_response": str(case.get("baseline_response", "")),
+        "content_hash": str(case.get("content_hash", "")),
     }
     rendered = template
     for key, value in values.items():

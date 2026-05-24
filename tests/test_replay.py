@@ -114,19 +114,20 @@ class ReplayTests(unittest.TestCase):
 
     def test_render_prompt_template_supports_case_fields(self) -> None:
         rendered = render_prompt_template(
-            "Case {case_id} line {source_line}: {prompt} // {cluster} // {baseline_response}",
+            "Case {case_id} line {source_line}: {prompt} // {cluster} // {baseline_response} // {content_hash}",
             {
                 "id": "case_001",
                 "source_line": 7,
                 "prompt": "hello",
                 "cluster": "general|prose|short",
                 "baseline_response": "world",
+                "content_hash": "abc123",
             },
         )
 
         self.assertEqual(
             rendered,
-            "Case case_001 line 7: hello // general|prose|short // world",
+            "Case case_001 line 7: hello // general|prose|short // world // abc123",
         )
 
     def test_render_prompt_template_rejects_unknown_fields(self) -> None:
@@ -150,13 +151,18 @@ class ReplayTests(unittest.TestCase):
             max_cases=10,
         )
         case_id = suite["cases"][0]["id"]
+        content_hash = suite["cases"][0]["content_hash"]
 
         replay = replay_suite(
             suite,
-            f"{sys.executable} -c \"import os; print(os.environ['REDLINE_CASE_ID'])\"",
+            (
+                f"{sys.executable} -c "
+                "\"import os; "
+                "print(os.environ['REDLINE_CASE_ID'] + '|' + os.environ['REDLINE_CONTENT_HASH'])\""
+            ),
         )
 
-        self.assertEqual(replay.records[0].response, case_id)
+        self.assertEqual(replay.records[0].response, f"{case_id}|{content_hash}")
 
     def test_replay_error_includes_case_id(self) -> None:
         suite = build_suite(

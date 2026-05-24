@@ -29,6 +29,7 @@
 - Warn when suite validation finds redundant duplicate prompt-response cases.
 - Store stable prompt-response content hashes on suite cases and refresh them when accepting new baselines.
 - Include candidate and baseline content hashes in replayed eval candidate rows.
+- Expose suite case content hashes to replay commands and prompt templates.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.
