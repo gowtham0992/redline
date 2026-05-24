@@ -219,10 +219,12 @@ def generate_response(prompt: str) -> str:
     return call_llm(prompt)
 ```
 
-The decorator appends local JSONL with `prompt`, `response`, source function,
-source line, timestamp, and metadata. It works with sync and async functions.
-Use `prompt_arg="question"` when your function does not name the prompt
-argument `prompt`.
+The decorator appends local JSONL with `prompt`, `response`, a stable
+`content_hash`, source function, source line, timestamp, and metadata. It works
+with sync and async functions. Exact duplicate prompt-response pairs are skipped
+by default; pass `dedupe=False` when you intentionally want repeated identical
+observations. Use `prompt_arg="question"` when your function does not name the
+prompt argument `prompt`.
 
 Or record one observation manually when your app already has the prompt and
 response in hand:
@@ -233,6 +235,10 @@ from redline import record
 response = call_llm(prompt)
 record(prompt, response, metadata={"model": "gpt-4o"})
 ```
+
+`record()` returns the normalized row plus `recorded: true` when it wrote to
+disk or `recorded: false` when the exact prompt-response pair was already in
+the log.
 
 Keep polling a log during local development:
 

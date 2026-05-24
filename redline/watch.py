@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, timezone
 from functools import wraps
+from hashlib import sha256
 from inspect import iscoroutinefunction, signature
 import json
 from pathlib import Path
@@ -30,12 +31,14 @@ def watch(
     log: str | Path = DEFAULT_WATCH_LOG,
     prompt_arg: str | None = None,
     metadata: dict[str, Any] | Callable[..., dict[str, Any]] | None = None,
+    dedupe: bool = True,
 ) -> Callable[..., Any]:
     """Record prompt-response pairs from a Python function.
 
     The wrapped function should receive a prompt-like argument and return the
     response text or structured response value. Nothing leaves disk; records are
-    appended to the local JSONL log.
+    appended to the local JSONL log. Exact prompt-response duplicates are
+    skipped by default.
     """
 
     def decorate(target: Callable[..., Any]) -> Callable[..., Any]:
@@ -53,6 +56,7 @@ def watch(
                     metadata=metadata,
                     args=args,
                     kwargs=kwargs,
+                    dedupe=dedupe,
                 )
                 return response
 
@@ -70,6 +74,7 @@ def watch(
                 metadata=metadata,
                 args=args,
                 kwargs=kwargs,
+                dedupe=dedupe,
             )
             return response
 
@@ -88,19 +93,26 @@ def record(
     source: str = "python:manual",
     source_line: int | None = None,
     metadata: dict[str, Any] | None = None,
+    dedupe: bool = True,
 ) -> dict[str, Any]:
     """Append one prompt-response observation to a local JSONL log."""
 
+    prompt_text = _stringify_value(prompt)
+    response_text = _stringify_value(response)
+    content_hash = _content_hash(prompt_text, response_text)
     row = {
-        "prompt": _stringify_value(prompt),
-        "response": _stringify_value(response),
+        "prompt": prompt_text,
+        "response": response_text,
         "source": source,
         "source_line": source_line,
         "observed_at": datetime.now(timezone.utc).isoformat(),
         "metadata": metadata or {},
+        "content_hash": content_hash,
     }
+    if dedupe and content_hash in _existing_content_hashes(log):
+        return {**row, "recorded": False}
     append_jsonl(log, [row])
-    return row
+    return {**row, "recorded": True}
 
 
 def collect_log(
@@ -331,6 +343,7 @@ def _observed_row(
         "source": str(source),
         "source_line": record.line_number,
         "observed_at": datetime.now(timezone.utc).isoformat(),
+        "content_hash": _content_hash(record.prompt, record.response),
     }
     row.setdefault(input_field, record.prompt)
     row.setdefault(output_field, record.response)
@@ -370,6 +383,7 @@ def _append_function_observation(
     metadata: dict[str, Any] | Callable[..., dict[str, Any]] | None,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
+    dedupe: bool,
 ) -> None:
     record(
         prompt,
@@ -378,6 +392,7 @@ def _append_function_observation(
         source=_function_source(target),
         source_line=_function_line(target),
         metadata=_function_metadata(target, metadata, args, kwargs),
+        dedupe=dedupe,
     )
 
 
@@ -443,6 +458,33 @@ def _stringify_value(value: Any) -> str:
         return json.dumps(value, sort_keys=True, ensure_ascii=False)
     except TypeError:
         return str(value)
+
+
+def _content_hash(prompt: str, response: str) -> str:
+    payload = json.dumps(
+        {"prompt": prompt, "response": response},
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    return sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _existing_content_hashes(path: str | Path) -> set[str]:
+    target = Path(path)
+    if not target.exists():
+        return set()
+    hashes: set[str] = set()
+    for _, row in iter_jsonl(target):
+        content_hash = row.get("content_hash")
+        if isinstance(content_hash, str) and content_hash:
+            hashes.add(content_hash)
+            continue
+        prompt = row.get("prompt")
+        response = row.get("response")
+        if prompt is not None and response is not None:
+            hashes.add(_content_hash(_stringify_value(prompt), _stringify_value(response)))
+    return hashes
 
 
 def _existing_keys(path: str | Path) -> set[tuple[str, str]]:

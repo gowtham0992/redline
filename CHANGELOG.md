@@ -23,7 +23,7 @@
 - Add a GitHub Pages website with static launch UI, product preview artwork, and a Pages deploy workflow.
 - Add vector logo assets for the site header, favicon, and future launch material.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
-- Capture prompt-response pairs from Python functions with the local `@watch` decorator and `record()` helper.
+- Capture prompt-response pairs from Python functions with the local `@watch` decorator and `record()` helper, with exact duplicate observations skipped by content hash.
 - Show basic suite-readiness guidance in `redline watch --stats`.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.

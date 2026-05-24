@@ -33,6 +33,44 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(records[0].response, '{"text": "30 days"}')
             self.assertEqual(records[0].raw["source_line"], 12)
             self.assertEqual(records[0].raw["metadata"]["model"], "test-model")
+            self.assertEqual(row["recorded"], True)
+            self.assertIn("content_hash", records[0].raw)
+
+    def test_record_skips_duplicate_prompt_response_observations_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            first = record("hello", "world", log=log)
+            second = record("hello", "world", log=log)
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertTrue(first["recorded"])
+            self.assertFalse(second["recorded"])
+            self.assertEqual(first["content_hash"], second["content_hash"])
+            self.assertEqual(len(records), 1)
+
+    def test_record_allows_duplicate_prompt_response_observations_when_requested(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            record("hello", "world", log=log)
+            second = record("hello", "world", log=log, dedupe=False)
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertTrue(second["recorded"])
+            self.assertEqual(len(records), 2)
+
+    def test_record_keeps_same_prompt_with_changed_response(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            record("hello", "world", log=log)
+            second = record("hello", "friend", log=log)
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertTrue(second["recorded"])
+            self.assertEqual(len(records), 2)
+            self.assertEqual(records[1].response, "friend")
 
     def test_record_exports_from_package_root(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -64,6 +102,22 @@ class WatchTests(unittest.TestCase):
                 records[0].raw["metadata"]["function"],
                 "WatchTests.test_watch_decorator_records_sync_function_calls.<locals>.generate_response",
             )
+
+    def test_watch_decorator_skips_duplicate_prompt_response_observations_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            @watch(log=log)
+            def generate_response(prompt: str) -> str:
+                return f"answer: {prompt}"
+
+            generate_response("refund policy")
+            generate_response("refund policy")
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(len(records), 1)
+            self.assertIsInstance(records[0].raw["content_hash"], str)
+            self.assertEqual(len(records[0].raw["content_hash"]), 64)
 
     def test_watch_decorator_supports_import_from_package_root(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
