@@ -20,6 +20,8 @@ def suite_case_rows(suite: dict[str, Any]) -> list[dict[str, Any]]:
                 "content_hash": str(case.get("content_hash", "")),
                 "source_line": case.get("source_line"),
                 "cluster": str(case.get("cluster", "")),
+                "cluster_risk": str(case.get("cluster_risk", "")),
+                "selection_reason": str(case.get("selection_reason", "")),
                 "prompt": str(case.get("prompt", "")),
                 "prompt_preview": _preview(str(case.get("prompt", ""))),
                 "baseline_preview": _preview(str(case.get("baseline_response", ""))),
@@ -37,14 +39,21 @@ def format_suite_cases(suite: dict[str, Any]) -> str:
     if not rows:
         return "redline cases\n\nNo cases found.\n"
 
-    lines.append(f"{'CASE':<24} {'LINE':>5} {'PIN':>3} {'RULES':>5} {'JUDGMENT':<10} PROMPT")
-    lines.append(f"{'-' * 24} {'-' * 5} {'-' * 3} {'-' * 5} {'-' * 10} {'-' * 60}")
+    lines.append(
+        f"{'CASE':<24} {'LINE':>5} {'PIN':>3} {'RISK':<6} {'WHY':<12} "
+        f"{'RULES':>5} {'JUDGMENT':<10} PROMPT"
+    )
+    lines.append(
+        f"{'-' * 24} {'-' * 5} {'-' * 3} {'-' * 6} {'-' * 12} "
+        f"{'-' * 5} {'-' * 10} {'-' * 60}"
+    )
     for row in rows:
         source_line = "" if row["source_line"] is None else str(row["source_line"])
         pinned = "yes" if row["pinned"] else ""
         lines.append(
-            f"{row['id']:<24} {source_line:>5} {pinned:>3} {row['requirements']:>5} "
-            f"{row['judgment']:<10} {row['prompt_preview']}"
+            f"{row['id']:<24} {source_line:>5} {pinned:>3} "
+            f"{row['cluster_risk']:<6} {_format_selection_reason(row['selection_reason']):<12} "
+            f"{row['requirements']:>5} {row['judgment']:<10} {row['prompt_preview']}"
         )
     return "\n".join(lines) + "\n"
 
@@ -65,6 +74,8 @@ def suite_case_detail(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
         "source": str(case.get("source") or suite.get("source") or ""),
         "source_line": case.get("source_line"),
         "cluster": str(case.get("cluster", "")),
+        "cluster_risk": str(case.get("cluster_risk", "")),
+        "selection_reason": str(case.get("selection_reason", "")),
         "prompt": str(case.get("prompt", "")),
         "baseline_response": str(case.get("baseline_response", "")),
         "content_hash": str(case.get("content_hash", "")),
@@ -82,6 +93,8 @@ def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
         f"Pinned:     {_format_bool(detail['pinned'])}",
         f"Source:      {_format_source(detail['source'], detail['source_line'])}",
         f"Cluster:     {detail['cluster']}",
+        f"Risk:        {detail['cluster_risk'] or '<unknown>'}",
+        f"Selected:    {_format_selection_reason(detail['selection_reason']) or '<unknown>'}",
         f"Content hash: {detail['content_hash']}",
         "",
         "Prompt:",
@@ -126,6 +139,18 @@ def _format_source(source: object, source_line: object) -> str:
     if line_text:
         return f"line {line_text}"
     return "<unknown>"
+
+
+def _format_selection_reason(value: object) -> str:
+    labels = {
+        "cluster_representative": "representative",
+        "high_variance_short_edge": "short-edge",
+        "high_variance_long_edge": "long-edge",
+        "high_variance_edge": "edge",
+        "all_cases": "all",
+        "manual_pin": "manual",
+    }
+    return labels.get(str(value), str(value or ""))
 
 
 def _preview(text: str, limit: int = 76) -> str:

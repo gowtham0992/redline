@@ -26,6 +26,8 @@ class CasesTests(unittest.TestCase):
         self.assertEqual(rows[0]["requirements"], 0)
         self.assertEqual(rows[0]["judgment"], "")
         self.assertFalse(rows[0]["pinned"])
+        self.assertEqual(rows[0]["cluster_risk"], "low")
+        self.assertEqual(rows[0]["selection_reason"], "cluster_representative")
 
     def test_suite_case_detail_includes_content_hash(self) -> None:
         suite = build_suite(
@@ -42,9 +44,13 @@ class CasesTests(unittest.TestCase):
 
         self.assertEqual(detail["content_hash"], suite["cases"][0]["content_hash"])
         self.assertFalse(detail["pinned"])
+        self.assertEqual(detail["cluster_risk"], "low")
+        self.assertEqual(detail["selection_reason"], "cluster_representative")
         self.assertIn("Pinned:     no", text)
         self.assertEqual(detail["source"], "logs/baseline.jsonl")
         self.assertIn("Source:      logs/baseline.jsonl:1", text)
+        self.assertIn("Risk:        low", text)
+        self.assertIn("Selected:    representative", text)
         self.assertIn("Content hash:", text)
 
     def test_suite_case_detail_marks_pinned_case(self) -> None:
@@ -136,8 +142,11 @@ class CasesTests(unittest.TestCase):
 
         self.assertIn("redline cases", output)
         self.assertIn("PIN", output)
+        self.assertIn("RISK", output)
+        self.assertIn("WHY", output)
         self.assertIn("RULES", output)
         self.assertIn("JUDGMENT", output)
+        self.assertIn("representative", output)
         self.assertIn("Return JSON for Ada", output)
 
     def test_format_suite_cases_marks_pinned_cases(self) -> None:

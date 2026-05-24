@@ -346,7 +346,8 @@ python -m redline case case_002_1612556e83
 
 Case detail output includes the source log and line number so a reviewer can
 trace each regression check back to the original prompt-response row. It also
-shows whether the case was generated or hand-pinned.
+shows whether the case was generated or hand-pinned, why it was selected, and
+the risk level of its behavioral cluster.
 
 Summarize suite coverage:
 

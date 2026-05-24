@@ -40,6 +40,7 @@
 - Show source log provenance in `redline case` detail output.
 - Mark pinned cases in `redline cases` table and JSON rows.
 - Show pinned status in `redline case` detail output.
+- Show case selection reasons and cluster risk in case lists and details.
 - Guard generated config keys against schema documentation drift.
 - Lead `redline runners` output with the provider-agnostic stdin/stdout contract.
 - Print adapter-specific setup hints after copying runner templates.
