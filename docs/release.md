@@ -16,8 +16,10 @@ bash scripts/release_check.sh
 ```
 
 The release gate runs the unit suite, bytecode compilation, whitespace checks, a
-wheel build, clean virtualenv install, `redline demo --compact`, runner listing,
-`redline init --runner stdio --copy-runner`, and `redline doctor`.
+Ruff lint, mypy type checking, a wheel build, clean virtualenv install,
+`redline demo --compact`, runner listing, `redline init --runner stdio
+--copy-runner`, and `redline doctor`. Run it from an environment where
+`python -m pip install -e ".[dev]"` has already completed.
 
 ## Demo GIF
 

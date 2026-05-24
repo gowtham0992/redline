@@ -185,7 +185,9 @@ class RunnerTests(unittest.TestCase):
     def test_http_runner_supports_nested_response_fields(self) -> None:
         spec = importlib.util.spec_from_file_location("http_runner", "runners/http_runner.py")
         self.assertIsNotNone(spec)
+        assert spec is not None
         self.assertIsNotNone(spec.loader)
+        assert spec.loader is not None
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 

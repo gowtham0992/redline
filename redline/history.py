@@ -65,7 +65,8 @@ def format_history(entries: list[dict[str, Any]], *, limit: int | None = None) -
         timestamp = str(entry.get("timestamp") or "-")
         label = str(entry.get("label") or "-")
         report = str(entry.get("report") or "-")
-        summary = entry.get("summary") if isinstance(entry.get("summary"), dict) else {}
+        raw_summary = entry.get("summary")
+        summary = raw_summary if isinstance(raw_summary, dict) else {}
         lines.append(f"{timestamp}  {label}  {report}  {_summary_text(summary)}")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -84,7 +85,8 @@ def format_markdown_history(entries: list[dict[str, Any]], *, limit: int | None 
         ]
     )
     for entry in rows:
-        summary = entry.get("summary") if isinstance(entry.get("summary"), dict) else {}
+        raw_summary = entry.get("summary")
+        summary = raw_summary if isinstance(raw_summary, dict) else {}
         cells = [
             _markdown_cell(entry.get("timestamp") or "-"),
             _markdown_cell(entry.get("label") or "-"),

@@ -48,7 +48,7 @@ Run the larger public-pattern proof from any install:
 redline demo --public --compact
 ```
 
-To record the public demo from a repeatable script:
+From a repo checkout, record the public demo from a repeatable script:
 
 ```bash
 bash scripts/demo_terminal.sh

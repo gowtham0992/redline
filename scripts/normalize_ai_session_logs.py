@@ -26,7 +26,8 @@ def main() -> int:
         target = output_dir / f"{_slug(tool)}.jsonl"
         with target.open("w", encoding="utf-8") as handle:
             for index, (prompt, row) in enumerate(zip(prompts, rows), 1):
-                metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+                raw_metadata = row.get("metadata")
+                metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
                 normalized = {
                     "case_id": f"task_{index:02d}",
                     "prompt": prompt,

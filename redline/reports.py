@@ -184,8 +184,20 @@ def _inline_code(value: str) -> str:
 
 def _code_block(value: str, limit: int = 1200) -> str:
     text = value if len(value) <= limit else value[: limit - 1] + "..."
-    fence = "````" if "```" in text else "```"
+    fence = _code_fence(text)
     return f"{fence}\n{text}\n{fence}"
+
+
+def _code_fence(text: str) -> str:
+    longest = 0
+    current = 0
+    for char in text:
+        if char == "`":
+            current += 1
+            longest = max(longest, current)
+        else:
+            current = 0
+    return "`" * max(3, longest + 1)
 
 
 def _metadata_lines(item: dict[str, Any]) -> list[str]:

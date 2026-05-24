@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 from threading import Thread
 from time import sleep
+from typing import Any
 
 from redline.io import read_jsonl_records
 from redline.watch import collect_log, follow_log, format_follow_records, format_watch_stats, watch_stats
@@ -147,7 +148,7 @@ class WatchTests(unittest.TestCase):
             source = root / "source.jsonl"
             output = root / "observed.jsonl"
             source.write_text('{"prompt": "one", "response": "1"}\n', encoding="utf-8")
-            collected = []
+            collected: list[dict[str, Any]] = []
 
             result = follow_log(
                 source,

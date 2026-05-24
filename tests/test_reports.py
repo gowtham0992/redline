@@ -76,6 +76,26 @@ class ReportTests(unittest.TestCase):
 
         self.assertIn("Prompt: ``Use `json` output``", report)
 
+    def test_markdown_code_blocks_use_fence_longer_than_output_backticks(self) -> None:
+        result = {
+            "summary": {"regression": 0, "changed": 1, "improved": 0, "neutral": 0, "missing": 0},
+            "diffs": [
+                {
+                    "case_id": "case_001",
+                    "status": "changed",
+                    "prompt": "Show a Markdown fence",
+                    "baseline_response": "````\ninner\n````",
+                    "candidate_response": "`````\ninner\n`````",
+                    "reasons": ["content changed substantially: similarity 0.50"],
+                }
+            ],
+        }
+
+        report = format_markdown_report(result)
+
+        self.assertIn("`````\n````\ninner\n````\n`````", report)
+        self.assertIn("``````\n`````\ninner\n`````\n``````", report)
+
     def test_html_report_includes_side_by_side_case_detail(self) -> None:
         result = {
             "summary": {

@@ -154,7 +154,8 @@ def _summary_counts(summary: dict[str, Any]) -> dict[str, int]:
 
 
 def _overview(latest: dict[str, Any], report_count: int, history_count: int) -> str:
-    summary = latest.get("summary") if isinstance(latest.get("summary"), dict) else {}
+    raw_summary = latest.get("summary")
+    summary = raw_summary if isinstance(raw_summary, dict) else {}
     cards = [
         ("Reports", report_count),
         ("History", history_count),
@@ -216,8 +217,10 @@ def _reports_table(reports: list[Any], *, output_path: str | Path | None) -> str
     for report in reports:
         if not isinstance(report, dict):
             continue
-        summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
-        decision = report.get("decision") if isinstance(report.get("decision"), dict) else {}
+        raw_summary = report.get("summary")
+        summary = raw_summary if isinstance(raw_summary, dict) else {}
+        raw_decision = report.get("decision")
+        decision = raw_decision if isinstance(raw_decision, dict) else {}
         links = _links(
             [
                 ("HTML", str(report.get("html_path") or "")),
@@ -254,7 +257,8 @@ def _history_table(history: list[Any], *, output_path: str | Path | None) -> str
     for entry in history:
         if not isinstance(entry, dict):
             continue
-        summary = entry.get("summary") if isinstance(entry.get("summary"), dict) else {}
+        raw_summary = entry.get("summary")
+        summary = raw_summary if isinstance(raw_summary, dict) else {}
         report = str(entry.get("report") or "")
         rows.append(
             "<tr>"

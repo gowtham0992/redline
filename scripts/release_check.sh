@@ -16,8 +16,14 @@ printf 'release check work dir: %s\n\n' "$work_dir"
 printf '$ %s -m unittest discover\n' "$python_bin"
 "$python_bin" -m unittest discover
 
-printf '\n$ %s -m compileall redline tests examples\n' "$python_bin"
-"$python_bin" -m compileall redline tests examples
+printf '\n$ %s -m compileall redline tests examples scripts\n' "$python_bin"
+"$python_bin" -m compileall redline tests examples scripts
+
+printf '\n$ %s -m ruff check .\n' "$python_bin"
+"$python_bin" -m ruff check .
+
+printf '\n$ %s -m mypy redline tests scripts examples\n' "$python_bin"
+"$python_bin" -m mypy redline tests scripts examples
 
 printf '\n$ git diff --check\n'
 git diff --check

@@ -518,7 +518,7 @@ def cmd_cluster(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     input_field = str(_config_value(args.input_field, config, "input_field", "prompt"))
     output_field = str(_config_value(args.output_field, config, "output_field", "response"))
-    max_cases = int(_config_value(args.max_cases, config, "max_cases", 42))
+    max_cases = _config_int(args.max_cases, config, "max_cases", 42)
     log_path = args.log or _config_observed_log_path(config) or ".redline/logs/prompts.jsonl"
     records = read_jsonl_records(log_path, input_field, output_field)
     suite = build_suite(
@@ -540,9 +540,9 @@ def cmd_suite(args: argparse.Namespace) -> int:
     if args.all_cases and args.max_cases is not None:
         raise ValueError("--all-cases cannot be combined with --max-cases")
     config = load_config(args.config)
-    input_field = _config_value(args.input_field, config, "input_field", "prompt")
-    output_field = _config_value(args.output_field, config, "output_field", "response")
-    max_cases = int(_config_value(args.max_cases, config, "max_cases", 42))
+    input_field = str(_config_value(args.input_field, config, "input_field", "prompt"))
+    output_field = str(_config_value(args.output_field, config, "output_field", "response"))
+    max_cases = _config_int(args.max_cases, config, "max_cases", 42)
     output = str(_config_value(args.out, config, "suite", "redline-suite.json"))
     log_path = args.log or _config_observed_log_path(config) or ".redline/logs/prompts.jsonl"
     records = read_jsonl_records(log_path, input_field, output_field)
@@ -763,8 +763,8 @@ def cmd_eval(args: argparse.Namespace) -> int:
     if not replay_command:
         raise ValueError("replay command required; pass --replay or set replay in redline.json")
     suite = read_json(suite_path)
-    timeout_seconds = float(_config_value(args.timeout, config, "timeout_seconds", 30.0))
-    workers = int(_config_value(args.workers, config, "workers", 1))
+    timeout_seconds = _config_float(args.timeout, config, "timeout_seconds", 30.0)
+    workers = _config_int(args.workers, config, "workers", 1)
     prompt_template = read_prompt_template(args.prompt) if args.prompt else None
     replay = replay_suite(
         suite,
@@ -963,6 +963,46 @@ def _config_value(
     if explicit is not None:
         return explicit
     return config.get(key, default)
+
+
+def _config_int(
+    explicit: object | None,
+    config: dict[str, object],
+    key: str,
+    default: int,
+) -> int:
+    value = _config_value(explicit, config, key, default)
+    if isinstance(value, bool):
+        raise ValueError(f"{key} must be an integer")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, (str, bytes, bytearray)):
+        try:
+            return int(value)
+        except ValueError as exc:
+            raise ValueError(f"{key} must be an integer") from exc
+    raise ValueError(f"{key} must be an integer")
+
+
+def _config_float(
+    explicit: object | None,
+    config: dict[str, object],
+    key: str,
+    default: float,
+) -> float:
+    value = _config_value(explicit, config, key, default)
+    if isinstance(value, bool):
+        raise ValueError(f"{key} must be a number")
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, (str, bytes, bytearray)):
+        try:
+            return float(value)
+        except ValueError as exc:
+            raise ValueError(f"{key} must be a number") from exc
+    raise ValueError(f"{key} must be a number")
 
 
 def _suite_arg(explicit: str | None, config: dict[str, object]) -> str:

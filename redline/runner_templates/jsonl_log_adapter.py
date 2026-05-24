@@ -31,21 +31,24 @@ def main() -> int:
 
 def _read_rows(path: str | None) -> Iterable[tuple[int, dict[str, Any]]]:
     if path:
-        handle = Path(path).open("r", encoding="utf-8")
-    else:
-        handle = sys.stdin
-    with handle:
-        for line_number, line in enumerate(handle, 1):
-            stripped = line.strip()
-            if not stripped:
-                continue
-            try:
-                row = json.loads(stripped)
-            except json.JSONDecodeError as exc:
-                raise SystemExit(f"{path or '<stdin>'}:{line_number} invalid JSON: {exc.msg}")
-            if not isinstance(row, dict):
-                raise SystemExit(f"{path or '<stdin>'}:{line_number} expected a JSON object")
-            yield line_number, row
+        with Path(path).open("r", encoding="utf-8") as handle:
+            yield from _iter_rows(handle, label=path)
+        return
+    yield from _iter_rows(sys.stdin, label="<stdin>")
+
+
+def _iter_rows(handle: TextIO, *, label: str) -> Iterable[tuple[int, dict[str, Any]]]:
+    for line_number, line in enumerate(handle, 1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        try:
+            row = json.loads(stripped)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"{label}:{line_number} invalid JSON: {exc.msg}")
+        if not isinstance(row, dict):
+            raise SystemExit(f"{label}:{line_number} expected a JSON object")
+        yield line_number, row
 
 
 def _convert_rows(

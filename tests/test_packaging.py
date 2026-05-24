@@ -24,6 +24,7 @@ class PackagingTests(unittest.TestCase):
         dev_dependencies = pyproject["project"]["optional-dependencies"]["dev"]
 
         self.assertIn("build>=1.2", dev_dependencies)
+        self.assertIn("setuptools>=68", dev_dependencies)
         self.assertIn("twine>=5", dev_dependencies)
 
     def test_package_is_marked_typed(self) -> None:
@@ -33,7 +34,9 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline py.typed", manifest)
         self.assertIn("redline/runner_templates", manifest)
         self.assertIn("examples *.jsonl *.md", manifest)
-        self.assertIn("scripts *.sh", manifest)
+        self.assertIn("docs *.md *.jsonl", manifest)
+        self.assertIn("scripts *.py *.sh", manifest)
+        self.assertIn("site *.html *.css *.png *.svg", manifest)
 
     def test_shell_scripts_are_executable(self) -> None:
         for script_name in ("build_release.sh", "demo_gif.sh", "demo_terminal.sh", "release_check.sh"):
@@ -65,7 +68,9 @@ class PackagingTests(unittest.TestCase):
         script = Path("scripts/release_check.sh").read_text(encoding="utf-8")
 
         self.assertIn("-m unittest discover", script)
-        self.assertIn("-m compileall redline tests examples", script)
+        self.assertIn("-m compileall redline tests examples scripts", script)
+        self.assertIn("-m ruff check .", script)
+        self.assertIn("-m mypy redline tests scripts examples", script)
         self.assertIn("git diff --check", script)
         self.assertIn("examples/public_dogfood_baseline.jsonl", script)
         self.assertIn("examples/public_dogfood_candidate.jsonl", script)
@@ -108,10 +113,17 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("pyproject.toml", guide)
         self.assertIn("redline/__init__.py", guide)
         self.assertIn("CHANGELOG.md", guide)
+        self.assertIn('python -m pip install -e ".[dev]"', guide)
         self.assertIn("redline demo --compact", guide)
         self.assertIn("redline demo --public --compact", guide)
         self.assertIn("bash scripts/demo_gif.sh", guide)
         self.assertIn("redline init --runner stdio --copy-runner", guide)
+
+    def test_readme_marks_repo_only_script_commands(self) -> None:
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn("From a repo checkout, record the public demo", readme)
+        self.assertIn("scripts/normalize_ai_session_logs.py", readme)
 
     def test_changelog_mentions_release_ready_workflows(self) -> None:
         changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")

@@ -15,7 +15,7 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(requirements, dict):
         requirements = {}
 
-    judgment_counts = Counter()
+    judgment_counts: Counter[str] = Counter()
     for value in judgments.values():
         if isinstance(value, dict):
             judgment_counts[str(value.get("status", "unknown"))] += 1
