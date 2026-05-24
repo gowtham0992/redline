@@ -9,7 +9,7 @@ class ValidateTests(unittest.TestCase):
     def test_validate_suite_accepts_generated_suite(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Return JSON", '{"ok": true}', {})],
-            source="memory",
+            source="logs/baseline.jsonl",
             input_field="prompt",
             output_field="response",
             max_cases=10,
@@ -20,6 +20,7 @@ class ValidateTests(unittest.TestCase):
         self.assertTrue(report["valid"])
         self.assertEqual(report["errors"], 0)
         self.assertEqual(report["warnings"], 0)
+        self.assertEqual(report["next_steps"], [])
 
     def test_validate_suite_rejects_duplicate_case_ids(self) -> None:
         suite = build_suite(
@@ -42,7 +43,7 @@ class ValidateTests(unittest.TestCase):
     def test_validate_suite_warns_for_duplicate_prompt_response_pairs(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Return JSON", '{"ok": true}', {})],
-            source="memory",
+            source="logs/baseline.jsonl",
             input_field="prompt",
             output_field="response",
             max_cases=10,
@@ -81,33 +82,41 @@ class ValidateTests(unittest.TestCase):
     def test_validate_suite_rejects_stale_content_hash(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Return JSON", '{"ok": true}', {})],
-            source="memory",
+            source="logs/baseline.jsonl",
             input_field="prompt",
             output_field="response",
             max_cases=10,
         )
         suite["cases"][0]["content_hash"] = "stale"
 
-        report = validate_suite(suite)
+        report = validate_suite(suite, suite_path="redline-suite.json")
 
         self.assertFalse(report["valid"])
         self.assertTrue(any(item["path"].endswith(".content_hash") for item in report["items"]))
+        self.assertIn(
+            "Refresh stale content hashes: redline suite logs/baseline.jsonl --out redline-suite.json",
+            report["next_steps"],
+        )
 
     def test_validate_suite_warns_for_missing_content_hash(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Return JSON", '{"ok": true}', {})],
-            source="memory",
+            source="logs/baseline.jsonl",
             input_field="prompt",
             output_field="response",
             max_cases=10,
         )
         del suite["cases"][0]["content_hash"]
 
-        report = validate_suite(suite)
+        report = validate_suite(suite, suite_path="redline-suite.json")
 
         self.assertTrue(report["valid"])
         self.assertEqual(report["warnings"], 1)
         self.assertTrue(any("missing stable prompt-response hash" in item["message"] for item in report["items"]))
+        self.assertIn(
+            "Regenerate suite metadata from trusted logs: redline suite logs/baseline.jsonl --out redline-suite.json",
+            report["next_steps"],
+        )
 
     def test_validate_suite_rejects_unknown_requirement_case_ids(self) -> None:
         suite = build_suite(
@@ -137,6 +146,9 @@ class ValidateTests(unittest.TestCase):
                     "message": "does not match baseline_response",
                 }
             ],
+            "next_steps": [
+                "Refresh stale stored features: redline suite logs/baseline.jsonl --out redline-suite.json"
+            ],
         }
 
         text = format_validation_report(report)
@@ -144,6 +156,8 @@ class ValidateTests(unittest.TestCase):
         self.assertIn("redline validate", text)
         self.assertIn("Status:   invalid", text)
         self.assertIn("ERROR cases[0].features.shape", text)
+        self.assertIn("Next:", text)
+        self.assertIn("Refresh stale stored features", text)
 
 
 if __name__ == "__main__":

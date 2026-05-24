@@ -94,6 +94,11 @@ def validate_suite(suite: dict[str, Any], *, suite_path: str = "") -> dict[str, 
         "errors": error_count,
         "warnings": warning_count,
         "items": items,
+        "next_steps": _next_steps(
+            items,
+            suite_path=suite_path,
+            source=suite.get("source"),
+        ),
     }
 
 
@@ -126,7 +131,90 @@ def format_validation_report(report: dict[str, Any]) -> str:
             message = str(item.get("message", "check suite"))
             lines.append(f"- {level} {path}: {message}")
 
+    next_steps = report.get("next_steps")
+    if isinstance(next_steps, list) and next_steps:
+        lines.append("")
+        lines.append("Next:")
+        for step in next_steps:
+            lines.append(f"- {step}")
+
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _next_steps(items: list[dict[str, str]], *, suite_path: str, source: object) -> list[str]:
+    suite_arg = suite_path or "redline-suite.json"
+    source_arg = _source_arg(source)
+    steps: list[str] = []
+
+    if any(item["level"] == "error" and ".features." in item["path"] for item in items):
+        steps.append(
+            f"Refresh stale stored features: redline suite {source_arg} --out {suite_arg}"
+        )
+    if any(
+        item["level"] == "error" and item["path"].endswith(".content_hash")
+        for item in items
+    ):
+        steps.append(
+            f"Refresh stale content hashes: redline suite {source_arg} --out {suite_arg}"
+        )
+    if any(
+        item["level"] == "error" and "duplicate case id" in item["message"]
+        for item in items
+    ):
+        steps.append(
+            f"Give duplicate cases unique IDs or remove them, then rerun: redline validate {suite_arg}"
+        )
+    if any(
+        item["level"] == "error" and "references unknown case id" in item["message"]
+        for item in items
+    ):
+        steps.append(
+            f"Update requirement or judgment case IDs, then rerun: redline validate {suite_arg}"
+        )
+    if any(item["level"] == "error" and item["path"] == "cases" for item in items):
+        steps.append(f"Fix suite JSON shape, then rerun: redline validate {suite_arg}")
+
+    if any(
+        item["level"] == "warning" and "duplicate prompt-response pair" in item["message"]
+        for item in items
+    ):
+        steps.append(
+            f"Remove duplicate prompt-response cases or regenerate: redline suite {source_arg} --out {suite_arg}"
+        )
+    if any(
+        item["level"] == "warning"
+        and (
+            item["path"].endswith(".content_hash")
+            or ".features." in item["path"]
+            or item["path"] == "summary"
+        )
+        for item in items
+    ):
+        steps.append(
+            f"Regenerate suite metadata from trusted logs: redline suite {source_arg} --out {suite_arg}"
+        )
+
+    if items and not steps:
+        steps.append(f"Fix findings, then rerun: redline validate {suite_arg}")
+
+    return _dedupe(steps)
+
+
+def _source_arg(source: object) -> str:
+    if isinstance(source, str) and source.strip() and source not in {"manual", "memory"}:
+        return source
+    return "path/to/baseline.jsonl"
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    deduped = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        deduped.append(value)
+    return deduped
 
 
 def _validate_features(
