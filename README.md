@@ -62,10 +62,10 @@ The demo catches ten synthetic regressions without API keys, private logs, a
 cloud account, or an LLM judge. It writes JSON, Markdown, and self-contained
 HTML reports under `.redline/demo`.
 
-Open the local report index:
+Open the local demo report index:
 
 ```bash
-redline dashboard --open
+redline dashboard --reports-dir .redline/demo/reports --open
 ```
 
 ## Real Workflow

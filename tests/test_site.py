@@ -29,6 +29,7 @@ class GitHubPagesSiteTests(unittest.TestCase):
 
         self.assertIn("<h1>redline</h1>", html)
         self.assertIn("redline demo --public --compact", html)
+        self.assertIn("redline dashboard --reports-dir .redline/demo/reports --open", html)
         self.assertIn("redline eval --prompt prompts/v2.txt", html)
         self.assertIn("No cloud", html)
         self.assertIn("Optional judges", html)

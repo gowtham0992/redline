@@ -10,6 +10,12 @@ from redline.cli import main
 
 
 class QuickstartTests(unittest.TestCase):
+    def test_readme_demo_dashboard_command_points_at_demo_reports(self) -> None:
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn("redline demo --public --compact", readme)
+        self.assertIn("redline dashboard --reports-dir .redline/demo/reports --open", readme)
+
     def test_readme_quickstart_path_catches_realistic_regressions(self) -> None:
         repo = Path(__file__).resolve().parents[1]
         baseline = repo / "examples" / "baseline.jsonl"
