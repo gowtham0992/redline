@@ -14,7 +14,7 @@ class SummaryTests(unittest.TestCase):
                 LogRecord(1, "Return JSON", '{"ok": true}', {}),
                 LogRecord(2, "Summarize", "- one\n- two", {}),
             ],
-            source="memory",
+            source="logs/baseline.jsonl",
             input_field="prompt",
             output_field="response",
             max_cases=10,
@@ -25,10 +25,13 @@ class SummaryTests(unittest.TestCase):
 
         summary = suite_summary(suite)
 
+        self.assertEqual(summary["source"], "logs/baseline.jsonl")
+        self.assertEqual(summary["selection"], "representative")
         self.assertEqual(summary["records_seen"], 2)
         self.assertEqual(summary["unique_prompt_response_pairs"], 2)
         self.assertEqual(summary["duplicate_prompt_response_pairs"], 0)
         self.assertEqual(summary["cases"], 2)
+        self.assertEqual(summary["pinned_cases"], 0)
         self.assertEqual(summary["judgments"], {"expected": 1})
         self.assertEqual(summary["requirements"], 1)
         self.assertEqual(summary["failure_pattern_clusters"], 0)
@@ -36,7 +39,7 @@ class SummaryTests(unittest.TestCase):
     def test_suite_summary_counts_failure_pattern_clusters(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Return JSON", "not json", {})],
-            source="memory",
+            source="logs/baseline.jsonl",
             input_field="prompt",
             output_field="response",
             max_cases=10,
@@ -58,9 +61,12 @@ class SummaryTests(unittest.TestCase):
         output = format_suite_summary(suite)
 
         self.assertIn("redline summary", output)
+        self.assertIn("Source:", output)
+        self.assertIn("Selection:", output)
         self.assertIn("Records seen:", output)
         self.assertIn("Unique pairs:", output)
         self.assertIn("Duplicate pairs:", output)
+        self.assertIn("Pinned cases:", output)
         self.assertIn("Failure-pattern clusters:", output)
         self.assertIn("Top clusters:", output)
 

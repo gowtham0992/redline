@@ -44,14 +44,26 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
     summary = suite.get("summary", {})
     if not isinstance(summary, dict):
         summary = {}
+    cases = suite.get("cases", [])
+    if not isinstance(cases, list):
+        cases = []
 
     return {
+        "source": str(suite.get("source") or ""),
+        "created_at": str(suite.get("created_at") or ""),
+        "selection": str(summary.get("selection") or ""),
         "records_seen": int(summary.get("records_seen", 0)),
         "unique_prompt_response_pairs": int(summary.get("unique_prompt_response_pairs", summary.get("records_seen", 0))),
         "duplicate_prompt_response_pairs": int(summary.get("duplicate_prompt_response_pairs", 0)),
         "clusters": int(summary.get("clusters", len(clusters))),
-        "cases": int(summary.get("cases", len(suite.get("cases", [])))),
+        "cases": int(summary.get("cases", len(cases))),
         "max_cases": int(summary.get("max_cases", 0)),
+        "pinned_cases": int(
+            summary.get(
+                "pinned_cases",
+                len([case for case in cases if isinstance(case, dict) and case.get("pinned")]),
+            )
+        ),
         "high_variance_clusters": len(high_variance),
         "failure_pattern_clusters": len(failure_patterns),
         "judgments": dict(sorted(judgment_counts.items())),
@@ -65,11 +77,15 @@ def format_suite_summary(suite: dict[str, Any]) -> str:
     lines = [
         "redline summary",
         "",
+        f"Source:                 {summary['source'] or '<unknown>'}",
+        f"Created:                {summary['created_at'] or '<unknown>'}",
+        f"Selection:              {summary['selection'] or '<unknown>'}",
         f"Records seen:           {summary['records_seen']}",
         f"Unique pairs:           {summary['unique_prompt_response_pairs']}",
         f"Duplicate pairs:        {summary['duplicate_prompt_response_pairs']}",
         f"Behavioral clusters:    {summary['clusters']}",
         f"Representative cases:   {summary['cases']}",
+        f"Pinned cases:           {summary['pinned_cases']}",
         f"Max cases:              {summary['max_cases']}",
         f"High-variance clusters: {summary['high_variance_clusters']}",
         f"Failure-pattern clusters:{summary['failure_pattern_clusters']:>2}",

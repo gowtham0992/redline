@@ -320,6 +320,9 @@ Summarize suite coverage:
 python -m redline summary
 ```
 
+The summary includes suite provenance, selection mode, duplicate-log counts,
+pinned cases, requirements, judgments, and top behavioral clusters.
+
 Validate a generated or hand-edited suite before relying on it:
 
 ```bash
