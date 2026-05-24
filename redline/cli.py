@@ -382,6 +382,10 @@ def cmd_init(args: argparse.Namespace) -> int:
         write_text(args.workflow, default_github_workflow())
         print(f"Wrote {Path(args.workflow)}.")
     print()
+    print(
+        'Policy: regressions and missing outputs fail by default; set fail_on to "none" for report-only setup.'
+    )
+    print()
     print("Next:")
     if not replay:
         print("- Connect a runner: redline init --runner stdio --copy-runner --force")

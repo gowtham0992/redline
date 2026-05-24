@@ -146,6 +146,7 @@ class CliConfigTests(unittest.TestCase):
                 self.assertIn('"redline-suite.json"', workflow.read_text(encoding="utf-8"))
                 self.assertIn("Wrote redline.json.", output.getvalue())
                 self.assertIn("Wrote .github/workflows/redline.yml.", output.getvalue())
+                self.assertIn("regressions and missing outputs fail by default", output.getvalue())
                 self.assertIn("Next:", output.getvalue())
                 self.assertIn("redline suite path/to/log.jsonl", output.getvalue())
             finally:
