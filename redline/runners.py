@@ -13,6 +13,7 @@ RUNNER_ADAPTERS: list[dict[str, str]] = [
         "file": "runners/stdio_runner.py",
         "template": "stdio_runner.py",
         "replay": "python runners/stdio_runner.py",
+        "setup": "Set REDLINE_STDIO_COMMAND to the command that runs your app.",
     },
     {
         "name": "OpenAI direct",
@@ -21,6 +22,7 @@ RUNNER_ADAPTERS: list[dict[str, str]] = [
         "file": "runners/openai_runner.sh",
         "template": "openai_runner.sh",
         "replay": "./runners/openai_runner.sh",
+        "setup": "Set OPENAI_API_KEY and optionally OPENAI_MODEL.",
     },
     {
         "name": "Anthropic direct",
@@ -29,6 +31,7 @@ RUNNER_ADAPTERS: list[dict[str, str]] = [
         "file": "runners/anthropic_runner.sh",
         "template": "anthropic_runner.sh",
         "replay": "./runners/anthropic_runner.sh",
+        "setup": "Set ANTHROPIC_API_KEY and optionally ANTHROPIC_MODEL.",
     },
     {
         "name": "LangChain or LlamaIndex",
@@ -37,6 +40,7 @@ RUNNER_ADAPTERS: list[dict[str, str]] = [
         "file": "runners/python_chain_runner.py",
         "template": "python_chain_runner.py",
         "replay": "python runners/python_chain_runner.py",
+        "setup": "Set REDLINE_PYTHON_RUNNER to module:function.",
     },
     {
         "name": "HTTP API",
@@ -45,6 +49,7 @@ RUNNER_ADAPTERS: list[dict[str, str]] = [
         "file": "runners/http_runner.py",
         "template": "http_runner.py",
         "replay": "python runners/http_runner.py",
+        "setup": "Set REDLINE_HTTP_URL and optionally REDLINE_HTTP_RESPONSE_FIELD.",
     },
     {
         "name": "App logs to JSONL",
@@ -53,6 +58,7 @@ RUNNER_ADAPTERS: list[dict[str, str]] = [
         "file": "runners/jsonl_log_adapter.py",
         "template": "jsonl_log_adapter.py",
         "replay": "python runners/jsonl_log_adapter.py logs/export.jsonl --input-field request.prompt --output-field response.text --out .redline/logs/prompts.jsonl",
+        "setup": "Export app logs as JSONL, then map prompt and response fields.",
     },
     {
         "name": "LiteLLM or model proxy",
@@ -61,6 +67,7 @@ RUNNER_ADAPTERS: list[dict[str, str]] = [
         "file": "runners/litellm_runner.sh",
         "template": "litellm_runner.sh",
         "replay": "./runners/litellm_runner.sh",
+        "setup": "Set LITELLM_BASE_URL, LITELLM_API_KEY, and LITELLM_MODEL.",
     },
 ]
 
@@ -82,6 +89,7 @@ def format_runner_adapters(adapters: list[dict[str, Any]] | None = None) -> str:
             [
                 str(adapter["name"]),
                 f"  Need:   {adapter['need']}",
+                f"  Setup:  {adapter['setup']}",
                 f"  File:   {adapter['file']}",
                 f"  Replay: {adapter['replay']}",
                 "",
@@ -115,6 +123,7 @@ def copy_runner_adapter(
         "name": adapter["name"],
         "path": str(target),
         "replay": _replay_for_target(adapter, target),
+        "setup": adapter["setup"],
     }
 
 

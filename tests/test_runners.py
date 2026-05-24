@@ -34,6 +34,8 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("redline runners", output)
         self.assertIn("Model- and provider-agnostic", output)
         self.assertIn("Custom stdio command", output)
+        self.assertIn("Setup:", output)
+        self.assertIn("REDLINE_STDIO_COMMAND", output)
         self.assertIn("./runners/openai_runner.sh", output)
         self.assertIn("python runners/stdio_runner.py", output)
         self.assertIn("python runners/http_runner.py", output)
@@ -56,6 +58,7 @@ class RunnerTests(unittest.TestCase):
 
             self.assertEqual(result["id"], "openai")
             self.assertEqual(result["path"], str(output))
+            self.assertIn("OPENAI_API_KEY", result["setup"])
             self.assertTrue(output.exists())
             self.assertIn("OPENAI_API_KEY", output.read_text(encoding="utf-8"))
             self.assertTrue(output.stat().st_mode & 0o111)

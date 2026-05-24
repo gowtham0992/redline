@@ -378,6 +378,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     if runner_result:
         print(f"Wrote {Path(runner_result['path'])}.")
         print(f"Replay: {runner_result['replay']}")
+        print(f"Setup:  {runner_result['setup']}")
     if args.github_action:
         write_text(args.workflow, default_github_workflow())
         print(f"Wrote {Path(args.workflow)}.")

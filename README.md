@@ -114,6 +114,9 @@ Or choose a built-in runner adapter:
 redline init --runner stdio --copy-runner --github-action
 ```
 
+When a runner is copied, the CLI prints the replay command plus the environment
+variable or setup step that adapter needs before `redline eval` can run.
+
 The generated `redline.json` includes a `$schema` reference for editor help.
 Regressions and missing outputs fail CI by default through `fail_on`; set
 `fail_on` to `"none"` during setup if you want report-only runs.

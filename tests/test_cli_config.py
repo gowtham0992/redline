@@ -168,6 +168,21 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_init_with_runner_prints_runner_setup_hint(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(Path(directory))
+            try:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["init", "--runner", "stdio", "--copy-runner"]), 0)
+
+                text = output.getvalue()
+                self.assertIn("Replay: python runners/stdio_runner.py", text)
+                self.assertIn("Setup:  Set REDLINE_STDIO_COMMAND", text)
+            finally:
+                os.chdir(previous)
+
     def test_init_can_store_judge_command(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
