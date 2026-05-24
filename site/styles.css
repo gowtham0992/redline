@@ -54,8 +54,17 @@ a {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-size: 22px;
   font-weight: 760;
+}
+
+.brand img {
+  display: block;
+  width: 32px;
+  height: 32px;
 }
 
 nav {

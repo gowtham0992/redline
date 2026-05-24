@@ -9,6 +9,7 @@ class _SiteParser(HTMLParser):
         self.links: list[str] = []
         self.images: list[tuple[str, str]] = []
         self.stylesheets: list[str] = []
+        self.icons: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {name: value or "" for name, value in attrs}
@@ -18,6 +19,8 @@ class _SiteParser(HTMLParser):
             self.images.append((values.get("src", ""), values.get("alt", "")))
         if tag == "link" and values.get("rel") == "stylesheet":
             self.stylesheets.append(values.get("href", ""))
+        if tag == "link" and values.get("rel") == "icon":
+            self.icons.append(values.get("href", ""))
 
 
 class GitHubPagesSiteTests(unittest.TestCase):
@@ -36,11 +39,23 @@ class GitHubPagesSiteTests(unittest.TestCase):
         parser.feed(Path("site/index.html").read_text(encoding="utf-8"))
 
         self.assertIn("styles.css", parser.stylesheets)
+        self.assertIn("assets/redline-mark.svg", parser.icons)
         self.assertIn("https://github.com/gowtham0992/redline", parser.links)
         self.assertIn(
             ("assets/redline-preview.png", "redline terminal and dashboard preview showing four prompt regressions caught"),
             parser.images,
         )
+        self.assertIn(("assets/redline-mark.svg", ""), parser.images)
+
+    def test_logo_assets_are_committed_svg_files(self) -> None:
+        for name in ("redline-mark.svg", "redline-logo.svg"):
+            with self.subTest(name=name):
+                asset = Path("site/assets") / name
+                text = asset.read_text(encoding="utf-8")
+
+                self.assertIn("<svg", text)
+                self.assertIn("#dc2626", text)
+                self.assertIn("redline", text)
 
     def test_preview_image_is_committed_png_asset(self) -> None:
         image = Path("site/assets/redline-preview.png")
