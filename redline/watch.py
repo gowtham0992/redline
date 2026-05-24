@@ -78,6 +78,29 @@ def watch(
     return decorate(func)
 
 
+def record(
+    prompt: Any,
+    response: Any,
+    *,
+    log: str | Path = DEFAULT_WATCH_LOG,
+    source: str = "python:manual",
+    source_line: int | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Append one prompt-response observation to a local JSONL log."""
+
+    row = {
+        "prompt": _stringify_value(prompt),
+        "response": _stringify_value(response),
+        "source": source,
+        "source_line": source_line,
+        "observed_at": datetime.now(timezone.utc).isoformat(),
+        "metadata": metadata or {},
+    }
+    append_jsonl(log, [row])
+    return row
+
+
 def collect_log(
     source: str | Path,
     *,
@@ -315,18 +338,13 @@ def _append_function_observation(
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
 ) -> None:
-    append_jsonl(
-        log,
-        [
-            {
-                "prompt": _stringify_value(prompt),
-                "response": _stringify_value(response),
-                "source": _function_source(target),
-                "source_line": _function_line(target),
-                "observed_at": datetime.now(timezone.utc).isoformat(),
-                "metadata": _function_metadata(target, metadata, args, kwargs),
-            }
-        ],
+    record(
+        prompt,
+        response,
+        log=log,
+        source=_function_source(target),
+        source_line=_function_line(target),
+        metadata=_function_metadata(target, metadata, args, kwargs),
     )
 
 

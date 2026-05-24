@@ -7,12 +7,43 @@ from threading import Thread
 from time import sleep
 from typing import Any
 
+from redline import record as exported_record
 from redline import watch as exported_watch
 from redline.io import read_jsonl_records
-from redline.watch import collect_log, follow_log, format_follow_records, format_watch_stats, watch, watch_stats
+from redline.watch import collect_log, follow_log, format_follow_records, format_watch_stats, record, watch, watch_stats
 
 
 class WatchTests(unittest.TestCase):
+    def test_record_appends_manual_prompt_response_observation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            row = record(
+                "refund policy",
+                {"text": "30 days"},
+                log=log,
+                source="python:test",
+                source_line=12,
+                metadata={"model": "test-model"},
+            )
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(row["source"], "python:test")
+            self.assertEqual(records[0].prompt, "refund policy")
+            self.assertEqual(records[0].response, '{"text": "30 days"}')
+            self.assertEqual(records[0].raw["source_line"], 12)
+            self.assertEqual(records[0].raw["metadata"]["model"], "test-model")
+
+    def test_record_exports_from_package_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            exported_record("hello", "world", log=log)
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(records[0].prompt, "hello")
+            self.assertEqual(records[0].response, "world")
+
     def test_watch_decorator_records_sync_function_calls(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             log = Path(directory) / "observed.jsonl"

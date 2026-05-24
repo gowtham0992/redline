@@ -225,6 +225,16 @@ source line, timestamp, and metadata. It works with sync and async functions.
 Use `prompt_arg="question"` when your function does not name the prompt
 argument `prompt`.
 
+Or record one observation manually when your app already has the prompt and
+response in hand:
+
+```python
+from redline import record
+
+response = call_llm(prompt)
+record(prompt, response, metadata={"model": "gpt-4o"})
+```
+
 Keep polling a log during local development:
 
 ```bash

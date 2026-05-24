@@ -23,7 +23,7 @@
 - Add a GitHub Pages website with static launch UI, product preview artwork, and a Pages deploy workflow.
 - Add vector logo assets for the site header, favicon, and future launch material.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
-- Capture prompt-response pairs from Python functions with the local `@watch` decorator.
+- Capture prompt-response pairs from Python functions with the local `@watch` decorator and `record()` helper.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.
