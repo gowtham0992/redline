@@ -52,7 +52,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     arguments = sys.argv[1:] if argv is None else list(argv)
     arguments = _normalize_command_aliases(arguments)
-    if not arguments:
+    if not arguments or arguments in (["-h"], ["--help"]):
         print(_root_help(), end="")
         return 0
     args = parser.parse_args(arguments)

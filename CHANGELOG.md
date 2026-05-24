@@ -47,6 +47,7 @@
 - Print setup and next-step commands after copying a single runner or log adapter.
 - Keep `redline init --help` focused on replay-capable runner adapters.
 - Show replay and log-import next steps after copying all adapters.
+- Keep top-level `redline --help` on the curated first-run path.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.

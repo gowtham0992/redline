@@ -23,6 +23,18 @@ class CliConfigTests(unittest.TestCase):
         self.assertIn("redline init --runner stdio --copy-runner", text)
         self.assertIn("redline <command> --help", text)
 
+    def test_root_help_prints_first_run_help(self) -> None:
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(["--help"]), 0)
+
+        text = output.getvalue()
+        self.assertIn("Start here:", text)
+        self.assertIn("redline demo", text)
+        self.assertNotIn("suite-add", text)
+        self.assertNotIn("==SUPPRESS==", text)
+
     def test_cli_version_flag_prints_version(self) -> None:
         output = io.StringIO()
 
