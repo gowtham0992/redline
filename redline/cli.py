@@ -557,6 +557,8 @@ def cmd_suite(args: argparse.Namespace) -> int:
     write_json(output, suite)
     summary = suite["summary"]
     print(f"Generated {summary['cases']} cases from {summary['records_seen']} records.")
+    if summary.get("duplicate_prompt_response_pairs"):
+        print(f"Skipped {summary['duplicate_prompt_response_pairs']} duplicate prompt-response pairs.")
     print(f"Detected {summary['clusters']} behavioral clusters.")
     print(f"Wrote {Path(output)}.")
     print()

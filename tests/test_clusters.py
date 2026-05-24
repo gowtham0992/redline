@@ -22,6 +22,8 @@ class ClusterReportTests(unittest.TestCase):
         report = cluster_report(suite)
 
         self.assertEqual(report["records_seen"], 3)
+        self.assertEqual(report["unique_prompt_response_pairs"], 3)
+        self.assertEqual(report["duplicate_prompt_response_pairs"], 0)
         self.assertEqual(report["clusters"], 2)
         self.assertEqual(report["suggested_cases"], 2)
         self.assertEqual(report["high_variance_clusters"], 0)
@@ -61,7 +63,8 @@ class ClusterReportTests(unittest.TestCase):
         output = format_cluster_report(suite)
 
         self.assertIn("redline cluster", output)
-        self.assertIn("Identified 1 behavioral clusters", output)
+        self.assertIn("Identified 1 behavioral clusters from 1 unique pairs", output)
+        self.assertIn("Records seen: 1  Duplicate pairs: 0", output)
         self.assertIn("High-risk clusters: 0", output)
         self.assertIn("Failure-pattern clusters: 0", output)
         self.assertIn("Suggested eval suite: 1 representative cases.", output)

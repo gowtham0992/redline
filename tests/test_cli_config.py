@@ -433,6 +433,32 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_suite_reports_skipped_duplicate_prompt_response_pairs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON for Ada", "response": "{\\"name\\":\\"Ada\\"}"}\n'
+                    '{"prompt": "Return JSON for Ada", "response": "{\\"name\\":\\"Ada\\"}"}\n'
+                    '{"prompt": "Summarize", "response": "- one\\n- two"}\n',
+                    encoding="utf-8",
+                )
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["suite", "baseline.jsonl", "--out", "suite.json", "--all-cases"]), 0)
+
+                suite = json.loads(Path("suite.json").read_text(encoding="utf-8"))
+                self.assertEqual(suite["summary"]["records_seen"], 3)
+                self.assertEqual(suite["summary"]["unique_prompt_response_pairs"], 2)
+                self.assertEqual(suite["summary"]["duplicate_prompt_response_pairs"], 1)
+                self.assertEqual(suite["summary"]["cases"], 2)
+                self.assertIn("Skipped 1 duplicate prompt-response pairs.", output.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_suite_all_cases_rejects_max_cases(self) -> None:
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):

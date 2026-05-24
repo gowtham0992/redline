@@ -276,11 +276,12 @@ Generate a suite from baseline logs:
 python -m redline suite examples/baseline.jsonl
 ```
 
-The suite command prints next steps for inspecting cases, comparing a candidate
-log, and wiring a replay runner.
+The suite command skips exact duplicate prompt-response pairs, then prints next
+steps for inspecting cases, comparing a candidate log, and wiring a replay
+runner.
 
-Use `--all-cases` when dogfooding small fixed prompt sets where every row should
-be compared instead of sampling representative clusters.
+Use `--all-cases` when dogfooding small fixed prompt sets where every unique
+row should be compared instead of sampling representative clusters.
 
 Pin an important edge case the clustering did not select:
 

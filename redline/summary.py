@@ -47,6 +47,8 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "records_seen": int(summary.get("records_seen", 0)),
+        "unique_prompt_response_pairs": int(summary.get("unique_prompt_response_pairs", summary.get("records_seen", 0))),
+        "duplicate_prompt_response_pairs": int(summary.get("duplicate_prompt_response_pairs", 0)),
         "clusters": int(summary.get("clusters", len(clusters))),
         "cases": int(summary.get("cases", len(suite.get("cases", [])))),
         "max_cases": int(summary.get("max_cases", 0)),
@@ -64,6 +66,8 @@ def format_suite_summary(suite: dict[str, Any]) -> str:
         "redline summary",
         "",
         f"Records seen:           {summary['records_seen']}",
+        f"Unique pairs:           {summary['unique_prompt_response_pairs']}",
+        f"Duplicate pairs:        {summary['duplicate_prompt_response_pairs']}",
         f"Behavioral clusters:    {summary['clusters']}",
         f"Representative cases:   {summary['cases']}",
         f"Max cases:              {summary['max_cases']}",

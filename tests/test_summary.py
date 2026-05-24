@@ -26,6 +26,8 @@ class SummaryTests(unittest.TestCase):
         summary = suite_summary(suite)
 
         self.assertEqual(summary["records_seen"], 2)
+        self.assertEqual(summary["unique_prompt_response_pairs"], 2)
+        self.assertEqual(summary["duplicate_prompt_response_pairs"], 0)
         self.assertEqual(summary["cases"], 2)
         self.assertEqual(summary["judgments"], {"expected": 1})
         self.assertEqual(summary["requirements"], 1)
@@ -57,6 +59,8 @@ class SummaryTests(unittest.TestCase):
 
         self.assertIn("redline summary", output)
         self.assertIn("Records seen:", output)
+        self.assertIn("Unique pairs:", output)
+        self.assertIn("Duplicate pairs:", output)
         self.assertIn("Failure-pattern clusters:", output)
         self.assertIn("Top clusters:", output)
 

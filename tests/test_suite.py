@@ -23,6 +23,8 @@ class SuiteTests(unittest.TestCase):
         )
 
         self.assertEqual(suite["summary"]["records_seen"], 3)
+        self.assertEqual(suite["summary"]["unique_prompt_response_pairs"], 3)
+        self.assertEqual(suite["summary"]["duplicate_prompt_response_pairs"], 0)
         self.assertEqual(suite["summary"]["cases"], 2)
         self.assertEqual(suite["summary"]["clusters"], 2)
         self.assertTrue(all("baseline_response" in case for case in suite["cases"]))
@@ -112,6 +114,28 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(suite["summary"]["max_cases"], 3)
         self.assertEqual(suite["summary"]["selection"], "all")
         self.assertEqual([case["source_line"] for case in suite["cases"]], [1, 2, 3])
+
+    def test_build_suite_skips_exact_duplicate_prompt_response_pairs(self) -> None:
+        records = [
+            LogRecord(1, "Return JSON for Ada", '{"name":"Ada"}', {}),
+            LogRecord(2, "Return JSON for Ada", '{"name":"Ada"}', {}),
+            LogRecord(3, "Summarize in bullets", "- one\n- two", {}),
+        ]
+
+        suite = build_suite(
+            records,
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            all_cases=True,
+        )
+
+        self.assertEqual(suite["summary"]["records_seen"], 3)
+        self.assertEqual(suite["summary"]["unique_prompt_response_pairs"], 2)
+        self.assertEqual(suite["summary"]["duplicate_prompt_response_pairs"], 1)
+        self.assertEqual(suite["summary"]["cases"], 2)
+        self.assertEqual(suite["summary"]["max_cases"], 2)
+        self.assertEqual([case["source_line"] for case in suite["cases"]], [1, 3])
 
     def test_add_suite_case_pins_manual_case(self) -> None:
         suite = build_suite(

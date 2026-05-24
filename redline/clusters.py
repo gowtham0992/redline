@@ -22,6 +22,8 @@ def cluster_report(suite: dict[str, Any]) -> dict[str, Any]:
     high_risk = [cluster for cluster in rows if cluster["risk"] == "high"]
     return {
         "records_seen": int(summary.get("records_seen", 0)),
+        "unique_prompt_response_pairs": int(summary.get("unique_prompt_response_pairs", summary.get("records_seen", 0))),
+        "duplicate_prompt_response_pairs": int(summary.get("duplicate_prompt_response_pairs", 0)),
         "clusters": len(rows),
         "suggested_cases": int(summary.get("cases", 0)),
         "max_cases": int(summary.get("max_cases", 0)),
@@ -37,7 +39,8 @@ def format_cluster_report(suite: dict[str, Any]) -> str:
     lines = [
         "redline cluster",
         "",
-        f"Identified {report['clusters']} behavioral clusters from {report['records_seen']} pairs.",
+        f"Identified {report['clusters']} behavioral clusters from {report['unique_prompt_response_pairs']} unique pairs.",
+        f"Records seen: {report['records_seen']}  Duplicate pairs: {report['duplicate_prompt_response_pairs']}",
         f"High-risk clusters: {report['high_risk_clusters']}",
         f"High-variance clusters: {report['high_variance_clusters']}",
         f"Failure-pattern clusters: {report['failure_pattern_clusters']}",

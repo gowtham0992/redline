@@ -25,16 +25,17 @@ def build_suite(
     if max_cases < 1:
         raise ValueError("max_cases must be at least 1")
 
+    unique_records = _unique_prompt_response_records(records)
     feature_cache: FeatureCache = {}
     signatures: dict[int, str] = {}
     grouped: dict[str, list[LogRecord]] = defaultdict(list)
-    for record in records:
+    for record in unique_records:
         features = _record_features(record, feature_cache)
         signature = _behavior_signature(record.prompt, features)
         signatures[id(record)] = signature
         grouped[signature].append(record)
 
-    selected = records if all_cases else _select_representatives(grouped, max_cases, feature_cache)
+    selected = unique_records if all_cases else _select_representatives(grouped, max_cases, feature_cache)
     cases = []
     for index, record in enumerate(selected, 1):
         signature = signatures[id(record)]
@@ -75,9 +76,11 @@ def build_suite(
         "output_field": output_field,
         "summary": {
             "records_seen": len(records),
+            "unique_prompt_response_pairs": len(unique_records),
+            "duplicate_prompt_response_pairs": len(records) - len(unique_records),
             "clusters": len(grouped),
             "cases": len(cases),
-            "max_cases": len(records) if all_cases else max_cases,
+            "max_cases": len(unique_records) if all_cases else max_cases,
             "selection": "all" if all_cases else "representative",
         },
         "clusters": clusters,
@@ -172,6 +175,18 @@ def _select_representatives(
                 break
 
     return selected
+
+
+def _unique_prompt_response_records(records: list[LogRecord]) -> list[LogRecord]:
+    unique = []
+    seen: set[tuple[str, str]] = set()
+    for record in records:
+        key = (record.prompt, record.response)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(record)
+    return unique
 
 
 def _median_length_record(group: list[LogRecord]) -> LogRecord:
