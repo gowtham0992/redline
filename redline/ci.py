@@ -1,0 +1,93 @@
+from __future__ import annotations
+
+
+def default_github_workflow() -> str:
+    return """name: redline
+
+on:
+  pull_request:
+    paths:
+      - "prompts/**"
+      - "**/*.jsonl"
+      - "redline.json"
+      - "redline-suite.json"
+      - "redline.schema.json"
+      - "redline-suite.schema.json"
+      - "redline-report.schema.json"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install redline
+        run: python -m pip install redline-ai
+
+      - name: Check redline setup
+        run: python -m redline doctor --strict
+
+      - name: Validate redline suite
+        run: python -m redline validate --strict
+
+      - name: Run redline eval
+        run: |
+          python -m redline eval \\
+            --compact \\
+            --github-summary \\
+            --github-annotations \\
+            --out-json .redline/reports/eval.json \\
+            --out-md .redline/reports/eval.md \\
+            --out-html .redline/reports/eval.html \\
+            --out-junit .redline/reports/eval.xml
+
+      - name: Compare redline trend
+        if: always()
+        run: |
+          if [ -f .redline/reports/eval-before.json ]; then
+            python -m redline compare \\
+              .redline/reports/eval-before.json \\
+              .redline/reports/eval.json \\
+              --out-json .redline/reports/compare.json \\
+              --out-md .redline/reports/compare.md \\
+              --out-html .redline/reports/compare.html \\
+              --github-summary \\
+              --fail-on worse,new
+          else
+            echo "No previous redline report found at .redline/reports/eval-before.json; skipping compare."
+          fi
+
+      - name: Record redline history
+        if: always()
+        run: |
+          if [ -f .redline/reports/eval.json ]; then
+            python -m redline history \\
+              .redline/reports/eval.json \\
+              --label "${{ github.sha }}" \\
+              --out .redline/history.jsonl \\
+              --out-md .redline/history.md \\
+              --github-summary
+          else
+            echo "No redline eval report found at .redline/reports/eval.json; skipping history."
+          fi
+
+      - name: Render redline dashboard
+        if: always()
+        run: python -m redline dashboard --out .redline/dashboard.html
+
+      - name: Upload redline reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redline-reports
+          path: |
+            .redline/reports/
+            .redline/history.jsonl
+            .redline/history.md
+            .redline/dashboard.html
+"""

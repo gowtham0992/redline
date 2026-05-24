@@ -1,0 +1,49 @@
+name: Bug report
+description: Report a redline command, packaging, runner, or CI bug.
+title: "[bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a redline bug. Please remove private prompts, outputs, API keys, and customer data before attaching logs.
+  - type: input
+    id: version
+    attributes:
+      label: redline version
+      description: Run `redline --version`.
+      placeholder: redline 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: Paste the exact command that failed.
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output or error
+      description: Paste the relevant terminal output.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should redline have done instead?
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup details
+      description: Include OS, Python version, install method, runner adapter, and sanitized `redline doctor` output if relevant.
+      render: text
+    validations:
+      required: false

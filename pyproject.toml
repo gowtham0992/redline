@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "redline-ai"
+version = "0.1.0"
+description = "Generate eval suites from prompt logs and catch LLM regressions locally."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+keywords = ["ai", "evals", "jsonl", "llm", "prompts", "regression-testing"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Testing",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/gowtham0992/redline"
+Repository = "https://github.com/gowtham0992/redline"
+Issues = "https://github.com/gowtham0992/redline/issues"
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2",
+  "mypy>=1.11",
+  "pytest>=8",
+  "ruff>=0.6",
+  "setuptools>=68",
+  "twine>=5",
+]
+
+[project.scripts]
+redline = "redline.cli:main"
+redline-mcp = "redline.mcp:main"
+
+[tool.setuptools.packages.find]
+include = ["redline*"]
+
+[tool.setuptools.package-data]
+redline = ["py.typed", "runner_templates/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

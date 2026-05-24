@@ -1,0 +1,44 @@
+name: Release Artifacts
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build release artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dev dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Certify release
+        run: bash scripts/certify_release.sh "$RUNNER_TEMP/redline-certify"
+
+      - name: Upload release distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: redline-release-distributions
+          path: ${{ runner.temp }}/redline-certify/dist/*
+          if-no-files-found: error
+
+      - name: Upload certification summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: redline-release-certification
+          path: ${{ runner.temp }}/redline-certify/certification.txt
+          if-no-files-found: error

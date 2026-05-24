@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-suite.schema.json",
+  "title": "redline suite",
+  "description": "Portable prompt-response regression suite generated from existing logs. Suites are local-first and can be consumed by redline or compatible tools.",
+  "type": "object",
+  "required": ["version", "created_at", "source", "input_field", "output_field", "summary", "clusters", "cases"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URL for editor autocomplete and compatible tooling."
+    },
+    "version": {
+      "type": "string",
+      "description": "Suite format version."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp when the suite was generated."
+    },
+    "source": {
+      "type": "string",
+      "description": "Original log path or source label used to generate the suite."
+    },
+    "input_field": {
+      "type": "string",
+      "description": "JSONL field path used as the prompt/input."
+    },
+    "output_field": {
+      "type": "string",
+      "description": "JSONL field path used as the baseline response/output."
+    },
+    "summary": {
+      "type": "object",
+      "required": ["records_seen", "unique_prompt_response_pairs", "clusters", "cases", "selection"],
+      "properties": {
+        "records_seen": {"type": "integer", "minimum": 0},
+        "unique_prompt_response_pairs": {"type": "integer", "minimum": 0},
+        "duplicate_prompt_response_pairs": {"type": "integer", "minimum": 0},
+        "clusters": {"type": "integer", "minimum": 0},
+        "cases": {"type": "integer", "minimum": 0},
+        "max_cases": {"type": "integer", "minimum": 0},
+        "selection": {"type": "string", "enum": ["representative", "all"]},
+        "pinned_cases": {"type": "integer", "minimum": 0},
+        "high_risk_clusters": {"type": "integer", "minimum": 0},
+        "medium_risk_clusters": {"type": "integer", "minimum": 0},
+        "high_variance_clusters": {"type": "integer", "minimum": 0},
+        "failure_pattern_clusters": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "clusters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["signature", "size", "word_count_min", "word_count_max", "high_variance", "failure_patterns", "risk"],
+        "properties": {
+          "signature": {"type": "string"},
+          "size": {"type": "integer", "minimum": 1},
+          "word_count_min": {"type": "integer", "minimum": 0},
+          "word_count_max": {"type": "integer", "minimum": 0},
+          "high_variance": {"type": "boolean"},
+          "failure_patterns": {"type": "array", "items": {"type": "string"}},
+          "risk": {"type": "string", "enum": ["high", "medium", "low"]},
+          "manual": {"type": "boolean"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "cluster",
+          "cluster_risk",
+          "selection_reason",
+          "prompt",
+          "baseline_response",
+          "content_hash",
+          "features"
+        ],
+        "properties": {
+          "id": {"type": "string"},
+          "source": {"type": "string"},
+          "source_line": {"type": ["integer", "null"]},
+          "cluster": {"type": "string"},
+          "cluster_risk": {"type": "string", "enum": ["high", "medium", "low"]},
+          "selection_reason": {
+            "type": "string",
+            "enum": [
+              "cluster_representative",
+              "high_variance_short_edge",
+              "high_variance_long_edge",
+              "high_variance_edge",
+              "all_cases",
+              "manual_pin"
+            ]
+          },
+          "prompt": {"type": "string"},
+          "baseline_response": {"type": "string"},
+          "content_hash": {"type": "string"},
+          "pinned": {"type": "boolean"},
+          "added_at": {"type": "string", "format": "date-time"},
+          "note": {"type": "string"},
+          "features": {
+            "type": "object",
+            "required": ["shape", "length_bucket", "empty", "valid_json"],
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "judgments": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

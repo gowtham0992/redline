@@ -1,0 +1,84 @@
+# Changelog
+
+## 0.1.0
+
+- Generate representative prompt eval suites from JSONL prompt-response logs.
+- Package the CLI as `redline-ai` while exposing the `redline` command.
+- Show first-run guidance when `redline` is run without a command.
+- Replay suites through local commands with optional prompt templates and workers.
+- Warn when `redline eval --prompt` uses a prompt file newer than the suite baseline.
+- Diff candidate outputs with deterministic regression signals and optional judges.
+- Calibrate diff and eval decisions so neutral runs say "no structural blockers"
+  instead of implying full semantic approval.
+- Add a `review` diff profile for long-form assistant logs where missing numbers and entities should be reviewed instead of blocking by default.
+- Emit JSON, Markdown, JUnit, GitHub summary, and GitHub annotation reports.
+- Write self-contained HTML diff/eval reports for side-by-side inspection.
+- Show the mark/accept review loop in the first-run demo so users can train the suite as prompts evolve.
+- Flag obvious allow/deny policy wording flips as changed cases instead of neutral drift.
+- Add `redline dashboard` for a self-contained local HTML index of reports and trend history.
+- Diagnose history trends as better, worse, or flat based on blocking regressions across recent runs.
+- Add HTML output for `redline compare` so trend comparisons are inspectable in CI artifacts.
+- Render and upload `.redline/dashboard.html` from the generated GitHub Actions workflow.
+- Add a composite GitHub Action entrypoint for running redline in external repos.
+- Preserve eval reports, trend history, and dashboard output from the composite GitHub Action before returning the eval status.
+- Allow `redline history --fail-on` to gate CI on worsening trend directions.
+- Add richer judge rubrics for support, structured extraction, and safety/compliance review.
+- Add repeatable demo GIF tooling with VHS/asciinema support and a transcript fallback.
+- Add a public alpha launch playbook with positioning, asset checklist, launch copy, and feedback triage.
+- Add a GitHub Pages website with static launch UI, product preview artwork, and a Pages deploy workflow.
+- Add vector logo assets for the site header, favicon, and future launch material.
+- Add a product-focused README with a committed demo GIF for first-time users.
+- Add `redline-mcp`, a local MCP stdio server and agent workflow prompts for running redline checks without mutating baselines.
+- Add MCP Registry metadata for publishing the PyPI-backed `redline-mcp` server.
+- Watch and follow prompt logs, validate suites, compare report runs, and append report history.
+- Capture prompt-response pairs from Python functions with the local `@watch` decorator and `record()` helper, with exact duplicate observations skipped by content hash.
+- Normalize common provider response objects and capture latency/token metadata from watched Python calls.
+- Show suite-readiness guidance in `redline watch --stats` based on unique prompt-response pairs.
+- Print copy-pasteable suite and follow commands from `redline watch --stats`.
+- Skip exact duplicate prompt-response pairs when generating suites from noisy logs.
+- Warn when suite validation finds redundant duplicate prompt-response cases.
+- Store stable prompt-response content hashes on suite cases and refresh them when accepting new baselines.
+- Publish `redline-suite.schema.json` and embed it in generated suites.
+- Include candidate and baseline content hashes in replayed eval candidate rows.
+- Publish `redline-report.schema.json` and embed it in diff/eval JSON reports.
+- Expose suite case content hashes to replay commands and prompt templates.
+- Include suite case content hashes in machine-readable case listings.
+- Refuse duplicate `redline suite add` prompt-response pairs unless explicitly allowed.
+- Warn when suite validation finds cases missing stable content hashes.
+- Warn when a suite's source log is newer than the suite generation timestamp.
+- Record per-case selection reasons and cluster risk in generated suites.
+- Print repair-oriented next steps from `redline validate` when suite health checks fail.
+- Show suite provenance, selection mode, and pinned-case counts in `redline summary`.
+- Show suite cluster/case coverage ratios and recommended next steps in `redline summary`.
+- Show source log provenance in `redline case` detail output.
+- Mark pinned cases in `redline cases` table and JSON rows.
+- Show pinned status in `redline case` detail output.
+- Show case selection reasons and cluster risk in case lists and details.
+- Guard generated config keys against schema documentation drift.
+- Lead `redline runners` output with the provider-agnostic stdin/stdout contract.
+- Print adapter-specific setup hints after copying runner templates.
+- Warn from `redline doctor` when copied runner adapters are missing required environment variables.
+- Prevent log import adapters from being configured as eval replay runners.
+- Explain from `redline doctor` when a log adapter is manually configured as replay.
+- Print setup and next-step commands after copying a single runner or log adapter.
+- Keep `redline init --help` focused on replay-capable runner adapters.
+- Show replay and log-import next steps after copying all adapters.
+- Keep top-level `redline --help` on the curated first-run path.
+- Keep comma-formatted numbers, percentages, and times readable in regression reasons.
+- Preserve baseline order when reporting missing numbers, URLs, and entities.
+- Strip trailing sentence punctuation from extracted URLs.
+- Render Markdown history reports and publish trend history to GitHub step summaries.
+- Run a realistic support-agent demo that catches concise-prompt regressions.
+- Show actionable next steps after demo and suite generation commands.
+- Ship larger dogfood prompt logs that exercise several regression classes.
+- Normalize AI assistant session exports for private dogfood comparisons.
+- Include all fixed prompt rows with `redline suite --all-cases`.
+- Pin hand-picked edge cases into generated suites with `redline suite add`.
+- Include optional OpenAI-, Anthropic-, and LiteLLM-backed judge command templates for ambiguous changes.
+- Scaffold replay runners for OpenAI, Anthropic, HTTP APIs, Python chains, JSONL logs, and LiteLLM.
+- Initialize projects with config schema, runner setup, and GitHub Actions workflow generation.
+- Call out the default CI failure policy directly after `redline init`.
+- Diagnose setup with actionable doctor checks, suite validation health, and next-step commands.
+- Calibrate `redline doctor` coverage output with high-risk cluster, requirement, and judge context.
+- Protect the README quickstart path with an end-to-end integration test.
+- Record the public terminal demo with `scripts/demo_terminal.sh`.

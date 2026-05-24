@@ -1,0 +1,56 @@
+name: Dogfood feedback
+description: Share what happened when you tried redline on real or sanitized prompt logs.
+title: "[dogfood]: "
+labels:
+  - dogfood
+  - feedback
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this after trying redline on a real workflow. Please sanitize private prompts, outputs, customer names, secrets, and API keys before sharing artifacts.
+  - type: dropdown
+    id: source
+    attributes:
+      label: What did you test redline on?
+      options:
+        - Public demo
+        - Sanitized production logs
+        - OpenAI or Anthropic direct runner
+        - HTTP API runner
+        - LangChain or LlamaIndex runner
+        - LiteLLM or proxy runner
+        - AI assistant session exports
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: commands
+    attributes:
+      label: Commands you ran
+      description: Paste the exact redline commands, in order.
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What did redline catch?
+      description: Did it find a real regression, a false positive, a confusing neutral result, or nothing useful?
+    validations:
+      required: true
+  - type: textarea
+    id: friction
+    attributes:
+      label: Where did you hesitate?
+      description: Tell us the first confusing command, output line, doc section, or setup step.
+    validations:
+      required: true
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Sanitized artifacts
+      description: Link or paste sanitized report snippets, `redline doctor`, `redline summary`, or `redline history` output.
+      render: text
+    validations:
+      required: false
