@@ -75,6 +75,9 @@ To run the package gate, external-project Action smoke, release build, and
 bash scripts/certify_release.sh /tmp/redline-certify-v0.1.0
 ```
 
+The certification summary records the git commit, branch, and clean/dirty worktree state.
+Release evidence can be traced back to the exact code that was tested.
+
 ## Tag
 
 After the release gate and public-alpha smoke both pass:

@@ -140,6 +140,10 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("scripts/action_smoke.sh", script)
         self.assertIn("scripts/build_release.sh", script)
         self.assertIn("certification.txt", script)
+        self.assertIn("git rev-parse --short HEAD", script)
+        self.assertIn("git branch --show-current", script)
+        self.assertIn("git status --porcelain", script)
+        self.assertIn("worktree:", script)
         self.assertIn("release certification passed", script)
 
     def test_release_guide_documents_package_gate(self) -> None:
@@ -156,6 +160,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("pyproject.toml", guide)
         self.assertIn("redline/__init__.py", guide)
         self.assertIn("CHANGELOG.md", guide)
+        self.assertIn("git commit, branch, and clean/dirty worktree state", guide)
         self.assertIn('python -m pip install -e ".[dev]"', guide)
         self.assertIn("redline demo --compact", guide)
         self.assertIn("redline demo --public --compact", guide)

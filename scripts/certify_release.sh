@@ -9,10 +9,23 @@ release_check_dir="$work_dir/release-check"
 action_smoke_dir="$work_dir/action-smoke"
 dist_dir="$work_dir/dist"
 summary_path="$work_dir/certification.txt"
+git_commit="$(git rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
+git_branch="$(git branch --show-current 2>/dev/null || printf 'unknown')"
+if [ -z "$git_branch" ]; then
+  git_branch="detached"
+fi
+if [ -n "$(git status --porcelain 2>/dev/null || true)" ]; then
+  git_state="dirty"
+else
+  git_state="clean"
+fi
 
 mkdir -p "$work_dir"
 
 printf 'redline release certification\n' | tee "$summary_path"
+printf 'commit: %s\n' "$git_commit" | tee -a "$summary_path"
+printf 'branch: %s\n' "$git_branch" | tee -a "$summary_path"
+printf 'worktree: %s\n' "$git_state" | tee -a "$summary_path"
 printf 'work dir: %s\n\n' "$work_dir" | tee -a "$summary_path"
 
 printf '$ PYTHON=%s bash scripts/release_check.sh %s\n' "$python_bin" "$release_check_dir" | tee -a "$summary_path"
