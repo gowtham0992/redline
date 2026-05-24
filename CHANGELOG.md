@@ -27,6 +27,7 @@
 - Add a public alpha launch playbook with positioning, asset checklist, launch copy, and feedback triage.
 - Add a GitHub Pages website with static launch UI, product preview artwork, and a Pages deploy workflow.
 - Add vector logo assets for the site header, favicon, and future launch material.
+- Add a product-focused README with a committed demo GIF for first-time users.
 - Add `redline-mcp`, a local MCP stdio server and agent workflow prompts for running redline checks without mutating baselines.
 - Add MCP Registry metadata for publishing the PyPI-backed `redline-mcp` server.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.

@@ -90,8 +90,8 @@ should sell the loop, not the package manager.
    ```
 
 4. Create the GitHub release from `v0.1.0`.
-5. Attach the demo GIF or link it from the README once the asset location is
-   stable.
+5. Attach the demo GIF or link the committed README asset:
+   `site/assets/redline-product-demo.gif`.
 
 ## Launch Post
 

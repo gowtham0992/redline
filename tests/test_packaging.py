@@ -41,7 +41,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("examples *.jsonl *.md", manifest)
         self.assertIn("docs *.md *.jsonl", manifest)
         self.assertIn("scripts *.py *.sh", manifest)
-        self.assertIn("site *.html *.css *.png *.svg", manifest)
+        self.assertIn("site *.html *.css *.png *.svg *.gif", manifest)
 
     def test_shell_scripts_are_executable(self) -> None:
         for script_name in (
@@ -179,6 +179,9 @@ class PackagingTests(unittest.TestCase):
     def test_readme_marks_repo_only_script_commands(self) -> None:
         readme = Path("README.md").read_text(encoding="utf-8")
 
+        self.assertIn("site/assets/redline-product-demo.gif", readme)
+        self.assertIn("Automatic eval suites from the prompt logs you already have", readme)
+        self.assertIn("Product Promise", readme)
         self.assertIn("From a repo checkout, record the public demo", readme)
         self.assertIn("scripts/normalize_ai_session_logs.py", readme)
         self.assertIn("actions/workflows/ci.yml/badge.svg?branch=develop", readme)
@@ -206,6 +209,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline dashboard", changelog)
         self.assertIn("redline compare", changelog)
         self.assertIn("richer judge rubrics", changelog)
+        self.assertIn("product-focused README", changelog)
         self.assertIn("redline-mcp", changelog)
         self.assertIn("MCP Registry metadata", changelog)
         self.assertIn("public alpha launch playbook", changelog)
@@ -215,6 +219,7 @@ class PackagingTests(unittest.TestCase):
         readme = Path("README.md").read_text(encoding="utf-8")
 
         self.assertIn("redline-demo.gif", guide)
+        self.assertIn("site/assets/redline-product-demo.gif", guide)
         self.assertIn("python -m pip install redline-ai", guide)
         self.assertIn("Website Checklist", guide)
         self.assertIn("Demo GIF Storyboard", guide)
@@ -418,6 +423,13 @@ class PackagingTests(unittest.TestCase):
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 
         self.assertIn("runner_templates/*", pyproject["tool"]["setuptools"]["package-data"]["redline"])
+
+    def test_readme_product_gif_is_committed(self) -> None:
+        gif = Path("site/assets/redline-product-demo.gif")
+
+        self.assertTrue(gif.exists())
+        self.assertGreater(gif.stat().st_size, 100_000)
+        self.assertLess(gif.stat().st_size, 1_000_000)
 
 
 if __name__ == "__main__":
