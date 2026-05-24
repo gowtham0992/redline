@@ -28,6 +28,7 @@ class ReportTests(unittest.TestCase):
                 "recommended_action": "fix blocking cases before shipping",
                 "scope": "structural checks only; review semantic risks separately",
             },
+            "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "diffs": [
                 {
                     "case_id": "case_001",
@@ -50,6 +51,8 @@ class ReportTests(unittest.TestCase):
         self.assertIn("**Confidence:** HIGH", report)
         self.assertIn("**Recommended action:** fix blocking cases before shipping", report)
         self.assertIn("**Scope:** structural checks only", report)
+        self.assertIn("## Warnings", report)
+        self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn("candidate lost valid JSON format", report)
         self.assertIn("Source: `baseline.jsonl:12`", report)
         self.assertIn("Cluster: `structured_json|json|short`", report)
@@ -114,6 +117,7 @@ class ReportTests(unittest.TestCase):
                 "scope": "structural checks only; review semantic risks separately",
                 "rationale": ["1 regression case(s)"],
             },
+            "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "diffs": [
                 {
                     "case_id": "case_001",
@@ -136,6 +140,8 @@ class ReportTests(unittest.TestCase):
         self.assertIn('<section class="summary"', report)
         self.assertIn("fix blocking cases before shipping", report)
         self.assertIn("structural checks only", report)
+        self.assertIn("<h2>Warnings</h2>", report)
+        self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn("case_001", report)
         self.assertIn("Baseline", report)
         self.assertIn("Candidate", report)

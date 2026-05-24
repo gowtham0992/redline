@@ -1280,6 +1280,59 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_eval_warns_when_prompt_is_newer_than_suite(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("runner.py").write_text(
+                    "import sys\nprint(sys.stdin.read())\n",
+                    encoding="utf-8",
+                )
+                replay = f"{sys.executable} runner.py"
+                Path("prompts").mkdir()
+                Path("prompts/v2.txt").write_text(
+                    "System: answer exactly.\nUser: {prompt}\n",
+                    encoding="utf-8",
+                )
+                Path("redline.json").write_text(
+                    json.dumps(
+                        {
+                            "suite": ".redline/suite.json",
+                            "replay": replay,
+                            "fail_on": "none",
+                            "reports": {"json": ".redline/reports/eval.json"},
+                            "runs": {"metadata": ".redline/runs/replay.json"},
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "hello", "response": "hello"}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
+
+                suite_path = root / ".redline" / "suite.json"
+                suite = json.loads(suite_path.read_text(encoding="utf-8"))
+                suite["created_at"] = "2000-01-01T00:00:00+00:00"
+                suite_path.write_text(json.dumps(suite), encoding="utf-8")
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["eval", "--prompt", "prompts/v2.txt", "--compact"]), 0)
+
+                report = json.loads((root / ".redline" / "reports" / "eval.json").read_text(encoding="utf-8"))
+                metadata = json.loads((root / ".redline" / "runs" / "replay.json").read_text(encoding="utf-8"))
+                self.assertIn("Warning: prompt file prompts/v2.txt is newer than suite", output.getvalue())
+                self.assertIn("prompt file prompts/v2.txt is newer than suite", report["warnings"][0])
+                self.assertEqual(metadata["warnings"], report["warnings"])
+            finally:
+                os.chdir(previous)
+
     def test_eval_timeout_flag_overrides_config_timeout(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

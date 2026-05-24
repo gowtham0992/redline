@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import webbrowser
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -800,6 +801,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
     result = compare_suite_to_candidate(suite, replay.records, profile=_config_diff_profile(args.profile, config))
     result = _maybe_apply_judge(args, result, config)
     result["replay"] = replay.to_metadata()
+    _add_result_warnings(result, _eval_warnings(suite, suite_path=suite_path, prompt_path=args.prompt))
     run_metadata_out = args.run_metadata or _config_run_metadata_path(config)
     if run_metadata_out:
         write_json(
@@ -1173,9 +1175,54 @@ def _run_metadata(
     }
     if result.get("judge"):
         metadata["judge"] = result["judge"]
+    if result.get("warnings"):
+        metadata["warnings"] = result["warnings"]
     if candidate_path:
         metadata["candidate"] = candidate_path
     return metadata
+
+
+def _add_result_warnings(result: dict[str, object], warnings: list[str]) -> None:
+    if not warnings:
+        return
+    existing = result.get("warnings")
+    values = [str(item) for item in existing] if isinstance(existing, list) else []
+    result["warnings"] = [*values, *warnings]
+
+
+def _eval_warnings(
+    suite: dict[str, object],
+    *,
+    suite_path: str,
+    prompt_path: str | None,
+) -> list[str]:
+    if not prompt_path:
+        return []
+    created = _suite_created_at(suite)
+    if created is None:
+        return []
+    prompt_mtime = datetime.fromtimestamp(Path(prompt_path).stat().st_mtime, timezone.utc)
+    if prompt_mtime <= created:
+        return []
+    return [
+        (
+            f"prompt file {prompt_path} is newer than suite {suite_path}; "
+            "regenerate the suite from fresh baseline logs if prompt behavior changed"
+        )
+    ]
+
+
+def _suite_created_at(suite: dict[str, object]) -> datetime | None:
+    value = suite.get("created_at")
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _runner_replay(runner_id: str | None) -> str | None:

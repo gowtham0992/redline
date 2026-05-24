@@ -510,6 +510,9 @@ Evaluate a changed prompt template with your configured replay command:
 python -m redline eval --prompt prompts/v2.txt
 ```
 
+When the prompt file is newer than the suite baseline, eval output and reports
+include a staleness warning so old logs are not mistaken for fresh coverage.
+
 Prompt templates support `{prompt}`, `{case_id}`, `{source_line}`, `{cluster}`,
 `{baseline_response}`, and `{content_hash}`.
 

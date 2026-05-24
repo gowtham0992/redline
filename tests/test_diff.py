@@ -284,6 +284,7 @@ class DiffTests(unittest.TestCase):
                 "recommended_action": "no structural blockers detected; review semantic risks before shipping",
                 "scope": "structural checks only; review semantic risks separately",
             },
+            "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "diffs": [],
         }
 
@@ -292,6 +293,8 @@ class DiffTests(unittest.TestCase):
         self.assertIn("Confidence: MEDIUM", report)
         self.assertIn("Recommended action: no structural blockers detected; review semantic risks before shipping", report)
         self.assertIn("Scope: structural checks only", report)
+        self.assertIn("Warnings:", report)
+        self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
 
     def test_format_compact_report_outputs_one_line_per_actionable_case(self) -> None:
         result = {
@@ -310,6 +313,7 @@ class DiffTests(unittest.TestCase):
                 "recommended_action": "fix blocking cases before shipping",
                 "scope": "structural checks only; review semantic risks separately",
             },
+            "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "diffs": [
                 {
                     "case_id": "case_001",
@@ -333,6 +337,7 @@ class DiffTests(unittest.TestCase):
         self.assertIn("redline eval: cases=2 regression=1 changed=1", report)
         self.assertIn("Confidence: HIGH | fix blocking cases before shipping", report)
         self.assertIn("Scope: structural checks only", report)
+        self.assertIn("Warning: prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn("REGRESSION case_001 [baseline.jsonl:12]: candidate lost valid JSON format", report)
         self.assertIn("CHANGED    case_002: short answer changed", report)
 

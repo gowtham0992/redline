@@ -377,6 +377,13 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
                 lines.append(f"Scope: {scope}")
             lines.append("")
 
+    warnings = _result_warnings(result)
+    if warnings:
+        lines.append("Warnings:")
+        for warning in warnings:
+            lines.append(f"- {warning}")
+        lines.append("")
+
     for status in ("regression", "changed", "improved", "accepted", "ignored", "missing"):
         matching = [item for item in result["diffs"] if item["status"] == status]
         if not matching:
@@ -411,6 +418,8 @@ def format_compact_report(result: dict[str, Any], *, title: str = "redline diff"
             scope = str(decision.get("scope") or "")
             if scope:
                 lines.append(f"Scope: {scope}")
+    for warning in _result_warnings(result):
+        lines.append(f"Warning: {warning}")
 
     actionable = [
         item
@@ -541,6 +550,13 @@ def _source_location(item: dict[str, Any]) -> str:
     if source:
         return source
     return ""
+
+
+def _result_warnings(result: dict[str, Any]) -> list[str]:
+    warnings = result.get("warnings")
+    if not isinstance(warnings, list):
+        return []
+    return [str(warning) for warning in warnings if str(warning).strip()]
 
 
 def _case_judgment(judgments: dict[Any, Any], case_id: str) -> dict[str, Any] | None:

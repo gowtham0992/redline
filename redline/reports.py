@@ -35,6 +35,14 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
                 lines.append(f"**Scope:** {scope}")
                 lines.append("")
 
+    warnings = _result_warnings(result)
+    if warnings:
+        lines.append("## Warnings")
+        lines.append("")
+        for warning in warnings:
+            lines.append(f"- {warning}")
+        lines.append("")
+
     for status in ("regression", "changed", "improved", "accepted", "ignored", "missing", "neutral"):
         matching = [item for item in result["diffs"] if item["status"] == status]
         if not matching:
@@ -97,6 +105,7 @@ def format_html_report(result: dict[str, Any], *, title: str = "redline diff") -
             "</header>",
             _html_summary(summary),
             _html_decision(decision),
+            _html_warnings(result),
             _html_cases(diffs),
             "</main>",
             "</body>",
@@ -209,6 +218,13 @@ def _metadata_lines(item: dict[str, Any]) -> list[str]:
     if cluster:
         lines.append(f"Cluster: {_inline_code(cluster)}")
     return lines
+
+
+def _result_warnings(result: dict[str, Any]) -> list[str]:
+    warnings = result.get("warnings")
+    if not isinstance(warnings, list):
+        return []
+    return [str(warning) for warning in warnings if str(warning).strip()]
 
 
 def _junit_properties(item: dict[str, Any]) -> dict[str, str]:
@@ -406,6 +422,17 @@ def _html_decision(decision: dict[str, Any]) -> str:
             lines.append(f"<li>{_h(str(item))}</li>")
         lines.append("</ul>")
     lines.append("</section>")
+    return "".join(lines)
+
+
+def _html_warnings(result: dict[str, Any]) -> str:
+    warnings = _result_warnings(result)
+    if not warnings:
+        return ""
+    lines = ['<section class="panel warning">', "<h2>Warnings</h2>", "<ul>"]
+    for warning in warnings:
+        lines.append(f"<li>{_h(warning)}</li>")
+    lines.append("</ul></section>")
     return "".join(lines)
 
 

@@ -6,6 +6,7 @@
 - Package the CLI as `redline-ai` while exposing the `redline` command.
 - Show first-run guidance when `redline` is run without a command.
 - Replay suites through local commands with optional prompt templates and workers.
+- Warn when `redline eval --prompt` uses a prompt file newer than the suite baseline.
 - Diff candidate outputs with deterministic regression signals and optional judges.
 - Calibrate diff and eval decisions so neutral runs say "no structural blockers"
   instead of implying full semantic approval.
