@@ -166,7 +166,10 @@ class DoctorTests(unittest.TestCase):
         validation = next(check for check in report["checks"] if check["name"] == "suite-validation")
         self.assertEqual(validation["status"], "warn")
         self.assertIn("1 warning", validation["message"])
-        self.assertIn("Review suite health: redline validate", report["next_steps"])
+        self.assertIn(
+            "Review suite health: redline validate redline-suite.json",
+            report["next_steps"],
+        )
 
     def test_doctor_surfaces_suite_validation_errors(self) -> None:
         suite = build_suite(
@@ -188,7 +191,10 @@ class DoctorTests(unittest.TestCase):
         self.assertFalse(report["ok"])
         self.assertEqual(validation["status"], "error")
         self.assertIn("1 error", validation["message"])
-        self.assertIn("Review suite health: redline validate", report["next_steps"])
+        self.assertIn(
+            "Review suite health: redline validate redline-suite.json",
+            report["next_steps"],
+        )
 
     def test_doctor_errors_for_missing_replay_command_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

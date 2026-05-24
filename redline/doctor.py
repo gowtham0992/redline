@@ -97,7 +97,7 @@ def doctor_report(
         "errors": errors,
         "warnings": warnings,
         "checks": checks,
-        "next_steps": _next_steps(checks),
+        "next_steps": _next_steps(checks, suite_path=suite_path),
     }
 
 
@@ -137,7 +137,7 @@ def _missing_suite_message(suite_path: str) -> str:
     return message
 
 
-def _next_steps(checks: list[dict[str, str]]) -> list[str]:
+def _next_steps(checks: list[dict[str, str]], *, suite_path: str) -> list[str]:
     steps: list[str] = []
     by_name = {check["name"]: check for check in checks}
 
@@ -163,7 +163,7 @@ def _next_steps(checks: list[dict[str, str]]) -> list[str]:
 
     suite_validation = by_name.get("suite-validation")
     if suite_validation and suite_validation["status"] in {"error", "warn"}:
-        steps.append("Review suite health: redline validate")
+        steps.append(f"Review suite health: redline validate {suite_path}")
 
     replay = by_name.get("replay")
     if replay and replay["status"] == "error":
