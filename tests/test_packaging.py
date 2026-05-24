@@ -42,7 +42,13 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("site *.html *.css *.png *.svg", manifest)
 
     def test_shell_scripts_are_executable(self) -> None:
-        for script_name in ("build_release.sh", "demo_gif.sh", "demo_terminal.sh", "release_check.sh"):
+        for script_name in (
+            "action_smoke.sh",
+            "build_release.sh",
+            "demo_gif.sh",
+            "demo_terminal.sh",
+            "release_check.sh",
+        ):
             with self.subTest(script=script_name):
                 script = Path("scripts") / script_name
 
@@ -109,10 +115,28 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline_ai-*.tar.gz", script)
         self.assertIn("-m twine check", script)
 
+    def test_action_smoke_script_exercises_external_project_flow(self) -> None:
+        script = Path("scripts/action_smoke.sh").read_text(encoding="utf-8")
+
+        self.assertIn("external-project", script)
+        self.assertIn("pip wheel", script)
+        self.assertIn("--no-build-isolation", script)
+        self.assertIn("pip install --no-deps", script)
+        self.assertIn("redline suite baseline.jsonl", script)
+        self.assertIn("redline doctor --strict", script)
+        self.assertIn("redline validate redline-suite.json --strict", script)
+        self.assertIn("redline eval", script)
+        self.assertIn("--github-summary", script)
+        self.assertIn("--github-annotations", script)
+        self.assertIn("expected redline eval to return 1", script)
+        self.assertIn("redline history", script)
+        self.assertIn("redline dashboard", script)
+
     def test_release_guide_documents_package_gate(self) -> None:
         guide = Path("docs/release.md").read_text(encoding="utf-8")
 
         self.assertIn("bash scripts/release_check.sh", guide)
+        self.assertIn("bash scripts/action_smoke.sh", guide)
         self.assertIn("bash scripts/build_release.sh", guide)
         self.assertIn("docs/launch.md", guide)
         self.assertIn("Do not upload an ignored local `dist/*`", guide)

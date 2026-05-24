@@ -55,6 +55,17 @@ dashboard opens as a self-contained local report index. Confirm the
 public-pattern proof works from the installed package without relying on
 repo-local `examples/` paths.
 
+Run the local external-project Action smoke before relying on the composite
+GitHub Action from another repo:
+
+```bash
+bash scripts/action_smoke.sh
+```
+
+This creates a temporary project outside the redline checkout, installs the
+package there, runs the same doctor/validate/eval/report/history/dashboard flow
+that the composite action uses, and verifies the generated artifacts.
+
 ## Tag
 
 After the release gate and public-alpha smoke both pass:
