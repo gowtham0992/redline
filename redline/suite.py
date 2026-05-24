@@ -12,6 +12,7 @@ from .io import LogRecord
 
 
 FeatureCache = dict[int, TextFeatures]
+ClusterInfo = dict[str, Any]
 
 
 def build_suite(
@@ -36,16 +37,24 @@ def build_suite(
         signatures[id(record)] = signature
         grouped[signature].append(record)
 
-    selected = unique_records if all_cases else _select_representatives(grouped, max_cases, feature_cache)
+    cluster_infos = _cluster_infos(grouped, feature_cache)
+    selected = (
+        [(record, "all_cases") for record in unique_records]
+        if all_cases
+        else _select_representatives(grouped, max_cases, feature_cache, cluster_infos)
+    )
     cases = []
-    for index, record in enumerate(selected, 1):
+    for index, (record, selection_reason) in enumerate(selected, 1):
         signature = signatures[id(record)]
+        cluster_info = cluster_infos[signature]
         features = _record_features(record, feature_cache)
         cases.append(
             {
                 "id": _case_id(record, index),
                 "source_line": record.line_number,
                 "cluster": signature,
+                "cluster_risk": cluster_info["risk"],
+                "selection_reason": selection_reason,
                 "prompt": record.prompt,
                 "baseline_response": record.response,
                 "content_hash": prompt_response_hash(record.prompt, record.response),
@@ -54,19 +63,16 @@ def build_suite(
         )
 
     clusters = []
-    for signature, group in sorted(grouped.items(), key=lambda item: _group_rank(item, feature_cache)):
-        lengths = [len(record.response.split()) for record in group]
-        high_variance = _is_high_variance(lengths)
-        failure_patterns = _failure_patterns(signature, group, high_variance, feature_cache)
+    for signature, info in sorted(cluster_infos.items(), key=_cluster_info_rank):
         clusters.append(
             {
                 "signature": signature,
-                "size": len(group),
-                "word_count_min": min(lengths),
-                "word_count_max": max(lengths),
-                "high_variance": high_variance,
-                "failure_patterns": failure_patterns,
-                "risk": _cluster_risk(failure_patterns),
+                "size": info["size"],
+                "word_count_min": info["word_count_min"],
+                "word_count_max": info["word_count_max"],
+                "high_variance": info["high_variance"],
+                "failure_patterns": info["failure_patterns"],
+                "risk": info["risk"],
             }
         )
 
@@ -84,6 +90,10 @@ def build_suite(
             "cases": len(cases),
             "max_cases": len(unique_records) if all_cases else max_cases,
             "selection": "all" if all_cases else "representative",
+            "high_risk_clusters": _risk_count(cluster_infos, "high"),
+            "medium_risk_clusters": _risk_count(cluster_infos, "medium"),
+            "high_variance_clusters": sum(1 for info in cluster_infos.values() if info["high_variance"]),
+            "failure_pattern_clusters": sum(1 for info in cluster_infos.values() if info["failure_patterns"]),
         },
         "clusters": clusters,
         "cases": cases,
@@ -139,6 +149,8 @@ def add_suite_case(
         "source": source,
         "source_line": source_line,
         "cluster": signature,
+        "cluster_risk": "low",
+        "selection_reason": "manual_pin",
         "prompt": prompt,
         "baseline_response": baseline_response,
         "content_hash": content_hash,
@@ -158,15 +170,16 @@ def _select_representatives(
     grouped: dict[str, list[LogRecord]],
     max_cases: int,
     feature_cache: FeatureCache,
-) -> list[LogRecord]:
-    selected: list[LogRecord] = []
-    selected_keys: set[tuple[str, int]] = set()
+    cluster_infos: dict[str, ClusterInfo],
+) -> list[tuple[LogRecord, str]]:
+    selected: list[tuple[LogRecord, str]] = []
+    selected_ids: set[int] = set()
 
-    groups = sorted(grouped.items(), key=lambda item: _group_rank(item, feature_cache))
+    groups = sorted(grouped.items(), key=lambda item: _group_rank(item, cluster_infos))
     for signature, group in groups:
         record = _median_length_record(group)
-        selected.append(record)
-        selected_keys.add((signature, record.line_number))
+        selected.append((record, "cluster_representative"))
+        selected_ids.add(id(record))
         if len(selected) >= max_cases:
             return selected
 
@@ -177,12 +190,11 @@ def _select_representatives(
         lengths = [len(record.response.split()) for record in group]
         if not _is_high_variance(lengths):
             continue
-        for record in _edge_records(group):
-            key = (signature, record.line_number)
-            if key in selected_keys:
+        for record, reason in _edge_records(group):
+            if id(record) in selected_ids:
                 continue
-            selected.append(record)
-            selected_keys.add(key)
+            selected.append((record, reason))
+            selected_ids.add(id(record))
             if len(selected) >= max_cases:
                 break
 
@@ -220,25 +232,59 @@ def _duplicate_case_id(
     return None
 
 
+def _cluster_infos(
+    grouped: dict[str, list[LogRecord]],
+    feature_cache: FeatureCache,
+) -> dict[str, ClusterInfo]:
+    infos: dict[str, ClusterInfo] = {}
+    for signature, group in grouped.items():
+        lengths = [len(record.response.split()) for record in group]
+        high_variance = _is_high_variance(lengths)
+        failure_patterns = _failure_patterns(signature, group, high_variance, feature_cache)
+        infos[signature] = {
+            "size": len(group),
+            "word_count_min": min(lengths),
+            "word_count_max": max(lengths),
+            "high_variance": high_variance,
+            "failure_patterns": failure_patterns,
+            "risk": _cluster_risk(failure_patterns),
+        }
+    return infos
+
+
 def _median_length_record(group: list[LogRecord]) -> LogRecord:
     ranked = sorted(group, key=lambda record: len(record.response.split()))
     return ranked[len(ranked) // 2]
 
 
-def _group_rank(item: tuple[str, list[LogRecord]], feature_cache: FeatureCache) -> tuple[int, int, str]:
+def _group_rank(
+    item: tuple[str, list[LogRecord]],
+    cluster_infos: dict[str, ClusterInfo],
+) -> tuple[int, int, str]:
     signature, group = item
-    lengths = [len(record.response.split()) for record in group]
-    high_variance = _is_high_variance(lengths)
-    risk = _cluster_risk(_failure_patterns(signature, group, high_variance, feature_cache))
-    risk_rank = {"high": 0, "medium": 1, "low": 2}[risk]
+    info = cluster_infos[signature]
+    risk_rank = {"high": 0, "medium": 1, "low": 2}[str(info["risk"])]
     return risk_rank, -len(group), signature
 
 
-def _edge_records(group: list[LogRecord]) -> list[LogRecord]:
+def _cluster_info_rank(item: tuple[str, ClusterInfo]) -> tuple[int, int, str]:
+    signature, info = item
+    risk_rank = {"high": 0, "medium": 1, "low": 2}[str(info["risk"])]
+    return risk_rank, -int(info["size"]), signature
+
+
+def _risk_count(infos: dict[str, ClusterInfo], risk: str) -> int:
+    return sum(1 for info in infos.values() if info["risk"] == risk)
+
+
+def _edge_records(group: list[LogRecord]) -> list[tuple[LogRecord, str]]:
     ranked = sorted(group, key=lambda record: len(record.response.split()))
     if len(ranked) <= 1:
-        return ranked
-    return [ranked[0], ranked[-1]]
+        return [(ranked[0], "high_variance_edge")]
+    return [
+        (ranked[0], "high_variance_short_edge"),
+        (ranked[-1], "high_variance_long_edge"),
+    ]
 
 
 def _is_high_variance(lengths: list[int]) -> bool:

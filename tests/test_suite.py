@@ -27,8 +27,12 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(suite["summary"]["duplicate_prompt_response_pairs"], 0)
         self.assertEqual(suite["summary"]["cases"], 2)
         self.assertEqual(suite["summary"]["clusters"], 2)
+        self.assertEqual(suite["summary"]["high_risk_clusters"], 0)
+        self.assertEqual(suite["summary"]["medium_risk_clusters"], 0)
         self.assertTrue(all("baseline_response" in case for case in suite["cases"]))
         self.assertTrue(all(len(case["content_hash"]) == 64 for case in suite["cases"]))
+        self.assertTrue(all(case["selection_reason"] == "cluster_representative" for case in suite["cases"]))
+        self.assertTrue(all(case["cluster_risk"] == "low" for case in suite["cases"]))
 
     def test_suite_features_include_entities(self) -> None:
         suite = build_suite(
@@ -81,7 +85,34 @@ class SuiteTests(unittest.TestCase):
         )
 
         self.assertEqual(suite["cases"][0]["prompt"], "Return JSON for Ada")
+        self.assertEqual(suite["cases"][0]["cluster_risk"], "high")
+        self.assertEqual(suite["cases"][0]["selection_reason"], "cluster_representative")
         self.assertEqual(suite["clusters"][0]["risk"], "high")
+        self.assertEqual(suite["summary"]["high_risk_clusters"], 1)
+
+    def test_build_suite_selects_high_variance_edge_cases_when_budget_allows(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Summarize ticket A", "short", {}),
+                LogRecord(2, "Summarize ticket B", "medium length response", {}),
+                LogRecord(
+                    3,
+                    "Summarize ticket C",
+                    "this response has enough extra words to create a much longer answer",
+                    {},
+                ),
+            ],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        reasons = {case["selection_reason"] for case in suite["cases"]}
+        self.assertIn("cluster_representative", reasons)
+        self.assertIn("high_variance_short_edge", reasons)
+        self.assertIn("high_variance_long_edge", reasons)
+        self.assertEqual(suite["summary"]["medium_risk_clusters"], 1)
 
     def test_build_suite_extracts_features_once_per_record(self) -> None:
         records = [
@@ -115,6 +146,7 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(suite["summary"]["max_cases"], 3)
         self.assertEqual(suite["summary"]["selection"], "all")
         self.assertEqual([case["source_line"] for case in suite["cases"]], [1, 2, 3])
+        self.assertEqual({case["selection_reason"] for case in suite["cases"]}, {"all_cases"})
 
     def test_build_suite_skips_exact_duplicate_prompt_response_pairs(self) -> None:
         records = [
@@ -158,6 +190,8 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(suite["summary"]["pinned_cases"], 1)
         self.assertEqual(case["source"], "manual")
         self.assertTrue(case["pinned"])
+        self.assertEqual(case["selection_reason"], "manual_pin")
+        self.assertEqual(case["cluster_risk"], "low")
         self.assertEqual(case["note"], "critical policy edge case")
         self.assertEqual(len(case["content_hash"]), 64)
         self.assertIn("https://example.com/refunds", case["features"]["urls"])

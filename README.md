@@ -301,8 +301,11 @@ python -m redline suite examples/baseline.jsonl
 ```
 
 The suite command skips exact duplicate prompt-response pairs, stores a stable
-`content_hash` on each case, then prints next steps for inspecting cases,
-comparing a candidate log, and wiring a replay runner.
+`content_hash` on each case, records why the case was selected, and carries the
+cluster risk that made it relevant. Representative cases are selected first;
+high-variance clusters add short and long edge cases when the case budget allows.
+The command then prints next steps for inspecting cases, comparing a candidate
+log, and wiring a replay runner.
 
 Use `--all-cases` when dogfooding small fixed prompt sets where every unique
 row should be compared instead of sampling representative clusters.
