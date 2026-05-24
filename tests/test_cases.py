@@ -11,7 +11,7 @@ class CasesTests(unittest.TestCase):
     def test_suite_case_rows_include_ids_and_previews(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Return JSON for Ada", '{"name": "Ada"}', {})],
-            source="memory",
+            source="logs/baseline.jsonl",
             input_field="prompt",
             output_field="response",
             max_cases=10,
@@ -29,7 +29,7 @@ class CasesTests(unittest.TestCase):
     def test_suite_case_detail_includes_content_hash(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Return JSON for Ada", '{"name": "Ada"}', {})],
-            source="memory",
+            source="logs/baseline.jsonl",
             input_field="prompt",
             output_field="response",
             max_cases=10,
@@ -40,6 +40,8 @@ class CasesTests(unittest.TestCase):
         text = format_suite_case_detail(suite, case_id)
 
         self.assertEqual(detail["content_hash"], suite["cases"][0]["content_hash"])
+        self.assertEqual(detail["source"], "logs/baseline.jsonl")
+        self.assertIn("Source:      logs/baseline.jsonl:1", text)
         self.assertIn("Content hash:", text)
 
     def test_suite_case_rows_count_requirements(self) -> None:

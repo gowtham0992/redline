@@ -35,6 +35,7 @@
 - Warn when suite validation finds cases missing stable content hashes.
 - Print repair-oriented next steps from `redline validate` when suite health checks fail.
 - Show suite provenance, selection mode, and pinned-case counts in `redline summary`.
+- Show source log provenance in `redline case` detail output.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.

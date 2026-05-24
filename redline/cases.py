@@ -59,6 +59,7 @@ def suite_case_detail(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
     requirement = requirements.get(case_id)
     return {
         "id": str(case["id"]),
+        "source": str(case.get("source") or suite.get("source") or ""),
         "source_line": case.get("source_line"),
         "cluster": str(case.get("cluster", "")),
         "prompt": str(case.get("prompt", "")),
@@ -75,7 +76,7 @@ def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
     lines = [
         f"redline case {detail['id']}",
         "",
-        f"Source line: {detail['source_line']}",
+        f"Source:      {_format_source(detail['source'], detail['source_line'])}",
         f"Cluster:     {detail['cluster']}",
         f"Content hash: {detail['content_hash']}",
         "",
@@ -105,6 +106,18 @@ def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
             lines.append(f"  {key}: {value}")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _format_source(source: object, source_line: object) -> str:
+    source_text = str(source or "")
+    line_text = "" if source_line is None else str(source_line)
+    if source_text and line_text:
+        return f"{source_text}:{line_text}"
+    if source_text:
+        return source_text
+    if line_text:
+        return f"line {line_text}"
+    return "<unknown>"
 
 
 def _preview(text: str, limit: int = 76) -> str:
