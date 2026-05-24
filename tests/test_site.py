@@ -40,7 +40,7 @@ class GitHubPagesSiteTests(unittest.TestCase):
         self.assertIn("bash scripts/release_check.sh", html)
         self.assertIn("bash scripts/action_smoke.sh", html)
         self.assertIn("redline history --fail-on worse", html)
-        self.assertIn("bash scripts/build_release.sh", html)
+        self.assertIn("bash scripts/certify_release.sh", html)
         self.assertIn("GitHub Pages", Path(".github/workflows/pages.yml").read_text(encoding="utf-8"))
 
     def test_site_links_stylesheet_and_preview_image(self) -> None:

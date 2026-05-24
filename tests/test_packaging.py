@@ -45,6 +45,7 @@ class PackagingTests(unittest.TestCase):
         for script_name in (
             "action_smoke.sh",
             "build_release.sh",
+            "certify_release.sh",
             "demo_gif.sh",
             "demo_terminal.sh",
             "release_check.sh",
@@ -132,11 +133,21 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline history", script)
         self.assertIn("redline dashboard", script)
 
+    def test_certify_release_script_runs_all_release_gates(self) -> None:
+        script = Path("scripts/certify_release.sh").read_text(encoding="utf-8")
+
+        self.assertIn("scripts/release_check.sh", script)
+        self.assertIn("scripts/action_smoke.sh", script)
+        self.assertIn("scripts/build_release.sh", script)
+        self.assertIn("certification.txt", script)
+        self.assertIn("release certification passed", script)
+
     def test_release_guide_documents_package_gate(self) -> None:
         guide = Path("docs/release.md").read_text(encoding="utf-8")
 
         self.assertIn("bash scripts/release_check.sh", guide)
         self.assertIn("bash scripts/action_smoke.sh", guide)
+        self.assertIn("bash scripts/certify_release.sh", guide)
         self.assertIn("bash scripts/build_release.sh", guide)
         self.assertIn("docs/launch.md", guide)
         self.assertIn("Do not upload an ignored local `dist/*`", guide)

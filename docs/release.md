@@ -66,6 +66,13 @@ This creates a temporary project outside the redline checkout, installs the
 package there, runs the same doctor/validate/eval/report/history/dashboard flow
 that the composite action uses, and verifies the generated artifacts.
 
+To run the package gate, external-project Action smoke, release build, and
+`twine check` as one certification pass:
+
+```bash
+bash scripts/certify_release.sh /tmp/redline-certify-v0.1.0
+```
+
 ## Tag
 
 After the release gate and public-alpha smoke both pass:
