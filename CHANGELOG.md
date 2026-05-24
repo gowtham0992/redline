@@ -30,6 +30,7 @@
 - Store stable prompt-response content hashes on suite cases and refresh them when accepting new baselines.
 - Include candidate and baseline content hashes in replayed eval candidate rows.
 - Expose suite case content hashes to replay commands and prompt templates.
+- Include suite case content hashes in machine-readable case listings.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.

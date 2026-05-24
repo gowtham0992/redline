@@ -21,6 +21,7 @@ class CasesTests(unittest.TestCase):
 
         self.assertEqual(len(rows), 1)
         self.assertTrue(rows[0]["id"].startswith("case_"))
+        self.assertEqual(rows[0]["content_hash"], suite["cases"][0]["content_hash"])
         self.assertEqual(rows[0]["prompt_preview"], "Return JSON for Ada")
         self.assertEqual(rows[0]["requirements"], 0)
         self.assertEqual(rows[0]["judgment"], "")

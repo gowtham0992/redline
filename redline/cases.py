@@ -17,6 +17,7 @@ def suite_case_rows(suite: dict[str, Any]) -> list[dict[str, Any]]:
         rows.append(
             {
                 "id": case_id,
+                "content_hash": str(case.get("content_hash", "")),
                 "source_line": case.get("source_line"),
                 "cluster": str(case.get("cluster", "")),
                 "prompt": str(case.get("prompt", "")),
