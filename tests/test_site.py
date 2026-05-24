@@ -108,9 +108,10 @@ class GitHubPagesSiteTests(unittest.TestCase):
 
         self.assertIn("- main", workflow)
         self.assertNotIn("- develop", workflow)
-        self.assertIn("actions/upload-pages-artifact@v3", workflow)
+        self.assertRegex(workflow, r"actions/configure-pages@v\d+")
+        self.assertRegex(workflow, r"actions/upload-pages-artifact@v\d+")
         self.assertIn("path: site", workflow)
-        self.assertIn("actions/deploy-pages@v4", workflow)
+        self.assertRegex(workflow, r"actions/deploy-pages@v\d+")
 
 
 if __name__ == "__main__":
