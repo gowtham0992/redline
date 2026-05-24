@@ -92,10 +92,9 @@ local gate:
 bash scripts/release_check.sh
 ```
 
-The full product direction lives in [docs/vision.md](docs/vision.md). The public-alpha
-checklist lives in [docs/release.md](docs/release.md), the launch playbook lives
-in [docs/launch.md](docs/launch.md), and the first-user dogfood pass lives in
-[docs/dogfood.md](docs/dogfood.md).
+The full public-alpha checklist lives in [docs/release.md](docs/release.md), the
+launch playbook lives in [docs/launch.md](docs/launch.md), and the first-user
+dogfood pass lives in [docs/dogfood.md](docs/dogfood.md).
 
 Create a project config:
 

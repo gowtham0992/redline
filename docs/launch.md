@@ -4,9 +4,6 @@ Use this after `docs/release.md` passes. The goal is a small, credible launch:
 one demo GIF, one install command, one clear product promise, and a tight
 feedback loop.
 
-Keep launch copy aligned with [docs/vision.md](vision.md): redline is a
-local-first prompt regression gate that turns existing logs into an eval suite.
-
 ## Launch Positioning
 
 One sentence:
