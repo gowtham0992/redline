@@ -6,6 +6,7 @@ from functools import wraps
 from inspect import iscoroutinefunction, signature
 import json
 from pathlib import Path
+from shlex import quote
 from time import monotonic, sleep
 from typing import Any
 
@@ -209,7 +210,7 @@ def watch_stats(
         "behavior_patterns": patterns_count,
         "first_observed_at": observed_at[0] if observed_at else None,
         "last_observed_at": observed_at[-1] if observed_at else None,
-        "readiness": _readiness(unique_pairs, patterns_count),
+        "readiness": _readiness(unique_pairs, patterns_count, log=path),
     }
 
 
@@ -366,13 +367,14 @@ def _observed_row(
     return row
 
 
-def _readiness(records: int, patterns: int) -> dict[str, Any]:
+def _readiness(records: int, patterns: int, *, log: str | Path) -> dict[str, Any]:
+    log_arg = quote(str(log))
     ready = records >= READY_RECORDS and patterns >= READY_PATTERNS
     if ready:
         return {
             "ready": True,
             "message": "ready to generate suite",
-            "next_step": "redline suite",
+            "next_step": f"redline suite {log_arg} --out redline-suite.json",
             "minimum_records": READY_RECORDS,
             "minimum_behavior_patterns": READY_PATTERNS,
         }
@@ -384,7 +386,7 @@ def _readiness(records: int, patterns: int) -> dict[str, Any]:
     return {
         "ready": False,
         "message": "collect more evidence: " + ", ".join(needs),
-        "next_step": "redline watch --follow",
+        "next_step": f"redline watch --log {log_arg} --follow",
         "minimum_records": READY_RECORDS,
         "minimum_behavior_patterns": READY_PATTERNS,
     }

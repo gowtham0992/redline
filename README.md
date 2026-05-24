@@ -293,8 +293,8 @@ python -m redline watch --stats
 
 Stats include unique prompt-response pairs, duplicate pairs, and a basic
 readiness hint. When enough unique pairs and behavior patterns are present,
-redline points you to `redline suite`; otherwise it tells you to collect more
-evidence.
+redline prints the exact `redline suite <log> --out redline-suite.json` command;
+otherwise it tells you to keep collecting with the current log path.
 
 Inspect behavioral clusters before generating a suite:
 

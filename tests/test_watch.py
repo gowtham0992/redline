@@ -364,7 +364,7 @@ class WatchTests(unittest.TestCase):
             self.assertIn("Unique pairs:      2", text)
             self.assertIn("First observed:", text)
             self.assertIn("Readiness:         collect more evidence", text)
-            self.assertIn("Next:              redline watch --follow", text)
+            self.assertIn(f"Next:              redline watch --log {output} --follow", text)
 
     def test_watch_stats_uses_unique_pairs_for_suite_readiness(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -402,9 +402,12 @@ class WatchTests(unittest.TestCase):
 
             self.assertTrue(stats["readiness"]["ready"])
             self.assertEqual(stats["unique_prompt_response_pairs"], 5)
-            self.assertEqual(stats["readiness"]["next_step"], "redline suite")
+            self.assertEqual(
+                stats["readiness"]["next_step"],
+                f"redline suite {output} --out redline-suite.json",
+            )
             self.assertIn("Readiness:         ready to generate suite", text)
-            self.assertIn("Next:              redline suite", text)
+            self.assertIn(f"Next:              redline suite {output} --out redline-suite.json", text)
 
     def test_follow_log_collects_until_max_records(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
