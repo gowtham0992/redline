@@ -93,6 +93,22 @@ class ValidateTests(unittest.TestCase):
         self.assertFalse(report["valid"])
         self.assertTrue(any(item["path"].endswith(".content_hash") for item in report["items"]))
 
+    def test_validate_suite_warns_for_missing_content_hash(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        del suite["cases"][0]["content_hash"]
+
+        report = validate_suite(suite)
+
+        self.assertTrue(report["valid"])
+        self.assertEqual(report["warnings"], 1)
+        self.assertTrue(any("missing stable prompt-response hash" in item["message"] for item in report["items"]))
+
     def test_validate_suite_rejects_unknown_requirement_case_ids(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Refund policy", "30 days", {})],

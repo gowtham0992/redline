@@ -69,7 +69,9 @@ def validate_suite(suite: dict[str, Any], *, suite_path: str = "") -> dict[str, 
             else:
                 prompt_response_pairs[pair] = path
             content_hash = case.get("content_hash")
-            if content_hash is not None and content_hash != prompt_response_hash(prompt, baseline):
+            if content_hash is None:
+                _add(items, "warning", f"{path}.content_hash", "missing stable prompt-response hash")
+            elif content_hash != prompt_response_hash(prompt, baseline):
                 _add(items, "error", f"{path}.content_hash", "does not match prompt and baseline_response")
 
         features = case.get("features")
