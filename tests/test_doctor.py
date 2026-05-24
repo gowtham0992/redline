@@ -97,11 +97,33 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("replay: configured", output)
         self.assertIn("judge: configured", output)
         self.assertIn("coverage: structural checks only", output)
+        self.assertIn("requirements=0; judge=yes", output)
         self.assertIn("reports: json=.redline/reports/doctor.json", output)
         self.assertIn("html=.redline/reports/doctor.html", output)
         self.assertIn("junit=.redline/reports/doctor.xml", output)
         self.assertIn("runs: candidate=.redline/runs/candidate.jsonl", output)
         self.assertNotIn("Next:", output)
+
+    def test_doctor_calibrates_coverage_for_high_risk_suite_without_semantic_checks(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", "not json", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        report = doctor_report(
+            config_path="pyproject.toml",
+            config={"replay": f"{sys.executable} -c pass"},
+            suite=suite,
+        )
+
+        coverage = next(check for check in report["checks"] if check["name"] == "coverage")
+        self.assertEqual(coverage["status"], "ok")
+        self.assertIn("high-risk clusters=1", coverage["message"])
+        self.assertIn("requirements=0; judge=no", coverage["message"])
+        self.assertIn("add requirements or a judge", coverage["message"])
 
     def test_format_doctor_report_prints_next_steps(self) -> None:
         report = doctor_report(

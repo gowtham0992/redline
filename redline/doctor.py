@@ -74,16 +74,7 @@ def doctor_report(
     if "judge" in config:
         checks.append(_judge_check(config.get("judge")))
 
-    checks.append(
-        {
-            "status": "ok",
-            "name": "coverage",
-            "message": (
-                "structural checks only; use requirements or an optional judge "
-                "for factual, tone, hallucination, or reasoning risks"
-            ),
-        }
-    )
+    checks.append(_coverage_check(config=config, suite=suite))
 
     report_paths = _configured_paths(config.get("reports"), ("json", "markdown", "html", "junit"))
     if report_paths:
@@ -142,6 +133,44 @@ def _missing_suite_message(suite_path: str) -> str:
     if suite_path != str(demo_suite) and demo_suite.exists():
         message += f"; demo suite exists at {demo_suite}, but project CI needs its own suite"
     return message
+
+
+def _coverage_check(*, config: dict[str, Any], suite: dict[str, Any] | None) -> dict[str, str]:
+    message = (
+        "structural checks only; use requirements or an optional judge "
+        "for factual, tone, hallucination, or reasoning risks"
+    )
+    if suite is None:
+        return {"status": "ok", "name": "coverage", "message": message}
+
+    summary = suite.get("summary")
+    if not isinstance(summary, dict):
+        summary = {}
+    requirements = suite.get("requirements")
+    requirements_count = len(requirements) if isinstance(requirements, dict) else 0
+    high_risk_clusters = _high_risk_cluster_count(suite, summary)
+    judge_configured = "judge" in config
+    message += (
+        f"; high-risk clusters={high_risk_clusters}; "
+        f"requirements={requirements_count}; judge={'yes' if judge_configured else 'no'}"
+    )
+    if high_risk_clusters and not requirements_count and not judge_configured:
+        message += "; add requirements or a judge before trusting semantic quality"
+    return {"status": "ok", "name": "coverage", "message": message}
+
+
+def _high_risk_cluster_count(suite: dict[str, Any], summary: dict[str, Any]) -> int:
+    value = summary.get("high_risk_clusters")
+    if isinstance(value, int):
+        return value
+    clusters = suite.get("clusters")
+    if not isinstance(clusters, list):
+        return 0
+    return sum(
+        1
+        for cluster in clusters
+        if isinstance(cluster, dict) and str(cluster.get("risk") or "") == "high"
+    )
 
 
 def _next_steps(checks: list[dict[str, str]], *, suite_path: str) -> list[str]:

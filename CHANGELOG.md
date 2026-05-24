@@ -76,5 +76,6 @@
 - Initialize projects with config schema, runner setup, and GitHub Actions workflow generation.
 - Call out the default CI failure policy directly after `redline init`.
 - Diagnose setup with actionable doctor checks, suite validation health, and next-step commands.
+- Calibrate `redline doctor` coverage output with high-risk cluster, requirement, and judge context.
 - Protect the README quickstart path with an end-to-end integration test.
 - Record the public terminal demo with `scripts/demo_terminal.sh`.
