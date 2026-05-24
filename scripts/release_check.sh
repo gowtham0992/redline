@@ -8,8 +8,11 @@ work_dir="${1:-${TMPDIR:-/tmp}/redline-release-check-$(date +%s)-$$}"
 wheel_dir="$work_dir/wheel"
 venv_dir="$work_dir/venv"
 smoke_dir="$work_dir/smoke"
+pip_cache_dir="$work_dir/pip-cache"
 
-mkdir -p "$wheel_dir" "$smoke_dir"
+mkdir -p "$wheel_dir" "$smoke_dir" "$pip_cache_dir"
+export PIP_CACHE_DIR="$pip_cache_dir"
+export PIP_DISABLE_PIP_VERSION_CHECK=1
 
 printf 'release check work dir: %s\n\n' "$work_dir"
 

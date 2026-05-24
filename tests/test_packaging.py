@@ -77,6 +77,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("-m ruff check .", script)
         self.assertIn("-m mypy redline tests scripts examples", script)
         self.assertIn("git diff --check", script)
+        self.assertIn("PIP_CACHE_DIR", script)
+        self.assertIn("PIP_DISABLE_PIP_VERSION_CHECK=1", script)
         self.assertIn("examples/public_dogfood_baseline.jsonl", script)
         self.assertIn("examples/public_dogfood_candidate.jsonl", script)
         self.assertIn("-m pip wheel . --no-deps --no-build-isolation", script)
