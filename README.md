@@ -306,6 +306,9 @@ cluster risk that made it relevant. Representative cases are selected first;
 high-variance clusters add short and long edge cases when the case budget allows.
 The command then prints next steps for inspecting cases, comparing a candidate
 log, and wiring a replay runner.
+Generated suites include a `$schema` reference to
+[redline-suite.schema.json](redline-suite.schema.json) so other tools can parse
+the suite format directly.
 
 Use `--all-cases` when dogfooding small fixed prompt sets where every unique
 row should be compared instead of sampling representative clusters.

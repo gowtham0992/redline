@@ -18,6 +18,7 @@ class CiTests(unittest.TestCase):
         self.assertIn('cache: "pip"', workflow)
         self.assertIn('"**/*.jsonl"', workflow)
         self.assertIn('"redline-suite.json"', workflow)
+        self.assertIn('"redline-suite.schema.json"', workflow)
         self.assertIn("python -m redline compare", workflow)
         self.assertIn(".redline/reports/eval-before.json", workflow)
         self.assertIn("--out-md .redline/reports/compare.md", workflow)

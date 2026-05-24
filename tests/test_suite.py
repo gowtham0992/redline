@@ -1,9 +1,11 @@
+import json
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from redline.features import extract_features
 from redline.io import LogRecord
-from redline.suite import add_suite_case, build_suite
+from redline.suite import SUITE_SCHEMA_URL, add_suite_case, build_suite
 
 
 class SuiteTests(unittest.TestCase):
@@ -23,6 +25,7 @@ class SuiteTests(unittest.TestCase):
         )
 
         self.assertEqual(suite["summary"]["records_seen"], 3)
+        self.assertEqual(suite["$schema"], SUITE_SCHEMA_URL)
         self.assertEqual(suite["summary"]["unique_prompt_response_pairs"], 3)
         self.assertEqual(suite["summary"]["duplicate_prompt_response_pairs"], 0)
         self.assertEqual(suite["summary"]["cases"], 2)
@@ -45,6 +48,17 @@ class SuiteTests(unittest.TestCase):
 
         self.assertIn("Ada", suite["cases"][0]["features"]["entities"])
         self.assertIn("ACME", suite["cases"][0]["features"]["entities"])
+
+    def test_suite_schema_documents_generated_suite_fields(self) -> None:
+        schema = json.loads(Path("redline-suite.schema.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(schema["$id"], SUITE_SCHEMA_URL)
+        self.assertIn("Portable prompt-response regression suite", schema["description"])
+        for key in ("summary", "clusters", "cases"):
+            self.assertIn(key, schema["properties"])
+        case_properties = schema["properties"]["cases"]["items"]["properties"]
+        self.assertIn("selection_reason", case_properties)
+        self.assertIn("cluster_risk", case_properties)
 
     def test_clusters_include_failure_patterns(self) -> None:
         suite = build_suite(

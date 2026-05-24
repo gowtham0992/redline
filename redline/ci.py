@@ -12,6 +12,7 @@ on:
       - "redline.json"
       - "redline-suite.json"
       - "redline.schema.json"
+      - "redline-suite.schema.json"
 
 jobs:
   eval:
