@@ -7,6 +7,11 @@ suite, then compares new prompt runs against the baseline. It is built for the
 fast local loop: change a prompt, run one command, see what got better, worse,
 or dangerously different.
 
+The product promise is intentionally narrow and useful: in under five minutes,
+on a real prompt log, redline should catch one regression you did not want to
+ship. It starts with deterministic structural checks, then lets you add pinned
+requirements or optional judges where semantic judgment matters.
+
 Website source for GitHub Pages lives in [site/](site/) and deploys from the
 committed static assets on `main` and `develop`.
 
@@ -33,7 +38,7 @@ suite moving with your prompt.
 For a GIF-friendly terminal view:
 
 ```bash
-redline demo --compact
+redline demo --public --compact
 ```
 
 Write a local dashboard from reports and history:
@@ -42,7 +47,8 @@ Write a local dashboard from reports and history:
 redline dashboard --open
 ```
 
-Run the larger public-pattern proof from any install:
+The public-pattern proof is the launch-safe demo path: it catches ten synthetic
+regressions without needing API keys, private logs, or a cloud account.
 
 ```bash
 redline demo --public --compact
@@ -511,8 +517,9 @@ Entity and refusal checks are deliberately conservative so sentence starters,
 supportive apologies, and ordinary support-ticket words do not become noisy
 regression signals.
 
-The next iterations should focus on external dogfood feedback, richer judge
-templates, and the public demo/PyPI release path.
+The next iterations should focus on external dogfood feedback, PyPI/tagged
+release mechanics, and learning where real users need stronger adapters,
+requirements, or judge rubrics.
 
 See [examples/github-action.yml](examples/github-action.yml) for a GitHub
 Actions starting point.

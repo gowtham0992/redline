@@ -4,23 +4,31 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 out_dir="${1:-${TMPDIR:-/tmp}/redline-demo-terminal-$(date +%s)}"
-suite_path="$out_dir/redline-suite.json"
 history_path="$out_dir/history.jsonl"
 history_markdown_path="$out_dir/history.md"
+dashboard_path="$out_dir/dashboard.html"
+demo_dir="$out_dir/demo"
 
 mkdir -p "$out_dir"
 
-printf '$ redline demo --compact\n'
-python -m redline demo --compact --out "$out_dir/demo"
+printf 'redline launch demo\n'
+printf 'A shorter candidate prompt sounds cleaner, then drops production details.\n\n'
 
-printf '\n$ redline history %s --label demo --out %s --out-md %s\n' "$out_dir/demo/reports/diff.json" "$history_path" "$history_markdown_path"
-python -m redline history "$out_dir/demo/reports/diff.json" \
-  --label demo \
+printf '$ redline demo --public --compact\n'
+python -m redline demo --public --compact --out "$demo_dir"
+
+printf '\n$ redline history %s --label public-demo --out %s --out-md %s\n' "$demo_dir/reports/public_diff.json" "$history_path" "$history_markdown_path"
+python -m redline history "$demo_dir/reports/public_diff.json" \
+  --label public-demo \
   --out "$history_path" \
   --out-md "$history_markdown_path"
 
-printf '\n$ redline suite examples/baseline.jsonl --out %s\n' "$suite_path"
-python -m redline suite examples/baseline.jsonl --out "$suite_path"
+printf '\n$ redline dashboard --reports-dir %s --history %s --out %s\n' "$demo_dir/reports" "$history_path" "$dashboard_path"
+python -m redline dashboard \
+  --reports-dir "$demo_dir/reports" \
+  --history "$history_path" \
+  --out "$dashboard_path"
 
-printf '\n$ redline diff %s examples/candidate.jsonl --compact --fail-on none\n' "$suite_path"
-python -m redline diff "$suite_path" examples/candidate.jsonl --compact --fail-on none
+printf '\nArtifacts:\n'
+printf '%s\n' "- HTML report: $demo_dir/reports/public_diff.html"
+printf '%s\n' "- Dashboard:   $dashboard_path"

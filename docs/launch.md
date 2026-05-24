@@ -44,6 +44,35 @@ Required artifacts:
 - `/tmp/redline-dist-v0.1.0/redline_ai-0.1.0-py3-none-any.whl`
 - `/tmp/redline-dist-v0.1.0/redline_ai-0.1.0.tar.gz`
 
+## Website Checklist
+
+The GitHub Pages homepage should make the product clear without reading the
+README:
+
+1. The first viewport says redline turns existing prompt-response logs into eval
+   suites.
+2. The primary command is the proof path: `redline demo --public --compact`.
+3. The page shows the trust boundary before the adapter list: structural checks
+   are deterministic; factual correctness, tone, hallucinations, and subtle
+   reasoning need requirements or an optional judge.
+4. The page shows the closed loop: generate suite, evaluate prompt change, mark
+   intentional changes, accept reviewed baselines.
+5. The page links back to GitHub and the quickstart, not to a marketing waitlist.
+
+## Demo GIF Storyboard
+
+Keep the GIF short and concrete:
+
+1. Run `redline demo --public --compact`.
+2. Pause on the summary line: ten cases, ten regressions, high confidence.
+3. Let the viewer see four representative reasons: invalid JSON, lost table,
+   new refusal, lost bullet list.
+4. Record history so the loop is not a one-shot diff.
+5. Generate the dashboard so the viewer sees the review artifact.
+
+Do not show install logs, dependency downloads, or a long scrollback. The demo
+should sell the loop, not the package manager.
+
 ## Publish Sequence
 
 1. Confirm `develop` is clean and pushed.

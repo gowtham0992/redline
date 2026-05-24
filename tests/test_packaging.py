@@ -50,9 +50,11 @@ class PackagingTests(unittest.TestCase):
         script = Path("scripts/demo_terminal.sh")
         text = script.read_text(encoding="utf-8")
 
-        self.assertIn("redline demo --compact", text)
+        self.assertIn("redline launch demo", text)
+        self.assertIn("redline demo --public --compact", text)
         self.assertIn("redline history", text)
         self.assertIn("--out-md", text)
+        self.assertIn("redline dashboard", text)
 
     def test_demo_gif_script_records_or_writes_transcript(self) -> None:
         script = Path("scripts/demo_gif.sh")
@@ -146,6 +148,8 @@ class PackagingTests(unittest.TestCase):
 
         self.assertIn("redline-demo.gif", guide)
         self.assertIn("python -m pip install redline-ai", guide)
+        self.assertIn("Website Checklist", guide)
+        self.assertIn("Demo GIF Storyboard", guide)
         self.assertIn("First 10 Feedback Loops", guide)
         self.assertIn("false-negative", guide)
         self.assertIn("Do not add a desktop app", guide)

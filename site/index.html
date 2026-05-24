@@ -22,6 +22,7 @@
         <span>redline</span>
       </a>
       <nav aria-label="Primary navigation">
+        <a href="#proof">Proof</a>
         <a href="#workflow">Workflow</a>
         <a href="#trust">Trust</a>
         <a href="#adapters">Adapters</a>
@@ -35,14 +36,19 @@
           <p class="eyebrow">Automatic eval suites from logs you already have</p>
           <h1>redline</h1>
           <p class="lede">
-            Local-first prompt regression diffs for AI engineers. Turn real
-            prompt-response logs into a suite, change your prompt, then catch
-            broken JSON, missing URLs, lost tables, refusals, and other
-            structural regressions before they ship.
+            Local-first prompt regression diffs for AI engineers. Point redline
+            at real prompt-response logs, change your prompt, then catch broken
+            JSON, missing URLs, lost tables, refusals, and other structural
+            regressions before they ship.
           </p>
-          <div class="command" aria-label="Install command">
+          <div class="hero-metrics" aria-label="Product proof points">
+            <span><strong>0</strong><small>manual test cases to start</small></span>
+            <span><strong>0</strong><small>cloud calls by default</small></span>
+            <span><strong>1</strong><small>command to see the proof</small></span>
+          </div>
+          <div class="command" aria-label="Install and proof commands">
             <span>$</span>
-            <code>python -m pip install "git+https://github.com/gowtham0992/redline.git@develop"</code>
+            <code>python -m pip install "git+https://github.com/gowtham0992/redline.git@develop"<br>redline demo --public --compact</code>
           </div>
           <div class="actions" aria-label="Primary actions">
             <a class="button primary" href="https://github.com/gowtham0992/redline#quick-start">Start in 5 minutes</a>
@@ -59,10 +65,41 @@
         </figure>
       </section>
 
+      <section class="quickstart band" id="proof">
+        <div class="section-heading">
+          <p class="eyebrow">First-run proof</p>
+          <h2>One command, ten regressions, no account setup.</h2>
+          <p>
+            The public demo is synthetic and safe to share, but it behaves like
+            a real prompt change: the candidate gets shorter and silently drops
+            required structure, dates, owners, URLs, and refusal behavior.
+          </p>
+        </div>
+        <div class="terminal-proof" aria-label="redline compact demo output">
+          <div class="terminal-top">
+            <span></span>
+            <span></span>
+            <span></span>
+            <strong>redline demo</strong>
+          </div>
+          <pre><code>$ redline demo --public --compact
+redline public dogfood: cases=10 regression=10 changed=0 missing=0 neutral=0
+Confidence: HIGH | fix blocking cases before shipping
+Scope: structural checks only; review factual correctness, tone, hallucinations, and subtle reasoning separately
+
+REGRESSION case_001: candidate lost valid JSON format
+REGRESSION case_002: candidate lost markdown table structure
+REGRESSION case_006: candidate newly refuses
+REGRESSION case_010: candidate lost bullet list structure
+
+Next: inspect the HTML report, mark intentional changes, accept reviewed outputs.</code></pre>
+        </div>
+      </section>
+
       <section class="proof band">
         <div class="section-heading">
           <p class="eyebrow">Why it exists</p>
-          <h2>You already have the eval data. redline makes it usable.</h2>
+          <h2>You already have the eval data. redline turns it into a gate.</h2>
         </div>
         <div class="proof-grid">
           <article>
@@ -72,6 +109,10 @@
           <article>
             <strong>Deterministic by default</strong>
             <p>No cloud account is required for the core loop; CI-friendly checks run locally, cost nothing, and do not depend on hosted judges.</p>
+          </article>
+          <article>
+            <strong>Reports people can review</strong>
+            <p>Write JSON, Markdown, JUnit, and self-contained HTML reports for local review, CI artifacts, and GitHub summaries.</p>
           </article>
           <article>
             <strong>Review loop included</strong>
@@ -111,7 +152,8 @@
             <span>04</span>
             <div>
               <h3>Review and accept</h3>
-              <code>redline mark ... && redline accept ...</code>
+              <code>redline mark ...</code>
+              <code>redline accept ...</code>
             </div>
           </li>
         </ol>
@@ -124,7 +166,7 @@
         </div>
         <div class="trust-layout">
           <div>
-            <h3>redline catches high-signal structural regressions.</h3>
+            <h3>What redline catches</h3>
             <p>
               JSON validity, missing keys, URLs, numbers, entities, tables,
               lists, code blocks, empty outputs, refusals, and obvious policy
@@ -132,12 +174,20 @@
             </p>
           </div>
           <div>
-            <h3>Semantic judgment stays explicit.</h3>
+            <h3>What redline does not pretend</h3>
             <p>
               Tone, factual accuracy, hallucination risk, and subtle reasoning
               quality need pinned requirements or an optional judge. redline
               tells you when a run has no structural blockers; it does not
               pretend that means the answer is perfect.
+            </p>
+          </div>
+          <div>
+            <h3>How to close the gap</h3>
+            <p>
+              Pin edge cases with requirements, add product-specific judge
+              rubrics for ambiguous changes, then accept reviewed candidate
+              outputs so the baseline evolves deliberately.
             </p>
           </div>
         </div>
@@ -146,7 +196,7 @@
       <section class="adapters band" id="adapters">
         <div class="section-heading">
           <p class="eyebrow">Bring your stack</p>
-          <h2>Provider-neutral first, adapters when you need them.</h2>
+          <h2>AI-agnostic first, adapters when you need them.</h2>
         </div>
         <div class="adapter-list">
           <span>stdio command</span>
@@ -162,9 +212,9 @@
         </div>
         <div class="split">
           <div>
-            <h3>First-run demo</h3>
-            <p>Run the support-agent regression demo and see a concise prompt drop production details.</p>
-            <code>redline demo --compact</code>
+            <h3>Replay any app</h3>
+            <p>Use a command that reads stdin and prints stdout, or copy a runner for OpenAI, Anthropic, LiteLLM, HTTP APIs, LangChain, or LlamaIndex.</p>
+            <code>redline init --runner stdio --copy-runner</code>
           </div>
           <div>
             <h3>Local dashboard</h3>
@@ -177,7 +227,7 @@
       <section class="launch band">
         <div class="launch-copy">
           <p class="eyebrow">Public alpha ready path</p>
-          <h2>Clone it, run the demo, then point it at one real prompt log.</h2>
+          <h2>Clone it, run the proof, then point it at one real prompt log.</h2>
           <p>
             The fastest way to understand redline is to make it catch one
             regression in your own AI workflow.

@@ -28,10 +28,13 @@ class GitHubPagesSiteTests(unittest.TestCase):
         html = Path("site/index.html").read_text(encoding="utf-8")
 
         self.assertIn("<h1>redline</h1>", html)
-        self.assertIn("redline demo --compact", html)
+        self.assertIn("redline demo --public --compact", html)
         self.assertIn("redline eval --prompt prompts/v2.txt", html)
         self.assertIn("No cloud", html)
         self.assertIn("Optional judges", html)
+        self.assertIn("One command, ten regressions", html)
+        self.assertIn("AI-agnostic first", html)
+        self.assertIn("What redline does not pretend", html)
         self.assertIn("GitHub Pages", Path(".github/workflows/pages.yml").read_text(encoding="utf-8"))
 
     def test_site_links_stylesheet_and_preview_image(self) -> None:
