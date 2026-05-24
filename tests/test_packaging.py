@@ -113,6 +113,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline suite add", changelog)
         self.assertIn("redline dashboard", changelog)
         self.assertIn("redline compare", changelog)
+        self.assertIn("richer judge rubrics", changelog)
 
     def test_dogfood_protocol_exercises_first_run_loop(self) -> None:
         guide = Path("docs/dogfood.md").read_text(encoding="utf-8")

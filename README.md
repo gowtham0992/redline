@@ -446,6 +446,11 @@ ANTHROPIC_API_KEY="..." python -m redline diff examples/candidate.jsonl --judge 
 LITELLM_API_KEY="..." LITELLM_JUDGE_MODEL="..." python -m redline diff examples/candidate.jsonl --judge "./examples/litellm_judge.sh"
 ```
 
+For product-specific rubrics, set `REDLINE_JUDGE_RUBRIC` to one of the included
+templates such as `examples/judges/support_rubric.md`,
+`examples/judges/extraction_rubric.md`, or `examples/judges/safety_rubric.md`.
+See [judge templates](docs/judges.md) for calibration guidance.
+
 Save replayed candidate outputs for debugging or a later `diff` run:
 
 ```bash

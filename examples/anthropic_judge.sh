@@ -6,12 +6,27 @@ set -euo pipefail
 : "${ANTHROPIC_VERSION:=2023-06-01}"
 
 judge_payload="$(cat)"
+judge_rubric=""
+if [[ -n "${REDLINE_JUDGE_RUBRIC:-}" ]]; then
+  judge_rubric="$(cat "$REDLINE_JUDGE_RUBRIC")"
+fi
 request="$(
-  JUDGE_PAYLOAD="$judge_payload" MODEL="$ANTHROPIC_JUDGE_MODEL" python - <<'PY'
+  JUDGE_PAYLOAD="$judge_payload" MODEL="$ANTHROPIC_JUDGE_MODEL" RUBRIC="$judge_rubric" python - <<'PY'
 import json
 import os
 
+DEFAULT_RUBRIC = """Default redline judge rubric:
+- Preserve explicit prompt requirements, required fields, output format, ordering constraints, numbers, dates, URLs, names, owners, policies, and safety/compliance caveats.
+- Treat lost JSON validity, missing required keys, lost table/code/list structure, new refusals, empty answers, and allow/deny policy reversals as regressions unless the prompt made that change intentional.
+- Treat factual contradictions, hallucinated unsupported facts, weaker escalation/safety posture, or dropped operational details as regressions.
+- Treat pure wording, tone, or brevity changes as neutral when the candidate keeps the same meaning and required facts.
+- Use changed when the behavior differs but the product impact is not clearly better or worse.
+- Use improved only when the candidate fixes a baseline issue without dropping any prompt requirement.
+- Do not overrule deterministic regressions unless the candidate clearly satisfies the prompt and baseline intent.
+"""
+
 payload = json.loads(os.environ["JUDGE_PAYLOAD"])
+rubric = os.environ.get("RUBRIC", "").strip() or DEFAULT_RUBRIC
 prompt = f"""You are a strict redline regression judge.
 
 You receive one prompt-regression case as JSON. Judge whether the candidate
@@ -20,16 +35,16 @@ response preserves the baseline behavior for the original prompt.
 Return exactly one JSON object with:
 - status: one of regression, changed, improved, neutral
 - confidence: one of low, medium, high
-- reason: one short sentence
+- reason: one short sentence grounded in the prompt or response evidence
 
-Rules:
-- regression: candidate drops a requirement, contradicts the baseline, refuses
-  when the baseline answered, removes important structured data, or weakens
-  safety/compliance behavior.
-- improved: candidate clearly fixes a baseline problem without dropping prompt
-  requirements.
+Rubric:
+{rubric}
+
+Status definitions:
+- regression: candidate is worse for the original prompt or product contract.
+- improved: candidate is clearly better and preserves all requirements.
 - neutral: candidate preserves the same behavior and required facts.
-- changed: behavior changed but the impact is not clearly better or worse.
+- changed: behavior changed but impact is uncertain and needs human review.
 
 Case JSON:
 {json.dumps(payload, sort_keys=True)}
