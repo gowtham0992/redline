@@ -361,6 +361,7 @@ class PackagingTests(unittest.TestCase):
 
         self.assertIn('package-ecosystem: "github-actions"', config)
         self.assertIn('package-ecosystem: "pip"', config)
+        self.assertEqual(config.count('target-branch: "develop"'), 2)
         self.assertEqual(config.count('interval: "weekly"'), 2)
         self.assertIn('"dependencies"', config)
         self.assertIn('"github-actions"', config)
