@@ -150,6 +150,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("bash scripts/certify_release.sh", guide)
         self.assertIn("bash scripts/build_release.sh", guide)
         self.assertIn("docs/launch.md", guide)
+        self.assertIn("docs/repository.md", guide)
         self.assertIn("Do not upload an ignored local `dist/*`", guide)
         self.assertIn("docs/dogfood.md", guide)
         self.assertIn("pyproject.toml", guide)
@@ -265,6 +266,20 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("Trust boundary", template)
         self.assertIn("Private prompts", template)
         self.assertIn("CONTRIBUTING.md", readme)
+
+    def test_repository_settings_document_launch_controls(self) -> None:
+        guide = Path("docs/repository.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn("Protect `develop` and `main`", guide)
+        self.assertIn("Test and certify", guide)
+        self.assertIn("Block force pushes", guide)
+        self.assertIn("immutable `v*` release tags", guide)
+        self.assertIn("private vulnerability reporting", guide)
+        self.assertIn("Dependabot alerts", guide)
+        self.assertIn(".github/workflows/pages.yml", guide)
+        self.assertIn("bash scripts/certify_release.sh /tmp/redline-certify-v0.1.0", guide)
+        self.assertIn("docs/repository.md", readme)
 
     def test_security_policy_documents_local_privacy_boundary(self) -> None:
         policy = Path("SECURITY.md").read_text(encoding="utf-8")

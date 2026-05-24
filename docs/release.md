@@ -2,7 +2,9 @@
 
 Use this checklist when preparing a public alpha release from `develop`.
 After this checklist passes, use [docs/launch.md](launch.md) for the public
-alpha post, demo GIF, and first feedback loops.
+alpha post, demo GIF, and first feedback loops. Use
+[docs/repository.md](repository.md) to verify GitHub branch protection, tag,
+security, and Pages settings before announcing.
 
 ## Preflight
 
