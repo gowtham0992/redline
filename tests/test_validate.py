@@ -39,6 +39,28 @@ class ValidateTests(unittest.TestCase):
         self.assertFalse(report["valid"])
         self.assertTrue(any("duplicate case id" in item["message"] for item in report["items"]))
 
+    def test_validate_suite_warns_for_duplicate_prompt_response_pairs(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        duplicate = dict(suite["cases"][0])
+        duplicate["id"] = "case_duplicate"
+        duplicate["source_line"] = 2
+        suite["cases"].append(duplicate)
+        suite["summary"]["cases"] = 2
+
+        report = validate_suite(suite)
+
+        self.assertTrue(report["valid"])
+        self.assertEqual(report["warnings"], 1)
+        self.assertTrue(
+            any("duplicate prompt-response pair" in item["message"] for item in report["items"])
+        )
+
     def test_validate_suite_rejects_stale_features(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Return JSON", '{"ok": true}', {})],

@@ -322,6 +322,9 @@ Validate a generated or hand-edited suite before relying on it:
 python -m redline validate
 ```
 
+Validation catches duplicate case IDs, stale stored features, broken
+requirements, and redundant duplicate prompt-response cases.
+
 Compare candidate outputs against that suite:
 
 ```bash

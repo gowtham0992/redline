@@ -33,6 +33,7 @@ def validate_suite(suite: dict[str, Any], *, suite_path: str = "") -> dict[str, 
         _add(items, "warning", "cases", "suite has no cases")
 
     case_ids: set[str] = set()
+    prompt_response_pairs: dict[tuple[str, str], str] = {}
     for index, case in enumerate(cases):
         path = f"cases[{index}]"
         if not isinstance(case, dict):
@@ -55,6 +56,17 @@ def validate_suite(suite: dict[str, Any], *, suite_path: str = "") -> dict[str, 
         if not isinstance(baseline, str):
             _add(items, "error", f"{path}.baseline_response", "expected string")
             baseline = None
+        if isinstance(prompt, str) and isinstance(baseline, str):
+            pair = (prompt, baseline)
+            if pair in prompt_response_pairs:
+                _add(
+                    items,
+                    "warning",
+                    path,
+                    f"duplicate prompt-response pair already covered by {prompt_response_pairs[pair]}",
+                )
+            else:
+                prompt_response_pairs[pair] = path
 
         features = case.get("features")
         if not isinstance(features, dict):

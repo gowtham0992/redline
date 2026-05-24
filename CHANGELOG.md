@@ -26,6 +26,7 @@
 - Capture prompt-response pairs from Python functions with the local `@watch` decorator and `record()` helper, with exact duplicate observations skipped by content hash.
 - Show suite-readiness guidance in `redline watch --stats` based on unique prompt-response pairs.
 - Skip exact duplicate prompt-response pairs when generating suites from noisy logs.
+- Warn when suite validation finds redundant duplicate prompt-response cases.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.
