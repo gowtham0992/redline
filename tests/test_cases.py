@@ -25,6 +25,7 @@ class CasesTests(unittest.TestCase):
         self.assertEqual(rows[0]["prompt_preview"], "Return JSON for Ada")
         self.assertEqual(rows[0]["requirements"], 0)
         self.assertEqual(rows[0]["judgment"], "")
+        self.assertFalse(rows[0]["pinned"])
 
     def test_suite_case_detail_includes_content_hash(self) -> None:
         suite = build_suite(
@@ -89,6 +90,20 @@ class CasesTests(unittest.TestCase):
 
         self.assertEqual(rows[0]["judgment"], "expected")
 
+    def test_suite_case_rows_include_pinned_status(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON for Ada", '{"name": "Ada"}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        suite["cases"][0]["pinned"] = True
+
+        rows = suite_case_rows(suite)
+
+        self.assertTrue(rows[0]["pinned"])
+
     def test_format_suite_cases_prints_reviewable_table(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Return JSON for Ada", '{"name": "Ada"}', {})],
@@ -101,9 +116,24 @@ class CasesTests(unittest.TestCase):
         output = format_suite_cases(suite)
 
         self.assertIn("redline cases", output)
+        self.assertIn("PIN", output)
         self.assertIn("RULES", output)
         self.assertIn("JUDGMENT", output)
         self.assertIn("Return JSON for Ada", output)
+
+    def test_format_suite_cases_marks_pinned_cases(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON for Ada", '{"name": "Ada"}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        suite["cases"][0]["pinned"] = True
+
+        output = format_suite_cases(suite)
+
+        self.assertIn(" yes ", output)
 
 
 if __name__ == "__main__":

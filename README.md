@@ -308,6 +308,9 @@ List the generated cases and IDs:
 python -m redline cases redline-suite.json
 ```
 
+The cases table marks pinned rows so hand-curated edge cases are visible during
+suite review.
+
 Inspect a single case:
 
 ```bash

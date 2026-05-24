@@ -25,6 +25,7 @@ def suite_case_rows(suite: dict[str, Any]) -> list[dict[str, Any]]:
                 "baseline_preview": _preview(str(case.get("baseline_response", ""))),
                 "requirements": _requirement_count(requirements.get(case_id)),
                 "judgment": _judgment_status(judgment),
+                "pinned": bool(case.get("pinned")),
             }
         )
     return rows
@@ -36,12 +37,13 @@ def format_suite_cases(suite: dict[str, Any]) -> str:
     if not rows:
         return "redline cases\n\nNo cases found.\n"
 
-    lines.append(f"{'CASE':<24} {'LINE':>5} {'RULES':>5} {'JUDGMENT':<10} PROMPT")
-    lines.append(f"{'-' * 24} {'-' * 5} {'-' * 5} {'-' * 10} {'-' * 60}")
+    lines.append(f"{'CASE':<24} {'LINE':>5} {'PIN':>3} {'RULES':>5} {'JUDGMENT':<10} PROMPT")
+    lines.append(f"{'-' * 24} {'-' * 5} {'-' * 3} {'-' * 5} {'-' * 10} {'-' * 60}")
     for row in rows:
         source_line = "" if row["source_line"] is None else str(row["source_line"])
+        pinned = "yes" if row["pinned"] else ""
         lines.append(
-            f"{row['id']:<24} {source_line:>5} {row['requirements']:>5} "
+            f"{row['id']:<24} {source_line:>5} {pinned:>3} {row['requirements']:>5} "
             f"{row['judgment']:<10} {row['prompt_preview']}"
         )
     return "\n".join(lines) + "\n"

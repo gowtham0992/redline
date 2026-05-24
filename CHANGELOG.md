@@ -36,6 +36,7 @@
 - Print repair-oriented next steps from `redline validate` when suite health checks fail.
 - Show suite provenance, selection mode, and pinned-case counts in `redline summary`.
 - Show source log provenance in `redline case` detail output.
+- Mark pinned cases in `redline cases` table and JSON rows.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
 - Show actionable next steps after demo and suite generation commands.
