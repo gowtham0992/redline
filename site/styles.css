@@ -247,6 +247,7 @@ code {
 .proof,
 .quickstart,
 .trust,
+.certification,
 .launch {
   background: var(--surface);
   border-top: 1px solid var(--line);
@@ -313,6 +314,7 @@ code {
 
 .proof-grid,
 .trust-layout,
+.certification-grid,
 .split {
   display: grid;
   gap: 18px;
@@ -327,12 +329,18 @@ code {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.certification-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 34px;
+}
+
 .split {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .proof-grid article,
 .trust-layout > div,
+.certification-grid article,
 .split > div {
   min-height: 180px;
   padding: 24px;
@@ -349,9 +357,45 @@ code {
 
 .proof-grid p,
 .trust-layout p,
+.certification-grid p,
 .split p,
 .launch p {
   color: var(--muted);
+}
+
+.certification-grid article {
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+}
+
+.certification-grid span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 34px;
+  margin-bottom: 22px;
+  border-radius: 8px;
+  background: var(--soft-red);
+  color: var(--red);
+  font-weight: 800;
+}
+
+.certification-grid strong {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 20px;
+}
+
+.certification-grid code {
+  display: block;
+  margin-top: auto;
+  padding: 12px;
+  overflow-wrap: anywhere;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #f8fafc;
 }
 
 .workflow {
@@ -450,7 +494,8 @@ code {
   .hero,
   .steps,
   .proof-grid,
-  .trust-layout {
+  .trust-layout,
+  .certification-grid {
     grid-template-columns: 1fr;
   }
 

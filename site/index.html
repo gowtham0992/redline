@@ -26,6 +26,7 @@
         <a href="#workflow">Workflow</a>
         <a href="#trust">Trust</a>
         <a href="#adapters">Adapters</a>
+        <a href="#certification">Certify</a>
         <a href="https://github.com/gowtham0992/redline">GitHub</a>
       </nav>
     </header>
@@ -221,6 +222,44 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
             <p>Publish self-contained HTML reports as CI artifacts or browse them locally.</p>
             <code>redline dashboard --open</code>
           </div>
+        </div>
+      </section>
+
+      <section class="certification band" id="certification">
+        <div class="section-heading">
+          <p class="eyebrow">Release confidence</p>
+          <h2>Not just a demo. A certified local product loop.</h2>
+          <p>
+            redline ships with repeatable checks for the paths that matter:
+            clean install, external project CI behavior, report artifacts,
+            history trends, dashboard output, and release packaging.
+          </p>
+        </div>
+        <div class="certification-grid">
+          <article>
+            <span>01</span>
+            <strong>Clean package install</strong>
+            <p>The release gate builds a wheel, installs it in a fresh virtualenv, and runs the first-user command path from outside the repo.</p>
+            <code>bash scripts/release_check.sh</code>
+          </article>
+          <article>
+            <span>02</span>
+            <strong>External CI smoke</strong>
+            <p>A temporary external project verifies strict doctor, strict validate, eval failure, GitHub annotations, history, and dashboard artifacts.</p>
+            <code>bash scripts/action_smoke.sh</code>
+          </article>
+          <article>
+            <span>03</span>
+            <strong>Trend and coverage pressure</strong>
+            <p>History shows whether blocking regressions are getting better or worse; summary and doctor surface thin coverage and semantic gaps.</p>
+            <code>redline history --fail-on worse</code>
+          </article>
+          <article>
+            <span>04</span>
+            <strong>Publishable artifacts</strong>
+            <p>Build scripts produce wheel and source distributions and run package metadata checks before anything is uploaded.</p>
+            <code>bash scripts/build_release.sh</code>
+          </article>
         </div>
       </section>
 

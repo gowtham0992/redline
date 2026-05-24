@@ -35,6 +35,12 @@ class GitHubPagesSiteTests(unittest.TestCase):
         self.assertIn("One command, ten regressions", html)
         self.assertIn("AI-agnostic first", html)
         self.assertIn("What redline does not pretend", html)
+        self.assertIn("Release confidence", html)
+        self.assertIn("A certified local product loop", html)
+        self.assertIn("bash scripts/release_check.sh", html)
+        self.assertIn("bash scripts/action_smoke.sh", html)
+        self.assertIn("redline history --fail-on worse", html)
+        self.assertIn("bash scripts/build_release.sh", html)
         self.assertIn("GitHub Pages", Path(".github/workflows/pages.yml").read_text(encoding="utf-8"))
 
     def test_site_links_stylesheet_and_preview_image(self) -> None:
@@ -72,6 +78,7 @@ class GitHubPagesSiteTests(unittest.TestCase):
 
         self.assertIn("@media (max-width: 760px)", css)
         self.assertIn("grid-template-columns", css)
+        self.assertIn(".certification-grid", css)
         self.assertIn("border-radius: 8px", css)
         self.assertNotIn("letter-spacing: -", css)
         self.assertNotIn("font-size: clamp(", css)
