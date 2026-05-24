@@ -75,6 +75,10 @@
           "type": "string",
           "description": "Markdown report path. {command} expands to diff or eval."
         },
+        "html": {
+          "type": "string",
+          "description": "Self-contained HTML report path. {command} expands to diff or eval."
+        },
         "junit": {
           "type": "string",
           "description": "JUnit XML report path. {command} expands to diff or eval."

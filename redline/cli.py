@@ -29,7 +29,7 @@ from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_
 from .judge import apply_judge
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import parse_fail_on, should_fail
-from .reports import format_github_annotations, format_junit_report, format_markdown_report
+from .reports import format_github_annotations, format_html_report, format_junit_report, format_markdown_report
 from .requirements import add_case_requirement, clear_case_requirements
 from .replay import read_prompt_template, replay_suite
 from .runners import (
@@ -228,6 +228,7 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("--compact", action="store_true", help="print compact one-line-per-case output")
     diff_parser.add_argument("--out-json", help="write machine-readable JSON report")
     diff_parser.add_argument("--out-md", help="write Markdown report")
+    diff_parser.add_argument("--out-html", help="write self-contained HTML report")
     diff_parser.add_argument("--out-junit", help="write JUnit XML report")
     diff_parser.add_argument("--profile", choices=DIFF_PROFILES, help="diff signal profile; default comes from config or strict")
     diff_parser.add_argument("--github-summary", action="store_true", help="append Markdown report to GITHUB_STEP_SUMMARY")
@@ -279,6 +280,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--compact", action="store_true", help="print compact one-line-per-case output")
     eval_parser.add_argument("--out-json", help="write machine-readable JSON report")
     eval_parser.add_argument("--out-md", help="write Markdown report")
+    eval_parser.add_argument("--out-html", help="write self-contained HTML report")
     eval_parser.add_argument("--out-junit", help="write JUnit XML report")
     eval_parser.add_argument("--profile", choices=DIFF_PROFILES, help="diff signal profile; default comes from config or strict")
     eval_parser.add_argument("--github-summary", action="store_true", help="append Markdown report to GITHUB_STEP_SUMMARY")
@@ -830,12 +832,15 @@ def _emit_result(
     fail_on = parse_fail_on(_config_fail_on(args.fail_on, config))
     out_json = args.out_json or _config_report_path(config, "json", report_key)
     out_md = args.out_md or _config_report_path(config, "markdown", report_key)
+    out_html = args.out_html or _config_report_path(config, "html", report_key)
     out_junit = args.out_junit or _config_report_path(config, "junit", report_key)
     markdown_report = format_markdown_report(result, title=title)
     if out_json:
         write_json(out_json, result)
     if out_md:
         write_text(out_md, markdown_report)
+    if out_html:
+        write_text(out_html, format_html_report(result, title=title))
     if out_junit:
         write_text(out_junit, format_junit_report(result, suite_name=title.replace(" ", ".")))
     if getattr(args, "github_summary", False):

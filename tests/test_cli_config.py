@@ -332,6 +332,7 @@ class CliConfigTests(unittest.TestCase):
                             "reports": {
                                 "json": ".redline/reports/{command}.json",
                                 "markdown": ".redline/reports/{command}.md",
+                                "html": ".redline/reports/{command}.html",
                                 "junit": ".redline/reports/{command}.xml",
                             },
                         }
@@ -354,7 +355,11 @@ class CliConfigTests(unittest.TestCase):
                 self.assertTrue((root / ".redline" / "suite.json").exists())
                 self.assertTrue((root / ".redline" / "reports" / "diff.json").exists())
                 self.assertTrue((root / ".redline" / "reports" / "diff.md").exists())
+                self.assertTrue((root / ".redline" / "reports" / "diff.html").exists())
                 self.assertTrue((root / ".redline" / "reports" / "diff.xml").exists())
+                html = (root / ".redline" / "reports" / "diff.html").read_text(encoding="utf-8")
+                self.assertIn("<!doctype html>", html)
+                self.assertIn("candidate lost valid JSON format", html)
             finally:
                 os.chdir(previous)
 

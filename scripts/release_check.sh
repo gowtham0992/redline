@@ -86,8 +86,13 @@ printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_pat
   printf '\n$ redline validate pinned-suite.json\n'
   "$venv_dir/bin/redline" validate pinned-suite.json
 
-  printf '\n$ redline diff all-suite.json .redline/demo/candidate.jsonl --profile review --compact --fail-on none\n'
-  "$venv_dir/bin/redline" diff all-suite.json .redline/demo/candidate.jsonl --profile review --compact --fail-on none
+  printf '\n$ redline diff all-suite.json .redline/demo/candidate.jsonl --profile review --compact --out-html diff.html --fail-on none\n'
+  "$venv_dir/bin/redline" diff all-suite.json .redline/demo/candidate.jsonl \
+    --profile review \
+    --compact \
+    --out-html diff.html \
+    --fail-on none
+  test -s diff.html
 
   printf '\n$ redline runners\n'
   "$venv_dir/bin/redline" runners

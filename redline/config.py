@@ -35,6 +35,7 @@ def default_config(
         "reports": {
             "json": ".redline/reports/{command}.json",
             "markdown": ".redline/reports/{command}.md",
+            "html": ".redline/reports/{command}.html",
             "junit": ".redline/reports/{command}.xml",
         },
         "logs": {

@@ -158,7 +158,7 @@ python -m redline init --timeout 10 --force
 | `workers` | Number of replay cases `redline eval` may run concurrently. Default `1`. |
 | `diff_profile` | Diff signal profile. Use `strict` for CI blocking, or `review` to downgrade missing numbers/entities to changed signals in long-form assistant logs. |
 | `fail_on` | Statuses that fail `diff` or `eval`; use `"none"` for report-only mode. |
-| `reports` | JSON, Markdown, and JUnit output paths. `{command}` expands to `diff` or `eval`. |
+| `reports` | JSON, Markdown, HTML, and JUnit output paths. `{command}` expands to `diff` or `eval`. |
 | `logs.observed` | Local watch output JSONL path. |
 | `runs.candidate`, `runs.metadata` | Candidate replay rows and eval metadata output paths. |
 | `replay` | Command used by `eval`; prompts go to stdin unless the command contains `{prompt}`. |
@@ -277,10 +277,11 @@ Write reports for CI or PR comments:
 python -m redline diff redline-suite.json examples/candidate.jsonl \
   --out-json .redline/reports/diff.json \
   --out-md .redline/reports/diff.md \
+  --out-html .redline/reports/diff.html \
   --out-junit .redline/reports/diff.xml
 ```
 
-The default config writes JSON, Markdown, and JUnit XML reports under
+The default config writes JSON, Markdown, self-contained HTML, and JUnit XML reports under
 `.redline/reports/` for `diff` and `eval` runs.
 
 Compare two redline JSON reports to see whether a prompt fix made the run
@@ -323,7 +324,7 @@ python -m redline eval --compact --github-summary --github-annotations
 outputs, and ambiguous changed cases.
 
 Use `--compact` in CI logs when you want one line per blocking or reviewable
-case while still writing full JSON, Markdown, and JUnit reports.
+case while still writing full JSON, Markdown, HTML, and JUnit reports.
 
 Mark a known change as expected so future runs do not fail on that case:
 

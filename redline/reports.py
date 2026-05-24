@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from html import escape
 from typing import Any
 from xml.etree import ElementTree
 
@@ -63,6 +64,46 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
                 lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def format_html_report(result: dict[str, Any], *, title: str = "redline diff") -> str:
+    summary = result.get("summary", {})
+    if not isinstance(summary, dict):
+        summary = {}
+    decision = result.get("decision")
+    if not isinstance(decision, dict):
+        decision = {}
+    diffs = result.get("diffs", [])
+    if not isinstance(diffs, list):
+        diffs = []
+
+    return "\n".join(
+        [
+            "<!doctype html>",
+            '<html lang="en">',
+            "<head>",
+            '<meta charset="utf-8">',
+            '<meta name="viewport" content="width=device-width, initial-scale=1">',
+            f"<title>{_h(title)}</title>",
+            "<style>",
+            _HTML_CSS,
+            "</style>",
+            "</head>",
+            "<body>",
+            '<main class="page">',
+            "<header>",
+            f"<h1>{_h(title)}</h1>",
+            '<p class="lede">Prompt regression report with deterministic structural checks.</p>',
+            "</header>",
+            _html_summary(summary),
+            _html_decision(decision),
+            _html_cases(diffs),
+            "</main>",
+            "</body>",
+            "</html>",
+            "",
+        ]
+    )
 
 
 def format_junit_report(result: dict[str, Any], *, suite_name: str = "redline") -> str:
@@ -208,6 +249,218 @@ def _annotation_message(item: dict[str, Any]) -> str:
     reasons = item.get("reasons")
     reason = str(reasons[0]) if isinstance(reasons, list) and reasons else str(item.get("status") or "changed")
     return f"{case_id}: {reason}\nPrompt: {prompt}"
+
+
+_HTML_CSS = """
+:root {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --text: #1f2937;
+  --muted: #5b6472;
+  --line: #d8dde6;
+  --regression: #b42318;
+  --changed: #9a6700;
+  --improved: #067647;
+  --neutral: #4b5563;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.45;
+}
+.page { max-width: 1180px; margin: 0 auto; padding: 32px 20px 48px; }
+h1 { margin: 0 0 6px; font-size: 32px; letter-spacing: 0; }
+h2 { margin: 28px 0 12px; font-size: 20px; letter-spacing: 0; }
+h3 { margin: 0; font-size: 16px; letter-spacing: 0; }
+.lede { margin: 0; color: var(--muted); }
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 24px 0;
+}
+.metric {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+}
+.metric strong { display: block; font-size: 24px; }
+.metric span { color: var(--muted); font-size: 13px; text-transform: uppercase; }
+.decision, .case {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+}
+.decision p { margin: 8px 0 0; }
+.scope { color: var(--muted); }
+.case { margin: 14px 0; }
+.case-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.badge {
+  border-radius: 999px;
+  padding: 3px 9px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.regression, .missing { background: var(--regression); }
+.changed { background: var(--changed); }
+.improved { background: var(--improved); }
+.accepted, .ignored, .neutral { background: var(--neutral); }
+.meta, .prompt { color: var(--muted); font-size: 13px; }
+.reasons { margin: 10px 0 14px 20px; padding: 0; }
+.responses {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.response {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fbfcfe;
+}
+.response-title {
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  padding: 8px 10px;
+  text-transform: uppercase;
+}
+pre {
+  margin: 0;
+  max-height: 520px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+""".strip()
+
+
+def _html_summary(summary: dict[str, Any]) -> str:
+    rows = [
+        ("Cases", "cases"),
+        ("Regression", "regression"),
+        ("Changed", "changed"),
+        ("Improved", "improved"),
+        ("Accepted", "accepted"),
+        ("Ignored", "ignored"),
+        ("Neutral", "neutral"),
+        ("Missing", "missing"),
+    ]
+    cards = [
+        (
+            '<div class="metric">'
+            f"<strong>{_h(_count_value(summary, key))}</strong>"
+            f"<span>{_h(label)}</span>"
+            "</div>"
+        )
+        for label, key in rows
+    ]
+    return '<section class="summary" aria-label="Summary">' + "".join(cards) + "</section>"
+
+
+def _html_decision(decision: dict[str, Any]) -> str:
+    confidence = str(decision.get("confidence") or "").upper()
+    action = str(decision.get("recommended_action") or "")
+    scope = str(decision.get("scope") or "")
+    rationale = decision.get("rationale")
+    lines = ['<section class="decision">', "<h2>Decision</h2>"]
+    if confidence:
+        lines.append(f"<p><strong>Confidence:</strong> {_h(confidence)}</p>")
+    if action:
+        lines.append(f"<p><strong>Recommended action:</strong> {_h(action)}</p>")
+    if scope:
+        lines.append(f'<p class="scope"><strong>Scope:</strong> {_h(scope)}</p>')
+    if isinstance(rationale, list) and rationale:
+        lines.append("<ul>")
+        for item in rationale:
+            lines.append(f"<li>{_h(str(item))}</li>")
+        lines.append("</ul>")
+    lines.append("</section>")
+    return "".join(lines)
+
+
+def _html_cases(diffs: list[Any]) -> str:
+    lines = ["<section>", "<h2>Cases</h2>"]
+    if not diffs:
+        lines.append('<p class="scope">No cases in this report.</p>')
+        lines.append("</section>")
+        return "".join(lines)
+    for item in diffs:
+        if isinstance(item, dict):
+            lines.append(_html_case(item))
+    lines.append("</section>")
+    return "".join(lines)
+
+
+def _html_case(item: dict[str, Any]) -> str:
+    status = str(item.get("status") or "unknown")
+    case_id = str(item.get("case_id") or "unknown")
+    location = _source_location(item)
+    prompt = str(item.get("prompt") or "")
+    reasons = item.get("reasons")
+    baseline = str(item.get("baseline_response") or "")
+    candidate = item.get("candidate_response")
+    lines = [
+        '<article class="case">',
+        '<div class="case-header">',
+        f'<span class="badge {_h(status)}">{_h(status.upper())}</span>',
+        f"<h3>{_h(case_id)}</h3>",
+        "</div>",
+    ]
+    if location:
+        lines.append(f'<div class="meta">{_h(location)}</div>')
+    if prompt:
+        lines.append(f'<p class="prompt"><strong>Prompt:</strong> {_h(prompt)}</p>')
+    if isinstance(reasons, list) and reasons:
+        lines.append('<ul class="reasons">')
+        for reason in reasons:
+            lines.append(f"<li>{_h(str(reason))}</li>")
+        lines.append("</ul>")
+    lines.append('<div class="responses">')
+    lines.append(_html_response("Baseline", baseline))
+    if candidate is None:
+        lines.append(_html_response("Candidate", "<missing>"))
+    else:
+        lines.append(_html_response("Candidate", str(candidate)))
+    lines.append("</div>")
+    lines.append("</article>")
+    return "".join(lines)
+
+
+def _html_response(title: str, value: str) -> str:
+    return (
+        '<div class="response">'
+        f'<div class="response-title">{_h(title)}</div>'
+        f"<pre>{_h(value)}</pre>"
+        "</div>"
+    )
+
+
+def _count_value(summary: dict[str, Any], key: str) -> str:
+    value = summary.get(key, 0)
+    return str(value if isinstance(value, int) else 0)
+
+
+def _h(value: str) -> str:
+    return escape(value, quote=True)
 
 
 def _escape_annotation_property(value: str) -> str:

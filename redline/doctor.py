@@ -66,7 +66,7 @@ def doctor_report(
         }
     )
 
-    report_paths = _configured_paths(config.get("reports"), ("json", "markdown", "junit"))
+    report_paths = _configured_paths(config.get("reports"), ("json", "markdown", "html", "junit"))
     if report_paths:
         checks.append({"status": "ok", "name": "reports", "message": ", ".join(report_paths)})
     elif "reports" in config:

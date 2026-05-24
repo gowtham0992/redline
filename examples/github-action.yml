@@ -37,6 +37,7 @@ jobs:
             --github-annotations \
             --out-json .redline/reports/eval.json \
             --out-md .redline/reports/eval.md \
+            --out-html .redline/reports/eval.html \
             --out-junit .redline/reports/eval.xml
 
       - name: Compare redline trend

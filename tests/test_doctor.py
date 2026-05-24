@@ -69,6 +69,7 @@ class DoctorTests(unittest.TestCase):
                 "judge": f"{sys.executable} -c pass",
                 "reports": {
                     "json": ".redline/reports/doctor.json",
+                    "html": ".redline/reports/doctor.html",
                     "junit": ".redline/reports/doctor.xml",
                 },
                 "runs": {
@@ -87,6 +88,7 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("judge: configured", output)
         self.assertIn("coverage: structural checks only", output)
         self.assertIn("reports: json=.redline/reports/doctor.json", output)
+        self.assertIn("html=.redline/reports/doctor.html", output)
         self.assertIn("junit=.redline/reports/doctor.xml", output)
         self.assertIn("runs: candidate=.redline/runs/candidate.jsonl", output)
         self.assertNotIn("Next:", output)

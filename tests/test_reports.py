@@ -4,7 +4,12 @@ import unittest
 from pathlib import Path
 
 from redline.io import write_json, write_text
-from redline.reports import format_github_annotations, format_junit_report, format_markdown_report
+from redline.reports import (
+    format_github_annotations,
+    format_html_report,
+    format_junit_report,
+    format_markdown_report,
+)
 
 
 class ReportTests(unittest.TestCase):
@@ -70,6 +75,53 @@ class ReportTests(unittest.TestCase):
         report = format_markdown_report(result)
 
         self.assertIn("Prompt: ``Use `json` output``", report)
+
+    def test_html_report_includes_side_by_side_case_detail(self) -> None:
+        result = {
+            "summary": {
+                "cases": 1,
+                "regression": 1,
+                "changed": 0,
+                "improved": 0,
+                "accepted": 0,
+                "ignored": 0,
+                "neutral": 0,
+                "missing": 0,
+            },
+            "decision": {
+                "confidence": "high",
+                "recommended_action": "fix blocking cases before shipping",
+                "scope": "structural checks only; review semantic risks separately",
+                "rationale": ["1 regression case(s)"],
+            },
+            "diffs": [
+                {
+                    "case_id": "case_001",
+                    "status": "regression",
+                    "source": "baseline.jsonl",
+                    "source_line": 12,
+                    "cluster": "structured_json|json|short",
+                    "prompt": "Return <JSON>",
+                    "baseline_response": '{"ok": true}',
+                    "candidate_response": "<script>alert(1)</script>",
+                    "reasons": ["candidate lost valid JSON format"],
+                }
+            ],
+        }
+
+        report = format_html_report(result, title="redline eval")
+
+        self.assertIn("<!doctype html>", report)
+        self.assertIn("<title>redline eval</title>", report)
+        self.assertIn('<section class="summary"', report)
+        self.assertIn("fix blocking cases before shipping", report)
+        self.assertIn("structural checks only", report)
+        self.assertIn("case_001", report)
+        self.assertIn("Baseline", report)
+        self.assertIn("Candidate", report)
+        self.assertIn("Return &lt;JSON&gt;", report)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", report)
+        self.assertNotIn("<script>alert(1)</script>", report)
 
     def test_report_files_create_parent_directories(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

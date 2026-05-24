@@ -71,6 +71,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("--all-cases", script)
         self.assertIn("redline suite add all-suite.json", script)
         self.assertIn("redline validate pinned-suite.json", script)
+        self.assertIn("--out-html diff.html", script)
         self.assertIn("--profile review", script)
         self.assertIn("redline doctor", script)
 
@@ -101,6 +102,7 @@ class PackagingTests(unittest.TestCase):
         changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
 
         self.assertIn("Markdown history reports", changelog)
+        self.assertIn("self-contained HTML", changelog)
         self.assertIn("GitHub step summaries", changelog)
         self.assertIn("suite generation commands", changelog)
         self.assertIn("review` diff profile", changelog)

@@ -22,6 +22,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config["diff_profile"], "strict")
         self.assertEqual(config["fail_on"], ["regression", "missing"])
         self.assertEqual(config["reports"]["json"], ".redline/reports/{command}.json")
+        self.assertEqual(config["reports"]["html"], ".redline/reports/{command}.html")
         self.assertEqual(config["reports"]["junit"], ".redline/reports/{command}.xml")
         self.assertEqual(config["logs"]["observed"], ".redline/logs/prompts.jsonl")
         self.assertEqual(config["runs"]["candidate"], ".redline/runs/candidate.jsonl")
@@ -92,6 +93,7 @@ class ConfigTests(unittest.TestCase):
         self.assertIn("fail_on", schema["properties"])
         self.assertIn("workers", schema["properties"])
         self.assertIn("diff_profile", schema["properties"])
+        self.assertIn("html", schema["properties"]["reports"]["properties"])
 
 
 if __name__ == "__main__":

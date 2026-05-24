@@ -11,6 +11,7 @@
   instead of implying full semantic approval.
 - Add a `review` diff profile for long-form assistant logs where missing numbers and entities should be reviewed instead of blocking by default.
 - Emit JSON, Markdown, JUnit, GitHub summary, and GitHub annotation reports.
+- Write self-contained HTML diff/eval reports for side-by-side inspection.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Render Markdown history reports and publish trend history to GitHub step summaries.
 - Run a realistic support-agent demo that catches concise-prompt regressions.
