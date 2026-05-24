@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .features import extract_features
+from .hashes import prompt_response_hash
 
 
 _FEATURE_KEYS = (
@@ -67,6 +68,9 @@ def validate_suite(suite: dict[str, Any], *, suite_path: str = "") -> dict[str, 
                 )
             else:
                 prompt_response_pairs[pair] = path
+            content_hash = case.get("content_hash")
+            if content_hash is not None and content_hash != prompt_response_hash(prompt, baseline):
+                _add(items, "error", f"{path}.content_hash", "does not match prompt and baseline_response")
 
         features = case.get("features")
         if not isinstance(features, dict):

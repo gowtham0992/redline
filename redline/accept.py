@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .features import behavior_signature, extract_features
+from .hashes import prompt_response_hash
 from .io import LogRecord
 
 
@@ -20,9 +21,11 @@ def accept_candidate_baseline(
         raise ValueError(f"candidate output not found for case: {case_id}")
 
     previous_response = str(case.get("baseline_response", ""))
+    prompt = str(case.get("prompt", ""))
     case["baseline_response"] = candidate.response
     case["features"] = extract_features(candidate.response).to_dict()
-    case["cluster"] = behavior_signature(str(case.get("prompt", "")), candidate.response)
+    case["cluster"] = behavior_signature(prompt, candidate.response)
+    case["content_hash"] = prompt_response_hash(prompt, candidate.response)
 
     judgments = suite.get("judgments")
     if isinstance(judgments, dict):

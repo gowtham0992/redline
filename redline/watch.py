@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, timezone
 from functools import wraps
-from hashlib import sha256
 from inspect import iscoroutinefunction, signature
 import json
 from pathlib import Path
@@ -11,6 +10,7 @@ from time import monotonic, sleep
 from typing import Any
 
 from .features import behavior_signature
+from .hashes import prompt_response_hash
 from .io import (
     LogRecord,
     append_jsonl,
@@ -99,7 +99,7 @@ def record(
 
     prompt_text = _stringify_value(prompt)
     response_text = _stringify_value(response)
-    content_hash = _content_hash(prompt_text, response_text)
+    content_hash = prompt_response_hash(prompt_text, response_text)
     row = {
         "prompt": prompt_text,
         "response": response_text,
@@ -349,7 +349,7 @@ def _observed_row(
         "source": str(source),
         "source_line": record.line_number,
         "observed_at": datetime.now(timezone.utc).isoformat(),
-        "content_hash": _content_hash(record.prompt, record.response),
+        "content_hash": prompt_response_hash(record.prompt, record.response),
     }
     row.setdefault(input_field, record.prompt)
     row.setdefault(output_field, record.response)
@@ -466,21 +466,11 @@ def _stringify_value(value: Any) -> str:
         return str(value)
 
 
-def _content_hash(prompt: str, response: str) -> str:
-    payload = json.dumps(
-        {"prompt": prompt, "response": response},
-        sort_keys=True,
-        ensure_ascii=False,
-        separators=(",", ":"),
-    )
-    return sha256(payload.encode("utf-8")).hexdigest()
-
-
 def _record_content_hash(record: LogRecord) -> str:
     content_hash = record.raw.get("content_hash")
     if isinstance(content_hash, str) and content_hash:
         return content_hash
-    return _content_hash(record.prompt, record.response)
+    return prompt_response_hash(record.prompt, record.response)
 
 
 def _existing_content_hashes(path: str | Path) -> set[str]:
@@ -496,7 +486,7 @@ def _existing_content_hashes(path: str | Path) -> set[str]:
         prompt = row.get("prompt")
         response = row.get("response")
         if prompt is not None and response is not None:
-            hashes.add(_content_hash(_stringify_value(prompt), _stringify_value(response)))
+            hashes.add(prompt_response_hash(_stringify_value(prompt), _stringify_value(response)))
     return hashes
 
 

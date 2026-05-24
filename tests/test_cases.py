@@ -1,6 +1,6 @@
 import unittest
 
-from redline.cases import format_suite_cases, suite_case_rows
+from redline.cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
 from redline.io import LogRecord
 from redline.judgments import mark_suite_case
 from redline.requirements import add_case_requirement
@@ -24,6 +24,22 @@ class CasesTests(unittest.TestCase):
         self.assertEqual(rows[0]["prompt_preview"], "Return JSON for Ada")
         self.assertEqual(rows[0]["requirements"], 0)
         self.assertEqual(rows[0]["judgment"], "")
+
+    def test_suite_case_detail_includes_content_hash(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON for Ada", '{"name": "Ada"}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        case_id = suite["cases"][0]["id"]
+
+        detail = suite_case_detail(suite, case_id)
+        text = format_suite_case_detail(suite, case_id)
+
+        self.assertEqual(detail["content_hash"], suite["cases"][0]["content_hash"])
+        self.assertIn("Content hash:", text)
 
     def test_suite_case_rows_count_requirements(self) -> None:
         suite = build_suite(

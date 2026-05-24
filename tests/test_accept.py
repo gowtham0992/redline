@@ -16,6 +16,7 @@ class AcceptTests(unittest.TestCase):
             max_cases=10,
         )
         case_id = suite["cases"][0]["id"]
+        previous_hash = suite["cases"][0]["content_hash"]
         mark_suite_case(suite, case_id, status="expected")
 
         result = accept_candidate_baseline(
@@ -28,6 +29,8 @@ class AcceptTests(unittest.TestCase):
         self.assertEqual(result["accepted_response"], '{"ok": false}')
         self.assertEqual(suite["cases"][0]["baseline_response"], '{"ok": false}')
         self.assertEqual(suite["cases"][0]["cluster"], "structured_json|json|short|json:dict:ok")
+        self.assertNotEqual(suite["cases"][0]["content_hash"], previous_hash)
+        self.assertEqual(len(suite["cases"][0]["content_hash"]), 64)
         self.assertNotIn(case_id, suite.get("judgments", {}))
         self.assertEqual(suite["accepted_baselines"][0]["note"], "new contract")
 

@@ -78,6 +78,21 @@ class ValidateTests(unittest.TestCase):
             any(item["path"].endswith(".features.valid_json") for item in report["items"])
         )
 
+    def test_validate_suite_rejects_stale_content_hash(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        suite["cases"][0]["content_hash"] = "stale"
+
+        report = validate_suite(suite)
+
+        self.assertFalse(report["valid"])
+        self.assertTrue(any(item["path"].endswith(".content_hash") for item in report["items"]))
+
     def test_validate_suite_rejects_unknown_requirement_case_ids(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Refund policy", "30 days", {})],

@@ -28,6 +28,7 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(suite["summary"]["cases"], 2)
         self.assertEqual(suite["summary"]["clusters"], 2)
         self.assertTrue(all("baseline_response" in case for case in suite["cases"]))
+        self.assertTrue(all(len(case["content_hash"]) == 64 for case in suite["cases"]))
 
     def test_suite_features_include_entities(self) -> None:
         suite = build_suite(
@@ -158,6 +159,7 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(case["source"], "manual")
         self.assertTrue(case["pinned"])
         self.assertEqual(case["note"], "critical policy edge case")
+        self.assertEqual(len(case["content_hash"]), 64)
         self.assertIn("https://example.com/refunds", case["features"]["urls"])
 
     def test_add_suite_case_refuses_duplicate_case_id(self) -> None:

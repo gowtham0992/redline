@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .features import TextFeatures, extract_features, input_intent
+from .hashes import prompt_response_hash
 from .io import LogRecord
 
 
@@ -47,6 +48,7 @@ def build_suite(
                 "cluster": signature,
                 "prompt": record.prompt,
                 "baseline_response": record.response,
+                "content_hash": prompt_response_hash(record.prompt, record.response),
                 "features": features.to_dict(),
             }
         )
@@ -130,6 +132,7 @@ def add_suite_case(
         "cluster": signature,
         "prompt": prompt,
         "baseline_response": baseline_response,
+        "content_hash": prompt_response_hash(prompt, baseline_response),
         "features": features.to_dict(),
         "pinned": True,
         "added_at": datetime.now(timezone.utc).isoformat(),
