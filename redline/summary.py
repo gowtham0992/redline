@@ -91,6 +91,22 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
     accepted_baselines = suite.get("accepted_baselines", [])
     if not isinstance(accepted_baselines, list):
         accepted_baselines = []
+    case_ids = {
+        str(case.get("id") or "").strip()
+        for case in cases
+        if isinstance(case, dict) and str(case.get("id") or "").strip()
+    }
+    requirement_case_ids = {
+        str(case_id).strip()
+        for case_id in requirements
+        if str(case_id).strip() in case_ids
+    }
+    judgment_case_ids = {
+        str(case_id).strip()
+        for case_id, value in judgments.items()
+        if str(case_id).strip() in case_ids and isinstance(value, dict)
+    }
+    explicit_guard_case_ids = requirement_case_ids | judgment_case_ids
     approved_baselines = len(
         [
             item
@@ -121,6 +137,10 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "accepted_baselines": accepted_baseline_count,
         "approved_baselines": approved_baselines,
         "unapproved_baselines": max(0, accepted_baseline_count - approved_baselines),
+        "requirement_cases": len(requirement_case_ids),
+        "judgment_cases": len(judgment_case_ids),
+        "explicit_guard_cases": len(explicit_guard_case_ids),
+        "explicit_guard_coverage": _ratio(len(explicit_guard_case_ids), cases_count),
         "high_risk_clusters": len(high_risk),
         "medium_risk_clusters": len(medium_risk),
         "high_variance_clusters": len(high_variance),
@@ -167,6 +187,9 @@ def prompt_manifest_summary(
             "records_seen": 0,
             "owned_cases": 0,
             "requirements": 0,
+            "requirement_cases": 0,
+            "judgment_cases": 0,
+            "explicit_guard_cases": 0,
             "judgments": {},
         }
         if not Path(suite_path).is_file():
@@ -202,6 +225,9 @@ def prompt_manifest_summary(
             "accepted_baselines",
             "approved_baselines",
             "unapproved_baselines",
+            "requirement_cases",
+            "judgment_cases",
+            "explicit_guard_cases",
             "high_risk_clusters",
             "medium_risk_clusters",
             "high_variance_clusters",
@@ -221,6 +247,9 @@ def prompt_manifest_summary(
                 "records_seen": int(child_summary.get("records_seen") or 0),
                 "owned_cases": int(child_summary.get("owned_cases") or 0),
                 "requirements": int(child_summary.get("requirements") or 0),
+                "requirement_cases": int(child_summary.get("requirement_cases") or 0),
+                "judgment_cases": int(child_summary.get("judgment_cases") or 0),
+                "explicit_guard_cases": int(child_summary.get("explicit_guard_cases") or 0),
                 "judgments": child_summary.get("judgments") or {},
             }
         )
@@ -254,6 +283,9 @@ def prompt_manifest_summary(
         "accepted_baselines": totals["accepted_baselines"],
         "approved_baselines": totals["approved_baselines"],
         "unapproved_baselines": totals["unapproved_baselines"],
+        "requirement_cases": totals["requirement_cases"],
+        "judgment_cases": totals["judgment_cases"],
+        "explicit_guard_cases": totals["explicit_guard_cases"],
         "high_risk_clusters": totals["high_risk_clusters"],
         "medium_risk_clusters": totals["medium_risk_clusters"],
         "high_variance_clusters": totals["high_variance_clusters"],
@@ -265,6 +297,7 @@ def prompt_manifest_summary(
     }
     result["case_coverage"] = _ratio(totals["cases"], totals["unique_prompt_response_pairs"])
     result["cluster_coverage"] = _ratio(totals["covered_clusters"], totals["clusters"])
+    result["explicit_guard_coverage"] = _ratio(totals["explicit_guard_cases"], totals["cases"])
     result["status"] = _manifest_summary_status(result)
     result["next_steps"] = _manifest_summary_next_steps(result)
     return result
@@ -291,6 +324,7 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
         f"Owned cases:            {summary['owned_cases']}/{summary['cases']}",
         f"Accepted baselines:     {summary['accepted_baselines']}",
         f"Approved baselines:     {summary['approved_baselines']}/{summary['accepted_baselines']}",
+        f"Explicit guard coverage: {summary['explicit_guard_cases']}/{summary['cases']} ({_percent(summary['explicit_guard_coverage'])})",
         f"Max cases:              {summary['max_cases']}",
         f"High-risk clusters:     {summary['high_risk_clusters']}",
         f"Medium-risk clusters:   {summary['medium_risk_clusters']}",
@@ -357,6 +391,7 @@ def format_prompt_manifest_summary(report: dict[str, Any]) -> str:
         f"Owned cases:            {report['owned_cases']}/{report['cases']}",
         f"Accepted baselines:     {report['accepted_baselines']}",
         f"Approved baselines:     {report['approved_baselines']}/{report['accepted_baselines']}",
+        f"Explicit guard coverage: {report['explicit_guard_cases']}/{report['cases']} ({_percent(report['explicit_guard_coverage'])})",
         f"High-risk clusters:     {report['high_risk_clusters']}",
         f"Medium-risk clusters:   {report['medium_risk_clusters']}",
         f"Cases with requirements: {report['requirements']:>2}",
@@ -381,6 +416,7 @@ def format_prompt_manifest_summary(report: dict[str, Any]) -> str:
                 f"  {status:<7} {str(row.get('id') or ''):<28} "
                 f"cases={int(row.get('cases') or 0):<3} "
                 f"owners={int(row.get('owned_cases') or 0):<3} "
+                f"guards={int(row.get('explicit_guard_cases') or 0):<3} "
                 f"requirements={int(row.get('requirements') or 0):<3} "
                 f"suite={row.get('suite')}"
             )
@@ -415,6 +451,8 @@ def _summary_next_steps(summary: dict[str, Any], *, suite_path: str | None = Non
         steps.append("Assign owners to remaining unowned cases before team rollout.")
     if int(summary["unapproved_baselines"]):
         steps.append("Record approvers for accepted baselines before team rollout.")
+    if int(summary["cases"]) and int(summary.get("explicit_guard_cases") or 0) == 0:
+        steps.append("Add requirements or recorded judgments for high-value semantic risks.")
     if int(summary["cases"]) and not summary["judgments"]:
         steps.append("After the first eval, mark expected or ignored changes to train the suite.")
     if int(summary["cases"]) == 0:
@@ -429,7 +467,7 @@ def _manifest_summary_status(summary: dict[str, Any]) -> str:
         return "missing_suites"
     if int(summary["cases"]) == 0:
         return "empty"
-    if int(summary["unowned_cases"]) or int(summary["requirements"]) == 0:
+    if int(summary["unowned_cases"]) or int(summary.get("explicit_guard_cases") or 0) == 0:
         return "needs_review"
     return "ready"
 
@@ -453,8 +491,8 @@ def _manifest_summary_next_steps(summary: dict[str, Any]) -> list[str]:
         steps.append(f"Fix invalid suite: redline validate {first_invalid.get('suite')} --strict")
     if int(summary["cases"]) and int(summary["unowned_cases"]):
         steps.append("Assign owners to remaining unowned cases before team rollout.")
-    if int(summary["cases"]) and int(summary["requirements"]) == 0:
-        steps.append("Add requirements to high-value cases so scale does not dilute trust.")
+    if int(summary["cases"]) and int(summary.get("explicit_guard_cases") or 0) == 0:
+        steps.append("Add requirements or recorded judgments to high-value cases so scale does not dilute trust.")
     if int(summary["suite_count"]) == int(summary["prompt_count"]) and int(summary["cases"]):
         manifest = str(summary["manifest"])
         steps.append(f"Check eval budget: redline benchmark {manifest}")
