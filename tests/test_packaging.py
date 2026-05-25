@@ -217,6 +217,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline-prompts.json --check --check-suites", readme)
         self.assertIn("redline eval redline-prompts.json", readme)
         self.assertIn("redline eval suites/support/triage.redline-suite.json", readme)
+        self.assertIn("prompt-level", readme)
+        self.assertIn("review queue", readme)
 
     def test_private_product_docs_stay_ignored(self) -> None:
         ignore = Path(".gitignore").read_text(encoding="utf-8")
@@ -236,6 +238,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline suite add", changelog)
         self.assertIn("redline dashboard", changelog)
         self.assertIn("dashboard reports table", changelog)
+        self.assertIn("latest-report review queue", changelog)
         self.assertIn("redline compare", changelog)
         self.assertIn("human-readable behavior labels", changelog)
         self.assertIn("ready `redline eval", changelog)
