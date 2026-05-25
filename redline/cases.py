@@ -94,7 +94,12 @@ def suite_case_detail(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
     }
 
 
-def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
+def format_suite_case_detail(
+    suite: dict[str, Any],
+    case_id: str,
+    *,
+    suite_path: str | None = None,
+) -> str:
     detail = suite_case_detail(suite, case_id)
     lines = [
         f"redline case {detail['id']}",
@@ -132,6 +137,22 @@ def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
         lines.extend(["", "Requirements:"])
         for key, value in detail["requirements"].items():
             lines.append(f"  {key}: {value}")
+
+    if suite_path and not detail["requirements"] and not detail["judgment"]:
+        lines.extend(
+            [
+                "",
+                "Next:",
+                (
+                    f'  Add explicit requirement: redline require {suite_path} {detail["id"]} '
+                    '--include "must keep text"'
+                ),
+                (
+                    f'  Or record reviewed behavior: redline mark {suite_path} {detail["id"]} '
+                    '--status expected --note "reviewed"'
+                ),
+            ]
+        )
 
     return "\n".join(lines).rstrip() + "\n"
 

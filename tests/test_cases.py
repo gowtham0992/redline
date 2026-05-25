@@ -104,6 +104,44 @@ class CasesTests(unittest.TestCase):
         self.assertTrue(detail["pinned"])
         self.assertIn("Pinned:     yes", text)
 
+    def test_suite_case_detail_points_to_guard_commands_when_unprotected(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON for Ada", '{"name": "Ada"}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        case_id = suite["cases"][0]["id"]
+
+        text = format_suite_case_detail(suite, case_id, suite_path="redline-suite.json")
+
+        self.assertIn("Next:", text)
+        self.assertIn(
+            f'redline require redline-suite.json {case_id} --include "must keep text"',
+            text,
+        )
+        self.assertIn(
+            f'redline mark redline-suite.json {case_id} --status expected --note "reviewed"',
+            text,
+        )
+
+    def test_suite_case_detail_omits_guard_commands_when_protected(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Refund policy", "Refunds are available within 30 days.", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        case_id = suite["cases"][0]["id"]
+        add_case_requirement(suite, case_id, include=["30 days"])
+
+        text = format_suite_case_detail(suite, case_id, suite_path="redline-suite.json")
+
+        self.assertIn("Requirements:", text)
+        self.assertNotIn("Add explicit requirement", text)
+
     def test_suite_case_rows_count_requirements(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Refund policy", "Refunds are available within 30 days.", {})],

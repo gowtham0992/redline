@@ -122,6 +122,7 @@
 - Show pinned status in `redline case` detail output.
 - Show case selection reasons and cluster risk in case lists and details.
 - Point `redline cases` output to `redline case <id>` for full prompt and baseline details.
+- Point unguarded `redline case` detail output to `redline require` and `redline mark` commands.
 - Guard generated config keys against schema documentation drift.
 - Lead `redline runners` output with the provider-agnostic stdin/stdout contract.
 - Print adapter-specific setup hints after copying runner templates.

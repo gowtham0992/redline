@@ -1035,7 +1035,7 @@ def cmd_case(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(suite_case_detail(suite, case_id), indent=2, sort_keys=True))
     else:
-        print(format_suite_case_detail(suite, case_id), end="")
+        print(format_suite_case_detail(suite, case_id, suite_path=str(Path(suite_path))), end="")
     return 0
 
 
