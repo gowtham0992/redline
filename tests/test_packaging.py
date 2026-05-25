@@ -213,6 +213,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("python -m pytest -q", readme)
         self.assertIn("python -m ruff check .", readme)
         self.assertIn("python -m mypy redline tests scripts examples", readme)
+        self.assertIn("redline-prompts.json --check --check-suites", readme)
+        self.assertIn("redline eval suites/support/triage.redline-suite.json", readme)
 
     def test_private_product_docs_stay_ignored(self) -> None:
         ignore = Path(".gitignore").read_text(encoding="utf-8")

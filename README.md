@@ -163,6 +163,19 @@ redline is built around the full prompt-regression loop:
 - `redline-mcp`: let AI coding assistants run checks inside Claude, Codex,
   Cursor, Kiro, or any MCP client.
 
+For repos with many prompt files, the manifest becomes the eval plan:
+
+```bash
+redline prompts prompts/ --suite-dir suites --out redline-prompts.json
+redline prompts prompts/ --suite-dir suites --out redline-prompts.json --check --check-suites
+```
+
+When mapped suites are valid, the check prints ready commands such as:
+
+```bash
+redline eval suites/support/triage.redline-suite.json --prompt prompts/support/triage.txt
+```
+
 ## Connect Your App
 
 Any command that reads a prompt from stdin and prints a response to stdout can
