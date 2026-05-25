@@ -59,6 +59,43 @@ class SuiteTests(unittest.TestCase):
         case_properties = schema["properties"]["cases"]["items"]["properties"]
         self.assertIn("selection_reason", case_properties)
         self.assertIn("cluster_risk", case_properties)
+        self.assertIn("owner", case_properties)
+        self.assertIn("owned_cases", schema["properties"]["summary"]["properties"])
+
+    def test_build_suite_assigns_case_owners_from_rules(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Route billing refund", "Billing Ops handles refunds.", {}),
+                LogRecord(2, "Route security alert", "Security Ops handles alerts.", {}),
+            ],
+            source="logs/support.jsonl",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+            all_cases=True,
+            owner_rules=[
+                {"match": "billing", "owner": "@billing-team", "field": "prompt"},
+                {"match": "security", "owner": "@security-team"},
+            ],
+        )
+
+        owners = {case["prompt"]: case.get("owner") for case in suite["cases"]}
+        self.assertEqual(owners["Route billing refund"], "@billing-team")
+        self.assertEqual(owners["Route security alert"], "@security-team")
+        self.assertEqual(suite["summary"]["owned_cases"], 2)
+
+    def test_build_suite_owner_flag_overrides_owner_rules(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Route billing refund", "Billing Ops handles refunds.", {})],
+            source="logs/support.jsonl",
+            input_field="prompt",
+            output_field="response",
+            owner="@ai-platform",
+            owner_rules={"billing": "@billing-team"},
+        )
+
+        self.assertEqual(suite["cases"][0]["owner"], "@ai-platform")
+        self.assertEqual(suite["summary"]["owned_cases"], 1)
 
     def test_clusters_include_failure_patterns(self) -> None:
         suite = build_suite(
@@ -209,6 +246,25 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(case["note"], "critical policy edge case")
         self.assertEqual(len(case["content_hash"]), 64)
         self.assertIn("https://example.com/refunds", case["features"]["urls"])
+
+    def test_add_suite_case_can_assign_owner(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        case = add_suite_case(
+            suite,
+            prompt="Always mention the refund URL",
+            baseline_response="Refund policy: https://example.com/refunds",
+            owner="@billing-team",
+        )
+
+        self.assertEqual(case["owner"], "@billing-team")
+        self.assertEqual(suite["summary"]["owned_cases"], 1)
 
     def test_add_suite_case_refuses_duplicate_case_id(self) -> None:
         suite = build_suite(

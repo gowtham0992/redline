@@ -70,6 +70,7 @@
           "source": {"type": "string"},
           "source_line": {"type": ["integer", "string", "null"]},
           "cluster": {"type": "string"},
+          "owner": {"type": "string"},
           "prompt": {"type": "string"},
           "baseline_response": {"type": "string"},
           "candidate_response": {"type": ["string", "null"]},

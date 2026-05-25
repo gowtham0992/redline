@@ -20,6 +20,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config["timeout_seconds"], 30.0)
         self.assertEqual(config["workers"], 1)
         self.assertEqual(config["diff_profile"], "strict")
+        self.assertEqual(config["owners"], [])
         self.assertEqual(config["fail_on"], ["regression", "missing"])
         self.assertEqual(config["reports"]["json"], ".redline/reports/{command}.json")
         self.assertEqual(config["reports"]["html"], ".redline/reports/{command}.html")

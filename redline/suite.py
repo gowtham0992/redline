@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from fnmatch import fnmatchcase
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,6 +25,8 @@ def build_suite(
     output_field: str,
     max_cases: int = 42,
     all_cases: bool = False,
+    owner: str | None = None,
+    owner_rules: object = None,
 ) -> dict[str, Any]:
     if max_cases < 1:
         raise ValueError("max_cases must be at least 1")
@@ -49,19 +52,27 @@ def build_suite(
         signature = signatures[id(record)]
         cluster_info = cluster_infos[signature]
         features = _record_features(record, feature_cache)
-        cases.append(
-            {
-                "id": _case_id(record, index),
-                "source_line": record.line_number,
-                "cluster": signature,
-                "cluster_risk": cluster_info["risk"],
-                "selection_reason": selection_reason,
-                "prompt": record.prompt,
-                "baseline_response": record.response,
-                "content_hash": prompt_response_hash(record.prompt, record.response),
-                "features": features.to_dict(),
-            }
+        case = {
+            "id": _case_id(record, index),
+            "source_line": record.line_number,
+            "cluster": signature,
+            "cluster_risk": cluster_info["risk"],
+            "selection_reason": selection_reason,
+            "prompt": record.prompt,
+            "baseline_response": record.response,
+            "content_hash": prompt_response_hash(record.prompt, record.response),
+            "features": features.to_dict(),
+        }
+        case_owner = _case_owner(
+            record,
+            source=str(source),
+            cluster=signature,
+            explicit_owner=owner,
+            owner_rules=owner_rules,
         )
+        if case_owner:
+            case["owner"] = case_owner
+        cases.append(case)
 
     clusters = []
     for signature, info in sorted(cluster_infos.items(), key=_cluster_info_rank):
@@ -96,6 +107,7 @@ def build_suite(
             "medium_risk_clusters": _risk_count(cluster_infos, "medium"),
             "high_variance_clusters": sum(1 for info in cluster_infos.values() if info["high_variance"]),
             "failure_pattern_clusters": sum(1 for info in cluster_infos.values() if info["failure_patterns"]),
+            "owned_cases": _owned_case_count(cases),
         },
         "clusters": clusters,
         "cases": cases,
@@ -112,6 +124,7 @@ def add_suite_case(
     case_id: str | None = None,
     note: str = "",
     allow_duplicate: bool = False,
+    owner: str | None = None,
 ) -> dict[str, Any]:
     prompt = prompt.strip()
     if not prompt:
@@ -162,6 +175,8 @@ def add_suite_case(
     }
     if note.strip():
         case["note"] = note.strip()
+    if owner and owner.strip():
+        case["owner"] = owner.strip()
     cases.append(case)
     _upsert_manual_cluster(suite, signature, baseline_response)
     _refresh_summary(suite, len(cases))
@@ -406,6 +421,7 @@ def _refresh_summary(suite: dict[str, Any], case_count: int) -> None:
             for case in cases
             if isinstance(case, dict) and bool(case.get("pinned"))
         )
+        summary["owned_cases"] = _owned_case_count(cases)
 
 
 def _case_id(record: LogRecord, index: int) -> str:
@@ -414,3 +430,68 @@ def _case_id(record: LogRecord, index: int) -> str:
     digest.update(b"\0")
     digest.update(record.response.encode("utf-8"))
     return f"case_{index:03d}_{digest.hexdigest()[:10]}"
+
+
+def _case_owner(
+    record: LogRecord,
+    *,
+    source: str,
+    cluster: str,
+    explicit_owner: str | None,
+    owner_rules: object,
+) -> str:
+    if explicit_owner and explicit_owner.strip():
+        return explicit_owner.strip()
+    if isinstance(owner_rules, str):
+        return owner_rules.strip()
+    for rule in _owner_rule_items(owner_rules):
+        owner = rule["owner"]
+        pattern = rule["match"]
+        field = rule["field"]
+        target = {
+            "prompt": record.prompt,
+            "source": source,
+            "cluster": cluster,
+            "any": "\n".join([record.prompt, source, cluster]),
+        }.get(field, "\n".join([record.prompt, source, cluster]))
+        if _owner_pattern_matches(pattern, target):
+            return owner
+    return ""
+
+
+def _owner_rule_items(owner_rules: object) -> list[dict[str, str]]:
+    if isinstance(owner_rules, dict):
+        return [
+            {"match": str(pattern), "owner": str(owner), "field": "any"}
+            for pattern, owner in owner_rules.items()
+            if str(pattern).strip() and str(owner).strip()
+        ]
+    if not isinstance(owner_rules, list):
+        return []
+    rows = []
+    for item in owner_rules:
+        if not isinstance(item, dict):
+            continue
+        pattern = str(item.get("match") or "").strip()
+        owner = str(item.get("owner") or "").strip()
+        field = str(item.get("field") or "any").strip().lower()
+        if pattern and owner:
+            rows.append({"match": pattern, "owner": owner, "field": field})
+    return rows
+
+
+def _owner_pattern_matches(pattern: str, target: str) -> bool:
+    normalized_pattern = pattern.lower()
+    normalized_target = target.lower()
+    return (
+        fnmatchcase(normalized_target, normalized_pattern)
+        or normalized_pattern in normalized_target
+    )
+
+
+def _owned_case_count(cases: list[Any]) -> int:
+    return sum(
+        1
+        for case in cases
+        if isinstance(case, dict) and str(case.get("owner") or "").strip()
+    )

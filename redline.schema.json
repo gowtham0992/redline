@@ -46,6 +46,41 @@
       "enum": ["strict", "review"],
       "description": "Diff signal profile. strict treats missing numbers/entities as regressions; review downgrades them to changed signals for long-form assistant logs."
     },
+    "owners": {
+      "description": "Optional case ownership rules. First match wins. Use this to route regressions to teams in reports and GitHub annotations.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["match", "owner"],
+            "properties": {
+              "match": {
+                "type": "string",
+                "description": "Substring or glob pattern to match."
+              },
+              "owner": {
+                "type": "string",
+                "description": "Owner handle or team, for example @billing-team."
+              },
+              "field": {
+                "type": "string",
+                "enum": ["any", "prompt", "source", "cluster"],
+                "description": "Field to match. Defaults to any."
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "description": "Shortcut mapping of pattern to owner.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "fail_on": {
       "description": "Statuses that produce a non-zero diff/eval exit. Use \"none\" for report-only mode.",
       "oneOf": [

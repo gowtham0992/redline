@@ -960,6 +960,39 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_suite_assigns_configured_case_owners(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps(
+                        {
+                            "suite": "suite.json",
+                            "owners": [{"match": "billing", "owner": "@billing-team"}],
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Route billing refund", "response": "Billing Ops handles refunds."}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["cases", "suite.json"]), 0)
+
+                suite = json.loads(Path("suite.json").read_text(encoding="utf-8"))
+                self.assertEqual(suite["cases"][0]["owner"], "@billing-team")
+                self.assertEqual(suite["summary"]["owned_cases"], 1)
+                self.assertIn("@billing-team", output.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_suite_all_cases_rejects_max_cases(self) -> None:
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
@@ -995,6 +1028,8 @@ class CliConfigTests(unittest.TestCase):
                                 "Refund policy: https://example.com/refunds",
                                 "--include",
                                 "https://example.com/refunds",
+                                "--owner",
+                                "@billing-team",
                                 "--note",
                                 "critical policy edge case",
                             ]
@@ -1008,6 +1043,8 @@ class CliConfigTests(unittest.TestCase):
                 self.assertEqual(suite["summary"]["pinned_cases"], 1)
                 self.assertEqual(pinned["source"], "manual")
                 self.assertTrue(pinned["pinned"])
+                self.assertEqual(pinned["owner"], "@billing-team")
+                self.assertIn("Owner: @billing-team", output.getvalue())
                 self.assertIn("Added pinned case", output.getvalue())
                 self.assertEqual(
                     suite["requirements"][pinned["id"]]["include"],

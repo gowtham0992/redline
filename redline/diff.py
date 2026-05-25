@@ -76,6 +76,7 @@ class CaseDiff:
     source: str
     source_line: Any
     cluster: str
+    owner: str
     prompt: str
     baseline_response: str
     candidate_response: str | None
@@ -90,6 +91,7 @@ class CaseDiff:
             "source": self.source,
             "source_line": self.source_line,
             "cluster": self.cluster,
+            "owner": self.owner,
             "prompt": self.prompt,
             "baseline_response": self.baseline_response,
             "candidate_response": self.candidate_response,
@@ -121,6 +123,7 @@ def compare_suite_to_candidate(
         source_line = case.get("source_line")
         source = str(case.get("source") or suite_source)
         cluster = str(case.get("cluster", ""))
+        owner = str(case.get("owner") or "")
         candidate = _pop_candidate_by_case_id(candidate_case_index, case_id)
         if candidate is None:
             candidate = _pop_candidate(candidate_index, prompt)
@@ -137,6 +140,7 @@ def compare_suite_to_candidate(
                     source=source,
                     source_line=source_line,
                     cluster=cluster,
+                    owner=owner,
                     prompt=prompt,
                     baseline_response=baseline_response,
                     candidate_response=None,
@@ -171,6 +175,7 @@ def compare_suite_to_candidate(
                 source=source,
                 source_line=source_line,
                 cluster=cluster,
+                owner=owner,
                 prompt=prompt,
                 baseline_response=baseline_response,
                 candidate_response=candidate.response,
@@ -438,10 +443,12 @@ def format_compact_report(result: dict[str, Any], *, title: str = "redline diff"
         case_id = str(item.get("case_id", "unknown"))
         location = _source_location(item)
         location_text = f" [{location}]" if location else ""
+        owner = str(item.get("owner") or "")
+        owner_text = f" owner={owner}" if owner else ""
         reasons = item.get("reasons")
         reason = str(reasons[0]) if isinstance(reasons, list) and reasons else status.lower()
         prompt = _preview(str(item.get("prompt") or ""), limit=64)
-        lines.append(f"{status:<10} {case_id}{location_text}: {_preview(reason, 96)} | {prompt}")
+        lines.append(f"{status:<10} {case_id}{location_text}{owner_text}: {_preview(reason, 96)} | {prompt}")
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -536,7 +543,8 @@ def _case_label(item: dict[str, Any]) -> str:
     case_id = str(item.get("case_id", "unknown"))
     location = _source_location(item)
     cluster = str(item.get("cluster") or "")
-    details = [value for value in (location, cluster) if value]
+    owner = str(item.get("owner") or "")
+    details = [value for value in (location, owner, cluster) if value]
     if not details:
         return case_id
     return f"{case_id} [{', '.join(details)}]"

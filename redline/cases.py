@@ -24,6 +24,7 @@ def suite_case_rows(suite: dict[str, Any]) -> list[dict[str, Any]]:
                 "cluster": str(case.get("cluster", "")),
                 "behavior": behavior_label(str(case.get("cluster", ""))),
                 "cluster_risk": str(case.get("cluster_risk", "")),
+                "owner": str(case.get("owner", "")),
                 "selection_reason": str(case.get("selection_reason", "")),
                 "prompt": str(case.get("prompt", "")),
                 "prompt_preview": _preview(str(case.get("prompt", ""))),
@@ -43,11 +44,11 @@ def format_suite_cases(suite: dict[str, Any]) -> str:
         return "redline cases\n\nNo cases found.\n"
 
     lines.append(
-        f"{'CASE':<24} {'LINE':>5} {'PIN':>3} {'RISK':<6} {'WHY':<12} "
+        f"{'CASE':<24} {'LINE':>5} {'PIN':>3} {'RISK':<6} {'OWNER':<16} {'WHY':<12} "
         f"{'RULES':>5} {'JUDGMENT':<10} PROMPT"
     )
     lines.append(
-        f"{'-' * 24} {'-' * 5} {'-' * 3} {'-' * 6} {'-' * 12} "
+        f"{'-' * 24} {'-' * 5} {'-' * 3} {'-' * 6} {'-' * 16} {'-' * 12} "
         f"{'-' * 5} {'-' * 10} {'-' * 60}"
     )
     for row in rows:
@@ -55,7 +56,8 @@ def format_suite_cases(suite: dict[str, Any]) -> str:
         pinned = "yes" if row["pinned"] else ""
         lines.append(
             f"{row['id']:<24} {source_line:>5} {pinned:>3} "
-            f"{row['cluster_risk']:<6} {_format_selection_reason(row['selection_reason']):<12} "
+            f"{row['cluster_risk']:<6} {_preview(row['owner'], 16):<16} "
+            f"{_format_selection_reason(row['selection_reason']):<12} "
             f"{row['requirements']:>5} {row['judgment']:<10} {row['prompt_preview']}"
         )
     return "\n".join(lines) + "\n"
@@ -79,6 +81,7 @@ def suite_case_detail(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
         "cluster": str(case.get("cluster", "")),
         "behavior": behavior_label(str(case.get("cluster", ""))),
         "cluster_risk": str(case.get("cluster_risk", "")),
+        "owner": str(case.get("owner", "")),
         "selection_reason": str(case.get("selection_reason", "")),
         "prompt": str(case.get("prompt", "")),
         "baseline_response": str(case.get("baseline_response", "")),
@@ -99,6 +102,7 @@ def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
         f"Cluster:     {detail['cluster']}",
         f"Behavior:    {detail['behavior']}",
         f"Risk:        {detail['cluster_risk'] or '<unknown>'}",
+        f"Owner:       {detail['owner'] or '<unowned>'}",
         f"Selected:    {_format_selection_reason(detail['selection_reason']) or '<unknown>'}",
         f"Content hash: {detail['content_hash']}",
         "",

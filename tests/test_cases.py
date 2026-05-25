@@ -25,6 +25,7 @@ class CasesTests(unittest.TestCase):
         self.assertEqual(rows[0]["prompt_preview"], "Return JSON for Ada")
         self.assertEqual(rows[0]["requirements"], 0)
         self.assertEqual(rows[0]["judgment"], "")
+        self.assertEqual(rows[0]["owner"], "")
         self.assertFalse(rows[0]["pinned"])
         self.assertEqual(
             rows[0]["behavior"],
@@ -53,14 +54,38 @@ class CasesTests(unittest.TestCase):
             "structured JSON prompt -> JSON response (short; JSON dict keys: name)",
         )
         self.assertEqual(detail["cluster_risk"], "low")
+        self.assertEqual(detail["owner"], "")
         self.assertEqual(detail["selection_reason"], "cluster_representative")
         self.assertIn("Pinned:     no", text)
         self.assertEqual(detail["source"], "logs/baseline.jsonl")
         self.assertIn("Source:      logs/baseline.jsonl:1", text)
         self.assertIn("Behavior:    structured JSON prompt -> JSON response", text)
         self.assertIn("Risk:        low", text)
+        self.assertIn("Owner:       <unowned>", text)
         self.assertIn("Selected:    representative", text)
         self.assertIn("Content hash:", text)
+
+    def test_suite_case_rows_and_detail_include_owner(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON for Ada", '{"name": "Ada"}', {})],
+            source="logs/baseline.jsonl",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+            owner="@support-team",
+        )
+        case_id = suite["cases"][0]["id"]
+
+        rows = suite_case_rows(suite)
+        detail = suite_case_detail(suite, case_id)
+        text = format_suite_case_detail(suite, case_id)
+        table = format_suite_cases(suite)
+
+        self.assertEqual(rows[0]["owner"], "@support-team")
+        self.assertEqual(detail["owner"], "@support-team")
+        self.assertIn("Owner:       @support-team", text)
+        self.assertIn("OWNER", table)
+        self.assertIn("@support-team", table)
 
     def test_suite_case_detail_marks_pinned_case(self) -> None:
         suite = build_suite(
@@ -152,6 +177,7 @@ class CasesTests(unittest.TestCase):
         self.assertIn("redline cases", output)
         self.assertIn("PIN", output)
         self.assertIn("RISK", output)
+        self.assertIn("OWNER", output)
         self.assertIn("WHY", output)
         self.assertIn("RULES", output)
         self.assertIn("JUDGMENT", output)

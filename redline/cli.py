@@ -224,6 +224,7 @@ def build_parser() -> argparse.ArgumentParser:
     suite_parser.add_argument("--output-field", help="JSONL output field")
     suite_parser.add_argument("--max-cases", type=int, help="maximum suite cases")
     suite_parser.add_argument("--all-cases", action="store_true", help="include every record instead of representative cases")
+    suite_parser.add_argument("--owner", help="assign every generated case to this owner")
     suite_parser.set_defaults(func=cmd_suite)
 
     suite_add_parser = subparsers.add_parser("suite-add", prog="redline suite add", help=argparse.SUPPRESS)
@@ -234,6 +235,7 @@ def build_parser() -> argparse.ArgumentParser:
     suite_add_parser.add_argument("--response", help="baseline response text to pin")
     suite_add_parser.add_argument("--response-file", help="file containing baseline response text to pin")
     suite_add_parser.add_argument("--case-id", help="explicit case id; defaults to generated id")
+    suite_add_parser.add_argument("--owner", help="case owner, for example @billing-team")
     suite_add_parser.add_argument("--include", action="append", default=[], help="text candidate output must include")
     suite_add_parser.add_argument("--exclude", action="append", default=[], help="text candidate output must not include")
     suite_add_parser.add_argument("--note", default="", help="short reason for pinning the case")
@@ -668,6 +670,7 @@ def cmd_cluster(args: argparse.Namespace) -> int:
         output_field=output_field,
         max_cases=max_cases,
         all_cases=args.all_cases,
+        owner_rules=_config_owner_rules(config),
     )
     if args.json:
         print(json.dumps(cluster_report(suite), indent=2, sort_keys=True))
@@ -693,6 +696,8 @@ def cmd_suite(args: argparse.Namespace) -> int:
         output_field=output_field,
         max_cases=max_cases,
         all_cases=args.all_cases,
+        owner=args.owner,
+        owner_rules=_config_owner_rules(config),
     )
     write_json(output, suite)
     append_audit_event(
@@ -708,6 +713,7 @@ def cmd_suite(args: argparse.Namespace) -> int:
                 "cases": int(suite["summary"]["cases"]),
                 "clusters": int(suite["summary"]["clusters"]),
                 "selection": str(suite["summary"]["selection"]),
+                "owned_cases": int(suite["summary"].get("owned_cases", 0)),
             },
         },
     )
@@ -740,6 +746,7 @@ def cmd_suite_add(args: argparse.Namespace) -> int:
         case_id=args.case_id,
         note=args.note,
         allow_duplicate=args.allow_duplicate,
+        owner=args.owner,
     )
     requirements = None
     if args.include or args.exclude:
@@ -757,6 +764,7 @@ def cmd_suite_add(args: argparse.Namespace) -> int:
             "event": "case_pinned",
             "suite": file_reference(output),
             "case_id": str(case["id"]),
+            "owner": str(case.get("owner") or ""),
             "note": args.note,
             "requirements": _requirement_counts(requirements),
         },
@@ -775,6 +783,8 @@ def cmd_suite_add(args: argparse.Namespace) -> int:
         )
     else:
         print(f"Added pinned case {case['id']} to {Path(output)}.")
+        if case.get("owner"):
+            print(f"Owner: {case['owner']}")
         if requirements:
             rules = len(requirements.get("include") or []) + len(requirements.get("exclude") or [])
             print(f"Added {rules} requirement rule(s).")
@@ -1392,6 +1402,10 @@ def _config_diff_profile(explicit: str | None, config: dict[str, object]) -> str
         joined = ", ".join(DIFF_PROFILES)
         raise ValueError(f"diff profile must be one of: {joined}")
     return profile
+
+
+def _config_owner_rules(config: dict[str, object]) -> object:
+    return config.get("owners")
 
 
 def _config_report_path(config: dict[str, object], format_key: str, report_key: str) -> str | None:

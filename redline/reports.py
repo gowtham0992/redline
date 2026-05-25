@@ -217,6 +217,9 @@ def _metadata_lines(item: dict[str, Any]) -> list[str]:
     cluster = str(item.get("cluster") or "")
     if cluster:
         lines.append(f"Cluster: {_inline_code(cluster)}")
+    owner = str(item.get("owner") or "")
+    if owner:
+        lines.append(f"Owner: {_inline_code(owner)}")
     return lines
 
 
@@ -235,6 +238,9 @@ def _junit_properties(item: dict[str, Any]) -> dict[str, str]:
     cluster = str(item.get("cluster") or "")
     if cluster:
         properties["cluster"] = cluster
+    owner = str(item.get("owner") or "")
+    if owner:
+        properties["owner"] = owner
     return properties
 
 
@@ -274,9 +280,11 @@ def _annotation_properties(item: dict[str, Any], *, title: str) -> dict[str, str
 def _annotation_message(item: dict[str, Any]) -> str:
     case_id = str(item.get("case_id") or "unknown")
     prompt = _preview(str(item.get("prompt") or ""))
+    owner = str(item.get("owner") or "")
     reasons = item.get("reasons")
     reason = str(reasons[0]) if isinstance(reasons, list) and reasons else str(item.get("status") or "changed")
-    return f"{case_id}: {reason}\nPrompt: {prompt}"
+    owner_line = f"\nOwner: {owner}" if owner else ""
+    return f"{case_id}: {reason}{owner_line}\nPrompt: {prompt}"
 
 
 _HTML_CSS = """
@@ -453,6 +461,7 @@ def _html_case(item: dict[str, Any]) -> str:
     status = str(item.get("status") or "unknown")
     case_id = str(item.get("case_id") or "unknown")
     location = _source_location(item)
+    owner = str(item.get("owner") or "")
     prompt = str(item.get("prompt") or "")
     reasons = item.get("reasons")
     baseline = str(item.get("baseline_response") or "")
@@ -466,6 +475,8 @@ def _html_case(item: dict[str, Any]) -> str:
     ]
     if location:
         lines.append(f'<div class="meta">{_h(location)}</div>')
+    if owner:
+        lines.append(f'<div class="meta">Owner: {_h(owner)}</div>')
     if prompt:
         lines.append(f'<p class="prompt"><strong>Prompt:</strong> {_h(prompt)}</p>')
     if isinstance(reasons, list) and reasons:

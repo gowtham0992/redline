@@ -262,6 +262,20 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(result["diffs"][0]["source"], "manual")
         self.assertIsNone(result["diffs"][0]["source_line"])
 
+    def test_compare_carries_case_owner_into_report(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+            owner="@platform-team",
+        )
+
+        result = compare_suite_to_candidate(suite, [])
+
+        self.assertEqual(result["diffs"][0]["owner"], "@platform-team")
+
     def test_summarize_decision_recommends_review_for_changed_cases(self) -> None:
         decision = summarize_decision({"cases": 3, "changed": 1})
 
@@ -333,6 +347,7 @@ class DiffTests(unittest.TestCase):
                     "status": "regression",
                     "source": "baseline.jsonl",
                     "source_line": 12,
+                    "owner": "@platform-team",
                     "prompt": "Return JSON",
                     "reasons": ["candidate lost valid JSON format"],
                 },
@@ -351,7 +366,10 @@ class DiffTests(unittest.TestCase):
         self.assertIn("Confidence: HIGH | fix blocking cases before shipping", report)
         self.assertIn("Scope: structural checks only", report)
         self.assertIn("Warning: prompt file prompts/v2.txt is newer than suite", report)
-        self.assertIn("REGRESSION case_001 [baseline.jsonl:12]: candidate lost valid JSON format", report)
+        self.assertIn(
+            "REGRESSION case_001 [baseline.jsonl:12] owner=@platform-team: candidate lost valid JSON format",
+            report,
+        )
         self.assertIn("CHANGED    case_002: short answer changed", report)
 
 

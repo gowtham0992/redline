@@ -43,6 +43,7 @@
         "max_cases": {"type": "integer", "minimum": 0},
         "selection": {"type": "string", "enum": ["representative", "all"]},
         "pinned_cases": {"type": "integer", "minimum": 0},
+        "owned_cases": {"type": "integer", "minimum": 0},
         "high_risk_clusters": {"type": "integer", "minimum": 0},
         "medium_risk_clusters": {"type": "integer", "minimum": 0},
         "high_variance_clusters": {"type": "integer", "minimum": 0},
@@ -86,6 +87,7 @@
           "id": {"type": "string"},
           "source": {"type": "string"},
           "source_line": {"type": ["integer", "null"]},
+          "owner": {"type": "string"},
           "cluster": {"type": "string"},
           "cluster_risk": {"type": "string", "enum": ["high", "medium", "low"]},
           "selection_reason": {
