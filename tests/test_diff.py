@@ -218,6 +218,26 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(result["diffs"][0]["source"], "memory")
         self.assertEqual(result["diffs"][0]["source_line"], 1)
         self.assertIn("cluster", result["diffs"][0])
+        self.assertEqual(result["diffs"][0]["confidence"], "high")
+        self.assertEqual(result["diffs"][0]["signal"], "structural")
+
+    def test_compare_labels_changed_cases_with_calibrated_signal(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Route ticket", "Route the ticket to billing support.", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        result = compare_suite_to_candidate(
+            suite,
+            [LogRecord(1, "Route ticket", "Route the ticket to security review.", {})],
+        )
+
+        self.assertEqual(result["diffs"][0]["status"], "changed")
+        self.assertEqual(result["diffs"][0]["confidence"], "medium")
+        self.assertEqual(result["diffs"][0]["signal"], "shallow_semantic")
 
     def test_compare_matches_candidate_by_case_id_before_prompt(self) -> None:
         suite = build_suite(
@@ -348,12 +368,16 @@ class DiffTests(unittest.TestCase):
                     "source": "baseline.jsonl",
                     "source_line": 12,
                     "owner": "@platform-team",
+                    "confidence": "high",
+                    "signal": "structural",
                     "prompt": "Return JSON",
                     "reasons": ["candidate lost valid JSON format"],
                 },
                 {
                     "case_id": "case_002",
                     "status": "changed",
+                    "confidence": "medium",
+                    "signal": "shallow_semantic",
                     "prompt": "Route this ticket",
                     "reasons": ["short answer changed"],
                 },
@@ -367,10 +391,10 @@ class DiffTests(unittest.TestCase):
         self.assertIn("Scope: structural checks only", report)
         self.assertIn("Warning: prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn(
-            "REGRESSION case_001 [baseline.jsonl:12] owner=@platform-team: candidate lost valid JSON format",
+            "REGRESSION case_001 [baseline.jsonl:12] owner=@platform-team [high/structural]: candidate lost valid JSON format",
             report,
         )
-        self.assertIn("CHANGED    case_002: short answer changed", report)
+        self.assertIn("CHANGED    case_002 [medium/shallow_semantic]: short answer changed", report)
 
 
 if __name__ == "__main__":

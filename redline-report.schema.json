@@ -75,6 +75,11 @@
           "baseline_response": {"type": "string"},
           "candidate_response": {"type": ["string", "null"]},
           "reasons": {"type": "array", "items": {"type": "string"}},
+          "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+          "signal": {
+            "type": "string",
+            "description": "Primary trust signal for this case, such as structural, shallow_semantic, judge, requirement, human_judgment, or none."
+          },
           "baseline_features": {"type": "object", "additionalProperties": true},
           "candidate_features": {"type": ["object", "null"], "additionalProperties": true},
           "judge": {"type": "object", "additionalProperties": true}

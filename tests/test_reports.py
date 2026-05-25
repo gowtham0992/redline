@@ -37,6 +37,8 @@ class ReportTests(unittest.TestCase):
                     "source_line": 12,
                     "cluster": "structured_json|json|short",
                     "owner": "@platform-team",
+                    "confidence": "high",
+                    "signal": "structural",
                     "prompt": "Return JSON",
                     "baseline_response": '{"ok": true}',
                     "candidate_response": "ok",
@@ -58,6 +60,8 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Source: `baseline.jsonl:12`", report)
         self.assertIn("Cluster: `structured_json|json|short`", report)
         self.assertIn("Owner: `@platform-team`", report)
+        self.assertIn("Confidence: `high`", report)
+        self.assertIn("Signal: `structural`", report)
         self.assertIn("Baseline:", report)
         self.assertIn('{"ok": true}', report)
         self.assertIn("Candidate:", report)
@@ -128,6 +132,8 @@ class ReportTests(unittest.TestCase):
                     "source_line": 12,
                     "cluster": "structured_json|json|short",
                     "owner": "@platform-team",
+                    "confidence": "high",
+                    "signal": "structural",
                     "prompt": "Return <JSON>",
                     "baseline_response": '{"ok": true}',
                     "candidate_response": "<script>alert(1)</script>",
@@ -142,6 +148,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("<title>redline eval</title>", report)
         self.assertIn('<section class="summary"', report)
         self.assertIn("Owner: @platform-team", report)
+        self.assertIn("Confidence: high | Signal: structural", report)
         self.assertIn("fix blocking cases before shipping", report)
         self.assertIn("structural checks only", report)
         self.assertIn("<h2>Warnings</h2>", report)
@@ -181,6 +188,8 @@ class ReportTests(unittest.TestCase):
                     "source": "baseline.jsonl",
                     "source_line": 12,
                     "cluster": "structured_json|json|short",
+                    "confidence": "high",
+                    "signal": "structural",
                     "prompt": "Return JSON",
                     "reasons": ["candidate lost valid JSON format"],
                 }
@@ -194,6 +203,8 @@ class ReportTests(unittest.TestCase):
         self.assertIn("<failure", report)
         self.assertIn('name="source" value="baseline.jsonl:12"', report)
         self.assertIn('name="cluster" value="structured_json|json|short"', report)
+        self.assertIn('name="confidence" value="high"', report)
+        self.assertIn('name="signal" value="structural"', report)
         self.assertIn("candidate lost valid JSON format", report)
 
     def test_github_annotations_mark_regressions_and_changed_cases(self) -> None:
@@ -206,6 +217,8 @@ class ReportTests(unittest.TestCase):
                     "source": "logs/baseline.jsonl",
                     "source_line": 7,
                     "owner": "@platform-team",
+                    "confidence": "high",
+                    "signal": "structural",
                     "prompt": "Return JSON",
                     "reasons": ["candidate lost valid JSON format"],
                 },
@@ -234,6 +247,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("file=logs/baseline.jsonl,line=7", annotations)
         self.assertIn("candidate lost valid JSON format", annotations)
         self.assertIn("Owner: @platform-team", annotations)
+        self.assertIn("Confidence: high (structural)", annotations)
         self.assertIn("Prompt: Route to billing, not security", annotations)
         self.assertNotIn("case_003", annotations)
 

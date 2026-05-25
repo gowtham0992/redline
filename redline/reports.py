@@ -220,6 +220,12 @@ def _metadata_lines(item: dict[str, Any]) -> list[str]:
     owner = str(item.get("owner") or "")
     if owner:
         lines.append(f"Owner: {_inline_code(owner)}")
+    confidence = str(item.get("confidence") or "")
+    if confidence:
+        lines.append(f"Confidence: {_inline_code(confidence)}")
+    signal = str(item.get("signal") or "")
+    if signal:
+        lines.append(f"Signal: {_inline_code(signal)}")
     return lines
 
 
@@ -241,6 +247,12 @@ def _junit_properties(item: dict[str, Any]) -> dict[str, str]:
     owner = str(item.get("owner") or "")
     if owner:
         properties["owner"] = owner
+    confidence = str(item.get("confidence") or "")
+    if confidence:
+        properties["confidence"] = confidence
+    signal = str(item.get("signal") or "")
+    if signal:
+        properties["signal"] = signal
     return properties
 
 
@@ -281,10 +293,13 @@ def _annotation_message(item: dict[str, Any]) -> str:
     case_id = str(item.get("case_id") or "unknown")
     prompt = _preview(str(item.get("prompt") or ""))
     owner = str(item.get("owner") or "")
+    confidence = str(item.get("confidence") or "")
+    signal = str(item.get("signal") or "")
     reasons = item.get("reasons")
     reason = str(reasons[0]) if isinstance(reasons, list) and reasons else str(item.get("status") or "changed")
     owner_line = f"\nOwner: {owner}" if owner else ""
-    return f"{case_id}: {reason}{owner_line}\nPrompt: {prompt}"
+    trust_line = f"\nConfidence: {confidence} ({signal})" if confidence and signal else ""
+    return f"{case_id}: {reason}{owner_line}{trust_line}\nPrompt: {prompt}"
 
 
 _HTML_CSS = """
@@ -462,6 +477,8 @@ def _html_case(item: dict[str, Any]) -> str:
     case_id = str(item.get("case_id") or "unknown")
     location = _source_location(item)
     owner = str(item.get("owner") or "")
+    confidence = str(item.get("confidence") or "")
+    signal = str(item.get("signal") or "")
     prompt = str(item.get("prompt") or "")
     reasons = item.get("reasons")
     baseline = str(item.get("baseline_response") or "")
@@ -477,6 +494,16 @@ def _html_case(item: dict[str, Any]) -> str:
         lines.append(f'<div class="meta">{_h(location)}</div>')
     if owner:
         lines.append(f'<div class="meta">Owner: {_h(owner)}</div>')
+    if confidence or signal:
+        metadata = " | ".join(
+            value
+            for value in (
+                f"Confidence: {confidence}" if confidence else "",
+                f"Signal: {signal}" if signal else "",
+            )
+            if value
+        )
+        lines.append(f'<div class="meta">{_h(metadata)}</div>')
     if prompt:
         lines.append(f'<p class="prompt"><strong>Prompt:</strong> {_h(prompt)}</p>')
     if isinstance(reasons, list) and reasons:

@@ -81,6 +81,8 @@ class CaseDiff:
     baseline_response: str
     candidate_response: str | None
     reasons: tuple[str, ...]
+    confidence: str
+    signal: str
     baseline_features: dict[str, Any]
     candidate_features: dict[str, Any] | None
 
@@ -96,6 +98,8 @@ class CaseDiff:
             "baseline_response": self.baseline_response,
             "candidate_response": self.candidate_response,
             "reasons": list(self.reasons),
+            "confidence": self.confidence,
+            "signal": self.signal,
             "baseline_features": self.baseline_features,
             "candidate_features": self.candidate_features,
         }
@@ -133,6 +137,7 @@ def compare_suite_to_candidate(
                 ["candidate output missing for exact prompt"],
                 _case_judgment(judgments, case_id),
             )
+            confidence, signal = _case_confidence_signal(status, reasons)
             diffs.append(
                 CaseDiff(
                     case_id=case_id,
@@ -145,6 +150,8 @@ def compare_suite_to_candidate(
                     baseline_response=baseline_response,
                     candidate_response=None,
                     reasons=tuple(reasons),
+                    confidence=confidence,
+                    signal=signal,
                     baseline_features=dict(case.get("features", {})),
                     candidate_features=None,
                 )
@@ -168,6 +175,7 @@ def compare_suite_to_candidate(
             status = "regression"
             reasons = requirement_failures + reasons
         status, reasons = apply_judgment(status, reasons, _case_judgment(judgments, case_id))
+        confidence, signal = _case_confidence_signal(status, reasons)
         diffs.append(
             CaseDiff(
                 case_id=case_id,
@@ -180,6 +188,8 @@ def compare_suite_to_candidate(
                 baseline_response=baseline_response,
                 candidate_response=candidate.response,
                 reasons=tuple(reasons),
+                confidence=confidence,
+                signal=signal,
                 baseline_features=baseline.to_dict(),
                 candidate_features=candidate_features.to_dict(),
             )
@@ -359,6 +369,55 @@ def apply_judgment(
     return status, reasons
 
 
+def _case_confidence_signal(status: str, reasons: list[str]) -> tuple[str, str]:
+    if any(reason.startswith("judge ") for reason in reasons):
+        return "medium", "judge"
+    if any("suite judgment" in reason for reason in reasons):
+        return "high", "human_judgment"
+    if status == "neutral":
+        return "medium", "none"
+    if status == "missing":
+        return "high", "structural"
+    if any(_is_requirement_reason(reason) for reason in reasons):
+        return "high" if status == "regression" else "medium", "requirement"
+    if any(_is_structural_reason(reason) for reason in reasons):
+        return "high" if status in {"regression", "improved"} else "medium", "structural"
+    return "medium", "shallow_semantic"
+
+
+def _is_requirement_reason(reason: str) -> bool:
+    return reason.startswith("candidate missing required text:") or reason.startswith(
+        "candidate includes forbidden text:"
+    )
+
+
+def _is_structural_reason(reason: str) -> bool:
+    return reason.startswith(
+        (
+            "candidate became empty",
+            "candidate is no longer empty",
+            "candidate lost valid JSON format",
+            "candidate gained valid JSON format",
+            "candidate missing JSON keys:",
+            "candidate added JSON keys:",
+            "candidate newly refuses",
+            "candidate no longer refuses",
+            "candidate lost code block structure",
+            "candidate lost bullet list structure",
+            "candidate lost numbered list structure",
+            "candidate lost markdown table structure",
+            "candidate added code block structure",
+            "candidate added bullet list structure",
+            "candidate added numbered list structure",
+            "candidate added markdown table structure",
+            "candidate missing numbers:",
+            "candidate missing URLs:",
+            "candidate missing entities:",
+            "shape changed:",
+        )
+    )
+
+
 def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str:
     summary = result["summary"]
     lines = [
@@ -445,10 +504,16 @@ def format_compact_report(result: dict[str, Any], *, title: str = "redline diff"
         location_text = f" [{location}]" if location else ""
         owner = str(item.get("owner") or "")
         owner_text = f" owner={owner}" if owner else ""
+        confidence = str(item.get("confidence") or "")
+        signal = str(item.get("signal") or "")
+        trust_text = f" [{confidence}/{signal}]" if confidence and signal else ""
         reasons = item.get("reasons")
         reason = str(reasons[0]) if isinstance(reasons, list) and reasons else status.lower()
         prompt = _preview(str(item.get("prompt") or ""), limit=64)
-        lines.append(f"{status:<10} {case_id}{location_text}{owner_text}: {_preview(reason, 96)} | {prompt}")
+        lines.append(
+            f"{status:<10} {case_id}{location_text}{owner_text}{trust_text}: "
+            f"{_preview(reason, 96)} | {prompt}"
+        )
     return "\n".join(lines).rstrip() + "\n"
 
 

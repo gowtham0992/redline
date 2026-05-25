@@ -121,8 +121,10 @@ found. It does not prove factual correctness, tone, hallucination safety, policy
 compliance, or subtle reasoning quality.
 
 That boundary is visible in CLI output and reports because over-trusting eval
-tools is dangerous. Use requirements or an optional judge for semantic risks
-that structural checks cannot prove.
+tools is dangerous. Each reported case includes a confidence and signal
+(`structural`, `shallow_semantic`, `requirement`, `judge`, or `human_judgment`)
+so reviewers can see why redline is making the call. Use requirements or an
+optional judge for semantic risks that structural checks cannot prove.
 
 ## Product Surface
 

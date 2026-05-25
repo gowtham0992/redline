@@ -32,6 +32,8 @@ def apply_judge(
         item["judge"] = judgment
         item["status"] = judgment["status"]
         item["reasons"] = _judged_reasons(item.get("reasons", []), judgment)
+        item["confidence"] = judgment["confidence"]
+        item["signal"] = "judge"
 
     result["summary"] = _summary_from_diffs(result.get("diffs", []))
     result["decision"] = summarize_decision(result["summary"])
