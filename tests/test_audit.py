@@ -64,6 +64,7 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(verification["signed_entries"], 2)
             self.assertEqual(verification["unsigned_entries"], 0)
             self.assertEqual(verification["last_hash"], second["entry_hash"])
+            self.assertEqual(verification["events_by_type"], {"diff_run": 1, "suite_generated": 1})
 
     def test_verify_audit_log_detects_tampering(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -127,6 +128,7 @@ class AuditTests(unittest.TestCase):
                 "signed_entries": 1,
                 "unsigned_entries": 0,
                 "last_hash": "abc123",
+                "events_by_type": {"case_marked": 1},
                 "errors": ["line 1: entry_hash mismatch"],
                 "warnings": ["tail checkpoint missing"],
             }
@@ -136,6 +138,7 @@ class AuditTests(unittest.TestCase):
         self.assertIn("Status:   FAILED", output)
         self.assertIn("line 1: entry_hash mismatch", output)
         self.assertIn("tail checkpoint missing", output)
+        self.assertIn("Events:   case_marked=1", output)
         self.assertIn(
             "redline audit --verify --expect-last-hash abc123 --expect-entries 1",
             output,

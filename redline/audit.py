@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -60,11 +61,13 @@ def verify_audit_events(
     signed_entries = 0
     unsigned_entries = 0
     previous_hash: str | None = None
+    event_counts: Counter[str] = Counter()
 
     if expected_entries is not None and expected_entries != len(events):
         errors.append(f"expected {expected_entries} entries, found {len(events)}")
 
     for index, row in enumerate(events, start=1):
+        event_counts[str(row.get("event") or "unknown")] += 1
         entry_hash = row.get("entry_hash")
         if not entry_hash:
             unsigned_entries += 1
@@ -103,6 +106,7 @@ def verify_audit_events(
         "signed_entries": signed_entries,
         "unsigned_entries": unsigned_entries,
         "last_hash": previous_hash,
+        "events_by_type": dict(sorted(event_counts.items())),
         "errors": errors,
         "warnings": warnings,
     }
@@ -157,6 +161,10 @@ def format_audit_verification(result: dict[str, Any]) -> str:
             "Checkpoint: redline audit --verify "
             f"--expect-last-hash {last_hash} --expect-entries {int(result.get('entries', 0))}"
         )
+    events_by_type = result.get("events_by_type")
+    if isinstance(events_by_type, dict) and events_by_type:
+        counts = ", ".join(f"{event}={int(count)}" for event, count in events_by_type.items())
+        lines.append(f"Events:   {counts}")
     errors = result.get("errors")
     if isinstance(errors, list) and errors:
         lines.extend(["", "Errors:"])
