@@ -25,6 +25,7 @@ def build_dashboard(
     history, history_errors = _collect_history(Path(history_path), limit=limit)
     checkpoint, checkpoint_errors = _collect_checkpoint(Path(checkpoint_path))
     trend = history_trend(list(reversed(history))) if history else history_trend([])
+    notices = _dashboard_notices(reports, benchmarks)
     return {
         "version": "0.1",
         "reports_dir": str(reports_dir),
@@ -35,6 +36,7 @@ def build_dashboard(
         "history": history,
         "checkpoint": checkpoint,
         "trend": trend,
+        "notices": notices,
         "owners": _dashboard_owner_review(reports),
         "trust": _dashboard_trust_summary(reports),
         "errors": report_errors + history_errors + checkpoint_errors,
@@ -60,6 +62,9 @@ def format_dashboard_html(
     errors = dashboard.get("errors")
     if not isinstance(errors, list):
         errors = []
+    notices = dashboard.get("notices")
+    if not isinstance(notices, list):
+        notices = []
     owners = dashboard.get("owners")
     if not isinstance(owners, list):
         owners = _dashboard_owner_review([report for report in reports if isinstance(report, dict)])
@@ -91,6 +96,7 @@ def format_dashboard_html(
             '<p class="lede">Local prompt regression review center.</p>',
             "</header>",
             _overview(latest, len(reports), len(benchmarks), len(history)),
+            _notices(notices),
             _ship_panel(latest),
             _trend_panel(trend),
             _benchmark_panel(benchmarks, output_path=output_path),
@@ -199,6 +205,26 @@ def _collect_checkpoint(checkpoint_path: Path) -> tuple[dict[str, Any] | None, l
     except ValueError as exc:
         return None, [{"path": str(checkpoint_path), "message": str(exc)}]
     return {**checkpoint, "path": str(checkpoint_path)}, []
+
+
+def _dashboard_notices(reports: list[dict[str, Any]], benchmarks: list[dict[str, Any]]) -> list[dict[str, str]]:
+    if not reports or benchmarks:
+        return []
+    return [
+        {
+            "kind": "benchmark_missing",
+            "title": "Missing benchmark evidence",
+            "message": (
+                "Reports exist, but no benchmark artifact was found. Run a local benchmark "
+                "before relying on the dashboard for runtime readiness."
+            ),
+            "command": (
+                "redline benchmark redline-suite.json --measure-local "
+                "--out-json .redline/reports/benchmark.json "
+                "--out-md .redline/reports/benchmark.md"
+            ),
+        }
+    ]
 
 
 def _is_benchmark_report(report: dict[str, Any]) -> bool:
@@ -800,6 +826,25 @@ def _errors(errors: list[Any]) -> str:
         f"<ul>{''.join(rows)}</ul>"
         "</section>"
     )
+
+
+def _notices(notices: list[Any]) -> str:
+    rows = []
+    for notice in notices:
+        if not isinstance(notice, dict):
+            continue
+        title = str(notice.get("title") or "Dashboard notice")
+        message = str(notice.get("message") or "")
+        command = str(notice.get("command") or "")
+        command_html = f"<p><code>{_h(command)}</code></p>" if command else ""
+        rows.append(
+            '<section class="notice dashboard-notice">'
+            f"<h2>{_h(title)}</h2>"
+            f"<p>{_h(message)}</p>"
+            f"{command_html}"
+            "</section>"
+        )
+    return "".join(rows)
 
 
 def _reports_table(reports: list[Any], *, output_path: str | Path | None) -> str:

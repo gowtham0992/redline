@@ -121,6 +121,7 @@ class DashboardTests(unittest.TestCase):
 
             self.assertEqual(len(dashboard["reports"]), 1)
             self.assertEqual(len(dashboard["benchmarks"]), 1)
+            self.assertEqual(dashboard["notices"], [])
             self.assertEqual(dashboard["benchmarks"][0]["suite"], "redline-suite.json")
             self.assertEqual(dashboard["benchmarks"][0]["cases"], 5)
             self.assertEqual(len(dashboard["history"]), 1)
@@ -230,6 +231,32 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("prompt-v2", html)
             self.assertIn("reports/eval.html", html)
             self.assertIn("structural checks only", html)
+            self.assertNotIn("Missing benchmark evidence", html)
+
+    def test_dashboard_warns_when_reports_have_no_benchmark_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / ".redline" / "reports"
+            write_json(
+                reports / "eval.json",
+                {
+                    "summary": {"cases": 2, "regression": 1, "neutral": 1},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    "diffs": [],
+                },
+            )
+
+            dashboard = build_dashboard(reports_dir=reports, history_path=root / ".redline" / "history.jsonl")
+            html = format_dashboard_html(dashboard)
+
+            self.assertEqual(len(dashboard["reports"]), 1)
+            self.assertEqual(dashboard["benchmarks"], [])
+            self.assertEqual(len(dashboard["notices"]), 1)
+            self.assertEqual(dashboard["notices"][0]["kind"], "benchmark_missing")
+            self.assertIn("Missing benchmark evidence", html)
+            self.assertIn("Reports exist, but no benchmark artifact was found.", html)
+            self.assertIn("redline benchmark redline-suite.json --measure-local", html)
+            self.assertIn("<span>Benchmarks</span><strong>0</strong>", html)
 
     def test_dashboard_escapes_report_fields(self) -> None:
         dashboard = {
@@ -330,6 +357,7 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("diff.json", text)
             self.assertIn("<span>Benchmarks</span><strong>1</strong>", text)
             self.assertIn("Benchmarks: 1", stdout.getvalue())
+            self.assertIn("Notices: 0", stdout.getvalue())
 
 
 if __name__ == "__main__":

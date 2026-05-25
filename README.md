@@ -215,7 +215,8 @@ redline is built around the full prompt-regression loop:
 - `redline history`, `redline compare`, and `redline dashboard`: track quality
   over time and inspect reports locally. The dashboard surfaces feature-level
   rollups, prompt-level eval rows, benchmark evidence, and a latest-report
-  review queue when reports come from a prompt manifest.
+  review queue when reports come from a prompt manifest. It also warns when
+  reports exist without benchmark evidence from the same project.
 - `redline summary`: inspect suite readiness, or pass `redline-prompts.json` to
   roll up multi-prompt suite coverage, owners, requirements, and missing suites.
 - `redline-mcp`: let AI coding assistants run checks inside Claude, Codex,

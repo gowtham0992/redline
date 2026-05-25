@@ -55,6 +55,7 @@
 - Add a dark-mode README logo so the redline wordmark stays visible on GitHub.
 - Surface benchmark artifacts and local timing evidence in the dashboard.
 - Show benchmark counts in the dashboard overview and CLI summary.
+- Warn in the dashboard when reports exist without benchmark evidence.
 - Show owner coverage and top owners in `redline summary`.
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Show blocking and changed review counts in the dashboard reports table.

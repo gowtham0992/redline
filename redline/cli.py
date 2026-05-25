@@ -1226,6 +1226,7 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
         print(f"Benchmarks: {len(dashboard.get('benchmarks', []))}")
         print(f"History: {len(dashboard['history'])}")
         print(f"Checkpoint: {'yes' if dashboard.get('checkpoint') else 'no'}")
+        print(f"Notices: {len(dashboard.get('notices', []))}")
         print(f"Warnings: {len(dashboard.get('errors', []))}")
         if args.open:
             print("Opened dashboard in the default browser.")
