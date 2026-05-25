@@ -33,6 +33,7 @@ def append_audit_event(path: str | Path | None, event: dict[str, Any]) -> dict[s
         "operator": current_operator(),
         **event,
     }
+    row = {key: value for key, value in row.items() if value is not None}
     append_jsonl(path, [row])
     return row
 

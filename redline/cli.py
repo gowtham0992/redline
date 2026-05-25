@@ -50,7 +50,7 @@ from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_
 from .judge import apply_judge
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import parse_fail_on, should_fail
-from .redact import DEFAULT_PLACEHOLDER, format_redaction_report, redact_jsonl
+from .redact import DEFAULT_PLACEHOLDER, format_redaction_report, redact_jsonl, scan_jsonl_redactions
 from .reports import format_github_annotations, format_html_report, format_junit_report, format_markdown_report
 from .requirements import add_case_requirement, clear_case_requirements
 from .replay import read_prompt_template, replay_suite
@@ -187,7 +187,8 @@ def build_parser() -> argparse.ArgumentParser:
     redact_parser = subparsers.add_parser("redact", help="redact secrets and PII from JSONL prompt logs")
     redact_parser.add_argument("log", help="JSONL prompt-response log to redact")
     redact_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
-    redact_parser.add_argument("--out", required=True, help="redacted JSONL output path")
+    redact_parser.add_argument("--out", help="redacted JSONL output path")
+    redact_parser.add_argument("--check", action="store_true", help="scan only; do not write a redacted file")
     redact_parser.add_argument("--placeholder", default=DEFAULT_PLACEHOLDER, help="replacement text")
     redact_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     redact_parser.set_defaults(func=cmd_redact)
@@ -570,13 +571,19 @@ def cmd_watch(args: argparse.Namespace) -> int:
 
 def cmd_redact(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    report = redact_jsonl(args.log, args.out, placeholder=args.placeholder)
+    if args.check:
+        report = scan_jsonl_redactions(args.log, placeholder=args.placeholder)
+    else:
+        if not args.out:
+            raise ValueError("redact requires --out unless --check is passed")
+        report = redact_jsonl(args.log, args.out, placeholder=args.placeholder)
+    output_reference = file_reference(args.out) if args.out else None
     append_audit_event(
         _config_audit_path(config),
         {
-            "event": "log_redacted",
+            "event": "log_redaction_checked" if args.check else "log_redacted",
             "source": file_reference(args.log),
-            "output": file_reference(args.out),
+            "output": output_reference,
             "records": int(report["records"]),
             "redactions": int(report["redactions"]),
             "patterns": report["patterns"],

@@ -62,6 +62,27 @@ def redact_jsonl(
     }
 
 
+def scan_jsonl_redactions(
+    source: str,
+    *,
+    placeholder: str = DEFAULT_PLACEHOLDER,
+) -> dict[str, Any]:
+    counts: dict[str, int] = {}
+    records = 0
+    for _, row in iter_jsonl(source):
+        records += 1
+        redact_object(row, placeholder=placeholder, counts=counts)
+    redactions = sum(counts.values())
+    return {
+        "source": source,
+        "output": None,
+        "records": records,
+        "redactions": redactions,
+        "patterns": dict(sorted(counts.items())),
+        "check": True,
+    }
+
+
 def redact_object(
     value: Any,
     *,
@@ -105,10 +126,17 @@ def format_redaction_report(report: dict[str, Any]) -> str:
         "redline redact",
         "",
         f"Read:       {report['source']}",
-        f"Wrote:      {report['output']}",
-        f"Records:    {report['records']}",
-        f"Redactions: {report['redactions']}",
     ]
+    if report.get("check"):
+        lines.append("Mode:       check only")
+    else:
+        lines.append(f"Wrote:      {report['output']}")
+    lines.extend(
+        [
+            f"Records:    {report['records']}",
+            f"Redactions: {report['redactions']}",
+        ]
+    )
     patterns = report.get("patterns")
     if isinstance(patterns, dict) and patterns:
         lines.append("Patterns:")
@@ -118,10 +146,14 @@ def format_redaction_report(report: dict[str, Any]) -> str:
         [
             "",
             "Next:",
-            f"- Generate a suite: redline suite {report['output']} --out redline-suite.json",
-            f"- Inspect clusters: redline cluster {report['output']}",
         ]
     )
+    if report.get("check"):
+        lines.append(f"- Write a sanitized copy: redline redact {report['source']} --out redacted.jsonl")
+        lines.append(f"- Or generate a suite if clean: redline suite {report['source']} --out redline-suite.json")
+    else:
+        lines.append(f"- Generate a suite: redline suite {report['output']} --out redline-suite.json")
+        lines.append(f"- Inspect clusters: redline cluster {report['output']}")
     return "\n".join(lines).rstrip() + "\n"
 
 

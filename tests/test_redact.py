@@ -3,7 +3,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.redact import format_redaction_report, redact_jsonl, redact_object, redact_text
+from redline.redact import (
+    format_redaction_report,
+    redact_jsonl,
+    redact_object,
+    redact_text,
+    scan_jsonl_redactions,
+)
 
 
 class RedactTests(unittest.TestCase):
@@ -61,6 +67,22 @@ class RedactTests(unittest.TestCase):
             self.assertEqual(report["redactions"], 2)
             self.assertEqual(report["patterns"], {"email": 1, "sensitive_field": 1})
 
+    def test_scan_jsonl_redactions_counts_without_writing_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "raw.jsonl"
+            source.write_text(
+                '{"prompt": "Email ada@example.com", "response": "ok", "token": "secret"}\n',
+                encoding="utf-8",
+            )
+
+            report = scan_jsonl_redactions(str(source))
+
+            self.assertIsNone(report["output"])
+            self.assertTrue(report["check"])
+            self.assertEqual(report["records"], 1)
+            self.assertEqual(report["redactions"], 2)
+            self.assertFalse((Path(directory) / "redacted.jsonl").exists())
+
     def test_format_redaction_report_points_to_next_suite_step(self) -> None:
         output = format_redaction_report(
             {
@@ -74,6 +96,22 @@ class RedactTests(unittest.TestCase):
 
         self.assertIn("redline redact", output)
         self.assertIn("redline suite clean.jsonl --out redline-suite.json", output)
+
+    def test_format_redaction_check_report_points_to_write_step(self) -> None:
+        output = format_redaction_report(
+            {
+                "source": "raw.jsonl",
+                "output": None,
+                "records": 2,
+                "redactions": 1,
+                "patterns": {"email": 1},
+                "check": True,
+            }
+        )
+
+        self.assertIn("Mode:       check only", output)
+        self.assertIn("redline redact raw.jsonl --out redacted.jsonl", output)
+        self.assertNotIn("redline suite None", output)
 
 
 if __name__ == "__main__":

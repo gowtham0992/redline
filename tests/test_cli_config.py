@@ -643,6 +643,53 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_redact_check_scans_without_output_and_appends_audit_event(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps({"audit": ".redline/audit.jsonl"}),
+                    encoding="utf-8",
+                )
+                Path("raw.jsonl").write_text(
+                    '{"prompt": "Email ada@example.com", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["redact", "raw.jsonl", "--check"]), 0)
+
+                self.assertIn("Mode:       check only", output.getvalue())
+                self.assertIn("Redactions: 1", output.getvalue())
+                self.assertFalse(Path("redacted.jsonl").exists())
+                audit = [
+                    json.loads(line)
+                    for line in (root / ".redline" / "audit.jsonl").read_text(encoding="utf-8").splitlines()
+                ]
+                self.assertEqual(audit[-1]["event"], "log_redaction_checked")
+                self.assertNotIn("output", audit[-1])
+                self.assertEqual(audit[-1]["redactions"], 1)
+            finally:
+                os.chdir(previous)
+
+    def test_redact_requires_output_unless_checking(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("raw.jsonl").write_text('{"prompt": "ok", "response": "ok"}\n', encoding="utf-8")
+
+                with contextlib.redirect_stderr(io.StringIO()) as error:
+                    self.assertEqual(main(["redact", "raw.jsonl"]), 2)
+
+                self.assertIn("requires --out unless --check", error.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_audit_command_lists_recent_events(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

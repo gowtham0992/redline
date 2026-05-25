@@ -33,6 +33,16 @@ class AuditTests(unittest.TestCase):
             self.assertIn("timestamp", row)
             self.assertIn("operator", row)
 
+    def test_append_audit_event_omits_none_values(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / ".redline" / "audit.jsonl"
+
+            row = append_audit_event(path, {"event": "scan", "output": None})
+
+            self.assertIsNotNone(row)
+            assert row is not None
+            self.assertNotIn("output", row)
+
     def test_read_missing_audit_log_returns_empty_list(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(read_audit_events(Path(directory) / "missing.jsonl"), [])
