@@ -134,6 +134,7 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
                 "decision": report.get("decision") if isinstance(report.get("decision"), dict) else {},
                 "owners": _report_owner_review(report.get("diffs")),
                 "trust": _report_trust_summary(report.get("diffs")),
+                "review": _report_review_summary(report.get("diffs")),
                 "html_path": _existing_sibling(path, ".html"),
                 "markdown_path": _existing_sibling(path, ".md"),
             }
@@ -256,6 +257,22 @@ def _report_trust_summary(diffs: Any) -> dict[str, Any]:
         "confidence": dict(sorted(confidence.items())),
         "signal": dict(sorted(signal.items())),
     }
+
+
+def _report_review_summary(diffs: Any) -> dict[str, int]:
+    blocking = 0
+    changed = 0
+    if not isinstance(diffs, list):
+        return {"reviewable": 0, "blocking": 0, "changed": 0}
+    for item in diffs:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "")
+        if status in {"regression", "missing"}:
+            blocking += 1
+        elif status == "changed":
+            changed += 1
+    return {"reviewable": blocking + changed, "blocking": blocking, "changed": changed}
 
 
 def _dashboard_trust_summary(reports: list[dict[str, Any]]) -> dict[str, Any]:
@@ -474,6 +491,8 @@ def _reports_table(reports: list[Any], *, output_path: str | Path | None) -> str
         summary = raw_summary if isinstance(raw_summary, dict) else {}
         raw_decision = report.get("decision")
         decision = raw_decision if isinstance(raw_decision, dict) else {}
+        raw_review = report.get("review")
+        review = raw_review if isinstance(raw_review, dict) else {}
         links = _links(
             [
                 ("HTML", str(report.get("html_path") or "")),
@@ -486,6 +505,7 @@ def _reports_table(reports: list[Any], *, output_path: str | Path | None) -> str
             "<tr>"
             f"<td><strong>{_h(str(report.get('name') or '-'))}</strong><span>{_h(str(report.get('kind') or '-'))}</span></td>"
             f"<td>{_summary_pills(summary)}</td>"
+            f"<td>{_review_pills(review)}</td>"
             f"<td>{_h(str(decision.get('recommended_action') or '-'))}</td>"
             f"<td>{links}</td>"
             "</tr>"
@@ -495,7 +515,7 @@ def _reports_table(reports: list[Any], *, output_path: str | Path | None) -> str
         "<h2>Reports</h2>"
         '<div class="table-wrap">'
         "<table>"
-        "<thead><tr><th>Report</th><th>Summary</th><th>Decision</th><th>Links</th></tr></thead>"
+        "<thead><tr><th>Report</th><th>Summary</th><th>Review</th><th>Decision</th><th>Links</th></tr></thead>"
         f"<tbody>{''.join(rows)}</tbody>"
         "</table>"
         "</div>"
@@ -549,6 +569,18 @@ def _summary_pills(summary: dict[str, Any]) -> str:
     for key in keys:
         if key in summary:
             pills.append(f'<span class="pill {key}">{_h(key)} {int(summary.get(key) or 0)}</span>')
+    return "".join(pills) if pills else "-"
+
+
+def _review_pills(review: dict[str, Any]) -> str:
+    reviewable = int(review.get("reviewable") or 0)
+    if reviewable <= 0:
+        return "-"
+    pills = []
+    for key in ("blocking", "changed"):
+        value = int(review.get(key) or 0)
+        if value:
+            pills.append(f'<span class="pill {key}">{_h(key)} {value}</span>')
     return "".join(pills) if pills else "-"
 
 

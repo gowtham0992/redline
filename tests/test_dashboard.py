@@ -90,9 +90,16 @@ class DashboardTests(unittest.TestCase):
                     "signal": {"judge": 1, "structural": 1},
                 },
             )
+            self.assertEqual(
+                dashboard["reports"][0]["review"],
+                {"reviewable": 2, "blocking": 1, "changed": 1},
+            )
             self.assertEqual(dashboard["checkpoint"]["entries"], 3)
             self.assertIn("<title>redline dashboard</title>", html)
             self.assertIn("eval.json", html)
+            self.assertIn("<th>Review</th>", html)
+            self.assertIn("blocking 1", html)
+            self.assertIn("changed 1", html)
             self.assertIn("<h2>Trend</h2>", html)
             self.assertIn("<h2>Trust Signals</h2>", html)
             self.assertIn("<h2>Audit Checkpoint</h2>", html)
