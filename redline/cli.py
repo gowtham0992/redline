@@ -53,6 +53,7 @@ from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_
 from .judge import apply_judge
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import parse_fail_on, should_fail
+from .prompts import build_prompt_manifest, format_prompt_manifest
 from .redact import DEFAULT_PLACEHOLDER, format_redaction_report, redact_jsonl, scan_jsonl_redactions
 from .reports import format_github_annotations, format_html_report, format_junit_report, format_markdown_report
 from .requirements import add_case_requirement, clear_case_requirements
@@ -101,6 +102,9 @@ Core loop:
   redline suite path/to/baseline.jsonl --out redline-suite.json
   redline eval --prompt prompts/v2.txt
   redline diff redline-suite.json path/to/candidate.jsonl
+
+Scale:
+  redline prompts prompts/ --suite-dir suites --out redline-prompts.json
 
 Run `redline <command> --help` for command details.
 """
@@ -197,6 +201,14 @@ def build_parser() -> argparse.ArgumentParser:
     redact_parser.add_argument("--placeholder", default=DEFAULT_PLACEHOLDER, help="replacement text")
     redact_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     redact_parser.set_defaults(func=cmd_redact)
+
+    prompts_parser = subparsers.add_parser("prompts", help="scan prompt files and write a suite manifest")
+    prompts_parser.add_argument("path", help="prompt file or directory to scan")
+    prompts_parser.add_argument("--suite-dir", default="suites", help="suite directory to map prompt files into")
+    prompts_parser.add_argument("--out", help="write manifest JSON to this path")
+    prompts_parser.add_argument("--ext", action="append", default=[], help="prompt extension to include; repeat as needed")
+    prompts_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    prompts_parser.set_defaults(func=cmd_prompts)
 
     audit_parser = subparsers.add_parser("audit", help="show recent local audit events")
     audit_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
@@ -620,6 +632,21 @@ def cmd_redact(args: argparse.Namespace) -> int:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
         print(format_redaction_report(report), end="")
+    return 0
+
+
+def cmd_prompts(args: argparse.Namespace) -> int:
+    manifest = build_prompt_manifest(
+        args.path,
+        suite_dir=args.suite_dir,
+        extensions=args.ext or None,
+    )
+    if args.out:
+        write_json(args.out, manifest)
+    if args.json:
+        print(json.dumps(manifest, indent=2, sort_keys=True))
+    else:
+        print(format_prompt_manifest(manifest, output_path=args.out), end="")
     return 0
 
 

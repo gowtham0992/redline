@@ -137,6 +137,7 @@ redline is built around the full prompt-regression loop:
 - `redline redact --check`: scan logs for common secrets and PII, then write a scrubbed copy when needed.
 - `redline cluster`: inspect behavior groups before suite generation.
 - `redline suite`: generate a representative eval suite from baseline logs.
+- `redline prompts`: scan many prompt files and write a versionable prompt-to-suite manifest.
 - `redline suite add`: pin hand-picked edge cases the algorithm should never miss.
 - `redline benchmark`: estimate suite runtime, write benchmark artifacts, and optionally fail on a CI time budget.
 - `redline eval`: replay each suite case through your local app or model runner.
