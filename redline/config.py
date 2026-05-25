@@ -45,6 +45,7 @@ def default_config(
         },
         "logs": {
             "observed": ".redline/logs/prompts.jsonl",
+            "middleware_skips": ".redline/logs/middleware-skips.jsonl",
         },
         "runs": {
             "candidate": ".redline/runs/candidate.jsonl",

@@ -27,6 +27,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config["reports"]["html"], ".redline/reports/{command}.html")
         self.assertEqual(config["reports"]["junit"], ".redline/reports/{command}.xml")
         self.assertEqual(config["logs"]["observed"], ".redline/logs/prompts.jsonl")
+        self.assertEqual(config["logs"]["middleware_skips"], ".redline/logs/middleware-skips.jsonl")
         self.assertEqual(config["runs"]["candidate"], ".redline/runs/candidate.jsonl")
         self.assertEqual(config["runs"]["metadata"], ".redline/runs/replay.json")
         self.assertEqual(config["audit"], ".redline/audit.jsonl")

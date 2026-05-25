@@ -9,6 +9,7 @@ from typing import Any
 from .audit import DEFAULT_AUDIT_PATH, verify_audit_log
 from .runners import runner_adapters
 from .validate import validate_suite
+from .watch import DEFAULT_MIDDLEWARE_SKIP_LOG, DEFAULT_WATCH_LOG, watch_stats
 
 
 def doctor_report(
@@ -77,6 +78,9 @@ def doctor_report(
 
     checks.append(_coverage_check(config=config, suite=suite))
     checks.append(_team_workflow_check(config=config, suite=suite))
+    capture_check = _capture_check(config)
+    if capture_check is not None:
+        checks.append(capture_check)
 
     report_paths = _configured_paths(config.get("reports"), ("json", "markdown", "html", "junit"))
     if report_paths:
@@ -306,6 +310,10 @@ def _next_steps(checks: list[dict[str, str]], *, suite_path: str) -> list[str]:
     if _check_has(by_name, "suite-git", "warn"):
         steps.append("Commit the suite baseline, or move it out of ignored paths")
 
+    capture = by_name.get("capture")
+    if capture and capture["status"] == "warn":
+        steps.append(_capture_next_step(capture["message"]))
+
     return steps
 
 
@@ -337,6 +345,70 @@ def _replay_next_step(message: str) -> str:
     if "litellm_runner.sh" in message:
         return "Copy missing runner: redline runners --copy litellm"
     return "Fix replay command in redline.json, then rerun: redline doctor"
+
+
+def _capture_check(config: dict[str, Any]) -> dict[str, str] | None:
+    observed_log = _observed_log_path(config)
+    skip_log = _middleware_skip_log_path(config, observed_log)
+    try:
+        stats = watch_stats(observed_log, skip_log=skip_log)
+    except ValueError:
+        return None
+    skips = stats.get("skips")
+    if not isinstance(skips, dict) or not skips.get("events"):
+        if int(stats.get("records", 0)):
+            return {
+                "status": "ok",
+                "name": "capture",
+                "message": f"observed rows={stats['records']}; skip diagnostics=0",
+            }
+        return None
+    events = int(skips.get("events", 0))
+    reasons = skips.get("reasons")
+    reason_text = _reason_counts_text(reasons if isinstance(reasons, dict) else {})
+    records = int(stats.get("records", 0))
+    status = "warn" if records == 0 else "ok"
+    message = (
+        f"observed rows={records}; middleware skips={events}"
+        f"{f': {reason_text}' if reason_text else ''}; skip_log={skip_log}"
+    )
+    return {"status": status, "name": "capture", "message": message}
+
+
+def _observed_log_path(config: dict[str, Any]) -> str:
+    logs = config.get("logs")
+    if isinstance(logs, dict):
+        value = logs.get("observed")
+        if isinstance(value, str) and value:
+            return value
+    return DEFAULT_WATCH_LOG
+
+
+def _middleware_skip_log_path(config: dict[str, Any], observed_log: str) -> str:
+    logs = config.get("logs")
+    if isinstance(logs, dict):
+        value = logs.get("middleware_skips")
+        if isinstance(value, str) and value:
+            return value
+    observed = Path(observed_log)
+    if observed == Path(DEFAULT_WATCH_LOG):
+        return DEFAULT_MIDDLEWARE_SKIP_LOG
+    return str(observed.with_name(Path(DEFAULT_MIDDLEWARE_SKIP_LOG).name))
+
+
+def _reason_counts_text(reasons: dict[object, object]) -> str:
+    pairs = []
+    for reason, count in sorted(reasons.items()):
+        pairs.append(f"{reason}={count}")
+    return ", ".join(pairs)
+
+
+def _capture_next_step(message: str) -> str:
+    marker = "skip_log="
+    if marker in message:
+        skip_log = message.split(marker, 1)[1].split(";", 1)[0].strip()
+        return f"Inspect capture skips: redline watch --stats --skip-log {skip_log}"
+    return "Inspect capture skips: redline watch --stats"
 
 
 def _replay_adapter_misuse_check(command_line: str) -> dict[str, str] | None:

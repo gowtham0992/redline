@@ -138,6 +138,10 @@
         "observed": {
           "type": "string",
           "description": "Local JSONL file where redline watch stores observed prompt-response rows."
+        },
+        "middleware_skips": {
+          "type": "string",
+          "description": "Optional JSONL file where RedlineMiddleware writes capture skip diagnostics without request or response body text."
         }
       }
     },

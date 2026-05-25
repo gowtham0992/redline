@@ -250,6 +250,73 @@ class DoctorTests(unittest.TestCase):
             "owners=1/1; owner rules=1; approval required=yes",
         )
 
+    def test_doctor_warns_when_middleware_only_records_skips(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                skip_log = root / ".redline" / "logs" / "middleware-skips.jsonl"
+                skip_log.parent.mkdir(parents=True)
+                skip_log.write_text(
+                    '{"event":"middleware_capture_skipped","reason":"response_streaming","observed_at":"2026-05-25T00:00:00+00:00","source":"asgi:POST /chat","metadata":{}}\n',
+                    encoding="utf-8",
+                )
+
+                report = doctor_report(
+                    config_path="redline.json",
+                    config={
+                        "logs": {
+                            "observed": ".redline/logs/prompts.jsonl",
+                            "middleware_skips": ".redline/logs/middleware-skips.jsonl",
+                        },
+                    },
+                    suite={"cases": []},
+                )
+
+                capture = next(check for check in report["checks"] if check["name"] == "capture")
+                self.assertEqual(capture["status"], "warn")
+                self.assertIn("observed rows=0", capture["message"])
+                self.assertIn("middleware skips=1", capture["message"])
+                self.assertIn("response_streaming=1", capture["message"])
+                self.assertIn(
+                    "Inspect capture skips: redline watch --stats --skip-log .redline/logs/middleware-skips.jsonl",
+                    report["next_steps"],
+                )
+            finally:
+                os.chdir(previous)
+
+    def test_doctor_reports_capture_skips_as_ok_when_observations_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                logs = root / ".redline" / "logs"
+                logs.mkdir(parents=True)
+                (logs / "prompts.jsonl").write_text(
+                    '{"prompt":"hello","response":"world","observed_at":"2026-05-25T00:00:00+00:00","source":"asgi:POST /chat","content_hash":"abc"}\n',
+                    encoding="utf-8",
+                )
+                (logs / "middleware-skips.jsonl").write_text(
+                    '{"event":"middleware_capture_skipped","reason":"prompt_field_missing","observed_at":"2026-05-25T00:00:01+00:00","source":"asgi:POST /chat","metadata":{}}\n',
+                    encoding="utf-8",
+                )
+
+                report = doctor_report(
+                    config_path="redline.json",
+                    config={"logs": {"observed": ".redline/logs/prompts.jsonl"}},
+                    suite={"cases": []},
+                )
+
+                capture = next(check for check in report["checks"] if check["name"] == "capture")
+                self.assertEqual(capture["status"], "ok")
+                self.assertIn("observed rows=1", capture["message"])
+                self.assertIn("middleware skips=1", capture["message"])
+                self.assertNotIn("Inspect capture skips", report["next_steps"])
+            finally:
+                os.chdir(previous)
+
     def test_format_doctor_report_prints_next_steps(self) -> None:
         report = doctor_report(
             config_path="missing.json",
