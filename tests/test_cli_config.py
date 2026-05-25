@@ -842,6 +842,37 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_audit_verify_exits_nonzero_when_hash_chain_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps({"audit": ".redline/audit.jsonl"}),
+                    encoding="utf-8",
+                )
+                Path("raw.jsonl").write_text(
+                    '{"prompt": "Email ada@example.com", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["redact", "raw.jsonl", "--out", "clean.jsonl"]), 0)
+
+                audit_path = root / ".redline" / "audit.jsonl"
+                row = json.loads(audit_path.read_text(encoding="utf-8"))
+                row["event"] = "tampered"
+                audit_path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+                output = io.StringIO()
+
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["audit", "--verify"]), 1)
+
+                self.assertIn("Status:   FAILED", output.getvalue())
+                self.assertIn("entry_hash mismatch", output.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_judgment_requirement_and_acceptance_append_audit_events(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

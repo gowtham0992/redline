@@ -786,6 +786,8 @@ def cmd_audit(args: argparse.Namespace) -> int:
         if args.out_checkpoint:
             print()
             print(f"Wrote audit checkpoint: {args.out_checkpoint}")
+    if verification is not None and not bool(verification.get("ok")):
+        return 1
     return 0
 
 
