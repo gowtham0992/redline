@@ -362,6 +362,20 @@ class DiffTests(unittest.TestCase):
                 "recommended_action": "fix blocking cases before shipping",
                 "scope": "structural checks only; review semantic risks separately",
             },
+            "prompt_evals": [
+                {
+                    "id": "support/triage",
+                    "prompt": "prompts/support/triage.txt",
+                    "summary": {"cases": 1, "regression": 1, "changed": 0, "missing": 0, "neutral": 0},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                },
+                {
+                    "id": "billing/refund",
+                    "prompt": "prompts/billing/refund.txt",
+                    "summary": {"cases": 1, "regression": 0, "changed": 0, "missing": 0, "neutral": 1},
+                    "decision": {"recommended_action": "ship candidate; no blocking changes detected"},
+                },
+            ],
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "diffs": [
                 {
@@ -392,6 +406,15 @@ class DiffTests(unittest.TestCase):
         self.assertIn("Confidence: HIGH | fix blocking cases before shipping", report)
         self.assertIn("Scope: structural checks only", report)
         self.assertIn("Warning: prompt file prompts/v2.txt is newer than suite", report)
+        self.assertIn("Prompt evals:", report)
+        self.assertIn(
+            "REGRESSION support/triage [prompts/support/triage.txt]: cases=1 regression=1 changed=0 missing=0 neutral=0",
+            report,
+        )
+        self.assertIn(
+            "CLEAN      billing/refund [prompts/billing/refund.txt]: cases=1 regression=0 changed=0 missing=0 neutral=1",
+            report,
+        )
         self.assertIn(
             "REGRESSION case_001 [baseline.jsonl:12] owner=@platform-team [high/structural]: candidate lost valid JSON format",
             report,

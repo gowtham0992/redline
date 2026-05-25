@@ -219,6 +219,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("python -m ruff check .", readme)
         self.assertIn("python -m mypy redline tests scripts examples", readme)
         self.assertIn("redline-prompts.json --check --check-suites", readme)
+        self.assertIn("prompt-level rollups", readme)
         self.assertIn("redline eval redline-prompts.json", readme)
         self.assertIn("redline eval suites/support/triage.redline-suite.json", readme)
         self.assertIn("prompt-level", readme)

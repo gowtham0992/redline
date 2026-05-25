@@ -450,6 +450,12 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
             lines.append(f"- {warning}")
         lines.append("")
 
+    prompt_eval_lines = _prompt_eval_lines(result.get("prompt_evals"))
+    if prompt_eval_lines:
+        lines.append("PROMPT EVALS")
+        lines.extend(prompt_eval_lines)
+        lines.append("")
+
     for status in ("regression", "changed", "improved", "accepted", "ignored", "missing"):
         matching = [item for item in result["diffs"] if item["status"] == status]
         if not matching:
@@ -487,6 +493,12 @@ def format_compact_report(result: dict[str, Any], *, title: str = "redline diff"
     for warning in _result_warnings(result):
         lines.append(f"Warning: {warning}")
 
+    prompt_eval_lines = _prompt_eval_lines(result.get("prompt_evals"))
+    if prompt_eval_lines:
+        lines.append("")
+        lines.append("Prompt evals:")
+        lines.extend(prompt_eval_lines)
+
     actionable = [
         item
         for item in result.get("diffs", [])
@@ -515,6 +527,50 @@ def format_compact_report(result: dict[str, Any], *, title: str = "redline diff"
             f"{_preview(reason, 96)} | {prompt}"
         )
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _prompt_eval_lines(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    rows = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        summary = item.get("summary")
+        if not isinstance(summary, dict):
+            summary = {}
+        decision = item.get("decision")
+        action = ""
+        if isinstance(decision, dict):
+            action = str(decision.get("recommended_action") or "")
+        prompt = str(item.get("prompt") or "")
+        prompt_context = f" [{prompt}]" if prompt else ""
+        action_context = f" | {action}" if action else ""
+        rows.append(
+            f"{_prompt_eval_status(summary):<10} {str(item.get('id') or '-')}{prompt_context}: "
+            f"{_summary_inline(summary)}{action_context}"
+        )
+    return rows
+
+
+def _prompt_eval_status(summary: dict[str, Any]) -> str:
+    if _summary_count(summary, "regression") or _summary_count(summary, "missing"):
+        return "REGRESSION"
+    if _summary_count(summary, "changed"):
+        return "CHANGED"
+    if _summary_count(summary, "improved"):
+        return "IMPROVED"
+    if _summary_count(summary, "accepted"):
+        return "ACCEPTED"
+    if _summary_count(summary, "ignored"):
+        return "IGNORED"
+    return "CLEAN"
+
+
+def _summary_inline(summary: dict[str, Any]) -> str:
+    keys = ("cases", "regression", "changed", "improved", "missing", "neutral")
+    parts = [f"{key}={_summary_count(summary, key)}" for key in keys if key in summary]
+    return " ".join(parts) if parts else "cases=0"
 
 
 def summarize_decision(summary: dict[str, Any]) -> dict[str, Any]:

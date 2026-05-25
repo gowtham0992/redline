@@ -173,6 +173,9 @@ redline prompts prompts/ --suite-dir suites --out redline-prompts.json --check -
 redline eval redline-prompts.json
 ```
 
+Manifest evals print prompt-level rollups before case details, so large repos
+can see which prompt files or feature folders need attention first.
+
 When mapped suites are valid, the check prints ready commands such as:
 
 ```bash
