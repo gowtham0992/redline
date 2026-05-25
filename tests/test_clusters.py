@@ -33,6 +33,10 @@ class ClusterReportTests(unittest.TestCase):
         self.assertEqual(report["top_clusters"][0]["size"], 2)
         self.assertEqual(report["top_clusters"][0]["selected_cases"], 1)
         self.assertEqual(report["top_clusters"][0]["risk"], "low")
+        self.assertEqual(
+            report["top_clusters"][0]["behavior"],
+            "structured JSON prompt -> JSON response (short; JSON dict keys: name)",
+        )
 
     def test_cluster_report_surfaces_failure_patterns(self) -> None:
         suite = build_suite(
@@ -74,7 +78,8 @@ class ClusterReportTests(unittest.TestCase):
         self.assertIn("RISK", output)
         self.assertIn("SEL", output)
         self.assertIn("FLAGS", output)
-        self.assertIn("SIGNATURE", output)
+        self.assertIn("BEHAVIOR", output)
+        self.assertIn("structured JSON prompt -> JSON response", output)
 
     def test_cluster_report_marks_high_variance_as_medium_risk(self) -> None:
         suite = build_suite(

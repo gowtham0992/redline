@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .labels import behavior_label
+
 
 def cluster_report(suite: dict[str, Any]) -> dict[str, Any]:
     clusters = suite.get("clusters", [])
@@ -56,7 +58,7 @@ def format_cluster_report(suite: dict[str, Any]) -> str:
 
     clusters = report["top_clusters"]
     if clusters:
-        lines.append(f"{'SIZE':>4} {'SEL':>3} {'WORDS':>11} {'RISK':>6} {'VAR':>3}  {'FLAGS':<32} SIGNATURE")
+        lines.append(f"{'SIZE':>4} {'SEL':>3} {'WORDS':>11} {'RISK':>6} {'VAR':>3}  {'FLAGS':<32} BEHAVIOR")
         lines.append(f"{'-' * 4} {'-' * 3} {'-' * 11} {'-' * 6} {'-' * 3}  {'-' * 32} {'-' * 60}")
         for cluster in clusters:
             marker = "yes" if cluster["high_variance"] else ""
@@ -64,7 +66,7 @@ def format_cluster_report(suite: dict[str, Any]) -> str:
             flags = ", ".join(cluster["failure_patterns"])
             lines.append(
                 f"{cluster['size']:>4} {cluster['selected_cases']:>3} {word_range:>11} {cluster['risk']:>6} {marker:>3}  "
-                f"{flags:<32} {cluster['signature']}"
+                f"{flags:<32} {cluster['behavior']}"
             )
         lines.append("")
 
@@ -74,6 +76,7 @@ def format_cluster_report(suite: dict[str, Any]) -> str:
 def _cluster_row(cluster: dict[str, Any], *, selected_cases: int) -> dict[str, Any]:
     return {
         "signature": str(cluster.get("signature", "")),
+        "behavior": behavior_label(str(cluster.get("signature", ""))),
         "size": int(cluster.get("size", 0)),
         "selected_cases": selected_cases,
         "word_count_min": int(cluster.get("word_count_min", 0)),
