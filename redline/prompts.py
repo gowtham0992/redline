@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
@@ -32,7 +31,6 @@ def build_prompt_manifest(
     return {
         "schema": "redline-prompt-manifest-v1",
         "version": 1,
-        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "root": root_path.as_posix(),
         "suite_dir": Path(suite_dir).as_posix(),
         "extensions": list(normalized_extensions),
@@ -115,7 +113,6 @@ def _prompt_record(path: Path, *, base: Path, root_path: Path, suite_dir: Path) 
         "suite": suite.as_posix(),
         "sha256": _sha256(path),
         "bytes": stat.st_size,
-        "modified_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat().replace("+00:00", "Z"),
         "root": root_path.as_posix(),
     }
 

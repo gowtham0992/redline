@@ -27,6 +27,7 @@ class PromptManifestTests(unittest.TestCase):
 
             self.assertEqual(manifest["schema"], "redline-prompt-manifest-v1")
             self.assertEqual(manifest["prompt_count"], 2)
+            self.assertNotIn("created_at", manifest)
             records = manifest["prompts"]
             assert isinstance(records, list)
             ids = [record["id"] for record in records if isinstance(record, dict)]
@@ -41,7 +42,19 @@ class PromptManifestTests(unittest.TestCase):
             )
             for record in records:
                 self.assertIsInstance(record, dict)
+                self.assertNotIn("modified_at", record)
                 self.assertEqual(len(str(record["sha256"])), 64)
+
+    def test_build_prompt_manifest_is_stable_across_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prompt = root / "support.txt"
+            prompt.write_text("support prompt\n", encoding="utf-8")
+
+            first = build_prompt_manifest(root, suite_dir="suites")
+            second = build_prompt_manifest(root, suite_dir="suites")
+
+            self.assertEqual(first, second)
 
     def test_build_prompt_manifest_supports_custom_extensions(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
