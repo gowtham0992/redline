@@ -136,6 +136,10 @@ class AuditTests(unittest.TestCase):
         self.assertIn("Status:   FAILED", output)
         self.assertIn("line 1: entry_hash mismatch", output)
         self.assertIn("tail checkpoint missing", output)
+        self.assertIn(
+            "redline audit --verify --expect-last-hash abc123 --expect-entries 1",
+            output,
+        )
 
     def test_append_audit_event_omits_none_values(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

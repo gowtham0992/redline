@@ -153,6 +153,10 @@ def format_audit_verification(result: dict[str, Any]) -> str:
     last_hash = result.get("last_hash")
     if last_hash:
         lines.append(f"Last hash: {last_hash}")
+        lines.append(
+            "Checkpoint: redline audit --verify "
+            f"--expect-last-hash {last_hash} --expect-entries {int(result.get('entries', 0))}"
+        )
     errors = result.get("errors")
     if isinstance(errors, list) and errors:
         lines.extend(["", "Errors:"])
