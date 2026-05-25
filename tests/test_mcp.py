@@ -191,8 +191,12 @@ class McpServerTests(unittest.TestCase):
                     "timeout": 10,
                     "workers": 2,
                     "max_seconds": 5,
+                    "out_json": "benchmark.json",
+                    "out_md": "benchmark.md",
                 },
             )
+            wrote_json = (Path(directory) / "benchmark.json").exists()
+            wrote_markdown = (Path(directory) / "benchmark.md").exists()
 
         self.assertFalse(benchmark_result["isError"])
         self.assertEqual(benchmark_result["structuredContent"]["exit_code"], 1)
@@ -200,6 +204,8 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("Workers:               2", benchmark_result["content"][0]["text"])
         self.assertIn("Budget check:          FAIL", benchmark_result["content"][0]["text"])
         self.assertIn("Worst-case eval budget:", benchmark_result["content"][0]["text"])
+        self.assertTrue(wrote_json)
+        self.assertTrue(wrote_markdown)
 
     def test_redact_and_audit_tools_cover_privacy_preflight(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

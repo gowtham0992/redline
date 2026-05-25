@@ -54,6 +54,8 @@ runs:
           "${{ inputs.suite }}"
           --config "${{ inputs.config }}"
           --github-summary
+          --out-json .redline/reports/benchmark.json
+          --out-md .redline/reports/benchmark.md
         )
         if [ -n "${{ inputs.benchmark-max-seconds }}" ]; then
           benchmark_args+=(--max-seconds "${{ inputs.benchmark-max-seconds }}")

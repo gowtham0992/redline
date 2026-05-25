@@ -854,6 +854,40 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_benchmark_writes_report_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "one", "response": "1"}\n',
+                    encoding="utf-8",
+                )
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl", "--out", "suite.json"]), 0)
+                    self.assertEqual(
+                        main(
+                            [
+                                "benchmark",
+                                "suite.json",
+                                "--out-json",
+                                "reports/benchmark.json",
+                                "--out-md",
+                                "reports/benchmark.md",
+                            ]
+                        ),
+                        0,
+                    )
+
+                report = json.loads(Path("reports/benchmark.json").read_text(encoding="utf-8"))
+                markdown = Path("reports/benchmark.md").read_text(encoding="utf-8")
+                self.assertEqual(report["suite"], "suite.json")
+                self.assertIn("## redline benchmark", markdown)
+                self.assertIn("| Cases | 1 |", markdown)
+            finally:
+                os.chdir(previous)
+
     def test_benchmark_max_seconds_exits_nonzero_when_budget_exceeded(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
