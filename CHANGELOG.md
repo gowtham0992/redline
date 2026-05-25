@@ -42,6 +42,7 @@
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Show blocking and changed review counts in the dashboard reports table.
 - Group prompt manifest evals by feature in the local dashboard.
+- Summarize prompt manifests with readiness, owners, requirements, and missing suite rollups.
 - Print prompt-level rollups in compact prompt manifest eval output.
 - Include prompt manifest rollups in Markdown and HTML eval reports.
 - Support prompt manifests in the composite GitHub Action and generated workflow.

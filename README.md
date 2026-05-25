@@ -163,6 +163,8 @@ redline is built around the full prompt-regression loop:
   over time and inspect reports locally. The dashboard surfaces feature-level
   rollups, prompt-level eval rows, and a latest-report review queue when reports
   come from a prompt manifest.
+- `redline summary`: inspect suite readiness, or pass `redline-prompts.json` to
+  roll up multi-prompt suite coverage, owners, requirements, and missing suites.
 - `redline-mcp`: let AI coding assistants run checks inside Claude, Codex,
   Cursor, Kiro, or any MCP client.
 
@@ -171,13 +173,15 @@ For repos with many prompt files, the manifest becomes the eval plan:
 ```bash
 redline prompts prompts/ --suite-dir suites --out redline-prompts.json
 redline prompts prompts/ --suite-dir suites --out redline-prompts.json --check --check-suites
+redline summary redline-prompts.json
 redline benchmark redline-prompts.json
 redline eval redline-prompts.json
 ```
 
-Manifest benchmarks aggregate every mapped suite, then manifest evals print
-prompt-level rollups before case details, so large repos can see which prompt
-files or feature folders need attention first.
+Manifest summaries show readiness across every mapped suite, manifest
+benchmarks aggregate runtime budget, and manifest evals print prompt-level rollups
+before case details. Large repos can see which prompt files or feature folders
+need attention first.
 
 When mapped suites are valid, the check prints ready commands such as:
 

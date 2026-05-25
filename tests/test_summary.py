@@ -1,9 +1,15 @@
 import unittest
+from tempfile import TemporaryDirectory
 
-from redline.io import LogRecord
+from redline.io import LogRecord, write_json
 from redline.judgments import mark_suite_case
 from redline.requirements import add_case_requirement
-from redline.summary import format_suite_summary, suite_summary
+from redline.summary import (
+    format_prompt_manifest_summary,
+    format_suite_summary,
+    prompt_manifest_summary,
+    suite_summary,
+)
 from redline.suite import build_suite
 
 
@@ -149,6 +155,62 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Accepted baselines:     2", output)
         self.assertIn("Approved baselines:     1/2", output)
         self.assertIn("Record approvers for accepted baselines before team rollout.", summary["next_steps"])
+
+    def test_prompt_manifest_summary_rolls_up_mapped_suites(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            first_suite_path = f"{temp_dir}/triage.redline-suite.json"
+            second_suite_path = f"{temp_dir}/refunds.redline-suite.json"
+            missing_suite_path = f"{temp_dir}/missing.redline-suite.json"
+            first_suite = build_suite(
+                [
+                    LogRecord(1, "Return billing JSON", '{"ok": true}', {}),
+                    LogRecord(2, "Summarize support ticket", "- one\n- two", {}),
+                ],
+                source="logs/triage.jsonl",
+                input_field="prompt",
+                output_field="response",
+                max_cases=10,
+                owner="@support-team",
+            )
+            add_case_requirement(first_suite, first_suite["cases"][0]["id"], include=["ok"])
+            second_suite = build_suite(
+                [LogRecord(1, "Route refund", "Refunds go to Billing Ops", {})],
+                source="logs/refunds.jsonl",
+                input_field="prompt",
+                output_field="response",
+                max_cases=10,
+            )
+            write_json(first_suite_path, first_suite)
+            write_json(second_suite_path, second_suite)
+            manifest = {
+                "schema": "redline-prompt-manifest-v1",
+                "root": "prompts",
+                "suite_dir": "suites",
+                "prompts": [
+                    {"id": "support/triage", "path": "prompts/support/triage.txt", "suite": first_suite_path},
+                    {"id": "billing/refunds", "path": "prompts/billing/refunds.txt", "suite": second_suite_path},
+                    {"id": "missing", "path": "prompts/missing.txt", "suite": missing_suite_path},
+                ],
+            }
+
+            summary = prompt_manifest_summary(manifest, manifest_path="redline-prompts.json")
+            output = format_prompt_manifest_summary(summary)
+
+        self.assertEqual(summary["status"], "missing_suites")
+        self.assertEqual(summary["prompt_count"], 3)
+        self.assertEqual(summary["suite_count"], 2)
+        self.assertEqual(summary["missing_suite_count"], 1)
+        self.assertEqual(summary["cases"], 3)
+        self.assertEqual(summary["owned_cases"], 2)
+        self.assertEqual(summary["unowned_cases"], 1)
+        self.assertEqual(summary["requirements"], 1)
+        self.assertEqual(summary["owners"], {"@support-team": 2})
+        self.assertIn("Prompt manifest:", output)
+        self.assertIn("Suites ready:           2/3", output)
+        self.assertIn("Prompt suites:", output)
+        self.assertIn("READY   support/triage", output)
+        self.assertIn("MISSING missing", output)
+        self.assertIn("Build missing suite:", output)
 
     def test_suite_summary_recommends_more_coverage_when_budget_is_tight(self) -> None:
         suite = build_suite(

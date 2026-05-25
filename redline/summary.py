@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from collections import Counter
+from pathlib import Path
 from typing import Any
 
+from .io import read_json
 from .labels import behavior_label
 
 
@@ -131,6 +133,143 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def prompt_manifest_summary(
+    manifest: dict[str, Any],
+    *,
+    manifest_path: str = "redline-prompts.json",
+) -> dict[str, Any]:
+    prompts = manifest.get("prompts")
+    if not isinstance(prompts, list):
+        raise ValueError("prompt manifest missing prompts list")
+
+    prompt_rows: list[dict[str, Any]] = []
+    owner_counts: Counter[str] = Counter()
+    totals: Counter[str] = Counter()
+    missing_suites: list[dict[str, str]] = []
+    invalid_suites: list[dict[str, str]] = []
+
+    for index, item in enumerate(prompts, 1):
+        if not isinstance(item, dict):
+            raise ValueError(f"prompt manifest entry {index} must be an object")
+        prompt_id = str(item.get("id") or "").strip()
+        prompt_path = str(item.get("path") or "").strip()
+        suite_path = str(item.get("suite") or "").strip()
+        if not prompt_id or not prompt_path or not suite_path:
+            raise ValueError(f"prompt manifest entry {index} requires id, path, and suite")
+
+        prompt_row: dict[str, Any] = {
+            "id": prompt_id,
+            "path": prompt_path,
+            "suite": suite_path,
+            "status": "missing",
+            "cases": 0,
+            "clusters": 0,
+            "records_seen": 0,
+            "owned_cases": 0,
+            "requirements": 0,
+            "judgments": {},
+        }
+        if not Path(suite_path).is_file():
+            missing_suites.append({"id": prompt_id, "path": prompt_path, "suite": suite_path})
+            prompt_rows.append(prompt_row)
+            continue
+
+        try:
+            child_summary = suite_summary(read_json(suite_path))
+        except ValueError as exc:
+            invalid_suites.append(
+                {
+                    "id": prompt_id,
+                    "path": prompt_path,
+                    "suite": suite_path,
+                    "error": str(exc),
+                }
+            )
+            prompt_row["status"] = "invalid"
+            prompt_row["error"] = str(exc)
+            prompt_rows.append(prompt_row)
+            continue
+
+        for key in (
+            "records_seen",
+            "unique_prompt_response_pairs",
+            "duplicate_prompt_response_pairs",
+            "clusters",
+            "covered_clusters",
+            "cases",
+            "pinned_cases",
+            "owned_cases",
+            "accepted_baselines",
+            "approved_baselines",
+            "unapproved_baselines",
+            "high_risk_clusters",
+            "medium_risk_clusters",
+            "high_variance_clusters",
+            "failure_pattern_clusters",
+            "requirements",
+        ):
+            totals[key] += int(child_summary.get(key) or 0)
+        child_owners = child_summary.get("owners")
+        if isinstance(child_owners, dict):
+            for owner, count in child_owners.items():
+                owner_counts[str(owner)] += int(count)
+        prompt_row.update(
+            {
+                "status": "ready",
+                "cases": int(child_summary.get("cases") or 0),
+                "clusters": int(child_summary.get("clusters") or 0),
+                "records_seen": int(child_summary.get("records_seen") or 0),
+                "owned_cases": int(child_summary.get("owned_cases") or 0),
+                "requirements": int(child_summary.get("requirements") or 0),
+                "judgments": child_summary.get("judgments") or {},
+            }
+        )
+        prompt_rows.append(prompt_row)
+
+    top_owners = [
+        {"owner": owner, "cases": count}
+        for owner, count in sorted(owner_counts.items(), key=lambda item: (-item[1], item[0].lower()))[:5]
+    ]
+    ready_suite_count = len([row for row in prompt_rows if row.get("status") == "ready"])
+    result = {
+        "schema": "redline-prompt-manifest-summary-v1",
+        "manifest": manifest_path,
+        "root": str(manifest.get("root") or ""),
+        "suite_dir": str(manifest.get("suite_dir") or ""),
+        "prompt_count": len(prompt_rows),
+        "suite_count": ready_suite_count,
+        "missing_suite_count": len(missing_suites),
+        "invalid_suite_count": len(invalid_suites),
+        "records_seen": totals["records_seen"],
+        "unique_prompt_response_pairs": totals["unique_prompt_response_pairs"],
+        "duplicate_prompt_response_pairs": totals["duplicate_prompt_response_pairs"],
+        "clusters": totals["clusters"],
+        "covered_clusters": totals["covered_clusters"],
+        "cases": totals["cases"],
+        "pinned_cases": totals["pinned_cases"],
+        "owned_cases": totals["owned_cases"],
+        "unowned_cases": max(0, totals["cases"] - totals["owned_cases"]),
+        "owners": dict(sorted(owner_counts.items())),
+        "top_owners": top_owners,
+        "accepted_baselines": totals["accepted_baselines"],
+        "approved_baselines": totals["approved_baselines"],
+        "unapproved_baselines": totals["unapproved_baselines"],
+        "high_risk_clusters": totals["high_risk_clusters"],
+        "medium_risk_clusters": totals["medium_risk_clusters"],
+        "high_variance_clusters": totals["high_variance_clusters"],
+        "failure_pattern_clusters": totals["failure_pattern_clusters"],
+        "requirements": totals["requirements"],
+        "prompts": prompt_rows,
+        "missing_suites": missing_suites,
+        "invalid_suites": invalid_suites,
+    }
+    result["case_coverage"] = _ratio(totals["cases"], totals["unique_prompt_response_pairs"])
+    result["cluster_coverage"] = _ratio(totals["covered_clusters"], totals["clusters"])
+    result["status"] = _manifest_summary_status(result)
+    result["next_steps"] = _manifest_summary_next_steps(result)
+    return result
+
+
 def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None) -> str:
     summary = suite_summary(suite)
     if suite_path:
@@ -196,6 +335,67 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
     return "\n".join(lines).rstrip() + "\n"
 
 
+def format_prompt_manifest_summary(report: dict[str, Any]) -> str:
+    lines = [
+        "redline summary",
+        "",
+        f"Prompt manifest:        {report['manifest']}",
+        f"Status:                 {str(report['status']).upper()}",
+        f"Root:                   {report['root'] or '<unknown>'}",
+        f"Suite dir:              {report['suite_dir'] or '<unknown>'}",
+        f"Prompts:                {report['prompt_count']}",
+        f"Suites ready:           {report['suite_count']}/{report['prompt_count']}",
+        f"Missing suites:         {report['missing_suite_count']}",
+        f"Invalid suites:         {report['invalid_suite_count']}",
+        f"Records seen:           {report['records_seen']}",
+        f"Unique pairs:           {report['unique_prompt_response_pairs']}",
+        f"Behavioral clusters:    {report['clusters']}",
+        f"Cluster coverage:       {report['covered_clusters']}/{report['clusters']} ({_percent(report['cluster_coverage'])})",
+        f"Representative cases:   {report['cases']}",
+        f"Case coverage:          {report['cases']}/{report['unique_prompt_response_pairs']} ({_percent(report['case_coverage'])})",
+        f"Pinned cases:           {report['pinned_cases']}",
+        f"Owned cases:            {report['owned_cases']}/{report['cases']}",
+        f"Accepted baselines:     {report['accepted_baselines']}",
+        f"Approved baselines:     {report['approved_baselines']}/{report['accepted_baselines']}",
+        f"High-risk clusters:     {report['high_risk_clusters']}",
+        f"Medium-risk clusters:   {report['medium_risk_clusters']}",
+        f"Cases with requirements: {report['requirements']:>2}",
+        "",
+    ]
+
+    top_owners = report["top_owners"]
+    if top_owners:
+        lines.append("Owners:")
+        for owner in top_owners:
+            lines.append(f"  {owner['owner']:<20} {owner['cases']}")
+        lines.append("")
+
+    prompt_rows = report.get("prompts")
+    if isinstance(prompt_rows, list) and prompt_rows:
+        lines.append("Prompt suites:")
+        for row in prompt_rows:
+            if not isinstance(row, dict):
+                continue
+            status = str(row.get("status") or "unknown").upper()
+            lines.append(
+                f"  {status:<7} {str(row.get('id') or ''):<28} "
+                f"cases={int(row.get('cases') or 0):<3} "
+                f"owners={int(row.get('owned_cases') or 0):<3} "
+                f"requirements={int(row.get('requirements') or 0):<3} "
+                f"suite={row.get('suite')}"
+            )
+        lines.append("")
+
+    next_steps = report["next_steps"]
+    if next_steps:
+        lines.append("Next:")
+        for step in next_steps:
+            lines.append(f"- {step}")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _summary_next_steps(summary: dict[str, Any], *, suite_path: str | None = None) -> list[str]:
     steps = []
     if int(summary["covered_clusters"]) < int(summary["clusters"]):
@@ -219,6 +419,48 @@ def _summary_next_steps(summary: dict[str, Any], *, suite_path: str | None = Non
         steps.append("After the first eval, mark expected or ignored changes to train the suite.")
     if int(summary["cases"]) == 0:
         steps.append("Generate or add at least one suite case before running eval.")
+    return steps
+
+
+def _manifest_summary_status(summary: dict[str, Any]) -> str:
+    if int(summary["invalid_suite_count"]):
+        return "invalid"
+    if int(summary["missing_suite_count"]):
+        return "missing_suites"
+    if int(summary["cases"]) == 0:
+        return "empty"
+    if int(summary["unowned_cases"]) or int(summary["requirements"]) == 0:
+        return "needs_review"
+    return "ready"
+
+
+def _manifest_summary_next_steps(summary: dict[str, Any]) -> list[str]:
+    steps: list[str] = []
+    first_missing = next(
+        (item for item in summary.get("missing_suites", []) if isinstance(item, dict)),
+        None,
+    )
+    if first_missing:
+        steps.append(
+            "Build missing suite: "
+            f"redline suite path/to/baseline.jsonl --out {first_missing.get('suite')}"
+        )
+    first_invalid = next(
+        (item for item in summary.get("invalid_suites", []) if isinstance(item, dict)),
+        None,
+    )
+    if first_invalid:
+        steps.append(f"Fix invalid suite: redline validate {first_invalid.get('suite')} --strict")
+    if int(summary["cases"]) and int(summary["unowned_cases"]):
+        steps.append("Assign owners to remaining unowned cases before team rollout.")
+    if int(summary["cases"]) and int(summary["requirements"]) == 0:
+        steps.append("Add requirements to high-value cases so scale does not dilute trust.")
+    if int(summary["suite_count"]) == int(summary["prompt_count"]) and int(summary["cases"]):
+        manifest = str(summary["manifest"])
+        steps.append(f"Check eval budget: redline benchmark {manifest}")
+        steps.append(f"Run manifest eval: redline eval {manifest}")
+    if int(summary["prompt_count"]) == 0:
+        steps.append("Add prompt files, then rerun redline prompts.")
     return steps
 
 
