@@ -38,6 +38,12 @@ printf '\n$ %s -m redline suite examples/public_dogfood_baseline.jsonl --out %s 
 printf '\n$ %s -m redline diff %s examples/public_dogfood_candidate.jsonl --compact --fail-on none\n' "$python_bin" "$public_suite"
 "$python_bin" -m redline diff "$public_suite" examples/public_dogfood_candidate.jsonl --compact --fail-on none
 
+printf '\n$ %s -m pip --version\n' "$python_bin"
+if ! "$python_bin" -m pip --version; then
+  printf '\n$ %s -m ensurepip --upgrade\n' "$python_bin"
+  "$python_bin" -m ensurepip --upgrade
+fi
+
 printf '\n$ %s -m pip wheel . --no-deps --no-build-isolation -w %s\n' "$python_bin" "$wheel_dir"
 "$python_bin" -m pip wheel . --no-deps --no-build-isolation -w "$wheel_dir"
 wheel_files=("$wheel_dir"/*.whl)
