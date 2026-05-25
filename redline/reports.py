@@ -46,6 +46,16 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
             lines.append(f"- {warning}")
         lines.append("")
 
+    artifact_rows = _artifact_rows(result.get("artifacts"))
+    if artifact_rows:
+        lines.append("## Artifacts")
+        lines.append("")
+        lines.append("| Artifact | Path |")
+        lines.append("| --- | --- |")
+        for label, path in artifact_rows:
+            lines.append(f"| {_markdown_cell(label)} | `{path}` |")
+        lines.append("")
+
     owner_rows = _owner_review_rows(result.get("diffs"))
     if owner_rows:
         lines.append("## Owner Review")
@@ -165,6 +175,7 @@ def format_html_report(result: dict[str, Any], *, title: str = "redline diff") -
             _html_summary(summary),
             _html_decision(decision),
             _html_warnings(result),
+            _html_artifacts(result),
             _html_owner_review(diffs),
             _html_prompt_groups(result),
             _html_prompt_evals(result),
@@ -298,6 +309,39 @@ def _result_warnings(result: dict[str, Any]) -> list[str]:
     if not isinstance(warnings, list):
         return []
     return [str(warning) for warning in warnings if str(warning).strip()]
+
+
+def _artifact_rows(value: Any) -> list[tuple[str, str]]:
+    if not isinstance(value, dict):
+        return []
+    rows = []
+    for label in ("json", "markdown", "html", "junit", "dashboard", "audit_checkpoint"):
+        path = value.get(label)
+        if isinstance(path, dict):
+            path = path.get("path")
+        if isinstance(path, str) and path.strip():
+            rows.append((_artifact_label(label), path))
+    for label, path in sorted(value.items(), key=lambda item: str(item[0])):
+        key = str(label)
+        if key in {"json", "markdown", "html", "junit", "dashboard", "audit_checkpoint"}:
+            continue
+        if isinstance(path, dict):
+            path = path.get("path")
+        if isinstance(path, str) and path.strip():
+            rows.append((_artifact_label(key), path))
+    return rows
+
+
+def _artifact_label(label: str) -> str:
+    known = {
+        "json": "JSON",
+        "html": "HTML",
+        "junit": "JUnit",
+        "markdown": "Markdown",
+        "dashboard": "Dashboard",
+        "audit_checkpoint": "Audit checkpoint",
+    }
+    return known.get(label, label.replace("_", " ").title())
 
 
 def _review_command_lines(result: dict[str, Any]) -> list[str]:
@@ -612,6 +656,7 @@ h3 { margin: 0; font-size: 16px; letter-spacing: 0; }
 }
 .owner-review th:first-child, .owner-review td:first-child { text-align: left; }
 .owner-review th:not(:first-child), .owner-review td:not(:first-child) { text-align: right; }
+.artifacts th:last-child, .artifacts td:last-child { text-align: left; }
 .prompt-groups th:last-child, .prompt-groups td:last-child,
 .prompt-evals th:nth-child(2), .prompt-evals td:nth-child(2),
 .prompt-evals th:last-child, .prompt-evals td:last-child { text-align: left; }
@@ -733,6 +778,23 @@ def _html_warnings(result: dict[str, Any]) -> str:
     for warning in warnings:
         lines.append(f"<li>{_h(warning)}</li>")
     lines.append("</ul></section>")
+    return "".join(lines)
+
+
+def _html_artifacts(result: dict[str, Any]) -> str:
+    rows = _artifact_rows(result.get("artifacts"))
+    if not rows:
+        return ""
+    lines = [
+        '<section class="panel owner-review artifacts">',
+        "<h2>Artifacts</h2>",
+        "<table>",
+        "<thead><tr><th>Artifact</th><th>Path</th></tr></thead>",
+        "<tbody>",
+    ]
+    for label, path in rows:
+        lines.append(f"<tr><td>{_h(label)}</td><td>{_h(path)}</td></tr>")
+    lines.append("</tbody></table></section>")
     return "".join(lines)
 
 

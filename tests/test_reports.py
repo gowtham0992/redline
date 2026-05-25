@@ -31,6 +31,12 @@ class ReportTests(unittest.TestCase):
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "suite": "redline-suite.json",
             "candidate": ".redline/runs/candidate.jsonl",
+            "artifacts": {
+                "json": ".redline/reports/eval.json",
+                "markdown": ".redline/reports/eval.md",
+                "html": ".redline/reports/eval.html",
+                "junit": ".redline/reports/eval.xml",
+            },
             "prompt_evals": [
                 {
                     "id": "support/triage",
@@ -74,6 +80,9 @@ class ReportTests(unittest.TestCase):
         self.assertIn("**Scope:** structural checks only", report)
         self.assertIn("## Warnings", report)
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
+        self.assertIn("## Artifacts", report)
+        self.assertIn("| HTML | `.redline/reports/eval.html` |", report)
+        self.assertIn("| JUnit | `.redline/reports/eval.xml` |", report)
         self.assertIn("## Owner Review", report)
         self.assertIn("| @platform-team | 1 | 0 | 0 | 0 | 0 | 1 |", report)
         self.assertIn("## Feature Summary", report)
@@ -162,6 +171,12 @@ class ReportTests(unittest.TestCase):
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "suite": "redline-suite.json",
             "candidate": ".redline/runs/candidate.jsonl",
+            "artifacts": {
+                "json": ".redline/reports/eval.json",
+                "markdown": ".redline/reports/eval.md",
+                "html": ".redline/reports/eval.html",
+                "junit": ".redline/reports/eval.xml",
+            },
             "prompt_evals": [
                 {
                     "id": "support/triage",
@@ -207,6 +222,9 @@ class ReportTests(unittest.TestCase):
         self.assertIn("fix blocking cases before shipping", report)
         self.assertIn("structural checks only", report)
         self.assertIn("<h2>Warnings</h2>", report)
+        self.assertIn("<h2>Artifacts</h2>", report)
+        self.assertIn("<td>HTML</td><td>.redline/reports/eval.html</td>", report)
+        self.assertIn("<td>JUnit</td><td>.redline/reports/eval.xml</td>", report)
         self.assertIn("<h2>Owner review</h2>", report)
         self.assertIn("<td>@platform-team</td><td>1</td><td>0</td>", report)
         self.assertIn("<h2>Feature summary</h2>", report)

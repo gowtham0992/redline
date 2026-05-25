@@ -1503,6 +1503,16 @@ def _emit_result(
     out_md = args.out_md or _config_report_path(config, "markdown", report_key)
     out_html = args.out_html or _config_report_path(config, "html", report_key)
     out_junit = args.out_junit or _config_report_path(config, "junit", report_key)
+    artifacts = _artifact_paths(
+        {
+            "json": out_json,
+            "markdown": out_md,
+            "html": out_html,
+            "junit": out_junit,
+        }
+    )
+    if artifacts:
+        result["artifacts"] = artifacts
     markdown_report = format_markdown_report(result, title=title)
     if out_json:
         write_json(out_json, result)
@@ -1642,6 +1652,14 @@ def _report_references(paths: Mapping[str, str | None]) -> dict[str, dict[str, o
         if reference is not None:
             reports[key] = reference
     return reports
+
+
+def _artifact_paths(paths: Mapping[str, str | None]) -> dict[str, str]:
+    artifacts = {}
+    for key, path in paths.items():
+        if path:
+            artifacts[key] = str(path)
+    return artifacts
 
 
 def _requirement_counts(requirement: object) -> dict[str, int]:

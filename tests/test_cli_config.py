@@ -1452,7 +1452,18 @@ class CliConfigTests(unittest.TestCase):
             os.chdir(root)
             try:
                 Path("redline.json").write_text(
-                    json.dumps({"suite": ".redline/suite.json", "fail_on": "none"}),
+                    json.dumps(
+                        {
+                            "suite": ".redline/suite.json",
+                            "fail_on": "none",
+                            "reports": {
+                                "json": ".redline/reports/{command}.json",
+                                "markdown": ".redline/reports/{command}.md",
+                                "html": ".redline/reports/{command}.html",
+                                "junit": ".redline/reports/{command}.xml",
+                            },
+                        }
+                    ),
                     encoding="utf-8",
                 )
                 Path("baseline.jsonl").write_text(
@@ -1471,9 +1482,14 @@ class CliConfigTests(unittest.TestCase):
                     self.assertEqual(main(["diff", "candidate.jsonl", "--github-summary"]), 0)
 
                 summary = summary_path.read_text(encoding="utf-8")
+                report = json.loads((root / ".redline" / "reports" / "diff.json").read_text(encoding="utf-8"))
                 self.assertIn("# redline diff", summary)
                 self.assertIn("**Confidence:** HIGH", summary)
+                self.assertIn("## Artifacts", summary)
+                self.assertIn("| HTML | `.redline/reports/diff.html` |", summary)
                 self.assertIn("candidate lost valid JSON format", summary)
+                self.assertEqual(report["artifacts"]["html"], ".redline/reports/diff.html")
+                self.assertEqual(report["artifacts"]["junit"], ".redline/reports/diff.xml")
             finally:
                 if previous_summary is None:
                     os.environ.pop("GITHUB_STEP_SUMMARY", None)
