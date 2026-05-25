@@ -248,8 +248,8 @@ budget grows too far.
 Every `diff` and `eval` run can write:
 
 - JSON for machines and dashboards
-- Markdown for PR comments and summaries
-- self-contained HTML for side-by-side inspection
+- Markdown for PR comments and summaries, including prompt-manifest rollups
+- self-contained HTML for side-by-side inspection, including feature and prompt eval tables
 - JUnit XML for CI test reporting
 - GitHub annotations for changed or blocking cases
 

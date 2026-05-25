@@ -43,6 +43,7 @@
 - Show blocking and changed review counts in the dashboard reports table.
 - Group prompt manifest evals by feature in the local dashboard.
 - Print prompt-level rollups in compact prompt manifest eval output.
+- Include prompt manifest rollups in Markdown and HTML eval reports.
 - Show prompt-level eval rows and a latest-report review queue in the local dashboard.
 - Summarize confidence and signal mix in the local dashboard.
 - Include event-type counts in audit verification output.

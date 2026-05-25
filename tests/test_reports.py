@@ -31,6 +31,22 @@ class ReportTests(unittest.TestCase):
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "suite": "redline-suite.json",
             "candidate": ".redline/runs/candidate.jsonl",
+            "prompt_evals": [
+                {
+                    "id": "support/triage",
+                    "prompt": "prompts/support/triage.txt",
+                    "suite": "suites/support/triage.redline-suite.json",
+                    "summary": {"cases": 1, "regression": 1, "changed": 0, "missing": 0, "neutral": 0},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                },
+                {
+                    "id": "billing/refund",
+                    "prompt": "prompts/billing/refund.txt",
+                    "suite": "suites/billing/refund.redline-suite.json",
+                    "summary": {"cases": 2, "regression": 0, "changed": 0, "missing": 0, "neutral": 2},
+                    "decision": {"recommended_action": "ship candidate; no blocking changes detected"},
+                },
+            ],
             "diffs": [
                 {
                     "case_id": "case_001",
@@ -60,6 +76,12 @@ class ReportTests(unittest.TestCase):
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn("## Owner Review", report)
         self.assertIn("| @platform-team | 1 | 0 | 0 | 0 | 0 | 1 |", report)
+        self.assertIn("## Feature Summary", report)
+        self.assertIn("| support | 1 | 1 | 1 | 0 | 0 | 0 | fix blocking cases before shipping |", report)
+        self.assertIn("| billing | 1 | 2 | 0 | 0 | 0 | 2 | clean |", report)
+        self.assertIn("## Prompt Evals", report)
+        self.assertIn("support/triage<br>prompts/support/triage.txt", report)
+        self.assertIn("suites/support/triage.redline-suite.json", report)
         self.assertIn("## Review Commands", report)
         self.assertIn(
             '`redline mark redline-suite.json case_001 --status expected --note "intentional change"`',
@@ -140,6 +162,22 @@ class ReportTests(unittest.TestCase):
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "suite": "redline-suite.json",
             "candidate": ".redline/runs/candidate.jsonl",
+            "prompt_evals": [
+                {
+                    "id": "support/triage",
+                    "prompt": "prompts/support/triage.txt",
+                    "suite": "suites/support/triage.redline-suite.json",
+                    "summary": {"cases": 1, "regression": 1, "changed": 0, "missing": 0, "neutral": 0},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                },
+                {
+                    "id": "billing/refund",
+                    "prompt": "prompts/billing/refund.txt",
+                    "suite": "suites/billing/refund.redline-suite.json",
+                    "summary": {"cases": 2, "regression": 0, "changed": 0, "missing": 0, "neutral": 2},
+                    "decision": {"recommended_action": "ship candidate; no blocking changes detected"},
+                },
+            ],
             "diffs": [
                 {
                     "case_id": "case_001",
@@ -171,6 +209,13 @@ class ReportTests(unittest.TestCase):
         self.assertIn("<h2>Warnings</h2>", report)
         self.assertIn("<h2>Owner review</h2>", report)
         self.assertIn("<td>@platform-team</td><td>1</td><td>0</td>", report)
+        self.assertIn("<h2>Feature summary</h2>", report)
+        self.assertIn("<td>support</td><td>1</td><td>1</td><td>1</td>", report)
+        self.assertIn("<td>billing</td><td>1</td><td>2</td><td>0</td>", report)
+        self.assertIn("<h2>Prompt evals</h2>", report)
+        self.assertIn("support/triage", report)
+        self.assertIn("prompts/support/triage.txt", report)
+        self.assertIn("suites/support/triage.redline-suite.json", report)
         self.assertIn("<h2>Review commands</h2>", report)
         self.assertIn(
             'redline mark redline-suite.json case_001 --status expected --note &quot;intentional change&quot;',

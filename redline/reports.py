@@ -59,6 +59,39 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
             )
         lines.append("")
 
+    prompt_rows = _prompt_eval_rows(result.get("prompt_evals"))
+    prompt_groups = _prompt_group_rows(prompt_rows)
+    if prompt_groups:
+        lines.append("## Feature Summary")
+        lines.append("")
+        lines.append("| Feature | Prompts | Cases | Regression | Changed | Missing | Neutral | Action |")
+        lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
+        for row in prompt_groups:
+            summary = row["summary"]
+            lines.append(
+                f"| {_markdown_cell(str(row['feature']))} | {row['prompt_count']} | "
+                f"{_summary_count(summary, 'cases')} | {_summary_count(summary, 'regression')} | "
+                f"{_summary_count(summary, 'changed')} | {_summary_count(summary, 'missing')} | "
+                f"{_summary_count(summary, 'neutral')} | {_markdown_cell(str(row['action']))} |"
+            )
+        lines.append("")
+
+    if prompt_rows:
+        lines.append("## Prompt Evals")
+        lines.append("")
+        lines.append("| Prompt | Suite | Cases | Regression | Changed | Missing | Neutral | Action |")
+        lines.append("| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |")
+        for row in prompt_rows:
+            summary = row["summary"]
+            lines.append(
+                f"| {_markdown_cell(str(row['id']))}<br>{_markdown_cell(str(row['prompt']))} | "
+                f"{_markdown_cell(str(row['suite']))} | {_summary_count(summary, 'cases')} | "
+                f"{_summary_count(summary, 'regression')} | {_summary_count(summary, 'changed')} | "
+                f"{_summary_count(summary, 'missing')} | {_summary_count(summary, 'neutral')} | "
+                f"{_markdown_cell(str(row['action'] or '-'))} |"
+            )
+        lines.append("")
+
     review_commands = _review_command_lines(result)
     if review_commands:
         lines.append("## Review Commands")
@@ -133,6 +166,8 @@ def format_html_report(result: dict[str, Any], *, title: str = "redline diff") -
             _html_decision(decision),
             _html_warnings(result),
             _html_owner_review(diffs),
+            _html_prompt_groups(result),
+            _html_prompt_evals(result),
             _html_review_commands(result),
             _html_cases(diffs),
             "</main>",
@@ -341,6 +376,116 @@ def _owner_review_rows(diffs: Any) -> list[dict[str, int | str]]:
     )
 
 
+def _prompt_eval_rows(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    rows = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        summary = item.get("summary")
+        decision = item.get("decision")
+        action = ""
+        if isinstance(decision, dict):
+            action = str(decision.get("recommended_action") or "")
+        rows.append(
+            {
+                "id": str(item.get("id") or ""),
+                "prompt": str(item.get("prompt") or ""),
+                "suite": str(item.get("suite") or ""),
+                "summary": _summary_counts(summary if isinstance(summary, dict) else {}),
+                "action": action,
+            }
+        )
+    return rows
+
+
+def _prompt_group_rows(prompt_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    groups: dict[str, dict[str, Any]] = {}
+    for row in prompt_rows:
+        feature = _prompt_feature(row)
+        group = groups.setdefault(
+            feature,
+            {
+                "feature": feature,
+                "prompt_count": 0,
+                "summary": {},
+                "action": "clean",
+            },
+        )
+        group["prompt_count"] = int(group["prompt_count"]) + 1
+        group_summary = group["summary"]
+        row_summary = row.get("summary")
+        if isinstance(group_summary, dict) and isinstance(row_summary, dict):
+            for key, value in row_summary.items():
+                group_summary[key] = int(group_summary.get(key) or 0) + int(value or 0)
+    rows = list(groups.values())
+    for row in rows:
+        summary = row.get("summary")
+        row["action"] = _prompt_group_action(summary if isinstance(summary, dict) else {})
+    return sorted(
+        rows,
+        key=lambda row: (
+            -_blocking_count(row.get("summary")),
+            -_summary_count(row.get("summary"), "changed"),
+            str(row.get("feature") or "").lower(),
+        ),
+    )
+
+
+def _prompt_feature(row: dict[str, Any]) -> str:
+    identifier = str(row.get("id") or "").strip().replace("\\", "/")
+    if "/" in identifier:
+        first = next((part for part in identifier.split("/") if part), "")
+        if first:
+            return first
+    prompt = str(row.get("prompt") or "").strip().replace("\\", "/")
+    parts = [part for part in prompt.split("/") if part and part not in {".", ".."}]
+    if "prompts" in parts:
+        index = parts.index("prompts")
+        if index + 1 < len(parts):
+            candidate = parts[index + 1]
+            if index + 2 == len(parts):
+                return candidate.rsplit(".", 1)[0] or "default"
+            return candidate
+    if len(parts) > 1:
+        return parts[0]
+    if parts:
+        return parts[0].rsplit(".", 1)[0] or "default"
+    return "default"
+
+
+def _prompt_group_action(summary: dict[str, Any]) -> str:
+    if _blocking_count(summary):
+        return "fix blocking cases before shipping"
+    if _summary_count(summary, "changed"):
+        return "review changed cases before shipping"
+    return "clean"
+
+
+def _blocking_count(summary: Any) -> int:
+    return _summary_count(summary, "regression") + _summary_count(summary, "missing")
+
+
+def _summary_counts(summary: dict[str, Any]) -> dict[str, int]:
+    counts = {}
+    for key, value in summary.items():
+        try:
+            counts[str(key)] = int(value)
+        except (TypeError, ValueError):
+            continue
+    return counts
+
+
+def _summary_count(summary: Any, key: str) -> int:
+    if not isinstance(summary, dict):
+        return 0
+    try:
+        return int(summary.get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _junit_properties(item: dict[str, Any]) -> dict[str, str]:
     properties = {}
     location = _source_location(item)
@@ -467,6 +612,10 @@ h3 { margin: 0; font-size: 16px; letter-spacing: 0; }
 }
 .owner-review th:first-child, .owner-review td:first-child { text-align: left; }
 .owner-review th:not(:first-child), .owner-review td:not(:first-child) { text-align: right; }
+.prompt-groups th:last-child, .prompt-groups td:last-child,
+.prompt-evals th:nth-child(2), .prompt-evals td:nth-child(2),
+.prompt-evals th:last-child, .prompt-evals td:last-child { text-align: left; }
+.prompt-evals td span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 .review-commands p { color: var(--muted); margin: 0 0 12px; }
 .review-commands ul { margin: 0; padding-left: 20px; }
 .review-commands li { margin: 8px 0; }
@@ -616,6 +765,83 @@ def _html_owner_review(diffs: list[Any]) -> str:
             f"<td>{row['ignored']}</td>"
             f"<td>{row['other']}</td>"
             f"<td>{row['total']}</td>"
+            "</tr>"
+        )
+    lines.append("</tbody></table></section>")
+    return "".join(lines)
+
+
+def _html_prompt_groups(result: dict[str, Any]) -> str:
+    prompt_rows = _prompt_eval_rows(result.get("prompt_evals"))
+    rows = _prompt_group_rows(prompt_rows)
+    if not rows:
+        return ""
+    lines = [
+        '<section class="panel owner-review prompt-groups">',
+        "<h2>Feature summary</h2>",
+        "<table>",
+        "<thead><tr>",
+        "<th>Feature</th>",
+        "<th>Prompts</th>",
+        "<th>Cases</th>",
+        "<th>Regression</th>",
+        "<th>Changed</th>",
+        "<th>Missing</th>",
+        "<th>Neutral</th>",
+        "<th>Action</th>",
+        "</tr></thead>",
+        "<tbody>",
+    ]
+    for row in rows:
+        summary = row["summary"]
+        lines.append(
+            "<tr>"
+            f"<td>{_h(str(row['feature']))}</td>"
+            f"<td>{row['prompt_count']}</td>"
+            f"<td>{_summary_count(summary, 'cases')}</td>"
+            f"<td>{_summary_count(summary, 'regression')}</td>"
+            f"<td>{_summary_count(summary, 'changed')}</td>"
+            f"<td>{_summary_count(summary, 'missing')}</td>"
+            f"<td>{_summary_count(summary, 'neutral')}</td>"
+            f"<td>{_h(str(row['action']))}</td>"
+            "</tr>"
+        )
+    lines.append("</tbody></table></section>")
+    return "".join(lines)
+
+
+def _html_prompt_evals(result: dict[str, Any]) -> str:
+    rows = _prompt_eval_rows(result.get("prompt_evals"))
+    if not rows:
+        return ""
+    lines = [
+        '<section class="panel owner-review prompt-evals">',
+        "<h2>Prompt evals</h2>",
+        "<table>",
+        "<thead><tr>",
+        "<th>Prompt</th>",
+        "<th>Suite</th>",
+        "<th>Cases</th>",
+        "<th>Regression</th>",
+        "<th>Changed</th>",
+        "<th>Missing</th>",
+        "<th>Neutral</th>",
+        "<th>Action</th>",
+        "</tr></thead>",
+        "<tbody>",
+    ]
+    for row in rows:
+        summary = row["summary"]
+        lines.append(
+            "<tr>"
+            f"<td>{_h(str(row['id'] or '-'))}<span>{_h(str(row['prompt'] or '-'))}</span></td>"
+            f"<td>{_h(str(row['suite'] or '-'))}</td>"
+            f"<td>{_summary_count(summary, 'cases')}</td>"
+            f"<td>{_summary_count(summary, 'regression')}</td>"
+            f"<td>{_summary_count(summary, 'changed')}</td>"
+            f"<td>{_summary_count(summary, 'missing')}</td>"
+            f"<td>{_summary_count(summary, 'neutral')}</td>"
+            f"<td>{_h(str(row['action'] or '-'))}</td>"
             "</tr>"
         )
     lines.append("</tbody></table></section>")

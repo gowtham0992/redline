@@ -221,6 +221,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline-prompts.json --check --check-suites", readme)
         self.assertIn("prompt-level rollups", readme)
         self.assertIn("redline eval redline-prompts.json", readme)
+        self.assertIn("prompt-manifest rollups", readme)
+        self.assertIn("feature and prompt eval tables", readme)
         self.assertIn("redline eval suites/support/triage.redline-suite.json", readme)
         self.assertIn("prompt-level", readme)
         self.assertIn("review queue", readme)
