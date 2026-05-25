@@ -15,11 +15,11 @@ class DashboardTests(unittest.TestCase):
             reports = root / ".redline" / "reports"
             report = {
                 "summary": {
-                    "cases": 2,
+                    "cases": 5,
                     "regression": 1,
                     "changed": 1,
                     "missing": 0,
-                    "neutral": 0,
+                    "neutral": 3,
                 },
                 "decision": {"recommended_action": "review changed cases before shipping"},
                 "prompt_evals": [
@@ -29,6 +29,13 @@ class DashboardTests(unittest.TestCase):
                         "suite": "suites/support/triage.redline-suite.json",
                         "summary": {"cases": 2, "regression": 1, "changed": 1},
                         "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    },
+                    {
+                        "id": "billing/refund",
+                        "prompt": "prompts/billing/refund.txt",
+                        "suite": "suites/billing/refund.redline-suite.json",
+                        "summary": {"cases": 3, "neutral": 3},
+                        "decision": {"recommended_action": "ship candidate; no blocking changes detected"},
                     }
                 ],
                 "diffs": [
@@ -124,13 +131,43 @@ class DashboardTests(unittest.TestCase):
                         "suite": "suites/support/triage.redline-suite.json",
                         "summary": {"cases": 2, "regression": 1, "changed": 1},
                         "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    },
+                    {
+                        "id": "billing/refund",
+                        "prompt": "prompts/billing/refund.txt",
+                        "suite": "suites/billing/refund.redline-suite.json",
+                        "summary": {"cases": 3, "neutral": 3},
+                        "decision": {"recommended_action": "ship candidate; no blocking changes detected"},
                     }
+                ],
+            )
+            self.assertEqual(
+                dashboard["reports"][0]["prompt_groups"],
+                [
+                    {
+                        "feature": "support",
+                        "prompt_count": 1,
+                        "summary": {"cases": 2, "regression": 1, "changed": 1},
+                        "action": "fix blocking cases before shipping",
+                    },
+                    {
+                        "feature": "billing",
+                        "prompt_count": 1,
+                        "summary": {"cases": 3, "neutral": 3},
+                        "action": "clean",
+                    },
                 ],
             )
             self.assertIn("<title>redline dashboard</title>", html)
             self.assertIn("eval.json", html)
+            self.assertIn("<h2>Feature Summary</h2>", html)
+            self.assertIn("support", html)
+            self.assertIn("billing", html)
+            self.assertIn("fix blocking cases before shipping", html)
+            self.assertIn("clean", html)
             self.assertIn("<h2>Prompt Evals</h2>", html)
             self.assertIn("support/triage", html)
+            self.assertIn("billing/refund", html)
             self.assertIn("prompts/support/triage.txt", html)
             self.assertIn("suites/support/triage.redline-suite.json", html)
             self.assertIn("<h2>Review Queue</h2>", html)

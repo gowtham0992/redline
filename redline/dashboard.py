@@ -92,6 +92,7 @@ def format_dashboard_html(
             _trust_panel(trust),
             _owners_panel(owners),
             _errors(errors),
+            _prompt_groups_panel(latest.get("prompt_groups") if isinstance(latest, dict) else []),
             _prompt_evals_panel(latest.get("prompt_evals") if isinstance(latest, dict) else []),
             _review_queue_panel(latest.get("review_cases") if isinstance(latest, dict) else []),
             _reports_table(reports, output_path=output_path),
@@ -127,6 +128,7 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
         if not isinstance(summary, dict):
             errors.append({"path": str(path), "message": "missing summary object"})
             continue
+        prompt_evals = _report_prompt_evals(report.get("prompt_evals"))
         reports.append(
             {
                 "path": str(path),
@@ -138,7 +140,8 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
                 "trust": _report_trust_summary(report.get("diffs")),
                 "review": _report_review_summary(report.get("diffs")),
                 "review_cases": _report_review_cases(report.get("diffs")),
-                "prompt_evals": _report_prompt_evals(report.get("prompt_evals")),
+                "prompt_evals": prompt_evals,
+                "prompt_groups": _report_prompt_groups(prompt_evals),
                 "html_path": _existing_sibling(path, ".html"),
                 "markdown_path": _existing_sibling(path, ".md"),
             }
@@ -298,6 +301,87 @@ def _report_prompt_evals(value: Any) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def _report_prompt_groups(prompt_evals: Any) -> list[dict[str, Any]]:
+    if not isinstance(prompt_evals, list):
+        return []
+    rows: dict[str, dict[str, Any]] = {}
+    for item in prompt_evals:
+        if not isinstance(item, dict):
+            continue
+        feature = _prompt_feature(item)
+        row = rows.setdefault(
+            feature,
+            {
+                "feature": feature,
+                "prompt_count": 0,
+                "summary": {},
+                "action": "clean",
+            },
+        )
+        row["prompt_count"] = int(row["prompt_count"]) + 1
+        row_summary = row["summary"]
+        summary = item.get("summary")
+        if isinstance(row_summary, dict) and isinstance(summary, dict):
+            for key, value in _summary_counts(summary).items():
+                row_summary[key] = int(row_summary.get(key) or 0) + value
+
+    groups = list(rows.values())
+    for group in groups:
+        summary = group.get("summary")
+        group["action"] = _prompt_group_action(summary if isinstance(summary, dict) else {})
+    return sorted(
+        groups,
+        key=lambda group: (
+            -_blocking_count(group.get("summary")),
+            -_changed_count(group.get("summary")),
+            str(group.get("feature") or "").lower(),
+        ),
+    )
+
+
+def _prompt_feature(item: dict[str, Any]) -> str:
+    identifier = str(item.get("id") or "").strip().replace("\\", "/")
+    if "/" in identifier:
+        first = next((part for part in identifier.split("/") if part), "")
+        if first:
+            return first
+
+    prompt = str(item.get("prompt") or "").strip().replace("\\", "/")
+    parts = [part for part in prompt.split("/") if part and part not in {".", ".."}]
+    if "prompts" in parts:
+        index = parts.index("prompts")
+        if index + 1 < len(parts):
+            candidate = parts[index + 1]
+            if index + 2 == len(parts):
+                return Path(candidate).stem or "default"
+            return candidate
+    if len(parts) > 1:
+        return parts[0]
+    if parts:
+        return Path(parts[0]).stem or "default"
+    return "default"
+
+
+def _prompt_group_action(summary: dict[str, Any]) -> str:
+    if _blocking_count(summary):
+        return "fix blocking cases before shipping"
+    if _changed_count(summary):
+        return "review changed cases before shipping"
+    return "clean"
+
+
+def _blocking_count(summary: Any) -> int:
+    if not isinstance(summary, dict):
+        return 0
+    return int(summary.get("regression") or 0) + int(summary.get("missing") or 0)
+
+
+def _changed_count(summary: Any) -> int:
+    if not isinstance(summary, dict):
+        return 0
+    return int(summary.get("changed") or 0)
 
 
 def _report_review_cases(diffs: Any, *, limit: int = 12) -> list[dict[str, Any]]:
@@ -571,6 +655,37 @@ def _reports_table(reports: list[Any], *, output_path: str | Path | None) -> str
         '<div class="table-wrap">'
         "<table>"
         "<thead><tr><th>Report</th><th>Summary</th><th>Review</th><th>Decision</th><th>Links</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table>"
+        "</div>"
+        "</section>"
+    )
+
+
+def _prompt_groups_panel(prompt_groups: Any) -> str:
+    if not isinstance(prompt_groups, list) or not prompt_groups:
+        return ""
+    rows = []
+    for item in prompt_groups:
+        if not isinstance(item, dict):
+            continue
+        summary = item.get("summary")
+        rows.append(
+            "<tr>"
+            f"<td><strong>{_h(str(item.get('feature') or '-'))}</strong></td>"
+            f"<td>{int(item.get('prompt_count') or 0)}</td>"
+            f"<td>{_summary_pills(summary if isinstance(summary, dict) else {})}</td>"
+            f"<td>{_h(str(item.get('action') or '-'))}</td>"
+            "</tr>"
+        )
+    if not rows:
+        return ""
+    return (
+        '<section class="panel prompt-groups">'
+        "<h2>Feature Summary</h2>"
+        '<div class="table-wrap">'
+        "<table>"
+        "<thead><tr><th>Feature</th><th>Prompts</th><th>Summary</th><th>Action</th></tr></thead>"
         f"<tbody>{''.join(rows)}</tbody>"
         "</table>"
         "</div>"

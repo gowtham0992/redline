@@ -208,6 +208,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("[License](LICENSE)", readme)
         self.assertIn("python -m pip install redline-ai", readme)
         self.assertIn("redline judges", readme)
+        self.assertIn("feature-level", readme)
         self.assertIn("From a repo checkout, record the public demo", readme)
         self.assertIn("scripts/normalize_ai_session_logs.py", readme)
         self.assertIn("actions/workflows/ci.yml/badge.svg?branch=main", readme)

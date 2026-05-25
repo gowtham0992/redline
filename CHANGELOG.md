@@ -41,6 +41,7 @@
 - Show owner coverage and top owners in `redline summary`.
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Show blocking and changed review counts in the dashboard reports table.
+- Group prompt manifest evals by feature in the local dashboard.
 - Show prompt-level eval rows and a latest-report review queue in the local dashboard.
 - Summarize confidence and signal mix in the local dashboard.
 - Include event-type counts in audit verification output.
