@@ -1,18 +1,14 @@
 from __future__ import annotations
 
-import contextlib
-import io
 import json
 import os
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO
 
 from . import __version__
-from .cli import main as redline_cli_main
-
-
 PROTOCOL_VERSION = "2025-06-18"
 DEFAULT_MAX_OUTPUT_BYTES = 60_000
 
@@ -251,25 +247,24 @@ def _run_redline(
     cwd: Path,
     max_output_bytes: int,
 ) -> ToolResult:
-    previous = Path.cwd()
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    exit_code = 0
     try:
-        os.chdir(cwd)
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            try:
-                exit_code = redline_cli_main(args)
-            except SystemExit as exc:
-                code = exc.code
-                exit_code = code if isinstance(code, int) else 1
+        completed = subprocess.run(
+            [sys.executable, "-m", "redline", *args],
+            cwd=cwd,
+            env=_subprocess_env(),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        exit_code = completed.returncode
+        stdout = completed.stdout
+        stderr = completed.stderr
     except Exception as exc:  # pragma: no cover - defensive boundary for MCP clients.
         exit_code = 2
-        stderr.write(f"redline-mcp: {exc}\n")
-    finally:
-        os.chdir(previous)
+        stdout = ""
+        stderr = f"redline-mcp: {exc}\n"
 
-    out_text, err_text, truncated = _truncate(stdout.getvalue(), stderr.getvalue(), max_output_bytes)
+    out_text, err_text, truncated = _truncate(stdout, stderr, max_output_bytes)
     return ToolResult(
         command=["redline", *args],
         cwd=str(cwd),
@@ -299,6 +294,14 @@ def _truncate_text_to_bytes(text: str, max_bytes: int) -> str:
     if len(encoded) <= max_bytes:
         return text
     return encoded[:max_bytes].decode("utf-8", errors="ignore")
+
+
+def _subprocess_env() -> dict[str, str]:
+    env = os.environ.copy()
+    package_root = str(Path(__file__).resolve().parents[1])
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = f"{package_root}{os.pathsep}{existing}" if existing else package_root
+    return env
 
 
 def _cwd(arguments: dict[str, Any]) -> Path:

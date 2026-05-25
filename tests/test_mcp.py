@@ -1,9 +1,11 @@
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from redline.mcp import _truncate, call_tool, handle_jsonrpc_line
+from redline.mcp import _run_redline, _truncate, call_tool, handle_jsonrpc_line
 
 
 class McpServerTests(unittest.TestCase):
@@ -292,6 +294,26 @@ class McpServerTests(unittest.TestCase):
         output_size = len(stdout.encode("utf-8")) + len(stderr.encode("utf-8"))
         self.assertLessEqual(output_size, 8)
         self.assertTrue(truncated)
+
+    def test_run_redline_passes_cwd_without_changing_process_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            cwd = Path.cwd()
+            completed = subprocess.CompletedProcess(
+                args=["python", "-m", "redline", "doctor"],
+                returncode=0,
+                stdout="ok\n",
+                stderr="",
+            )
+
+            with patch("redline.mcp.subprocess.run", return_value=completed) as run:
+                result = _run_redline(["doctor"], cwd=Path(directory), max_output_bytes=1000)
+
+        self.assertEqual(Path.cwd(), cwd)
+        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.stdout, "ok\n")
+        run.assert_called_once()
+        self.assertEqual(run.call_args.kwargs["cwd"], Path(directory))
+        self.assertTrue(run.call_args.kwargs["capture_output"])
 
 
 if __name__ == "__main__":
