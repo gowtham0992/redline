@@ -26,6 +26,7 @@
         <a href="#workflow">Workflow</a>
         <a href="#trust">Trust</a>
         <a href="#adapters">Adapters</a>
+        <a href="#mcp">MCP</a>
         <a href="#certification">Certify</a>
         <a href="https://github.com/gowtham0992/redline">GitHub</a>
       </nav>
@@ -53,6 +54,7 @@
           </div>
           <div class="actions" aria-label="Primary actions">
             <a class="button primary" href="https://github.com/gowtham0992/redline#start-here">Start in 5 minutes</a>
+            <a class="button secondary" href="https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline">MCP Registry</a>
             <a class="button secondary" href="https://github.com/gowtham0992/redline">View source</a>
           </div>
         </div>
@@ -222,6 +224,39 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
             <p>Publish self-contained HTML reports as CI artifacts or browse them locally.</p>
             <code>redline dashboard --reports-dir .redline/demo/reports --open</code>
           </div>
+        </div>
+      </section>
+
+      <section class="assistant band" id="mcp">
+        <div class="section-heading">
+          <p class="eyebrow">AI assistant loop</p>
+          <h2>Run redline where prompt work happens.</h2>
+          <p>
+            The MCP server lets Claude, Codex, Cursor, Kiro, and other MCP
+            clients inspect redline setup, run evals, summarize suites, render
+            dashboards, and list cases without switching context.
+          </p>
+        </div>
+        <div class="assistant-grid">
+          <article>
+            <strong>Install from the registry</strong>
+            <p>Use the published MCP entry backed by the PyPI package.</p>
+            <code>uvx --from redline-ai redline-mcp</code>
+          </article>
+          <article>
+            <strong>Ask the natural question</strong>
+            <p>Your assistant can run the local check and explain the behavioral diff inline.</p>
+            <code>Did my prompt change introduce regressions?</code>
+          </article>
+          <article>
+            <strong>Keep writes guarded</strong>
+            <p>Read-only tools are the default; marking cases requires explicit write approval.</p>
+            <code>redline_mark requires allow_write</code>
+          </article>
+        </div>
+        <div class="assistant-links">
+          <a href="https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline">View MCP Registry listing</a>
+          <a href="https://github.com/gowtham0992/redline/blob/main/docs/mcp.md">Read MCP docs</a>
         </div>
       </section>
 

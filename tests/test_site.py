@@ -35,6 +35,10 @@ class GitHubPagesSiteTests(unittest.TestCase):
         self.assertIn("Optional judges", html)
         self.assertIn("One command, ten regressions", html)
         self.assertIn("AI-agnostic first", html)
+        self.assertIn("AI assistant loop", html)
+        self.assertIn("MCP Registry", html)
+        self.assertIn("uvx --from redline-ai redline-mcp", html)
+        self.assertIn("redline_mark requires allow_write", html)
         self.assertIn("What redline does not pretend", html)
         self.assertIn("Release confidence", html)
         self.assertIn("A certified local product loop", html)
@@ -72,6 +76,14 @@ class GitHubPagesSiteTests(unittest.TestCase):
             parser.links,
         )
         self.assertIn(
+            "https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline",
+            parser.links,
+        )
+        self.assertIn(
+            "https://github.com/gowtham0992/redline/blob/main/docs/mcp.md",
+            parser.links,
+        )
+        self.assertIn(
             ("assets/redline-preview.png", "redline terminal and dashboard preview showing four prompt regressions caught"),
             parser.images,
         )
@@ -100,6 +112,7 @@ class GitHubPagesSiteTests(unittest.TestCase):
         self.assertIn("@media (max-width: 760px)", css)
         self.assertIn("grid-template-columns", css)
         self.assertIn(".certification-grid", css)
+        self.assertIn(".assistant-grid", css)
         self.assertIn("border-radius: 8px", css)
         self.assertNotIn("letter-spacing: -", css)
         self.assertNotIn("font-size: clamp(", css)

@@ -31,6 +31,7 @@
 - Add `redline-mcp`, a local MCP stdio server and agent workflow prompts for running redline checks without mutating baselines.
 - Expose watch capture readiness and middleware skip diagnostics through the MCP server.
 - Add MCP Registry metadata for publishing the PyPI-backed `redline-mcp` server.
+- Highlight the MCP Registry path on the GitHub Pages product site.
 - Add `redline judges` to list and copy packaged judge commands and domain rubrics from any install.
 - Print copy-pasteable audit checkpoint commands from `redline audit --verify`.
 - Recommend worker counts from `redline benchmark` when CI runtime budgets fail.
