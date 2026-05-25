@@ -120,6 +120,12 @@ Core loop:
   redline eval --prompt prompts/v2.txt
   redline diff redline-suite.json path/to/candidate.jsonl
 
+Review loop:
+  redline cases redline-suite.json
+  redline case redline-suite.json case_001
+  redline suite add redline-suite.json --prompt-file prompt.txt --response-file baseline.txt
+  redline accept redline-suite.json --all-expected --candidate .redline/runs/candidate.jsonl
+
 Scale:
   redline prompts prompts/ --suite-dir suites --out redline-prompts.json
 

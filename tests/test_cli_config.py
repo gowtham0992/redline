@@ -21,6 +21,8 @@ class CliConfigTests(unittest.TestCase):
         self.assertIn("Start here:", text)
         self.assertIn("redline demo", text)
         self.assertIn("redline init --runner stdio --copy-runner", text)
+        self.assertIn("Review loop:", text)
+        self.assertIn("redline suite add redline-suite.json", text)
         self.assertIn("redline <command> --help", text)
 
     def test_root_help_prints_first_run_help(self) -> None:
