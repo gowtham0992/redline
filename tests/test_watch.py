@@ -602,6 +602,50 @@ class WatchTests(unittest.TestCase):
             self.assertIn("Readiness:         ready to generate suite", text)
             self.assertIn(f"Next:              redline suite {output} --out redline-suite.json", text)
 
+    def test_watch_stats_includes_middleware_skip_reasons(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "prompts.jsonl"
+            skip_log = root / "middleware-skips.jsonl"
+
+            record("hello", "world", log=output)
+            skip_log.write_text(
+                '{"event":"middleware_capture_skipped","reason":"response_streaming","observed_at":"2026-05-25T00:00:00+00:00","source":"asgi:POST /chat","metadata":{"request":{"bytes_seen":10}}}\n'
+                '{"event":"middleware_capture_skipped","reason":"response_streaming","observed_at":"2026-05-25T00:00:01+00:00","source":"asgi:POST /chat","metadata":{"request":{"bytes_seen":12}}}\n'
+                '{"event":"middleware_capture_skipped","reason":"prompt_field_missing","observed_at":"2026-05-25T00:00:02+00:00","source":"asgi:POST /route","metadata":{"request":{"bytes_seen":8}}}\n',
+                encoding="utf-8",
+            )
+
+            stats = watch_stats(output)
+            text = format_watch_stats(stats)
+
+            self.assertEqual(stats["skips"]["events"], 3)
+            self.assertEqual(stats["skips"]["sources"], 2)
+            self.assertEqual(stats["skips"]["reasons"]["response_streaming"], 2)
+            self.assertEqual(stats["skips"]["reasons"]["prompt_field_missing"], 1)
+            self.assertIn("Skipped captures:  3", text)
+            self.assertIn("response_streaming=2", text)
+            self.assertIn("prompt_field_missing=1", text)
+
+    def test_watch_stats_can_summarize_skip_log_without_observed_records(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "prompts.jsonl"
+            skip_log = root / "skips.jsonl"
+            skip_log.write_text(
+                '{"event":"middleware_capture_skipped","reason":"request_content_length","observed_at":"2026-05-25T00:00:00+00:00","source":"asgi:POST /chat","metadata":{}}\n',
+                encoding="utf-8",
+            )
+
+            stats = watch_stats(output, skip_log=skip_log)
+            text = format_watch_stats(stats)
+
+            self.assertEqual(stats["records"], 0)
+            self.assertEqual(stats["skips"]["events"], 1)
+            self.assertEqual(stats["skips"]["reasons"], {"request_content_length": 1})
+            self.assertIn("Records:           0", text)
+            self.assertIn("Skipped captures:  1", text)
+
     def test_follow_log_collects_until_max_records(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

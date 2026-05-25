@@ -210,6 +210,7 @@ def build_parser() -> argparse.ArgumentParser:
     watch_parser.add_argument("--no-redact", action="store_true", help="write raw values without automatic watch redaction")
     watch_parser.add_argument("--redaction-placeholder", default=DEFAULT_PLACEHOLDER, help="replacement text for watch redaction")
     watch_parser.add_argument("--stats", action="store_true", help="summarize the observed watch log")
+    watch_parser.add_argument("--skip-log", help="middleware skip diagnostics JSONL to include with --stats")
     watch_parser.add_argument("--follow", action="store_true", help="keep polling the source log for new records")
     watch_parser.add_argument("--poll-interval", type=float, default=1.0, help="seconds between follow polls")
     watch_parser.add_argument("--max-records", type=int, help="stop follow mode after collecting this many new records")
@@ -622,7 +623,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
     output_field = str(_config_value(args.output_field, config, "output_field", "response"))
     output = args.out or _config_observed_log_path(config) or ".redline/logs/prompts.jsonl"
     if args.stats:
-        result = watch_stats(output, input_field=input_field, output_field=output_field)
+        result = watch_stats(output, input_field=input_field, output_field=output_field, skip_log=args.skip_log)
         if args.json:
             print(json.dumps(result, indent=2, sort_keys=True))
         else:

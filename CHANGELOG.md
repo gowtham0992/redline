@@ -36,6 +36,7 @@
 - Normalize common provider response objects and capture latency/token metadata from watched Python calls.
 - Bound ASGI middleware capture by JSON content type, content length, byte count, and non-streaming responses by default.
 - Add optional ASGI middleware skip diagnostics so teams can see why a request was not captured without logging body text.
+- Include middleware skip reason counts in `redline watch --stats`.
 - Show suite-readiness guidance in `redline watch --stats` based on unique prompt-response pairs.
 - Print copy-pasteable suite and follow commands from `redline watch --stats`.
 - Skip exact duplicate prompt-response pairs when generating suites from noisy logs.

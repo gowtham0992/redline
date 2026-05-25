@@ -23,6 +23,7 @@ from .io import (
 from .redact import DEFAULT_PLACEHOLDER, redact_object
 
 DEFAULT_WATCH_LOG = ".redline/logs/prompts.jsonl"
+DEFAULT_MIDDLEWARE_SKIP_LOG = ".redline/logs/middleware-skips.jsonl"
 READY_RECORDS = 5
 READY_PATTERNS = 3
 
@@ -267,8 +268,11 @@ def watch_stats(
     *,
     input_field: str = "prompt",
     output_field: str = "response",
+    skip_log: str | Path | None = None,
 ) -> dict[str, Any]:
-    records = read_jsonl_records(path, input_field, output_field)
+    skip_log_path = _resolve_skip_log(path, skip_log)
+    skip_stats = _skip_log_stats(skip_log_path)
+    records = _read_records_for_stats(path, input_field, output_field, allow_empty=bool(skip_stats["events"]))
     observed_at = sorted(
         str(record.raw["observed_at"])
         for record in records
@@ -297,7 +301,70 @@ def watch_stats(
         "first_observed_at": observed_at[0] if observed_at else None,
         "last_observed_at": observed_at[-1] if observed_at else None,
         "readiness": _readiness(unique_pairs, patterns_count, log=path),
+        "skips": skip_stats,
     }
+
+
+def _read_records_for_stats(
+    path: str | Path,
+    input_field: str,
+    output_field: str,
+    *,
+    allow_empty: bool,
+) -> list[LogRecord]:
+    target = Path(path)
+    if not target.exists():
+        if allow_empty:
+            return []
+        raise ValueError(f"{path} not found")
+    try:
+        return read_jsonl_records(target, input_field, output_field)
+    except ValueError as exc:
+        if allow_empty and "contains no JSONL records" in str(exc):
+            return []
+        raise
+
+
+def _resolve_skip_log(path: str | Path, explicit: str | Path | None) -> Path | None:
+    if explicit is not None:
+        return Path(explicit)
+    default = Path(DEFAULT_MIDDLEWARE_SKIP_LOG)
+    inferred = default if Path(path) == Path(DEFAULT_WATCH_LOG) else Path(path).with_name(default.name)
+    return inferred if inferred.exists() else None
+
+
+def _skip_log_stats(path: Path | None) -> dict[str, Any]:
+    stats: dict[str, Any] = {
+        "log": str(path) if path is not None else None,
+        "events": 0,
+        "reasons": {},
+        "sources": 0,
+        "first_observed_at": None,
+        "last_observed_at": None,
+    }
+    if path is None or not path.exists():
+        return stats
+    reasons: dict[str, int] = {}
+    sources: set[str] = set()
+    observed_at = []
+    for _, row in iter_jsonl(path):
+        if row.get("event") != "middleware_capture_skipped":
+            continue
+        stats["events"] += 1
+        reason = str(row.get("reason") or "unknown")
+        reasons[reason] = reasons.get(reason, 0) + 1
+        source = row.get("source")
+        if source:
+            sources.add(str(source))
+        timestamp = row.get("observed_at")
+        if isinstance(timestamp, str):
+            observed_at.append(timestamp)
+    observed_at.sort()
+    stats["reasons"] = dict(sorted(reasons.items()))
+    stats["sources"] = len(sources)
+    stats["first_observed_at"] = observed_at[0] if observed_at else None
+    stats["last_observed_at"] = observed_at[-1] if observed_at else None
+    return stats
 
 
 def format_watch_stats(stats: dict[str, Any]) -> str:
@@ -314,6 +381,16 @@ def format_watch_stats(stats: dict[str, Any]) -> str:
     if stats["first_observed_at"] or stats["last_observed_at"]:
         lines.append(f"First observed:    {stats['first_observed_at'] or '<unknown>'}")
         lines.append(f"Last observed:     {stats['last_observed_at'] or '<unknown>'}")
+    skips = stats.get("skips")
+    if isinstance(skips, dict) and skips.get("events"):
+        lines.append(f"Skipped captures:  {skips['events']}")
+        reasons = skips.get("reasons")
+        if isinstance(reasons, dict) and reasons:
+            reason_text = ", ".join(f"{reason}={count}" for reason, count in sorted(reasons.items()))
+            lines.append(f"Skip reasons:      {reason_text}")
+        skip_log = skips.get("log")
+        if skip_log:
+            lines.append(f"Skip log:          {skip_log}")
     readiness = stats.get("readiness")
     if isinstance(readiness, dict):
         lines.append(f"Readiness:         {readiness['message']}")

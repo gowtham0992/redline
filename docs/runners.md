@@ -296,6 +296,7 @@ Wire it in:
 
 ```bash
 redline watch --stats
+redline watch --stats --skip-log .redline/logs/middleware-skips.jsonl
 redline suite .redline/logs/prompts.jsonl --out redline-suite.json
 ```
 
