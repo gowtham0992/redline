@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from redline.cli import main
-from redline.prompts import build_prompt_manifest, format_prompt_manifest
+from redline.prompts import build_prompt_manifest, check_prompt_suites, format_prompt_manifest
 
 
 class PromptManifestTests(unittest.TestCase):
@@ -158,6 +158,68 @@ class PromptManifestTests(unittest.TestCase):
                 self.assertIn("Status:   OUTDATED", output.getvalue())
                 self.assertIn("Changed:   support", output.getvalue())
                 self.assertIn("Regenerate manifest: redline prompts prompts", output.getvalue())
+            finally:
+                os.chdir(previous)
+
+    def test_check_prompt_suites_reports_missing_suite_files(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prompt = root / "prompts" / "support.txt"
+            prompt.parent.mkdir()
+            prompt.write_text("support prompt\n", encoding="utf-8")
+            manifest = build_prompt_manifest(prompt, suite_dir=root / "suites")
+
+            status = check_prompt_suites(manifest)
+
+            self.assertEqual(status["status"], "missing_suites")
+            self.assertEqual(status["prompt_count"], 1)
+            self.assertEqual(status["suite_count"], 0)
+            missing = status["missing_suites"]
+            self.assertIsInstance(missing, list)
+            assert isinstance(missing, list)
+            self.assertEqual(len(missing), 1)
+
+            suite = root / "suites" / "support.redline-suite.json"
+            suite.parent.mkdir()
+            suite.write_text("{}\n", encoding="utf-8")
+
+            status = check_prompt_suites(manifest)
+            self.assertEqual(status["status"], "ok")
+            self.assertEqual(status["suite_count"], 1)
+
+    def test_prompts_cli_check_suites_fails_when_suite_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                prompts = root / "prompts"
+                prompts.mkdir()
+                (prompts / "support.txt").write_text("support prompt\n", encoding="utf-8")
+                self.assertEqual(
+                    main(["prompts", "prompts", "--suite-dir", "suites", "--out", "redline-prompts.json"]),
+                    0,
+                )
+                output = io.StringIO()
+
+                with contextlib.redirect_stdout(output):
+                    code = main(
+                        [
+                            "prompts",
+                            "prompts",
+                            "--suite-dir",
+                            "suites",
+                            "--out",
+                            "redline-prompts.json",
+                            "--check",
+                            "--check-suites",
+                        ]
+                    )
+
+                self.assertEqual(code, 1)
+                self.assertIn("Suites:   0/1 present", output.getvalue())
+                self.assertIn("Missing suites: support -> suites/support.redline-suite.json", output.getvalue())
+                self.assertIn("Build missing suite:", output.getvalue())
             finally:
                 os.chdir(previous)
 

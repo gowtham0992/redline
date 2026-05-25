@@ -101,6 +101,35 @@ def check_prompt_manifest(
     }
 
 
+def check_prompt_suites(manifest: dict[str, object]) -> dict[str, object]:
+    prompts = manifest.get("prompts", [])
+    if not isinstance(prompts, list):
+        prompts = []
+    missing = []
+    present = 0
+    for prompt in prompts:
+        if not isinstance(prompt, dict):
+            continue
+        suite = str(prompt.get("suite") or "")
+        if suite and Path(suite).is_file():
+            present += 1
+            continue
+        missing.append(
+            {
+                "id": str(prompt.get("id") or ""),
+                "path": str(prompt.get("path") or ""),
+                "suite": suite,
+            }
+        )
+    prompt_count = len([prompt for prompt in prompts if isinstance(prompt, dict)])
+    return {
+        "status": "ok" if not missing else "missing_suites",
+        "prompt_count": prompt_count,
+        "suite_count": present,
+        "missing_suites": missing,
+    }
+
+
 def format_prompt_manifest_check(report: dict[str, object], *, command: str) -> str:
     status = str(report.get("status", "outdated"))
     lines = [
@@ -120,8 +149,33 @@ def format_prompt_manifest_check(report: dict[str, object], *, command: str) -> 
         if isinstance(values, list) and values:
             lines.append(f"{label}:   {', '.join(str(value) for value in values)}")
 
+    suite_status = report.get("suite_status")
+    missing_suites: list[object] = []
+    if isinstance(suite_status, dict):
+        suite_count = int(suite_status.get("suite_count") or 0)
+        prompt_count = int(suite_status.get("prompt_count") or 0)
+        lines.append(f"Suites:   {suite_count}/{prompt_count} present")
+        raw_missing = suite_status.get("missing_suites")
+        if isinstance(raw_missing, list):
+            missing_suites = raw_missing
+            if missing_suites:
+                previews = []
+                for item in missing_suites[:5]:
+                    if isinstance(item, dict):
+                        previews.append(f"{item.get('id')} -> {item.get('suite')}")
+                if previews:
+                    lines.append(f"Missing suites: {', '.join(previews)}")
+
     if status != "ok":
-        lines.extend(["", "Next:", f"- Regenerate manifest: {command}"])
+        lines.extend(["", "Next:"])
+        if _manifest_has_changes(report):
+            lines.append(f"- Regenerate manifest: {command}")
+        first_missing = next((item for item in missing_suites if isinstance(item, dict)), None)
+        if first_missing:
+            lines.append(
+                "- Build missing suite: "
+                f"redline suite path/to/baseline.jsonl --out {first_missing.get('suite')}"
+            )
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -189,6 +243,13 @@ def _prompt_map(manifest: dict[str, object]) -> dict[str, dict[str, object]]:
         if isinstance(prompt_id, str):
             result[prompt_id] = dict(prompt)
     return result
+
+
+def _manifest_has_changes(report: dict[str, object]) -> bool:
+    return any(
+        isinstance(report.get(key), list) and bool(report.get(key))
+        for key in ("added", "changed", "removed", "field_changes")
+    )
 
 
 def _sha256(path: Path) -> str:

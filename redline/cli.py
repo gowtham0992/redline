@@ -63,6 +63,7 @@ from .policy import parse_fail_on, should_fail
 from .prompts import (
     build_prompt_manifest,
     check_prompt_manifest,
+    check_prompt_suites,
     format_prompt_manifest,
     format_prompt_manifest_check,
 )
@@ -232,6 +233,7 @@ def build_parser() -> argparse.ArgumentParser:
     prompts_parser.add_argument("--suite-dir", default="suites", help="suite directory to map prompt files into")
     prompts_parser.add_argument("--out", help="write manifest JSON to this path")
     prompts_parser.add_argument("--check", action="store_true", help="exit non-zero when --out manifest is stale")
+    prompts_parser.add_argument("--check-suites", action="store_true", help="also fail when mapped suite files are missing")
     prompts_parser.add_argument("--ext", action="append", default=[], help="prompt extension to include; repeat as needed")
     prompts_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     prompts_parser.set_defaults(func=cmd_prompts)
@@ -714,6 +716,11 @@ def cmd_prompts(args: argparse.Namespace) -> int:
             raise ValueError("prompts --check requires --out pointing at the existing manifest")
         stored = read_json(args.out)
         report = check_prompt_manifest(stored, manifest, manifest_path=args.out)
+        if args.check_suites:
+            suite_status = check_prompt_suites(manifest)
+            report["suite_status"] = suite_status
+            if suite_status["status"] != "ok":
+                report["status"] = "outdated"
         if args.json:
             print(json.dumps(report, indent=2, sort_keys=True))
         else:
