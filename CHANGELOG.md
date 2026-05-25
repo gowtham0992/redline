@@ -29,6 +29,7 @@
 - Add vector logo assets for the site header, favicon, and future launch material.
 - Add a product-focused README with a committed demo GIF for first-time users.
 - Add `redline-mcp`, a local MCP stdio server and agent workflow prompts for running redline checks without mutating baselines.
+- Expose watch capture readiness and middleware skip diagnostics through the MCP server.
 - Add MCP Registry metadata for publishing the PyPI-backed `redline-mcp` server.
 - Add `redline judges` to list and copy packaged judge commands and domain rubrics from any install.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.

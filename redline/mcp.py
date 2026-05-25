@@ -102,7 +102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "redline-mcp\n\n"
             "Local MCP stdio server for redline.\n\n"
             "Run this command from an MCP client. It exposes redline doctor, suite,\n"
-            "redact, audit, benchmark, validate, summary, diff, eval, history, dashboard, cases, and case tools.\n",
+            "watch stats, redact, audit, benchmark, validate, summary, diff, eval, history, dashboard, cases, and case tools.\n",
             end="",
         )
         return 0
@@ -470,6 +470,21 @@ def _tools() -> list[ToolSpec]:
             _build_redact,
         ),
         ToolSpec(
+            "redline_watch_stats",
+            "Summarize observed prompt-response captures, readiness, duplicates, and middleware skip diagnostics.",
+            _schema(
+                {
+                    "log_path": _string("Observed prompt-response JSONL log path. Defaults to config."),
+                    "config": _string("Config path to read."),
+                    "input_field": _string("JSONL prompt field path."),
+                    "output_field": _string("JSONL response field path."),
+                    "skip_log": _string("Middleware skip diagnostics JSONL to include."),
+                    "json": _boolean("Print machine-readable JSON."),
+                }
+            ),
+            _build_watch_stats,
+        ),
+        ToolSpec(
             "redline_validate",
             "Validate suite structure, stored features, hashes, requirements, and source freshness.",
             _schema(
@@ -668,6 +683,17 @@ def _build_redact(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--out", arguments.get("out"))
     _add_flag(args, "--check", arguments.get("check"))
     _add_option(args, "--placeholder", arguments.get("placeholder"))
+    _add_flag(args, "--json", arguments.get("json"))
+    return args
+
+
+def _build_watch_stats(arguments: dict[str, Any]) -> list[str]:
+    args = ["watch", "--stats"]
+    _add_option(args, "--out", arguments.get("log_path"))
+    _add_option(args, "--config", arguments.get("config"))
+    _add_option(args, "--input-field", arguments.get("input_field"))
+    _add_option(args, "--output-field", arguments.get("output_field"))
+    _add_option(args, "--skip-log", arguments.get("skip_log"))
     _add_flag(args, "--json", arguments.get("json"))
     return args
 

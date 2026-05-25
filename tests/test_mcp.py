@@ -31,6 +31,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_doctor", names)
         self.assertIn("redline_suite", names)
         self.assertIn("redline_redact", names)
+        self.assertIn("redline_watch_stats", names)
         self.assertIn("redline_benchmark", names)
         self.assertIn("redline_eval", names)
         self.assertIn("redline_diff", names)
@@ -271,6 +272,36 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redactions=2", audit_result["content"][0]["text"])
         self.assertIn("redline audit verify", audit_result["content"][0]["text"])
         self.assertIn("Status:   OK", audit_result["content"][0]["text"])
+
+    def test_watch_stats_tool_surfaces_capture_readiness_and_skips(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            log = root / "observed.jsonl"
+            skip_log = root / "skips.jsonl"
+            log.write_text(
+                '{"prompt":"hello","response":"world","observed_at":"2026-05-25T00:00:00+00:00","source":"test","content_hash":"abc"}\n',
+                encoding="utf-8",
+            )
+            skip_log.write_text(
+                '{"event":"middleware_capture_skipped","reason":"response_streaming","observed_at":"2026-05-25T00:00:01+00:00","source":"asgi:POST /chat","metadata":{}}\n',
+                encoding="utf-8",
+            )
+
+            result = call_tool(
+                "redline_watch_stats",
+                {
+                    "cwd": directory,
+                    "log_path": "observed.jsonl",
+                    "skip_log": "skips.jsonl",
+                },
+            )
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        self.assertIn("redline watch", result["content"][0]["text"])
+        self.assertIn("Records:           1", result["content"][0]["text"])
+        self.assertIn("Skipped captures:  1", result["content"][0]["text"])
+        self.assertIn("response_streaming=1", result["content"][0]["text"])
 
     def test_unknown_tool_returns_jsonrpc_error(self) -> None:
         response = handle_jsonrpc_line(
