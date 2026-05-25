@@ -2,9 +2,9 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://gowtham0992.github.io/redline/assets/redline-logo-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://gowtham0992.github.io/redline/assets/redline-logo.svg">
-    <img src="https://gowtham0992.github.io/redline/assets/redline-logo.svg" alt="redline" width="420">
+    <source media="(prefers-color-scheme: dark)" srcset="site/assets/redline-logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="site/assets/redline-logo.svg">
+    <img src="site/assets/redline-logo.svg" alt="redline" width="420">
   </picture>
 </p>
 

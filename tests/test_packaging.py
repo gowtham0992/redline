@@ -204,8 +204,8 @@ class PackagingTests(unittest.TestCase):
     def test_readme_marks_repo_only_script_commands(self) -> None:
         readme = Path("README.md").read_text(encoding="utf-8")
 
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-logo.svg", readme)
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-logo-dark.svg", readme)
+        self.assertIn("site/assets/redline-logo.svg", readme)
+        self.assertIn("site/assets/redline-logo-dark.svg", readme)
         self.assertIn("https://gowtham0992.github.io/redline/assets/redline-product-demo.gif", readme)
         self.assertIn("Automatic eval suites from the prompt logs you already have", readme)
         self.assertIn("Product Promise", readme)
