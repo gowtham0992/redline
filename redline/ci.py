@@ -87,6 +87,10 @@ jobs:
         if: always()
         run: python -m redline dashboard --out .redline/dashboard.html
 
+      - name: Write redline audit checkpoint
+        if: always()
+        run: python -m redline audit --verify --out-checkpoint .redline/audit-checkpoint.json
+
       - name: Upload redline reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -97,4 +101,5 @@ jobs:
             .redline/history.jsonl
             .redline/history.md
             .redline/dashboard.html
+            .redline/audit-checkpoint.json
 """

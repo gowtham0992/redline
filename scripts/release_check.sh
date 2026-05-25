@@ -50,8 +50,8 @@ fi
 printf '\n$ %s -m venv %s\n' "$python_bin" "$venv_dir"
 "$python_bin" -m venv "$venv_dir"
 
-printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_path"
-"$venv_dir/bin/python" -m pip install --no-deps "$wheel_path"
+printf '\n$ %s -m pip install --no-deps --force-reinstall %s\n' "$venv_dir/bin/python" "$wheel_path"
+"$venv_dir/bin/python" -m pip install --no-deps --force-reinstall "$wheel_path"
 
 (
   cd "$smoke_dir"

@@ -27,8 +27,8 @@ if [ ! -f "$wheel_path" ]; then
   exit 1
 fi
 
-printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_path"
-"$venv_dir/bin/python" -m pip install --no-deps "$wheel_path"
+printf '\n$ %s -m pip install --no-deps --force-reinstall %s\n' "$venv_dir/bin/python" "$wheel_path"
+"$venv_dir/bin/python" -m pip install --no-deps --force-reinstall "$wheel_path"
 
 cd "$project_dir"
 
@@ -119,8 +119,12 @@ GITHUB_STEP_SUMMARY="$summary_path" "$venv_dir/bin/redline" history \
 printf '\n$ redline dashboard --out .redline/dashboard.html\n'
 "$venv_dir/bin/redline" dashboard --out .redline/dashboard.html
 
+printf '\n$ redline audit --verify --out-checkpoint .redline/audit-checkpoint.json\n'
+"$venv_dir/bin/redline" audit --verify --out-checkpoint .redline/audit-checkpoint.json
+
 test -s .redline/history.jsonl
 test -s .redline/history.md
 test -s .redline/dashboard.html
+test -s .redline/audit-checkpoint.json
 
 printf '\naction smoke passed\n'

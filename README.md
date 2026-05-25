@@ -214,7 +214,7 @@ Use redline as a composite GitHub Action from another repo:
     benchmark-max-seconds: "300"
 ```
 
-The action writes JSON, Markdown, HTML, JUnit, history, and dashboard artifacts
+The action writes JSON, Markdown, HTML, JUnit, history, dashboard, and audit checkpoint artifacts
 under `.redline/`, appends benchmark, report, and trend summaries to the
 GitHub step summary, and exits with the eval gate status. Set
 `benchmark-max-seconds` when a suite should fail CI if its worst-case runtime

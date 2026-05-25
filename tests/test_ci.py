@@ -37,7 +37,9 @@ class CiTests(unittest.TestCase):
         self.assertIn("--out-md .redline/history.md", workflow)
         self.assertIn(".redline/history.md", workflow)
         self.assertIn("python -m redline dashboard --out .redline/dashboard.html", workflow)
+        self.assertIn("python -m redline audit --verify --out-checkpoint .redline/audit-checkpoint.json", workflow)
         self.assertIn(".redline/dashboard.html", workflow)
+        self.assertIn(".redline/audit-checkpoint.json", workflow)
         self.assertIn("--github-summary", workflow)
         self.assertIn("actions/upload-artifact@v4", workflow)
 
@@ -69,6 +71,8 @@ class CiTests(unittest.TestCase):
         self.assertIn("python -m redline history", action)
         self.assertIn("--fail-on none", action)
         self.assertIn("python -m redline dashboard --out .redline/dashboard.html", action)
+        self.assertIn("python -m redline audit", action)
+        self.assertIn("--out-checkpoint .redline/audit-checkpoint.json", action)
         self.assertIn('exit "$redline_status"', action)
         self.assertIn("--github-annotations", action)
 
