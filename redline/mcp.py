@@ -691,6 +691,7 @@ def _tools() -> list[ToolSpec]:
                     "path": _string("Audit JSONL path. Defaults to config."),
                     "limit": _integer("Recent audit events to show; use 0 for all."),
                     "verify": _boolean("Verify the audit hash chain."),
+                    "checkpoint": _string("JSON checkpoint produced by audit --out-checkpoint."),
                     "expect_last_hash": _string("Expected final audit entry hash for tail checks."),
                     "expect_entries": _integer("Expected audit entry count for tail checks."),
                     "out_checkpoint": _string("Write a JSON audit checkpoint after verification."),
@@ -889,6 +890,7 @@ def _build_audit(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--path", arguments.get("path"))
     _add_option(args, "--limit", arguments.get("limit"))
     _add_flag(args, "--verify", arguments.get("verify"))
+    _add_option(args, "--checkpoint", arguments.get("checkpoint"))
     _add_option(args, "--expect-last-hash", arguments.get("expect_last_hash"))
     _add_option(args, "--expect-entries", arguments.get("expect_entries"))
     _add_option(args, "--out-checkpoint", arguments.get("out_checkpoint"))

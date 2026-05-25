@@ -244,6 +244,7 @@ def build_parser() -> argparse.ArgumentParser:
     audit_parser.add_argument("--path", help="audit JSONL path; defaults to config")
     audit_parser.add_argument("--limit", type=int, default=20, help="recent audit events to show; use 0 for all")
     audit_parser.add_argument("--verify", action="store_true", help="verify the audit hash chain")
+    audit_parser.add_argument("--checkpoint", help="JSON checkpoint produced by audit --out-checkpoint")
     audit_parser.add_argument("--expect-last-hash", help="expected final audit entry hash for tail checks")
     audit_parser.add_argument("--expect-entries", type=int, help="expected audit entry count for tail checks")
     audit_parser.add_argument("--out-checkpoint", help="write a JSON checkpoint from audit verification")
@@ -742,18 +743,32 @@ def cmd_audit(args: argparse.Namespace) -> int:
         raise ValueError("audit --limit must be 0 or greater")
     if args.expect_entries is not None and args.expect_entries < 0:
         raise ValueError("audit --expect-entries must be 0 or greater")
-    if (args.expect_last_hash or args.expect_entries is not None or args.out_checkpoint) and not args.verify:
+    if (
+        args.checkpoint
+        or args.expect_last_hash
+        or args.expect_entries is not None
+        or args.out_checkpoint
+    ) and not args.verify:
         raise ValueError("audit expectations and checkpoints require --verify")
+    if args.checkpoint and (args.expect_last_hash or args.expect_entries is not None):
+        raise ValueError("audit --checkpoint cannot be combined with --expect-last-hash or --expect-entries")
     config = load_config(args.config)
     audit_path = args.path or _config_audit_path(config)
     if audit_path is None:
         raise ValueError("audit disabled by config; pass --path to read a specific audit log")
     events = read_audit_events(audit_path)
+    expected_last_hash = args.expect_last_hash
+    expected_entries = args.expect_entries
+    if args.checkpoint:
+        expected_last_hash, expected_entries = _audit_checkpoint_expectations(
+            read_json(args.checkpoint),
+            args.checkpoint,
+        )
     verification = (
         verify_audit_events(
             events,
-            expected_last_hash=args.expect_last_hash,
-            expected_entries=args.expect_entries,
+            expected_last_hash=expected_last_hash,
+            expected_entries=expected_entries,
         )
         if args.verify
         else None
@@ -1428,6 +1443,18 @@ def _config_audit_path(config: dict[str, object]) -> str | None:
     if not isinstance(value, str):
         raise ValueError("audit must be a path string, false, or \"none\"")
     return value
+
+
+def _audit_checkpoint_expectations(checkpoint: dict[str, object], path: str) -> tuple[str | None, int]:
+    entries = checkpoint.get("entries")
+    if not isinstance(entries, int) or entries < 0:
+        raise ValueError(f"{path} expected non-negative integer entries")
+    last_hash = checkpoint.get("last_hash")
+    if entries > 0 and (not isinstance(last_hash, str) or not last_hash.strip()):
+        raise ValueError(f"{path} expected last_hash for non-empty audit checkpoint")
+    if isinstance(last_hash, str) and last_hash.strip():
+        return last_hash, entries
+    return None, entries
 
 
 def _report_references(paths: Mapping[str, str | None]) -> dict[str, dict[str, object]]:

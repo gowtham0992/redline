@@ -839,6 +839,23 @@ class CliConfigTests(unittest.TestCase):
 
                 self.assertIn("Status:   OK", checkpoint_output.getvalue())
                 self.assertNotIn("local hash chains cannot prove", checkpoint_output.getvalue())
+
+                checkpoint_file_output = io.StringIO()
+                with contextlib.redirect_stdout(checkpoint_file_output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "audit",
+                                "--verify",
+                                "--checkpoint",
+                                ".redline/audit-checkpoint.json",
+                            ]
+                        ),
+                        0,
+                    )
+
+                self.assertIn("Status:   OK", checkpoint_file_output.getvalue())
+                self.assertNotIn("local hash chains cannot prove", checkpoint_file_output.getvalue())
             finally:
                 os.chdir(previous)
 
