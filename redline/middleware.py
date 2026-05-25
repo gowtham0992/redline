@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 from collections.abc import Awaitable, Callable
+from datetime import datetime, timezone
 from typing import Any
 
+from .io import append_jsonl
 from .redact import DEFAULT_PLACEHOLDER
 from .watch import DEFAULT_WATCH_LOG, record
 
@@ -42,6 +44,7 @@ class RedlineMiddleware:
         max_body_bytes: int | None = DEFAULT_MAX_BODY_BYTES,
         capture_content_types: tuple[str, ...] = DEFAULT_CAPTURE_CONTENT_TYPES,
         capture_streaming_responses: bool = False,
+        skip_log: str | None = None,
     ) -> None:
         if max_body_bytes is not None and max_body_bytes <= 0:
             raise ValueError("max_body_bytes must be greater than 0")
@@ -56,6 +59,7 @@ class RedlineMiddleware:
         self.max_body_bytes = max_body_bytes
         self.capture_content_types = capture_content_types
         self.capture_streaming_responses = capture_streaming_responses
+        self.skip_log = skip_log
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope.get("type") != "http":
@@ -64,9 +68,12 @@ class RedlineMiddleware:
 
         request_body = _CaptureBuffer(self.max_body_bytes)
         response_body = _CaptureBuffer(self.max_body_bytes)
-        request_capture = _scope_capture_allowed(scope, self.capture_content_types, self.max_body_bytes)
+        request_skip_reason = _scope_skip_reason(scope, self.capture_content_types, self.max_body_bytes)
+        request_capture = request_skip_reason is None
         response_capture = False
         response_streaming = False
+        response_skip_reason: str | None = None
+        response_headers: Any = None
         status_code: int | None = None
 
         async def capture_receive() -> Message:
@@ -78,24 +85,76 @@ class RedlineMiddleware:
             return message
 
         async def capture_send(message: Message) -> None:
-            nonlocal response_capture, response_streaming, status_code
+            nonlocal response_capture, response_headers, response_skip_reason, response_streaming, status_code
             if message.get("type") == "http.response.start":
                 status = message.get("status")
                 if isinstance(status, int):
                     status_code = status
-                response_capture = _message_capture_allowed(message, self.capture_content_types, self.max_body_bytes)
+                response_headers = message.get("headers")
+                response_skip_reason = _message_skip_reason(message, self.capture_content_types, self.max_body_bytes)
+                response_capture = response_skip_reason is None
             elif message.get("type") == "http.response.body":
                 body = message.get("body", b"")
                 if response_capture and message.get("more_body", False) and not self.capture_streaming_responses:
                     response_streaming = True
                     response_capture = False
+                    response_skip_reason = "response_streaming"
                     response_body.clear()
                 elif response_capture and isinstance(body, bytes) and body:
                     response_body.append(body)
             await send(message)
             if message.get("type") == "http.response.body" and not message.get("more_body", False):
+                if request_skip_reason is not None:
+                    self._record_skip(
+                        scope,
+                        request_skip_reason,
+                        status_code=status_code,
+                        request_body=request_body,
+                        response_body=response_body,
+                        response_headers=response_headers,
+                    )
+                    return
+                if request_body.too_large:
+                    self._record_skip(
+                        scope,
+                        "request_body_too_large",
+                        status_code=status_code,
+                        request_body=request_body,
+                        response_body=response_body,
+                        response_headers=response_headers,
+                    )
+                    return
+                if response_skip_reason is not None:
+                    self._record_skip(
+                        scope,
+                        response_skip_reason,
+                        status_code=status_code,
+                        request_body=request_body,
+                        response_body=response_body,
+                        response_headers=response_headers,
+                    )
+                    return
+                if response_body.too_large:
+                    self._record_skip(
+                        scope,
+                        "response_body_too_large",
+                        status_code=status_code,
+                        request_body=request_body,
+                        response_body=response_body,
+                        response_headers=response_headers,
+                    )
+                    return
                 if request_capture and response_capture and not response_streaming:
-                    self._record_observation(scope, request_body.chunks, response_body.chunks, status_code)
+                    reason = self._record_observation(scope, request_body.chunks, response_body.chunks, status_code)
+                    if reason is not None:
+                        self._record_skip(
+                            scope,
+                            reason,
+                            status_code=status_code,
+                            request_body=request_body,
+                            response_body=response_body,
+                            response_headers=response_headers,
+                        )
 
         await self.app(scope, capture_receive, capture_send)
 
@@ -105,15 +164,19 @@ class RedlineMiddleware:
         request_chunks: list[bytes],
         response_chunks: list[bytes],
         status_code: int | None,
-    ) -> None:
+    ) -> str | None:
         request_json = _decode_json(request_chunks)
         response_json = _decode_json(response_chunks)
-        if request_json is None or response_json is None:
-            return
+        if request_json is None:
+            return "request_json_decode"
+        if response_json is None:
+            return "response_json_decode"
         prompt = _path_value(request_json, self.prompt_field)
         response = _path_value(response_json, self.response_field)
-        if prompt is _MISSING or response is _MISSING:
-            return
+        if prompt is _MISSING:
+            return "prompt_field_missing"
+        if response is _MISSING:
+            return "response_field_missing"
         record(
             prompt,
             response,
@@ -127,6 +190,38 @@ class RedlineMiddleware:
             redact=self.redact,
             placeholder=self.placeholder,
         )
+        return None
+
+    def _record_skip(
+        self,
+        scope: Scope,
+        reason: str,
+        *,
+        status_code: int | None,
+        request_body: _CaptureBuffer,
+        response_body: _CaptureBuffer,
+        response_headers: Any,
+    ) -> None:
+        if not self.skip_log:
+            return
+        row = {
+            "event": "middleware_capture_skipped",
+            "reason": reason,
+            "observed_at": datetime.now(timezone.utc).isoformat(),
+            "source": _scope_source(scope),
+            "metadata": {
+                **_scope_metadata(scope, status_code),
+                "max_body_bytes": self.max_body_bytes,
+                "prompt_field": self.prompt_field,
+                "response_field": self.response_field,
+                "request": _capture_summary(scope.get("headers"), request_body),
+                "response": _capture_summary(response_headers, response_body),
+            },
+        }
+        try:
+            append_jsonl(self.skip_log, [row])
+        except OSError:
+            return
 
 
 _MISSING = object()
@@ -162,14 +257,28 @@ def _decode_json(chunks: list[bytes]) -> Any:
         return None
 
 
-def _scope_capture_allowed(scope: Scope, allowed: tuple[str, ...], max_body_bytes: int | None) -> bool:
+def _scope_skip_reason(scope: Scope, allowed: tuple[str, ...], max_body_bytes: int | None) -> str | None:
     headers = scope.get("headers")
-    return _content_type_allowed(_headers_content_type(headers), allowed) and _content_length_allowed(headers, max_body_bytes)
+    return _headers_skip_reason(headers, allowed, max_body_bytes, prefix="request")
 
 
-def _message_capture_allowed(message: Message, allowed: tuple[str, ...], max_body_bytes: int | None) -> bool:
+def _message_skip_reason(message: Message, allowed: tuple[str, ...], max_body_bytes: int | None) -> str | None:
     headers = message.get("headers")
-    return _content_type_allowed(_headers_content_type(headers), allowed) and _content_length_allowed(headers, max_body_bytes)
+    return _headers_skip_reason(headers, allowed, max_body_bytes, prefix="response")
+
+
+def _headers_skip_reason(
+    headers: Any,
+    allowed: tuple[str, ...],
+    max_body_bytes: int | None,
+    *,
+    prefix: str,
+) -> str | None:
+    if not _content_type_allowed(_headers_content_type(headers), allowed):
+        return f"{prefix}_content_type"
+    if not _content_length_allowed(headers, max_body_bytes):
+        return f"{prefix}_content_length"
+    return None
 
 
 def _headers_content_type(headers: Any) -> str | None:
@@ -204,6 +313,15 @@ def _content_length_allowed(headers: Any, max_body_bytes: int | None) -> bool:
         return True
     content_length = _headers_content_length(headers)
     return content_length is None or content_length <= max_body_bytes
+
+
+def _capture_summary(headers: Any, body: _CaptureBuffer) -> dict[str, Any]:
+    return {
+        "content_type": _headers_content_type(headers),
+        "content_length": _headers_content_length(headers),
+        "bytes_seen": body.bytes_seen,
+        "too_large": body.too_large,
+    }
 
 
 def _content_type_allowed(content_type: str | None, allowed: tuple[str, ...]) -> bool:

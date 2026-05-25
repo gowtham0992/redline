@@ -276,6 +276,7 @@ app.add_middleware(
     RedlineMiddleware,
     prompt_field="messages.0.content",
     response_field="choices.0.message.content",
+    skip_log=".redline/logs/middleware-skips.jsonl",
 )
 ```
 
@@ -286,7 +287,10 @@ JSON-compatible content types and skips request or response bodies larger than
 1 MB; pass `max_body_bytes=` if your prompt payloads need a different cap. It
 also skips streaming responses by default so long-lived streams or binary
 downloads are never buffered; pass `capture_streaming_responses=True` only for
-bounded JSON responses that are intentionally sent in chunks.
+bounded JSON responses that are intentionally sent in chunks. To debug why a
+request was not recorded, pass `skip_log=`. Skip rows include reason codes and
+metadata such as route, status, content type, content length, and bytes seen;
+they never include request or response body text.
 
 Wire it in:
 

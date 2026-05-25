@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from redline import RedlineMiddleware as ExportedRedlineMiddleware
-from redline.io import read_jsonl_records
+from redline.io import iter_jsonl, read_jsonl_records
 from redline.middleware import RedlineMiddleware
 
 
@@ -74,6 +74,27 @@ class MiddlewareTests(unittest.TestCase):
 
             self.assertFalse(log.exists())
 
+    def test_asgi_middleware_can_log_invalid_json_skip_reason_without_bodies(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            skip_log = Path(directory) / "skips.jsonl"
+
+            async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+                await receive()
+                await send({"type": "http.response.start", "status": 200, "headers": _json_headers()})
+                await send({"type": "http.response.body", "body": b"not json with secret prompt"})
+
+            middleware = RedlineMiddleware(app, log=str(log), skip_log=str(skip_log))
+
+            asyncio.run(_call_app(middleware, {"prompt": "secret prompt"}))
+
+            self.assertFalse(log.exists())
+            rows = _read_jsonl(skip_log)
+            self.assertEqual(rows[0]["reason"], "response_json_decode")
+            self.assertEqual(rows[0]["metadata"]["request"]["content_type"], "application/json")
+            self.assertEqual(rows[0]["metadata"]["response"]["content_type"], "application/json")
+            self.assertNotIn("secret prompt", json.dumps(rows[0]))
+
     def test_asgi_middleware_skips_non_json_content_types(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             log = Path(directory) / "observed.jsonl"
@@ -121,6 +142,26 @@ class MiddlewareTests(unittest.TestCase):
 
             self.assertFalse(log.exists())
 
+    def test_asgi_middleware_logs_content_length_skip_reason(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            skip_log = Path(directory) / "skips.jsonl"
+
+            async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+                await receive()
+                response = {"response": "small answer"}
+                await send({"type": "http.response.start", "status": 200, "headers": _json_headers()})
+                await send({"type": "http.response.body", "body": json.dumps(response).encode("utf-8")})
+
+            middleware = RedlineMiddleware(app, log=str(log), max_body_bytes=64, skip_log=str(skip_log))
+
+            asyncio.run(_call_app(middleware, {"prompt": "hello"}, request_content_length=65))
+
+            rows = _read_jsonl(skip_log)
+            self.assertEqual(rows[0]["reason"], "request_content_length")
+            self.assertEqual(rows[0]["metadata"]["request"]["content_length"], 65)
+            self.assertEqual(rows[0]["metadata"]["max_body_bytes"], 64)
+
     def test_asgi_middleware_skips_response_when_content_length_exceeds_limit(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             log = Path(directory) / "observed.jsonl"
@@ -162,6 +203,25 @@ class MiddlewareTests(unittest.TestCase):
 
             self.assertFalse(log.exists())
 
+    def test_asgi_middleware_logs_streaming_skip_reason(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            skip_log = Path(directory) / "skips.jsonl"
+
+            async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+                await receive()
+                await send({"type": "http.response.start", "status": 200, "headers": _json_headers()})
+                await send({"type": "http.response.body", "body": b'{"response":"streamed', "more_body": True})
+                await send({"type": "http.response.body", "body": b' answer"}'})
+
+            middleware = RedlineMiddleware(app, log=str(log), skip_log=str(skip_log))
+
+            asyncio.run(_call_app(middleware, {"prompt": "hello"}))
+
+            rows = _read_jsonl(skip_log)
+            self.assertEqual(rows[0]["reason"], "response_streaming")
+            self.assertEqual(rows[0]["metadata"]["response"]["bytes_seen"], 0)
+
     def test_asgi_middleware_can_capture_streaming_responses_when_enabled(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             log = Path(directory) / "observed.jsonl"
@@ -178,6 +238,25 @@ class MiddlewareTests(unittest.TestCase):
 
             records = read_jsonl_records(log, "prompt", "response")
             self.assertEqual(records[0].response, "streamed answer")
+
+    def test_asgi_middleware_logs_missing_field_skip_reason(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            skip_log = Path(directory) / "skips.jsonl"
+
+            async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+                await receive()
+                await send({"type": "http.response.start", "status": 200, "headers": _json_headers()})
+                await send({"type": "http.response.body", "body": b'{"response":"answer"}'})
+
+            middleware = RedlineMiddleware(app, log=str(log), prompt_field="missing.prompt", skip_log=str(skip_log))
+
+            asyncio.run(_call_app(middleware, {"prompt": "hello"}))
+
+            rows = _read_jsonl(skip_log)
+            self.assertEqual(rows[0]["reason"], "prompt_field_missing")
+            self.assertEqual(rows[0]["metadata"]["prompt_field"], "missing.prompt")
+            self.assertEqual(rows[0]["metadata"]["response_field"], "response")
 
     def test_asgi_middleware_rejects_invalid_body_limit(self) -> None:
         async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
@@ -251,6 +330,10 @@ async def _call_app(
 
 def _json_headers() -> list[tuple[bytes, bytes]]:
     return [(b"content-type", b"application/json")]
+
+
+def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+    return [row for _, row in iter_jsonl(path)]
 
 
 if __name__ == "__main__":
