@@ -30,6 +30,7 @@ def build_dashboard(
         "history": history,
         "trend": trend,
         "owners": _dashboard_owner_review(reports),
+        "trust": _dashboard_trust_summary(reports),
         "errors": report_errors + history_errors,
         "scope": TRUST_SCOPE,
     }
@@ -53,6 +54,9 @@ def format_dashboard_html(
     owners = dashboard.get("owners")
     if not isinstance(owners, list):
         owners = _dashboard_owner_review([report for report in reports if isinstance(report, dict)])
+    trust = dashboard.get("trust")
+    if not isinstance(trust, dict):
+        trust = _dashboard_trust_summary([report for report in reports if isinstance(report, dict)])
     raw_trend = dashboard.get("trend")
     trend = raw_trend if isinstance(raw_trend, dict) else history_trend(list(reversed(history)))
     latest = reports[0] if reports and isinstance(reports[0], dict) else {}
@@ -77,6 +81,7 @@ def format_dashboard_html(
             _overview(latest, len(reports), len(history)),
             _trend_panel(trend),
             _scope(str(dashboard.get("scope") or TRUST_SCOPE)),
+            _trust_panel(trust),
             _owners_panel(owners),
             _errors(errors),
             _reports_table(reports, output_path=output_path),
@@ -120,6 +125,7 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
                 "summary": _summary_counts(summary),
                 "decision": report.get("decision") if isinstance(report.get("decision"), dict) else {},
                 "owners": _report_owner_review(report.get("diffs")),
+                "trust": _report_trust_summary(report.get("diffs")),
                 "html_path": _existing_sibling(path, ".html"),
                 "markdown_path": _existing_sibling(path, ".md"),
             }
@@ -211,6 +217,60 @@ def _dashboard_owner_review(reports: list[dict[str, Any]]) -> list[dict[str, int
     return _sort_owner_rows(rows.values())
 
 
+def _report_trust_summary(diffs: Any) -> dict[str, Any]:
+    confidence: dict[str, int] = {}
+    signal: dict[str, int] = {}
+    cases = 0
+    if not isinstance(diffs, list):
+        return {"cases": 0, "confidence": {}, "signal": {}}
+    for item in diffs:
+        if not isinstance(item, dict):
+            continue
+        cases += 1
+        confidence_key = str(item.get("confidence") or "").strip()
+        if confidence_key:
+            confidence[confidence_key] = confidence.get(confidence_key, 0) + 1
+        signal_key = str(item.get("signal") or "").strip()
+        if signal_key:
+            signal[signal_key] = signal.get(signal_key, 0) + 1
+    return {
+        "cases": cases,
+        "confidence": dict(sorted(confidence.items())),
+        "signal": dict(sorted(signal.items())),
+    }
+
+
+def _dashboard_trust_summary(reports: list[dict[str, Any]]) -> dict[str, Any]:
+    cases = 0
+    confidence: dict[str, int] = {}
+    signal: dict[str, int] = {}
+    for report in reports:
+        trust = report.get("trust")
+        if not isinstance(trust, dict):
+            continue
+        cases += int(trust.get("cases") or 0)
+        _merge_counts(confidence, trust.get("confidence"))
+        _merge_counts(signal, trust.get("signal"))
+    return {
+        "cases": cases,
+        "confidence": dict(sorted(confidence.items())),
+        "signal": dict(sorted(signal.items())),
+    }
+
+
+def _merge_counts(target: dict[str, int], source: Any) -> None:
+    if not isinstance(source, dict):
+        return
+    for key, value in source.items():
+        try:
+            count = int(value)
+        except (TypeError, ValueError):
+            continue
+        clean_key = str(key).strip()
+        if clean_key:
+            target[clean_key] = target.get(clean_key, 0) + count
+
+
 def _sort_owner_rows(rows: Any) -> list[dict[str, int | str]]:
     return sorted(
         rows,
@@ -250,6 +310,36 @@ def _overview(latest: dict[str, Any], report_count: int, history_count: int) -> 
         f'<div class="cards">{cells}</div>'
         "</section>"
     )
+
+
+def _trust_panel(trust: dict[str, Any]) -> str:
+    cases = int(trust.get("cases") or 0)
+    confidence = trust.get("confidence")
+    signal = trust.get("signal")
+    if cases <= 0 or not isinstance(confidence, dict) or not isinstance(signal, dict):
+        return ""
+    confidence_pills = _count_pills(confidence)
+    signal_pills = _count_pills(signal)
+    if not confidence_pills and not signal_pills:
+        return ""
+    return (
+        '<section class="panel trust-review">'
+        "<h2>Trust Signals</h2>"
+        '<div class="trust-grid">'
+        f'<div><span>Confidence</span><p>{confidence_pills or "-"}</p></div>'
+        f'<div><span>Signal</span><p>{signal_pills or "-"}</p></div>'
+        "</div>"
+        "</section>"
+    )
+
+
+def _count_pills(counts: dict[Any, Any]) -> str:
+    rows = []
+    for key, value in sorted(counts.items(), key=lambda item: str(item[0])):
+        rows.append(
+            f'<span class="pill">{_h(str(key).replace("_", " "))} {int(value or 0)}</span>'
+        )
+    return "".join(rows)
 
 
 def _owners_panel(owners: list[Any]) -> str:
@@ -492,6 +582,13 @@ h2 { font-size: 18px; margin-bottom: 12px; }
   gap: 12px;
   margin-top: 16px;
 }
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.trust-grid span { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; }
+.trust-grid p { margin-top: 8px; }
 .card {
   border: 1px solid var(--line);
   border-radius: 8px;

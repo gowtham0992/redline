@@ -23,8 +23,20 @@ class DashboardTests(unittest.TestCase):
                 },
                 "decision": {"recommended_action": "review changed cases before shipping"},
                 "diffs": [
-                    {"case_id": "case_001", "status": "regression", "owner": "@platform-team"},
-                    {"case_id": "case_002", "status": "changed", "owner": "@support-team"},
+                    {
+                        "case_id": "case_001",
+                        "status": "regression",
+                        "owner": "@platform-team",
+                        "confidence": "high",
+                        "signal": "structural",
+                    },
+                    {
+                        "case_id": "case_002",
+                        "status": "changed",
+                        "owner": "@support-team",
+                        "confidence": "medium",
+                        "signal": "judge",
+                    },
                 ],
             }
             write_json(reports / "eval.json", report)
@@ -57,9 +69,20 @@ class DashboardTests(unittest.TestCase):
                     {"owner": "@support-team", "blocking": 0, "changed": 1, "total": 1},
                 ],
             )
+            self.assertEqual(
+                dashboard["trust"],
+                {
+                    "cases": 2,
+                    "confidence": {"high": 1, "medium": 1},
+                    "signal": {"judge": 1, "structural": 1},
+                },
+            )
             self.assertIn("<title>redline dashboard</title>", html)
             self.assertIn("eval.json", html)
             self.assertIn("<h2>Trend</h2>", html)
+            self.assertIn("<h2>Trust Signals</h2>", html)
+            self.assertIn("high 1", html)
+            self.assertIn("structural 1", html)
             self.assertIn("<h2>Owner Review</h2>", html)
             self.assertIn("@platform-team", html)
             self.assertIn("@support-team", html)
