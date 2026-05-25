@@ -76,6 +76,7 @@ def doctor_report(
         checks.append(_judge_check(config.get("judge")))
 
     checks.append(_coverage_check(config=config, suite=suite))
+    checks.append(_team_workflow_check(config=config, suite=suite))
 
     report_paths = _configured_paths(config.get("reports"), ("json", "markdown", "html", "junit"))
     if report_paths:
@@ -218,6 +219,44 @@ def _high_risk_cluster_count(suite: dict[str, Any], summary: dict[str, Any]) -> 
         for cluster in clusters
         if isinstance(cluster, dict) and str(cluster.get("risk") or "") == "high"
     )
+
+
+def _team_workflow_check(*, config: dict[str, Any], suite: dict[str, Any] | None) -> dict[str, str]:
+    cases = suite.get("cases") if isinstance(suite, dict) else None
+    case_count = len(cases) if isinstance(cases, list) else 0
+    owned_cases = sum(
+        1
+        for case in cases or []
+        if isinstance(case, dict) and str(case.get("owner") or "").strip()
+    )
+    owner_rules = _owner_rule_count(config.get("owners"))
+    approval = config.get("approval")
+    require_approver = bool(approval.get("require_approver")) if isinstance(approval, dict) else False
+    return {
+        "status": "ok",
+        "name": "team-workflow",
+        "message": (
+            f"owners={owned_cases}/{case_count}; "
+            f"owner rules={owner_rules}; "
+            f"approval required={'yes' if require_approver else 'no'}"
+        ),
+    }
+
+
+def _owner_rule_count(value: object) -> int:
+    if isinstance(value, dict):
+        return len([key for key, owner in value.items() if str(key).strip() and str(owner).strip()])
+    if isinstance(value, list):
+        return sum(
+            1
+            for item in value
+            if isinstance(item, dict)
+            and str(item.get("match") or "").strip()
+            and str(item.get("owner") or "").strip()
+        )
+    if isinstance(value, str) and value.strip():
+        return 1
+    return 0
 
 
 def _next_steps(checks: list[dict[str, str]], *, suite_path: str) -> list[str]:

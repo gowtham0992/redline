@@ -106,6 +106,7 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("judge: configured", output)
         self.assertIn("coverage: structural checks only", output)
         self.assertIn("requirements=0; judge=yes", output)
+        self.assertIn("team-workflow: owners=0/1; owner rules=0; approval required=no", output)
         self.assertIn("reports: json=.redline/reports/doctor.json", output)
         self.assertIn("html=.redline/reports/doctor.html", output)
         self.assertIn("junit=.redline/reports/doctor.xml", output)
@@ -221,6 +222,33 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("high-risk clusters=1", coverage["message"])
         self.assertIn("requirements=0; judge=no", coverage["message"])
         self.assertIn("add requirements or a judge", coverage["message"])
+
+    def test_doctor_surfaces_team_workflow_posture(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Route billing", "Billing Ops handles it.", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+            owner="@billing-team",
+        )
+
+        report = doctor_report(
+            config_path="pyproject.toml",
+            config={
+                "replay": f"{sys.executable} -c pass",
+                "owners": [{"match": "billing", "owner": "@billing-team"}],
+                "approval": {"require_approver": True},
+            },
+            suite=suite,
+        )
+
+        team = next(check for check in report["checks"] if check["name"] == "team-workflow")
+        self.assertEqual(team["status"], "ok")
+        self.assertEqual(
+            team["message"],
+            "owners=1/1; owner rules=1; approval required=yes",
+        )
 
     def test_format_doctor_report_prints_next_steps(self) -> None:
         report = doctor_report(
