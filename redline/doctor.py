@@ -8,7 +8,8 @@ from typing import Any
 
 from .audit import DEFAULT_AUDIT_PATH, verify_audit_log
 from .runners import runner_adapters
-from .validate import validate_suite
+from .summary import prompt_manifest_summary
+from .validate import validate_prompt_manifest, validate_suite
 from .watch import DEFAULT_MIDDLEWARE_SKIP_LOG, DEFAULT_WATCH_LOG, watch_stats
 
 
@@ -29,7 +30,30 @@ def doctor_report(
         checks.append({"status": "warn", "name": "config", "message": f"{config_path} not found"})
 
     suite_path = str(config.get("suite") or "redline-suite.json")
-    if suite is not None:
+    manifest_summary = _safe_prompt_manifest_summary(suite, suite_path) if _is_prompt_manifest(suite) else None
+    if suite is not None and _is_prompt_manifest(suite):
+        prompt_count = _manifest_prompt_count(suite, manifest_summary)
+        suite_count = _manifest_suite_count(manifest_summary)
+        message = (
+            f"found prompt manifest {suite_path} with {prompt_count} prompts "
+            f"and {suite_count}/{prompt_count} mapped suites ready"
+        )
+        missing_count = _manifest_int(manifest_summary, "missing_suite_count")
+        invalid_count = _manifest_int(manifest_summary, "invalid_suite_count")
+        if missing_count or invalid_count:
+            message += f"; missing={missing_count}; invalid={invalid_count}"
+        checks.append({"status": "ok", "name": "suite", "message": message})
+        validation = validate_prompt_manifest(suite, manifest_path=suite_path)
+        validation_message = (
+            f"{validation['errors']} error(s), {validation['warnings']} warning(s)"
+        )
+        if validation["errors"]:
+            checks.append({"status": "error", "name": "suite-validation", "message": validation_message})
+        elif validation["warnings"]:
+            checks.append({"status": "warn", "name": "suite-validation", "message": validation_message})
+        else:
+            checks.append({"status": "ok", "name": "suite-validation", "message": "valid"})
+    elif suite is not None:
         cases = suite.get("cases", [])
         case_count = len(cases) if isinstance(cases, list) else 0
         checks.append(
@@ -76,8 +100,8 @@ def doctor_report(
     if "judge" in config:
         checks.append(_judge_check(config.get("judge")))
 
-    checks.append(_coverage_check(config=config, suite=suite))
-    checks.append(_team_workflow_check(config=config, suite=suite))
+    checks.append(_coverage_check(config=config, suite=suite, manifest_summary=manifest_summary))
+    checks.append(_team_workflow_check(config=config, suite=suite, manifest_summary=manifest_summary))
     capture_check = _capture_check(config)
     if capture_check is not None:
         checks.append(capture_check)
@@ -187,12 +211,29 @@ def _missing_suite_message(suite_path: str) -> str:
     return message
 
 
-def _coverage_check(*, config: dict[str, Any], suite: dict[str, Any] | None) -> dict[str, str]:
+def _coverage_check(
+    *,
+    config: dict[str, Any],
+    suite: dict[str, Any] | None,
+    manifest_summary: dict[str, Any] | None = None,
+) -> dict[str, str]:
     message = (
         "structural checks only; use requirements or an optional judge "
         "for factual, tone, hallucination, or reasoning risks"
     )
     if suite is None:
+        return {"status": "ok", "name": "coverage", "message": message}
+
+    if manifest_summary is not None:
+        requirements_count = _manifest_int(manifest_summary, "requirements")
+        high_risk_clusters = _manifest_int(manifest_summary, "high_risk_clusters")
+        judge_configured = "judge" in config
+        message += (
+            f"; high-risk clusters={high_risk_clusters}; "
+            f"requirements={requirements_count}; judge={'yes' if judge_configured else 'no'}"
+        )
+        if high_risk_clusters and not requirements_count and not judge_configured:
+            message += "; add requirements or a judge before trusting semantic quality"
         return {"status": "ok", "name": "coverage", "message": message}
 
     summary = suite.get("summary")
@@ -225,14 +266,23 @@ def _high_risk_cluster_count(suite: dict[str, Any], summary: dict[str, Any]) -> 
     )
 
 
-def _team_workflow_check(*, config: dict[str, Any], suite: dict[str, Any] | None) -> dict[str, str]:
-    cases = suite.get("cases") if isinstance(suite, dict) else None
-    case_count = len(cases) if isinstance(cases, list) else 0
-    owned_cases = sum(
-        1
-        for case in cases or []
-        if isinstance(case, dict) and str(case.get("owner") or "").strip()
-    )
+def _team_workflow_check(
+    *,
+    config: dict[str, Any],
+    suite: dict[str, Any] | None,
+    manifest_summary: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    if manifest_summary is not None:
+        case_count = _manifest_int(manifest_summary, "cases")
+        owned_cases = _manifest_int(manifest_summary, "owned_cases")
+    else:
+        cases = suite.get("cases") if isinstance(suite, dict) else None
+        case_count = len(cases) if isinstance(cases, list) else 0
+        owned_cases = sum(
+            1
+            for case in cases or []
+            if isinstance(case, dict) and str(case.get("owner") or "").strip()
+        )
     owner_rules = _owner_rule_count(config.get("owners"))
     approval = config.get("approval")
     require_approver = bool(approval.get("require_approver")) if isinstance(approval, dict) else False
@@ -282,7 +332,7 @@ def _next_steps(checks: list[dict[str, str]], *, suite_path: str) -> list[str]:
     suite = by_name.get("suite")
     if suite and suite["status"] == "warn":
         steps.append(
-            "Generate suite: redline suite path/to/log.jsonl --out redline-suite.json"
+            _generate_suite_step(suite_path)
         )
     elif suite and suite["status"] == "error":
         steps.append("Fix suite JSON, then rerun: redline doctor")
@@ -315,6 +365,51 @@ def _next_steps(checks: list[dict[str, str]], *, suite_path: str) -> list[str]:
         steps.append(_capture_next_step(capture["message"]))
 
     return steps
+
+
+def _is_prompt_manifest(value: dict[str, Any] | None) -> bool:
+    return isinstance(value, dict) and str(value.get("schema") or "") == "redline-prompt-manifest-v1"
+
+
+def _safe_prompt_manifest_summary(
+    manifest: dict[str, Any] | None,
+    manifest_path: str,
+) -> dict[str, Any] | None:
+    if not _is_prompt_manifest(manifest):
+        return None
+    assert manifest is not None
+    try:
+        return prompt_manifest_summary(manifest, manifest_path=manifest_path)
+    except ValueError:
+        return None
+
+
+def _manifest_prompt_count(
+    manifest: dict[str, Any],
+    manifest_summary: dict[str, Any] | None,
+) -> int:
+    count = _manifest_int(manifest_summary, "prompt_count")
+    if count:
+        return count
+    prompts = manifest.get("prompts")
+    return len(prompts) if isinstance(prompts, list) else 0
+
+
+def _manifest_suite_count(manifest_summary: dict[str, Any] | None) -> int:
+    return _manifest_int(manifest_summary, "suite_count")
+
+
+def _manifest_int(summary: dict[str, Any] | None, key: str) -> int:
+    if not isinstance(summary, dict):
+        return 0
+    value = summary.get(key)
+    return value if isinstance(value, int) else 0
+
+
+def _generate_suite_step(suite_path: str) -> str:
+    if Path(suite_path).name == "redline-prompts.json":
+        return "Scan prompts: redline prompts prompts/ --suite-dir suites --out redline-prompts.json"
+    return "Generate suite: redline suite path/to/log.jsonl --out redline-suite.json"
 
 
 def _check_has(

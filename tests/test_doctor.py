@@ -116,6 +116,105 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("audit: enabled at .redline/audit.jsonl", output)
         self.assertNotIn("Next:", output)
 
+    def test_doctor_reports_prompt_manifest_readiness(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text("{}", encoding="utf-8")
+                prompt_path = Path("prompts") / "support.txt"
+                prompt_path.parent.mkdir()
+                prompt_path.write_text("Support prompt", encoding="utf-8")
+                suite_path = Path("suites") / "support.redline-suite.json"
+                suite_path.parent.mkdir()
+                suite = build_suite(
+                    [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+                    source="logs/support.jsonl",
+                    input_field="prompt",
+                    output_field="response",
+                    max_cases=10,
+                )
+                suite_path.write_text(json.dumps(suite), encoding="utf-8")
+                manifest = {
+                    "schema": "redline-prompt-manifest-v1",
+                    "root": "prompts",
+                    "suite_dir": "suites",
+                    "prompts": [
+                        {
+                            "id": "support",
+                            "path": str(prompt_path),
+                            "suite": str(suite_path),
+                        }
+                    ],
+                }
+
+                report = doctor_report(
+                    config_path="redline.json",
+                    config={
+                        "suite": "redline-prompts.json",
+                        "replay": f"{sys.executable} -c pass",
+                    },
+                    suite=manifest,
+                )
+            finally:
+                os.chdir(previous)
+
+        self.assertTrue(report["ok"])
+        suite_check = next(check for check in report["checks"] if check["name"] == "suite")
+        self.assertEqual(suite_check["status"], "ok")
+        self.assertIn(
+            "found prompt manifest redline-prompts.json with 1 prompts and 1/1 mapped suites ready",
+            suite_check["message"],
+        )
+        validation = next(check for check in report["checks"] if check["name"] == "suite-validation")
+        self.assertEqual(validation["status"], "ok")
+        coverage = next(check for check in report["checks"] if check["name"] == "coverage")
+        self.assertIn("requirements=0; judge=no", coverage["message"])
+        workflow = next(check for check in report["checks"] if check["name"] == "team-workflow")
+        self.assertIn("owners=0/1", workflow["message"])
+
+    def test_doctor_reports_prompt_manifest_missing_suites(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text("{}", encoding="utf-8")
+                prompt_path = Path("prompts") / "support.txt"
+                prompt_path.parent.mkdir()
+                prompt_path.write_text("Support prompt", encoding="utf-8")
+                manifest = {
+                    "schema": "redline-prompt-manifest-v1",
+                    "root": "prompts",
+                    "suite_dir": "suites",
+                    "prompts": [
+                        {
+                            "id": "support",
+                            "path": str(prompt_path),
+                            "suite": "suites/support.redline-suite.json",
+                        }
+                    ],
+                }
+
+                report = doctor_report(
+                    config_path="redline.json",
+                    config={
+                        "suite": "redline-prompts.json",
+                        "replay": f"{sys.executable} -c pass",
+                    },
+                    suite=manifest,
+                )
+            finally:
+                os.chdir(previous)
+
+        self.assertFalse(report["ok"])
+        suite_check = next(check for check in report["checks"] if check["name"] == "suite")
+        self.assertIn("missing=1; invalid=0", suite_check["message"])
+        validation = next(check for check in report["checks"] if check["name"] == "suite-validation")
+        self.assertEqual(validation["status"], "error")
+        self.assertIn("Review suite health: redline validate redline-prompts.json", report["next_steps"])
+
     def test_doctor_warns_when_audit_is_disabled(self) -> None:
         report = doctor_report(
             config_path="pyproject.toml",

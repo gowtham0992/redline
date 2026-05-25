@@ -39,6 +39,7 @@
 - Add review command guidance to Markdown reports for intentional changes.
 - Add review command guidance to HTML reports for intentional changes.
 - Write concise PR-comment Markdown reports with owners, top blocking cases, artifacts, and review commands.
+- Teach `redline doctor` to report prompt manifest readiness, mapped suite validation, and aggregate owner coverage.
 - Show owner coverage and top owners in `redline summary`.
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Show blocking and changed review counts in the dashboard reports table.
