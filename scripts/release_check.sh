@@ -131,6 +131,41 @@ printf '\n$ %s -m pip install --no-deps --force-reinstall %s\n' "$venv_dir/bin/p
   printf '\n$ redline suite .redline/demo/baseline.jsonl --out all-suite.json --all-cases\n'
   "$venv_dir/bin/redline" suite .redline/demo/baseline.jsonl --out all-suite.json --all-cases
 
+  printf '\n$ redline suite .redline/demo/baseline.jsonl --out manifest-suites/v2.redline-suite.json --all-cases\n'
+  "$venv_dir/bin/redline" suite \
+    .redline/demo/baseline.jsonl \
+    --out manifest-suites/v2.redline-suite.json \
+    --all-cases
+
+  printf '\n$ redline prompts .redline/demo/prompts/v2.txt --suite-dir manifest-suites --out redline-prompts.json\n'
+  "$venv_dir/bin/redline" prompts \
+    .redline/demo/prompts/v2.txt \
+    --suite-dir manifest-suites \
+    --out redline-prompts.json
+
+  printf '\n$ redline prompts .redline/demo/prompts/v2.txt --suite-dir manifest-suites --out redline-prompts.json --check --check-suites\n'
+  "$venv_dir/bin/redline" prompts \
+    .redline/demo/prompts/v2.txt \
+    --suite-dir manifest-suites \
+    --out redline-prompts.json \
+    --check \
+    --check-suites
+
+  manifest_replay="$venv_dir/bin/python -c 'import sys; print(sys.stdin.read())'"
+  printf '\n$ redline eval redline-prompts.json --replay "%s" --compact --out-json manifest-eval.json --out-html manifest-eval.html --candidate-out manifest-candidate.jsonl --run-metadata manifest-replay.json --fail-on none\n' "$manifest_replay"
+  "$venv_dir/bin/redline" eval redline-prompts.json \
+    --replay "$manifest_replay" \
+    --compact \
+    --out-json manifest-eval.json \
+    --out-html manifest-eval.html \
+    --candidate-out manifest-candidate.jsonl \
+    --run-metadata manifest-replay.json \
+    --fail-on none
+  test -s manifest-eval.json
+  test -s manifest-eval.html
+  test -s manifest-candidate.jsonl
+  test -s manifest-replay.json
+
   printf '\n$ redline suite add all-suite.json --prompt "Pinned refund URL" --response "Refund policy: https://example.com/refunds" --include "https://example.com/refunds" --out pinned-suite.json\n'
   "$venv_dir/bin/redline" suite add all-suite.json \
     --prompt "Pinned refund URL" \
