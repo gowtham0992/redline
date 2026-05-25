@@ -37,6 +37,7 @@
 - Detect common Spanish, French, Portuguese, German, Chinese, and Japanese AI refusal phrasing.
 - Add owner review rollups to Markdown and HTML reports for PR triage.
 - Show owner coverage and top owners in `redline summary`.
+- Roll up blocking and changed cases by owner in the local dashboard.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Capture prompt-response pairs from Python functions with the local `@watch` decorator and `record()` helper, with exact duplicate observations skipped by content hash.
 - Normalize common provider response objects and capture latency/token metadata from watched Python calls.

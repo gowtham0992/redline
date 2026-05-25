@@ -29,6 +29,7 @@ def build_dashboard(
         "reports": reports,
         "history": history,
         "trend": trend,
+        "owners": _dashboard_owner_review(reports),
         "errors": report_errors + history_errors,
         "scope": TRUST_SCOPE,
     }
@@ -49,6 +50,9 @@ def format_dashboard_html(
     errors = dashboard.get("errors")
     if not isinstance(errors, list):
         errors = []
+    owners = dashboard.get("owners")
+    if not isinstance(owners, list):
+        owners = _dashboard_owner_review([report for report in reports if isinstance(report, dict)])
     raw_trend = dashboard.get("trend")
     trend = raw_trend if isinstance(raw_trend, dict) else history_trend(list(reversed(history)))
     latest = reports[0] if reports and isinstance(reports[0], dict) else {}
@@ -73,6 +77,7 @@ def format_dashboard_html(
             _overview(latest, len(reports), len(history)),
             _trend_panel(trend),
             _scope(str(dashboard.get("scope") or TRUST_SCOPE)),
+            _owners_panel(owners),
             _errors(errors),
             _reports_table(reports, output_path=output_path),
             _history_table(history, output_path=output_path),
@@ -114,6 +119,7 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
                 "kind": _report_kind(report, path),
                 "summary": _summary_counts(summary),
                 "decision": report.get("decision") if isinstance(report.get("decision"), dict) else {},
+                "owners": _report_owner_review(report.get("diffs")),
                 "html_path": _existing_sibling(path, ".html"),
                 "markdown_path": _existing_sibling(path, ".md"),
             }
@@ -158,6 +164,65 @@ def _summary_counts(summary: dict[str, Any]) -> dict[str, int]:
     return counts
 
 
+def _report_owner_review(diffs: Any) -> list[dict[str, int | str]]:
+    if not isinstance(diffs, list):
+        return []
+    rows: dict[str, dict[str, int | str]] = {}
+    for item in diffs:
+        if not isinstance(item, dict):
+            continue
+        owner = str(item.get("owner") or "").strip()
+        if not owner:
+            continue
+        status = str(item.get("status") or "")
+        row = rows.setdefault(
+            owner,
+            {
+                "owner": owner,
+                "blocking": 0,
+                "changed": 0,
+                "total": 0,
+            },
+        )
+        row["total"] = int(row["total"]) + 1
+        if status in {"regression", "missing"}:
+            row["blocking"] = int(row["blocking"]) + 1
+        elif status == "changed":
+            row["changed"] = int(row["changed"]) + 1
+    return _sort_owner_rows(rows.values())
+
+
+def _dashboard_owner_review(reports: list[dict[str, Any]]) -> list[dict[str, int | str]]:
+    rows: dict[str, dict[str, int | str]] = {}
+    for report in reports:
+        owner_rows = report.get("owners")
+        if not isinstance(owner_rows, list):
+            continue
+        for owner_row in owner_rows:
+            if not isinstance(owner_row, dict):
+                continue
+            owner = str(owner_row.get("owner") or "").strip()
+            if not owner:
+                continue
+            row = rows.setdefault(owner, {"owner": owner, "blocking": 0, "changed": 0, "total": 0})
+            row["blocking"] = int(row["blocking"]) + int(owner_row.get("blocking") or 0)
+            row["changed"] = int(row["changed"]) + int(owner_row.get("changed") or 0)
+            row["total"] = int(row["total"]) + int(owner_row.get("total") or 0)
+    return _sort_owner_rows(rows.values())
+
+
+def _sort_owner_rows(rows: Any) -> list[dict[str, int | str]]:
+    return sorted(
+        rows,
+        key=lambda row: (
+            -int(row["blocking"]),
+            -int(row["changed"]),
+            -int(row["total"]),
+            str(row["owner"]).lower(),
+        ),
+    )
+
+
 def _overview(latest: dict[str, Any], report_count: int, history_count: int) -> str:
     raw_summary = latest.get("summary")
     summary = raw_summary if isinstance(raw_summary, dict) else {}
@@ -183,6 +248,36 @@ def _overview(latest: dict[str, Any], report_count: int, history_count: int) -> 
         "</div>"
         "</div>"
         f'<div class="cards">{cells}</div>'
+        "</section>"
+    )
+
+
+def _owners_panel(owners: list[Any]) -> str:
+    if not owners:
+        return ""
+    rows = []
+    for item in owners:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            "<tr>"
+            f"<td>{_h(str(item.get('owner') or '-'))}</td>"
+            f"<td>{int(item.get('blocking') or 0)}</td>"
+            f"<td>{int(item.get('changed') or 0)}</td>"
+            f"<td>{int(item.get('total') or 0)}</td>"
+            "</tr>"
+        )
+    if not rows:
+        return ""
+    return (
+        '<section class="panel owner-review">'
+        "<h2>Owner Review</h2>"
+        '<div class="table-wrap">'
+        "<table>"
+        "<thead><tr><th>Owner</th><th>Blocking</th><th>Changed</th><th>Total</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table>"
+        "</div>"
         "</section>"
     )
 

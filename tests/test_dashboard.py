@@ -22,7 +22,10 @@ class DashboardTests(unittest.TestCase):
                     "neutral": 0,
                 },
                 "decision": {"recommended_action": "review changed cases before shipping"},
-                "diffs": [],
+                "diffs": [
+                    {"case_id": "case_001", "status": "regression", "owner": "@platform-team"},
+                    {"case_id": "case_002", "status": "changed", "owner": "@support-team"},
+                ],
             }
             write_json(reports / "eval.json", report)
             (reports / "eval.html").write_text("<!doctype html>\n", encoding="utf-8")
@@ -47,9 +50,19 @@ class DashboardTests(unittest.TestCase):
             self.assertEqual(len(dashboard["reports"]), 1)
             self.assertEqual(len(dashboard["history"]), 1)
             self.assertEqual(dashboard["trend"]["direction"], "baseline")
+            self.assertEqual(
+                dashboard["owners"],
+                [
+                    {"owner": "@platform-team", "blocking": 1, "changed": 0, "total": 1},
+                    {"owner": "@support-team", "blocking": 0, "changed": 1, "total": 1},
+                ],
+            )
             self.assertIn("<title>redline dashboard</title>", html)
             self.assertIn("eval.json", html)
             self.assertIn("<h2>Trend</h2>", html)
+            self.assertIn("<h2>Owner Review</h2>", html)
+            self.assertIn("@platform-team", html)
+            self.assertIn("@support-team", html)
             self.assertIn("regression 1", html)
             self.assertIn("prompt-v2", html)
             self.assertIn("reports/eval.html", html)
