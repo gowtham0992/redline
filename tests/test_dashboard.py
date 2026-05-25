@@ -38,6 +38,10 @@ class DashboardTests(unittest.TestCase):
                         "owner": "@platform-team",
                         "confidence": "high",
                         "signal": "structural",
+                        "prompt": "Return JSON with owner and priority.",
+                        "reasons": ["candidate lost valid JSON format"],
+                        "prompt_path": "prompts/support/triage.txt",
+                        "suite": "suites/support/triage.redline-suite.json",
                     },
                     {
                         "case_id": "case_002",
@@ -45,6 +49,8 @@ class DashboardTests(unittest.TestCase):
                         "owner": "@support-team",
                         "confidence": "medium",
                         "signal": "judge",
+                        "prompt": "Summarize the support ticket.",
+                        "reasons": ["judge marked behavior changed"],
                     },
                 ],
             }
@@ -103,6 +109,11 @@ class DashboardTests(unittest.TestCase):
                 dashboard["reports"][0]["review"],
                 {"reviewable": 2, "blocking": 1, "changed": 1},
             )
+            self.assertEqual(dashboard["reports"][0]["review_cases"][0]["case_id"], "case_001")
+            self.assertEqual(
+                dashboard["reports"][0]["review_cases"][0]["reason"],
+                "candidate lost valid JSON format",
+            )
             self.assertEqual(dashboard["checkpoint"]["entries"], 3)
             self.assertEqual(
                 dashboard["reports"][0]["prompt_evals"],
@@ -122,6 +133,10 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("support/triage", html)
             self.assertIn("prompts/support/triage.txt", html)
             self.assertIn("suites/support/triage.redline-suite.json", html)
+            self.assertIn("<h2>Review Queue</h2>", html)
+            self.assertIn("case_001", html)
+            self.assertIn("candidate lost valid JSON format", html)
+            self.assertIn("Return JSON with owner and priority.", html)
             self.assertIn("<th>Review</th>", html)
             self.assertIn("blocking 1", html)
             self.assertIn("changed 1", html)
