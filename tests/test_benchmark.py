@@ -32,6 +32,7 @@ class BenchmarkTests(unittest.TestCase):
 
         self.assertEqual(report["suite"], "suite.json")
         self.assertEqual(report["cases"], 3)
+        self.assertEqual(report["mode"], "static_eval_budget_estimate")
         self.assertEqual(report["clusters"], 3)
         self.assertEqual(report["parallel_waves"], 2)
         self.assertEqual(report["worst_case_seconds"], 60)
@@ -70,6 +71,7 @@ class BenchmarkTests(unittest.TestCase):
         output = format_benchmark_report(_sample_report())
 
         self.assertIn("redline benchmark", output)
+        self.assertIn("Mode:                  static estimate; no replay commands are executed", output)
         self.assertIn("Worst-case eval budget: 5m 30s", output)
         self.assertIn("Sequential budget:     21m 0s", output)
         self.assertIn("Status:                OK", output)
@@ -83,6 +85,7 @@ class BenchmarkTests(unittest.TestCase):
         output = format_benchmark_markdown(report)
 
         self.assertIn("## redline benchmark", output)
+        self.assertIn("Static estimate; no replay commands are executed.", output)
         self.assertIn("| Worst-case eval budget | 5m 30s |", output)
         self.assertIn("| Max allowed budget | 5m 0s |", output)
         self.assertIn("| Budget check | FAIL |", output)
@@ -101,6 +104,7 @@ class BenchmarkTests(unittest.TestCase):
 def _sample_report() -> dict[str, Any]:
     return {
         "suite": "suite.json",
+        "mode": "static_eval_budget_estimate",
         "cases": 42,
         "clusters": 12,
         "records_seen": 42,

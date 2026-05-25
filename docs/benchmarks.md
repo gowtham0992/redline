@@ -16,9 +16,9 @@ These are the working targets for local structural checks:
 | Diff report generation | under 500ms for normal CI reports |
 | MCP tool response | under 2 seconds before external runner or judge latency |
 
-The benchmark command estimates replay budget from suite size, timeout, and
-worker count. It does not pretend to know your model latency. Treat it as a CI
-capacity preflight.
+The benchmark command is a static budget estimate from suite size, timeout, and
+worker count. It does not run replay commands, call models, or pretend to know
+your model latency. Treat it as a CI capacity preflight.
 
 ## Local preflight
 

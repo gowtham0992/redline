@@ -139,7 +139,8 @@ redline is built around the full prompt-regression loop:
 - `redline suite`: generate a representative eval suite from baseline logs.
 - `redline prompts`: scan many prompt files and write or check a versionable prompt-to-suite manifest.
 - `redline suite add`: pin hand-picked edge cases the algorithm should never miss.
-- `redline benchmark`: estimate suite runtime, write benchmark artifacts, and optionally fail on a CI time budget.
+- `redline benchmark`: estimate suite runtime without executing replay commands,
+  write budget artifacts, and optionally fail on a CI time budget.
 - `redline eval`: replay each suite case through your local app or model runner.
 - `redline diff`: compare candidate JSONL outputs against the suite baseline.
 - `redline mark` and `redline accept`: review intentional changes and promote the

@@ -35,6 +35,7 @@ def benchmark_suite(
     sequential_seconds = cases_count * timeout_seconds
     worst_case_seconds = waves * timeout_seconds
     result = {
+        "mode": "static_eval_budget_estimate",
         "suite": suite_path,
         "cases": cases_count,
         "clusters": cluster_count,
@@ -59,6 +60,7 @@ def format_benchmark_report(report: dict[str, Any]) -> str:
     lines = [
         "redline benchmark",
         "",
+        "Mode:                  static estimate; no replay commands are executed",
         f"Suite:                 {report['suite']}",
         f"Cases:                 {report['cases']}",
         f"Behavioral clusters:   {report['clusters']}",
@@ -91,6 +93,8 @@ def format_benchmark_report(report: dict[str, Any]) -> str:
 def format_benchmark_markdown(report: dict[str, Any]) -> str:
     lines = [
         "## redline benchmark",
+        "",
+        "_Static estimate; no replay commands are executed._",
         "",
         "| Metric | Value |",
         "| --- | --- |",
