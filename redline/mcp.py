@@ -609,6 +609,7 @@ def _tools() -> list[ToolSpec]:
                     "config": _string("Config path to read."),
                     "path": _string("Audit JSONL path. Defaults to config."),
                     "limit": _integer("Recent audit events to show; use 0 for all."),
+                    "verify": _boolean("Verify the audit hash chain."),
                     "json": _boolean("Print machine-readable JSON."),
                 }
             ),
@@ -749,6 +750,7 @@ def _build_audit(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--config", arguments.get("config"))
     _add_option(args, "--path", arguments.get("path"))
     _add_option(args, "--limit", arguments.get("limit"))
+    _add_flag(args, "--verify", arguments.get("verify"))
     _add_flag(args, "--json", arguments.get("json"))
     return args
 

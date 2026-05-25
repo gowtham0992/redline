@@ -715,6 +715,12 @@ class CliConfigTests(unittest.TestCase):
                 self.assertIn("log_redacted", output.getvalue())
                 self.assertIn("records=1", output.getvalue())
                 self.assertIn("redactions=1", output.getvalue())
+                verify_output = io.StringIO()
+                with contextlib.redirect_stdout(verify_output):
+                    self.assertEqual(main(["audit", "--verify"]), 0)
+
+                self.assertIn("redline audit verify", verify_output.getvalue())
+                self.assertIn("Status:   OK", verify_output.getvalue())
             finally:
                 os.chdir(previous)
 

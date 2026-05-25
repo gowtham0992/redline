@@ -18,8 +18,10 @@ from .audit import (
     decision_summary,
     file_reference,
     format_audit_events,
+    format_audit_verification,
     read_audit_events,
     result_summary,
+    verify_audit_events,
 )
 from .benchmark import benchmark_suite, format_benchmark_markdown, format_benchmark_report
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
@@ -198,6 +200,7 @@ def build_parser() -> argparse.ArgumentParser:
     audit_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     audit_parser.add_argument("--path", help="audit JSONL path; defaults to config")
     audit_parser.add_argument("--limit", type=int, default=20, help="recent audit events to show; use 0 for all")
+    audit_parser.add_argument("--verify", action="store_true", help="verify the audit hash chain")
     audit_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     audit_parser.set_defaults(func=cmd_audit)
 
@@ -615,6 +618,7 @@ def cmd_audit(args: argparse.Namespace) -> int:
     if audit_path is None:
         raise ValueError("audit disabled by config; pass --path to read a specific audit log")
     events = read_audit_events(audit_path)
+    verification = verify_audit_events(events) if args.verify else None
     limit = None if args.limit == 0 else args.limit
     shown = events[-limit:] if limit is not None and limit > 0 else events
     if args.json:
@@ -624,6 +628,7 @@ def cmd_audit(args: argparse.Namespace) -> int:
                     "version": "0.1",
                     "path": audit_path,
                     "events": shown,
+                    "verification": verification,
                 },
                 indent=2,
                 sort_keys=True,
@@ -631,6 +636,9 @@ def cmd_audit(args: argparse.Namespace) -> int:
         )
     else:
         print(format_audit_events(events, limit=limit), end="")
+        if verification is not None:
+            print()
+            print(format_audit_verification(verification), end="")
     return 0
 
 

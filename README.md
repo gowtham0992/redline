@@ -139,7 +139,7 @@ redline is built around the full prompt-regression loop:
 - `redline mark` and `redline accept`: review intentional changes and promote the
   new baseline.
 - `redline require`: add deterministic must-include or must-not-include rules.
-- `redline audit`: inspect the append-only local audit trail for evals and approvals.
+- `redline audit --verify`: inspect the local audit trail and verify the hash chain.
 - `redline history`, `redline compare`, and `redline dashboard`: track quality
   over time and inspect reports locally.
 - `redline-mcp`: let AI coding assistants run checks inside Claude, Codex,
@@ -256,7 +256,7 @@ autocomplete. Important keys:
 | `workers` | Number of replay cases to run concurrently. |
 | `fail_on` | Statuses that fail `diff` or `eval`; use `"none"` for report-only setup. |
 | `reports` | JSON, Markdown, HTML, and JUnit output paths. |
-| `audit` | Append-only JSONL audit log path for evals, judgments, requirements, and accepted baselines. |
+| `audit` | Append-only JSONL audit log path for evals, judgments, requirements, and accepted baselines. New entries include a local hash chain that `redline audit --verify` can check. |
 | `judge` | Optional command for ambiguous `changed` cases. |
 
 Check setup before relying on a suite:

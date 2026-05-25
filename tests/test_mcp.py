@@ -216,7 +216,7 @@ class McpServerTests(unittest.TestCase):
             )
             audit_result = call_tool(
                 "redline_audit",
-                {"cwd": directory, "limit": 0},
+                {"cwd": directory, "limit": 0, "verify": True},
             )
 
         self.assertFalse(redact_result["isError"])
@@ -226,6 +226,8 @@ class McpServerTests(unittest.TestCase):
         self.assertFalse(audit_result["isError"])
         self.assertIn("log_redaction_checked", audit_result["content"][0]["text"])
         self.assertIn("redactions=2", audit_result["content"][0]["text"])
+        self.assertIn("redline audit verify", audit_result["content"][0]["text"])
+        self.assertIn("Status:   OK", audit_result["content"][0]["text"])
 
     def test_unknown_tool_returns_jsonrpc_error(self) -> None:
         response = handle_jsonrpc_line(

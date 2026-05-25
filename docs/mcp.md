@@ -65,7 +65,7 @@ Available tools:
 - `redline_eval`
 - `redline_history`
 - `redline_dashboard`
-- `redline_audit`
+- `redline_audit` (including `verify` for the local audit hash chain)
 
 `redline_diff` and `redline_eval` return the underlying redline exit code as
 structured data. Exit code `1` means redline found blocking regressions or

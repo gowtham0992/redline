@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +35,10 @@ def append_audit_event(path: str | Path | None, event: dict[str, Any]) -> dict[s
         **event,
     }
     row = {key: value for key, value in row.items() if value is not None}
+    previous_hash = _last_entry_hash(path)
+    if previous_hash:
+        row["previous_hash"] = previous_hash
+    row["entry_hash"] = audit_entry_hash(row)
     append_jsonl(path, [row])
     return row
 
@@ -42,6 +47,56 @@ def read_audit_events(path: str | Path) -> list[dict[str, Any]]:
     if not Path(path).exists():
         return []
     return [row for _, row in iter_jsonl(path)]
+
+
+def verify_audit_events(events: list[dict[str, Any]]) -> dict[str, Any]:
+    errors: list[str] = []
+    signed_entries = 0
+    unsigned_entries = 0
+    previous_hash: str | None = None
+
+    for index, row in enumerate(events, start=1):
+        entry_hash = row.get("entry_hash")
+        if not entry_hash:
+            unsigned_entries += 1
+            if previous_hash:
+                errors.append(f"line {index}: unsigned entry breaks signed audit chain")
+            continue
+        if not isinstance(entry_hash, str):
+            errors.append(f"line {index}: entry_hash must be a string")
+            continue
+
+        expected_hash = audit_entry_hash({key: value for key, value in row.items() if key != "entry_hash"})
+        if entry_hash != expected_hash:
+            errors.append(f"line {index}: entry_hash mismatch")
+
+        row_previous = row.get("previous_hash")
+        if row_previous != previous_hash:
+            if previous_hash is None:
+                errors.append(f"line {index}: previous_hash should be omitted on first signed entry")
+            else:
+                errors.append(f"line {index}: previous_hash does not match prior entry_hash")
+
+        signed_entries += 1
+        previous_hash = entry_hash
+
+    return {
+        "ok": not errors,
+        "entries": len(events),
+        "signed_entries": signed_entries,
+        "unsigned_entries": unsigned_entries,
+        "last_hash": previous_hash,
+        "errors": errors,
+    }
+
+
+def verify_audit_log(path: str | Path) -> dict[str, Any]:
+    return verify_audit_events(read_audit_events(path))
+
+
+def audit_entry_hash(row: dict[str, Any]) -> str:
+    encoded = _json_dumps_canonical(row).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def format_audit_events(events: list[dict[str, Any]], *, limit: int | None = None) -> str:
@@ -55,6 +110,27 @@ def format_audit_events(events: list[dict[str, Any]], *, limit: int | None = Non
         timestamp = str(row.get("timestamp") or "-")
         event = str(row.get("event") or "unknown")
         lines.append(f"{timestamp}  {event:<24} {_audit_summary(row)}")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def format_audit_verification(result: dict[str, Any]) -> str:
+    status = "OK" if result.get("ok") else "FAILED"
+    lines = [
+        "redline audit verify",
+        "",
+        f"Status:   {status}",
+        f"Entries:  {int(result.get('entries', 0))}",
+        f"Signed:   {int(result.get('signed_entries', 0))}",
+        f"Unsigned: {int(result.get('unsigned_entries', 0))}",
+    ]
+    last_hash = result.get("last_hash")
+    if last_hash:
+        lines.append(f"Last hash: {last_hash}")
+    errors = result.get("errors")
+    if isinstance(errors, list) and errors:
+        lines.extend(["", "Errors:"])
+        for error in errors:
+            lines.append(f"- {error}")
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -110,6 +186,23 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _json_dumps_canonical(row: dict[str, Any]) -> str:
+    return json.dumps(row, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+
+
+def _last_entry_hash(path: str | Path) -> str | None:
+    if not Path(path).exists():
+        return None
+    last_hash: str | None = None
+    for _, row in iter_jsonl(path):
+        value = row.get("entry_hash")
+        if isinstance(value, str) and value:
+            last_hash = value
+        else:
+            last_hash = None
+    return last_hash
 
 
 def _audit_summary(row: dict[str, Any]) -> str:
