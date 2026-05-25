@@ -44,6 +44,7 @@
 - Add `redline prompts --check-suites` to catch prompt manifest entries without built suites.
 - Expose prompt manifest suite-readiness checks through the MCP server.
 - Add audit checkpoint files from `redline audit --verify --out-checkpoint`.
+- Show accepted-baseline and approver coverage in `redline summary`.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Capture prompt-response pairs from Python functions with the local `@watch` decorator and `record()` helper, with exact duplicate observations skipped by content hash.
 - Normalize common provider response objects and capture latency/token metadata from watched Python calls.

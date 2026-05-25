@@ -86,6 +86,17 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         for owner, count in sorted(owner_counts.items(), key=lambda item: (-item[1], item[0].lower()))[:5]
     ]
     owned_cases = sum(owner_counts.values())
+    accepted_baselines = suite.get("accepted_baselines", [])
+    if not isinstance(accepted_baselines, list):
+        accepted_baselines = []
+    approved_baselines = len(
+        [
+            item
+            for item in accepted_baselines
+            if isinstance(item, dict) and str(item.get("approver") or "").strip()
+        ]
+    )
+    accepted_baseline_count = len([item for item in accepted_baselines if isinstance(item, dict)])
 
     result = {
         "source": str(suite.get("source") or ""),
@@ -105,6 +116,9 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "unowned_cases": max(0, cases_count - owned_cases),
         "owners": dict(sorted(owner_counts.items())),
         "top_owners": top_owners,
+        "accepted_baselines": accepted_baseline_count,
+        "approved_baselines": approved_baselines,
+        "unapproved_baselines": max(0, accepted_baseline_count - approved_baselines),
         "high_risk_clusters": len(high_risk),
         "medium_risk_clusters": len(medium_risk),
         "high_variance_clusters": len(high_variance),
@@ -134,6 +148,8 @@ def format_suite_summary(suite: dict[str, Any]) -> str:
         f"Case coverage:          {summary['cases']}/{summary['unique_prompt_response_pairs']} ({_percent(summary['case_coverage'])})",
         f"Pinned cases:           {summary['pinned_cases']}",
         f"Owned cases:            {summary['owned_cases']}/{summary['cases']}",
+        f"Accepted baselines:     {summary['accepted_baselines']}",
+        f"Approved baselines:     {summary['approved_baselines']}/{summary['accepted_baselines']}",
         f"Max cases:              {summary['max_cases']}",
         f"High-risk clusters:     {summary['high_risk_clusters']}",
         f"Medium-risk clusters:   {summary['medium_risk_clusters']}",
@@ -188,6 +204,8 @@ def _summary_next_steps(summary: dict[str, Any]) -> list[str]:
         steps.append("Add owners with --owner or redline.json owner rules before team rollout.")
     elif int(summary["unowned_cases"]):
         steps.append("Assign owners to remaining unowned cases before team rollout.")
+    if int(summary["unapproved_baselines"]):
+        steps.append("Record approvers for accepted baselines before team rollout.")
     if int(summary["cases"]) and not summary["judgments"]:
         steps.append("After the first eval, mark expected or ignored changes to train the suite.")
     if int(summary["cases"]) == 0:

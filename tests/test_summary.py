@@ -38,6 +38,9 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["owned_cases"], 0)
         self.assertEqual(summary["unowned_cases"], 2)
         self.assertEqual(summary["owners"], {})
+        self.assertEqual(summary["accepted_baselines"], 0)
+        self.assertEqual(summary["approved_baselines"], 0)
+        self.assertEqual(summary["unapproved_baselines"], 0)
         self.assertEqual(summary["judgments"], {"expected": 1})
         self.assertEqual(summary["requirements"], 1)
         self.assertEqual(summary["failure_pattern_clusters"], 0)
@@ -80,6 +83,8 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Case coverage:", output)
         self.assertIn("Pinned cases:", output)
         self.assertIn("Owned cases:", output)
+        self.assertIn("Accepted baselines:", output)
+        self.assertIn("Approved baselines:", output)
         self.assertIn("High-risk clusters:", output)
         self.assertIn("Failure-pattern clusters:", output)
         self.assertIn("Top clusters:", output)
@@ -118,6 +123,32 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Owners:", output)
         self.assertIn("@billing-team", output)
         self.assertIn("@support-team", output)
+
+    def test_suite_summary_counts_approved_baseline_promotions(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Return billing JSON", '{"ok": true}', {}),
+                LogRecord(2, "Summarize support ticket", "- one\n- two", {}),
+            ],
+            source="logs/baseline.jsonl",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        suite["accepted_baselines"] = [
+            {"case_id": suite["cases"][0]["id"], "approver": "lead@example.com"},
+            {"case_id": suite["cases"][1]["id"], "note": "accepted locally"},
+        ]
+
+        summary = suite_summary(suite)
+        output = format_suite_summary(suite)
+
+        self.assertEqual(summary["accepted_baselines"], 2)
+        self.assertEqual(summary["approved_baselines"], 1)
+        self.assertEqual(summary["unapproved_baselines"], 1)
+        self.assertIn("Accepted baselines:     2", output)
+        self.assertIn("Approved baselines:     1/2", output)
+        self.assertIn("Record approvers for accepted baselines before team rollout.", summary["next_steps"])
 
     def test_suite_summary_recommends_more_coverage_when_budget_is_tight(self) -> None:
         suite = build_suite(

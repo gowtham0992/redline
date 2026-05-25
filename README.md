@@ -291,6 +291,9 @@ redline validate redline-suite.json --strict
 redline summary redline-suite.json
 ```
 
+`summary` reports cluster/case coverage, owner coverage, accepted baseline
+history, and approver coverage so teams can review suite readiness before CI.
+
 ## Dogfood Assets
 
 The public fixture is synthetic, shaped after public instruction/chat dataset
