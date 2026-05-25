@@ -20,6 +20,10 @@ The benchmark command is a static budget estimate from suite size, timeout, and
 worker count. It does not run replay commands, call models, or pretend to know
 your model latency. Treat it as a CI capacity preflight.
 
+Pass `--measure-local` when you also want redline to time its deterministic
+suite comparison on the suite baselines. This still does not call your replay
+command or any model; it measures redline's local diff work on your files.
+
 For multi-prompt repos, pass the prompt manifest. redline aggregates the budget
 for every mapped suite because manifest evals replay each prompt suite in turn.
 
@@ -31,6 +35,12 @@ redline benchmark redline-suite.json --workers 8 --timeout 30
 
 ```bash
 redline benchmark redline-prompts.json --workers 8 --timeout 30
+```
+
+To include a measured local diff check:
+
+```bash
+redline benchmark redline-suite.json --workers 8 --timeout 30 --measure-local
 ```
 
 To make the preflight enforce a budget:

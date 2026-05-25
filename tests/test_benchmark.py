@@ -62,6 +62,31 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(report["status"], "warn")
         self.assertIn("Set --workers 3", " ".join(report["next_steps"]))
 
+    def test_benchmark_suite_can_measure_local_diff_work(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Return JSON", '{"ok": true}', {}),
+                LogRecord(2, "Summarize", "- one\n- two", {}),
+            ],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+            all_cases=True,
+        )
+
+        report = benchmark_suite(suite, measure_local=True, measure_iterations=2)
+
+        measurement = report["local_measurement"]
+        self.assertEqual(measurement["mode"], "deterministic_baseline_self_check")
+        self.assertEqual(measurement["cases"], 2)
+        self.assertEqual(measurement["cases_processed"], 4)
+        self.assertEqual(measurement["iterations"], 2)
+        self.assertGreaterEqual(measurement["seconds"], 0)
+        self.assertGreater(measurement["cases_per_second"], 0)
+        self.assertIn("Local check:", format_benchmark_report(report))
+        self.assertIn("| Local check |", format_benchmark_markdown(report))
+
     def test_benchmark_prompt_manifest_aggregates_mapped_suites(self) -> None:
         with TemporaryDirectory() as temp_dir:
             first_suite_path = f"{temp_dir}/triage.redline-suite.json"
@@ -113,6 +138,40 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(report["requirements"], 1)
         self.assertEqual(report["judgments"], 1)
         self.assertEqual(len(report["prompt_suites"]), 2)
+
+    def test_benchmark_prompt_manifest_aggregates_local_measurements(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            first_suite_path = f"{temp_dir}/triage.redline-suite.json"
+            second_suite_path = f"{temp_dir}/refunds.redline-suite.json"
+            write_json(
+                first_suite_path,
+                {
+                    "summary": {"cases": 1, "clusters": 1, "records_seen": 1},
+                    "cases": [{"id": "case_001", "prompt": "one", "baseline_response": "1"}],
+                },
+            )
+            write_json(
+                second_suite_path,
+                {
+                    "summary": {"cases": 1, "clusters": 1, "records_seen": 1},
+                    "cases": [{"id": "case_002", "prompt": "two", "baseline_response": "2"}],
+                },
+            )
+            manifest = {
+                "schema": "redline-prompt-manifest-v1",
+                "prompts": [
+                    {"id": "support/triage", "path": "prompts/support/triage.txt", "suite": first_suite_path},
+                    {"id": "billing/refunds", "path": "prompts/billing/refunds.txt", "suite": second_suite_path},
+                ],
+            }
+
+            report = benchmark_prompt_manifest(manifest, measure_local=True, measure_iterations=3)
+
+        measurement = report["local_measurement"]
+        self.assertEqual(measurement["cases"], 2)
+        self.assertEqual(measurement["cases_processed"], 6)
+        self.assertEqual(measurement["iterations"], 3)
+        self.assertIn("local_measurement", report["prompt_suites"][0])
 
     def test_benchmark_warns_for_large_single_worker_suite(self) -> None:
         suite = {
@@ -194,6 +253,8 @@ class BenchmarkTests(unittest.TestCase):
             benchmark_suite({"cases": []}, timeout_seconds=0)
         with self.assertRaisesRegex(ValueError, "max_seconds must be greater than 0"):
             benchmark_suite({"cases": []}, max_seconds=0)
+        with self.assertRaisesRegex(ValueError, "measure_iterations must be at least 1"):
+            benchmark_suite({"cases": []}, measure_iterations=0)
 
 
 def _sample_report() -> dict[str, Any]:

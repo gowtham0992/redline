@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from math import ceil
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
-from .io import read_json
+from .diff import compare_suite_to_candidate
+from .io import LogRecord, read_json
 
 
 def benchmark_suite(
@@ -14,8 +16,15 @@ def benchmark_suite(
     timeout_seconds: float = 30.0,
     workers: int = 1,
     max_seconds: float | None = None,
+    measure_local: bool = False,
+    measure_iterations: int = 1,
 ) -> dict[str, Any]:
-    _validate_benchmark_inputs(timeout_seconds=timeout_seconds, workers=workers, max_seconds=max_seconds)
+    _validate_benchmark_inputs(
+        timeout_seconds=timeout_seconds,
+        workers=workers,
+        max_seconds=max_seconds,
+        measure_iterations=measure_iterations,
+    )
 
     summary = suite.get("summary")
     if not isinstance(summary, dict):
@@ -54,6 +63,11 @@ def benchmark_suite(
         "judgments": judgments_count,
         "size": _size_label(cases_count),
     }
+    if measure_local:
+        result["local_measurement"] = _measure_local_suite(
+            suite,
+            iterations=measure_iterations,
+        )
     result["status"] = _status(result)
     result["next_steps"] = _next_steps(result)
     return result
@@ -66,8 +80,15 @@ def benchmark_prompt_manifest(
     timeout_seconds: float = 30.0,
     workers: int = 1,
     max_seconds: float | None = None,
+    measure_local: bool = False,
+    measure_iterations: int = 1,
 ) -> dict[str, Any]:
-    _validate_benchmark_inputs(timeout_seconds=timeout_seconds, workers=workers, max_seconds=max_seconds)
+    _validate_benchmark_inputs(
+        timeout_seconds=timeout_seconds,
+        workers=workers,
+        max_seconds=max_seconds,
+        measure_iterations=measure_iterations,
+    )
 
     prompts = manifest.get("prompts")
     if not isinstance(prompts, list):
@@ -92,24 +113,27 @@ def benchmark_prompt_manifest(
             suite_path=suite_path,
             timeout_seconds=timeout_seconds,
             workers=workers,
+            measure_local=measure_local,
+            measure_iterations=measure_iterations,
         )
-        prompt_suites.append(
-            {
-                "id": prompt_id,
-                "path": prompt_path,
-                "suite": suite_path,
-                "cases": child_report["cases"],
-                "clusters": child_report["clusters"],
-                "records_seen": child_report["records_seen"],
-                "parallel_waves": child_report["parallel_waves"],
-                "worst_case_seconds": child_report["worst_case_seconds"],
-                "sequential_worst_case_seconds": child_report["sequential_worst_case_seconds"],
-                "requirements": child_report["requirements"],
-                "judgments": child_report["judgments"],
-                "size": child_report["size"],
-                "status": child_report["status"],
-            }
-        )
+        prompt_suite = {
+            "id": prompt_id,
+            "path": prompt_path,
+            "suite": suite_path,
+            "cases": child_report["cases"],
+            "clusters": child_report["clusters"],
+            "records_seen": child_report["records_seen"],
+            "parallel_waves": child_report["parallel_waves"],
+            "worst_case_seconds": child_report["worst_case_seconds"],
+            "sequential_worst_case_seconds": child_report["sequential_worst_case_seconds"],
+            "requirements": child_report["requirements"],
+            "judgments": child_report["judgments"],
+            "size": child_report["size"],
+            "status": child_report["status"],
+        }
+        if isinstance(child_report.get("local_measurement"), dict):
+            prompt_suite["local_measurement"] = child_report["local_measurement"]
+        prompt_suites.append(prompt_suite)
     if not prompt_suites:
         raise ValueError("prompt manifest has no prompt entries")
 
@@ -147,6 +171,8 @@ def benchmark_prompt_manifest(
         "size": _size_label(cases),
         "prompt_suites": prompt_suites,
     }
+    if measure_local:
+        result["local_measurement"] = _aggregate_local_measurements(prompt_suites)
     result["status"] = _status(result)
     result["next_steps"] = _next_steps(result)
     return result
@@ -174,6 +200,16 @@ def format_benchmark_report(report: dict[str, Any]) -> str:
         recommended_workers = report.get("recommended_workers_for_budget")
         if not report["within_budget"] and recommended_workers is not None:
             lines.append(f"Recommended workers:   {recommended_workers}")
+    local_measurement = report.get("local_measurement")
+    if isinstance(local_measurement, dict):
+        lines.append(
+            "Local check:           "
+            f"{_elapsed(local_measurement['seconds'])} for "
+            f"{local_measurement['cases']} cases "
+            f"({_rate(local_measurement['cases_per_second'])} cases/sec, "
+            f"{local_measurement['iterations']} iteration"
+            f"{'' if local_measurement['iterations'] == 1 else 's'})"
+        )
     lines.extend(
         [
             f"Requirements:          {report['requirements']}",
@@ -228,6 +264,15 @@ def format_benchmark_markdown(report: dict[str, Any]) -> str:
         recommended_workers = report.get("recommended_workers_for_budget")
         if not report["within_budget"] and recommended_workers is not None:
             lines.insert(-2, f"| Recommended workers | {recommended_workers} |")
+    local_measurement = report.get("local_measurement")
+    if isinstance(local_measurement, dict):
+        lines.insert(
+            -2,
+            "| Local check | "
+            f"{_elapsed(local_measurement['seconds'])} for "
+            f"{local_measurement['cases']} cases "
+            f"({_rate(local_measurement['cases_per_second'])} cases/sec) |",
+        )
     prompt_suites = report.get("prompt_suites")
     if isinstance(prompt_suites, list) and prompt_suites:
         lines.extend(
@@ -258,6 +303,71 @@ def format_benchmark_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _measure_local_suite(suite: dict[str, Any], *, iterations: int) -> dict[str, Any]:
+    candidate_records = _baseline_candidate_records(suite)
+    start = perf_counter()
+    for _ in range(iterations):
+        compare_suite_to_candidate(suite, candidate_records)
+    elapsed = perf_counter() - start
+    cases_processed = len(candidate_records) * iterations
+    return {
+        "mode": "deterministic_baseline_self_check",
+        "iterations": iterations,
+        "cases": len(candidate_records),
+        "cases_processed": cases_processed,
+        "seconds": elapsed,
+        "cases_per_second": _cases_per_second(cases_processed, elapsed),
+    }
+
+
+def _baseline_candidate_records(suite: dict[str, Any]) -> list[LogRecord]:
+    records: list[LogRecord] = []
+    cases = suite.get("cases")
+    if not isinstance(cases, list):
+        return records
+    for index, case in enumerate(cases, 1):
+        if not isinstance(case, dict):
+            continue
+        case_id = str(case.get("id") or "")
+        records.append(
+            LogRecord(
+                line_number=index,
+                prompt=str(case.get("prompt") or ""),
+                response=str(case.get("baseline_response") or ""),
+                raw={"case_id": case_id} if case_id else {},
+            )
+        )
+    return records
+
+
+def _aggregate_local_measurements(prompt_suites: list[dict[str, Any]]) -> dict[str, Any]:
+    measurements: list[dict[str, Any]] = []
+    for item in prompt_suites:
+        measurement = item.get("local_measurement")
+        if isinstance(measurement, dict):
+            measurements.append(measurement)
+    seconds = sum(float(item["seconds"]) for item in measurements)
+    cases = sum(int(item["cases"]) for item in measurements)
+    cases_processed = sum(int(item["cases_processed"]) for item in measurements)
+    iterations = max((int(item["iterations"]) for item in measurements), default=1)
+    return {
+        "mode": "deterministic_baseline_self_check",
+        "iterations": iterations,
+        "cases": cases,
+        "cases_processed": cases_processed,
+        "seconds": seconds,
+        "cases_per_second": _cases_per_second(cases_processed, seconds),
+    }
+
+
+def _cases_per_second(cases_processed: int, seconds: float) -> float:
+    if cases_processed <= 0:
+        return 0.0
+    if seconds <= 0:
+        return float(cases_processed)
+    return cases_processed / seconds
+
+
 def _size_label(cases: int) -> str:
     if cases == 0:
         return "empty"
@@ -275,6 +385,7 @@ def _validate_benchmark_inputs(
     timeout_seconds: float,
     workers: int,
     max_seconds: float | None,
+    measure_iterations: int,
 ) -> None:
     if timeout_seconds <= 0:
         raise ValueError("timeout_seconds must be greater than 0")
@@ -282,6 +393,8 @@ def _validate_benchmark_inputs(
         raise ValueError("workers must be at least 1")
     if max_seconds is not None and max_seconds <= 0:
         raise ValueError("max_seconds must be greater than 0")
+    if measure_iterations < 1:
+        raise ValueError("measure_iterations must be at least 1")
 
 
 def _status(report: dict[str, Any]) -> str:
@@ -366,3 +479,21 @@ def _duration(value: Any) -> str:
     if minutes:
         return f"{minutes}m {remainder}s"
     return f"{remainder}s"
+
+
+def _elapsed(value: Any) -> str:
+    seconds = float(value)
+    if seconds < 1:
+        return f"{seconds * 1000:.0f}ms"
+    if seconds < 60:
+        return f"{seconds:.2f}s"
+    return _duration(seconds)
+
+
+def _rate(value: Any) -> str:
+    number = float(value)
+    if number >= 100:
+        return f"{number:.0f}"
+    if number >= 10:
+        return f"{number:.1f}"
+    return f"{number:.2f}"

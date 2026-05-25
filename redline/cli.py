@@ -353,6 +353,17 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_parser.add_argument("--out-json", help="write benchmark report JSON")
     benchmark_parser.add_argument("--out-md", help="write benchmark report Markdown")
     benchmark_parser.add_argument("--github-summary", action="store_true", help="append benchmark to GITHUB_STEP_SUMMARY")
+    benchmark_parser.add_argument(
+        "--measure-local",
+        action="store_true",
+        help="also time redline's local deterministic suite comparison without running replay",
+    )
+    benchmark_parser.add_argument(
+        "--measure-iterations",
+        type=int,
+        default=1,
+        help="iterations for --measure-local timing",
+    )
     benchmark_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     benchmark_parser.set_defaults(func=cmd_benchmark)
 
@@ -1065,6 +1076,8 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
             timeout_seconds=timeout_seconds,
             workers=workers,
             max_seconds=args.max_seconds,
+            measure_local=args.measure_local,
+            measure_iterations=args.measure_iterations,
         )
     else:
         report = benchmark_suite(
@@ -1073,6 +1086,8 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
             timeout_seconds=timeout_seconds,
             workers=workers,
             max_seconds=args.max_seconds,
+            measure_local=args.measure_local,
+            measure_iterations=args.measure_iterations,
         )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
