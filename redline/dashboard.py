@@ -86,6 +86,7 @@ def format_dashboard_html(
             '<p class="lede">Local prompt regression review center.</p>',
             "</header>",
             _overview(latest, len(reports), len(history)),
+            _ship_panel(latest),
             _trend_panel(trend),
             _scope(str(dashboard.get("scope") or TRUST_SCOPE)),
             _checkpoint_panel(checkpoint),
@@ -484,6 +485,80 @@ def _overview(latest: dict[str, Any], report_count: int, history_count: int) -> 
         f'<div class="cards">{cells}</div>'
         "</section>"
     )
+
+
+def _ship_panel(latest: dict[str, Any]) -> str:
+    if not latest:
+        return ""
+    raw_summary = latest.get("summary")
+    summary = raw_summary if isinstance(raw_summary, dict) else {}
+    cases = int(summary.get("cases") or 0)
+    blocking = _blocking_count(summary)
+    changed = _changed_count(summary)
+    if cases <= 0:
+        status = "No cases"
+        tone = "neutral"
+        guidance = "Generate a suite, then run eval to populate the dashboard."
+    elif blocking:
+        status = "Blocked"
+        tone = "blocked"
+        guidance = "Fix blocking cases or mark intentional changes before shipping."
+    elif changed:
+        status = "Review needed"
+        tone = "review"
+        guidance = "Review changed cases before accepting this prompt version."
+    else:
+        status = "Ready within checks"
+        tone = "ready"
+        guidance = "No blocking or changed cases were detected by configured checks."
+
+    decision = latest.get("decision")
+    decision_text = ""
+    if isinstance(decision, dict):
+        decision_text = str(decision.get("recommended_action") or "")
+    review_command = _ship_review_command(latest)
+    decision_html = f'<p class="decision">{_h(decision_text)}</p>' if decision_text else ""
+    review_html = (
+        '<p class="review-command"><span>Review command</span>'
+        f"<code>{_h(review_command)}</code></p>"
+        if review_command
+        else ""
+    )
+    return (
+        f'<section class="panel ship {tone}">'
+        '<div class="section-title">'
+        "<div>"
+        "<h2>Ship Readiness</h2>"
+        f"<p>{_h(guidance)}</p>"
+        "</div>"
+        f'<strong class="ship-status">{_h(status)}</strong>'
+        "</div>"
+        '<div class="cards compact">'
+        f'<div class="card"><span>Blocking</span><strong>{blocking}</strong></div>'
+        f'<div class="card"><span>Changed</span><strong>{changed}</strong></div>'
+        f'<div class="card"><span>Total cases</span><strong>{cases}</strong></div>'
+        "</div>"
+        f"{decision_html}"
+        f"{review_html}"
+        "</section>"
+    )
+
+
+def _ship_review_command(latest: dict[str, Any]) -> str:
+    review_cases = latest.get("review_cases")
+    if not isinstance(review_cases, list):
+        return ""
+    for item in review_cases:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "")
+        if status not in {"regression", "missing", "changed"}:
+            continue
+        suite = str(item.get("suite") or "").strip()
+        case_id = str(item.get("case_id") or "").strip()
+        if suite and case_id:
+            return f'redline mark {suite} {case_id} --status expected --note "intentional change"'
+    return ""
 
 
 def _trust_panel(trust: dict[str, Any]) -> str:
@@ -899,6 +974,12 @@ h1, h2, p { margin: 0; }
 h1 { font-size: 34px; line-height: 1.1; }
 h2 { font-size: 18px; margin-bottom: 12px; }
 .lede { color: var(--muted); margin-top: 8px; }
+.section-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
 .panel, .notice {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -916,6 +997,9 @@ h2 { font-size: 18px; margin-bottom: 12px; }
   gap: 12px;
   margin-top: 16px;
 }
+.cards.compact {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
 .trust-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -932,6 +1016,42 @@ h2 { font-size: 18px; margin-bottom: 12px; }
 }
 .card span, td span { display: block; color: var(--muted); font-size: 12px; }
 .card strong { display: block; font-size: 26px; margin-top: 4px; }
+.ship {
+  border-left: 4px solid var(--accent);
+}
+.ship.blocked { border-left-color: var(--danger); }
+.ship.review { border-left-color: var(--warn); }
+.ship.ready { border-left-color: var(--ok); }
+.ship-status {
+  border-radius: 999px;
+  padding: 6px 12px;
+  white-space: nowrap;
+  color: #fff;
+  background: var(--accent);
+}
+.ship.blocked .ship-status { background: var(--danger); }
+.ship.review .ship-status { background: var(--warn); }
+.ship.ready .ship-status { background: var(--ok); }
+.decision {
+  margin-top: 14px;
+  color: var(--muted);
+}
+.review-command {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.review-command span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.review-command code {
+  display: block;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td {
@@ -958,6 +1078,8 @@ a { color: var(--accent); font-weight: 600; margin-right: 10px; }
 @media (max-width: 640px) {
   .page { width: min(100% - 24px, 1180px); padding-top: 24px; }
   h1 { font-size: 28px; }
+  .section-title { display: block; }
+  .ship-status { display: inline-block; margin-top: 12px; }
   th, td { padding: 10px 8px; }
 }
 """
