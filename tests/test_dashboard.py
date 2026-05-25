@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -186,6 +188,7 @@ class DashboardTests(unittest.TestCase):
             )
             self.assertIn("<title>redline dashboard</title>", html)
             self.assertIn("eval.json", html)
+            self.assertIn("<span>Benchmarks</span><strong>1</strong>", html)
             self.assertIn("<h2>Ship Readiness</h2>", html)
             self.assertIn("Blocked", html)
             self.assertIn("Fix blocking cases or mark intentional changes before shipping.", html)
@@ -297,14 +300,27 @@ class DashboardTests(unittest.TestCase):
                     "diffs": [],
                 },
             )
+            write_json(
+                reports / "benchmark.json",
+                {
+                    "mode": "static_eval_budget_estimate",
+                    "suite": "redline-suite.json",
+                    "cases": 1,
+                    "workers": 1,
+                    "worst_case_seconds": 30,
+                    "within_budget": True,
+                },
+            )
             output = root / ".redline" / "dashboard.html"
 
             current = Path.cwd()
+            stdout = io.StringIO()
             try:
                 import os
 
                 os.chdir(root)
-                code = main(["dashboard", "--out", str(output)])
+                with contextlib.redirect_stdout(stdout):
+                    code = main(["dashboard", "--out", str(output)])
             finally:
                 os.chdir(current)
 
@@ -312,6 +328,8 @@ class DashboardTests(unittest.TestCase):
             text = output.read_text(encoding="utf-8")
             self.assertIn("redline dashboard", text)
             self.assertIn("diff.json", text)
+            self.assertIn("<span>Benchmarks</span><strong>1</strong>", text)
+            self.assertIn("Benchmarks: 1", stdout.getvalue())
 
 
 if __name__ == "__main__":

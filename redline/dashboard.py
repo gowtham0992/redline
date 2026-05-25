@@ -90,7 +90,7 @@ def format_dashboard_html(
             f"<h1>{_h(title)}</h1>",
             '<p class="lede">Local prompt regression review center.</p>',
             "</header>",
-            _overview(latest, len(reports), len(history)),
+            _overview(latest, len(reports), len(benchmarks), len(history)),
             _ship_panel(latest),
             _trend_panel(trend),
             _benchmark_panel(benchmarks, output_path=output_path),
@@ -511,11 +511,17 @@ def _sort_owner_rows(rows: Any) -> list[dict[str, int | str]]:
     )
 
 
-def _overview(latest: dict[str, Any], report_count: int, history_count: int) -> str:
+def _overview(
+    latest: dict[str, Any],
+    report_count: int,
+    benchmark_count: int,
+    history_count: int,
+) -> str:
     raw_summary = latest.get("summary")
     summary = raw_summary if isinstance(raw_summary, dict) else {}
     cards = [
         ("Reports", report_count),
+        ("Benchmarks", benchmark_count),
         ("History", history_count),
         ("Regressions", summary.get("regression", 0)),
         ("Changed", summary.get("changed", 0)),

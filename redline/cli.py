@@ -1223,6 +1223,7 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
     else:
         print(f"Wrote {Path(args.out)}.")
         print(f"Reports: {len(dashboard['reports'])}")
+        print(f"Benchmarks: {len(dashboard.get('benchmarks', []))}")
         print(f"History: {len(dashboard['history'])}")
         print(f"Checkpoint: {'yes' if dashboard.get('checkpoint') else 'no'}")
         print(f"Warnings: {len(dashboard.get('errors', []))}")
