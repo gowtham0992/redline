@@ -803,15 +803,24 @@ class CliConfigTests(unittest.TestCase):
                 self.assertIn("redactions=1", output.getvalue())
                 verify_output = io.StringIO()
                 with contextlib.redirect_stdout(verify_output):
-                    self.assertEqual(main(["audit", "--verify"]), 0)
+                    self.assertEqual(
+                        main(["audit", "--verify", "--out-checkpoint", ".redline/audit-checkpoint.json"]),
+                        0,
+                    )
 
                 self.assertIn("redline audit verify", verify_output.getvalue())
                 self.assertIn("Status:   OK", verify_output.getvalue())
+                self.assertIn("Wrote audit checkpoint: .redline/audit-checkpoint.json", verify_output.getvalue())
 
                 audit_rows = [
                     json.loads(line)
                     for line in (root / ".redline" / "audit.jsonl").read_text(encoding="utf-8").splitlines()
                 ]
+                checkpoint = json.loads((root / ".redline" / "audit-checkpoint.json").read_text(encoding="utf-8"))
+                self.assertEqual(checkpoint["schema"], "redline-audit-checkpoint-v1")
+                self.assertEqual(checkpoint["entries"], len(audit_rows))
+                self.assertEqual(checkpoint["last_hash"], audit_rows[-1]["entry_hash"])
+
                 checkpoint_output = io.StringIO()
                 with contextlib.redirect_stdout(checkpoint_output):
                     self.assertEqual(
@@ -820,9 +829,9 @@ class CliConfigTests(unittest.TestCase):
                                 "audit",
                                 "--verify",
                                 "--expect-last-hash",
-                                audit_rows[-1]["entry_hash"],
+                                checkpoint["last_hash"],
                                 "--expect-entries",
-                                str(len(audit_rows)),
+                                str(checkpoint["entries"]),
                             ]
                         ),
                         0,

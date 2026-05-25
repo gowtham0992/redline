@@ -125,6 +125,25 @@ def verify_audit_log(
     )
 
 
+def audit_checkpoint(result: dict[str, Any], *, path: str | Path | None = None) -> dict[str, Any]:
+    checkpoint: dict[str, Any] = {
+        "schema": "redline-audit-checkpoint-v1",
+        "version": AUDIT_VERSION,
+        "created_at": _utc_now(),
+        "ok": bool(result.get("ok")),
+        "entries": int(result.get("entries", 0)),
+        "signed_entries": int(result.get("signed_entries", 0)),
+        "unsigned_entries": int(result.get("unsigned_entries", 0)),
+        "last_hash": result.get("last_hash"),
+        "events_by_type": result.get("events_by_type") if isinstance(result.get("events_by_type"), dict) else {},
+        "errors": result.get("errors") if isinstance(result.get("errors"), list) else [],
+        "warnings": result.get("warnings") if isinstance(result.get("warnings"), list) else [],
+    }
+    if path is not None:
+        checkpoint["audit"] = {"path": str(path)}
+    return checkpoint
+
+
 def audit_entry_hash(row: dict[str, Any]) -> str:
     encoded = _json_dumps_canonical(row).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()

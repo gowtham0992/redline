@@ -5,6 +5,7 @@ from pathlib import Path
 
 from redline.audit import (
     append_audit_event,
+    audit_checkpoint,
     file_reference,
     format_audit_events,
     format_audit_verification,
@@ -97,6 +98,25 @@ class AuditTests(unittest.TestCase):
 
             self.assertTrue(verification["ok"])
             self.assertEqual(verification["warnings"], [])
+
+    def test_audit_checkpoint_keeps_verification_tail_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / ".redline" / "audit.jsonl"
+
+            append_audit_event(path, {"event": "suite_generated"})
+            second = append_audit_event(path, {"event": "diff_run"})
+            self.assertIsNotNone(second)
+            assert second is not None
+
+            verification = verify_audit_log(path)
+            checkpoint = audit_checkpoint(verification, path=path)
+
+            self.assertEqual(checkpoint["schema"], "redline-audit-checkpoint-v1")
+            self.assertEqual(checkpoint["entries"], 2)
+            self.assertEqual(checkpoint["signed_entries"], 2)
+            self.assertEqual(checkpoint["last_hash"], second["entry_hash"])
+            self.assertEqual(checkpoint["events_by_type"], {"diff_run": 1, "suite_generated": 1})
+            self.assertEqual(checkpoint["audit"], {"path": str(path)})
 
     def test_verify_audit_events_detects_tail_checkpoint_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

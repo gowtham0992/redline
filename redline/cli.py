@@ -16,6 +16,7 @@ from .accept import accept_candidate_baseline, expected_case_ids
 from .audit import (
     DEFAULT_AUDIT_PATH,
     append_audit_event,
+    audit_checkpoint,
     decision_summary,
     file_reference,
     format_audit_events,
@@ -245,6 +246,7 @@ def build_parser() -> argparse.ArgumentParser:
     audit_parser.add_argument("--verify", action="store_true", help="verify the audit hash chain")
     audit_parser.add_argument("--expect-last-hash", help="expected final audit entry hash for tail checks")
     audit_parser.add_argument("--expect-entries", type=int, help="expected audit entry count for tail checks")
+    audit_parser.add_argument("--out-checkpoint", help="write a JSON checkpoint from audit verification")
     audit_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     audit_parser.set_defaults(func=cmd_audit)
 
@@ -740,8 +742,8 @@ def cmd_audit(args: argparse.Namespace) -> int:
         raise ValueError("audit --limit must be 0 or greater")
     if args.expect_entries is not None and args.expect_entries < 0:
         raise ValueError("audit --expect-entries must be 0 or greater")
-    if (args.expect_last_hash or args.expect_entries is not None) and not args.verify:
-        raise ValueError("audit expectations require --verify")
+    if (args.expect_last_hash or args.expect_entries is not None or args.out_checkpoint) and not args.verify:
+        raise ValueError("audit expectations and checkpoints require --verify")
     config = load_config(args.config)
     audit_path = args.path or _config_audit_path(config)
     if audit_path is None:
@@ -756,6 +758,9 @@ def cmd_audit(args: argparse.Namespace) -> int:
         if args.verify
         else None
     )
+    checkpoint = audit_checkpoint(verification, path=audit_path) if verification is not None and args.out_checkpoint else None
+    if checkpoint is not None:
+        write_json(args.out_checkpoint, checkpoint)
     limit = None if args.limit == 0 else args.limit
     shown = events[-limit:] if limit is not None and limit > 0 else events
     if args.json:
@@ -766,6 +771,8 @@ def cmd_audit(args: argparse.Namespace) -> int:
                     "path": audit_path,
                     "events": shown,
                     "verification": verification,
+                    "checkpoint": checkpoint,
+                    "checkpoint_path": args.out_checkpoint,
                 },
                 indent=2,
                 sort_keys=True,
@@ -776,6 +783,9 @@ def cmd_audit(args: argparse.Namespace) -> int:
         if verification is not None:
             print()
             print(format_audit_verification(verification), end="")
+        if args.out_checkpoint:
+            print()
+            print(f"Wrote audit checkpoint: {args.out_checkpoint}")
     return 0
 
 

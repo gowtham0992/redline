@@ -261,8 +261,14 @@ class McpServerTests(unittest.TestCase):
             )
             audit_result = call_tool(
                 "redline_audit",
-                {"cwd": directory, "limit": 0, "verify": True},
+                {
+                    "cwd": directory,
+                    "limit": 0,
+                    "verify": True,
+                    "out_checkpoint": ".redline/audit-checkpoint.json",
+                },
             )
+            checkpoint = json.loads((root / ".redline" / "audit-checkpoint.json").read_text(encoding="utf-8"))
 
         self.assertFalse(redact_result["isError"])
         self.assertEqual(redact_result["structuredContent"]["exit_code"], 0)
@@ -273,6 +279,8 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redactions=2", audit_result["content"][0]["text"])
         self.assertIn("redline audit verify", audit_result["content"][0]["text"])
         self.assertIn("Status:   OK", audit_result["content"][0]["text"])
+        self.assertEqual(checkpoint["schema"], "redline-audit-checkpoint-v1")
+        self.assertEqual(checkpoint["entries"], 1)
 
     def test_watch_stats_tool_surfaces_capture_readiness_and_skips(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
