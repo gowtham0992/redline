@@ -755,7 +755,22 @@ class CliConfigTests(unittest.TestCase):
                 with contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(main(["mark", "suite.json", case_id, "--status", "expected", "--note", "intentional"]), 0)
                     self.assertEqual(main(["require", "suite.json", case_id, "--include", "ok", "--note", "must keep ok"]), 0)
-                    self.assertEqual(main(["accept", "suite.json", case_id, "--candidate", "candidate.jsonl", "--note", "approved"]), 0)
+                    self.assertEqual(
+                        main(
+                            [
+                                "accept",
+                                "suite.json",
+                                case_id,
+                                "--candidate",
+                                "candidate.jsonl",
+                                "--note",
+                                "approved",
+                                "--approver",
+                                "lead@example.com",
+                            ]
+                        ),
+                        0,
+                    )
 
                 rows = [
                     json.loads(line)
@@ -769,7 +784,66 @@ class CliConfigTests(unittest.TestCase):
                 self.assertEqual(rows[1]["status"], "expected")
                 self.assertEqual(rows[2]["requirements"], {"include": 1, "exclude": 0})
                 self.assertEqual(rows[3]["case_ids"], [case_id])
+                self.assertEqual(rows[3]["approver"], "lead@example.com")
+                suite = json.loads(Path("suite.json").read_text(encoding="utf-8"))
+                self.assertEqual(suite["accepted_baselines"][0]["approver"], "lead@example.com")
                 self.assertNotIn("accepted_response", json.dumps(rows))
+            finally:
+                os.chdir(previous)
+
+    def test_accept_can_require_approver_from_config(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps(
+                        {
+                            "suite": "suite.json",
+                            "approval": {"require_approver": True},
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": false}"}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
+                suite = json.loads(Path("suite.json").read_text(encoding="utf-8"))
+                case_id = suite["cases"][0]["id"]
+
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = main(["accept", "suite.json", case_id, "--candidate", "candidate.jsonl"])
+
+                self.assertEqual(code, 2)
+                self.assertIn("accept requires --approver", stderr.getvalue())
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "accept",
+                                "suite.json",
+                                case_id,
+                                "--candidate",
+                                "candidate.jsonl",
+                                "--approver",
+                                "lead@example.com",
+                            ]
+                        ),
+                        0,
+                    )
+                self.assertIn("Approver: lead@example.com", output.getvalue())
             finally:
                 os.chdir(previous)
 

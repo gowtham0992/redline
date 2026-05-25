@@ -399,6 +399,7 @@ def build_parser() -> argparse.ArgumentParser:
     accept_parser.add_argument("--input-field", help="candidate input field; defaults to suite/config field")
     accept_parser.add_argument("--output-field", help="candidate output field; defaults to suite/config field")
     accept_parser.add_argument("--note", default="", help="short reason for accepting the baseline")
+    accept_parser.add_argument("--approver", default="", help="person or team approving this baseline promotion")
     accept_parser.add_argument("--out", help="write updated suite to a new path")
     accept_parser.set_defaults(func=cmd_accept)
 
@@ -1089,6 +1090,9 @@ def cmd_accept(args: argparse.Namespace) -> int:
         case_ids = expected_case_ids(suite)
         if not case_ids:
             raise ValueError("no expected judgments found to accept")
+    approver = str(args.approver or "").strip()
+    if _config_require_approver(config) and not approver:
+        raise ValueError("accept requires --approver because approval.require_approver is enabled")
     candidate_path = args.candidate or _config_candidate_path(config)
     if not candidate_path:
         raise ValueError("candidate JSONL required; pass --candidate or set runs.candidate in redline.json")
@@ -1096,7 +1100,7 @@ def cmd_accept(args: argparse.Namespace) -> int:
     output_field = args.output_field or str(suite.get("output_field") or config.get("output_field", "response"))
     candidate = read_jsonl_records(candidate_path, input_field, output_field)
     results = [
-        accept_candidate_baseline(suite, candidate, case_id, note=args.note)
+        accept_candidate_baseline(suite, candidate, case_id, note=args.note, approver=approver)
         for case_id in case_ids
     ]
     output = args.out or suite_path
@@ -1112,11 +1116,14 @@ def cmd_accept(args: argparse.Namespace) -> int:
             "case_ids": [str(result["case_id"]) for result in results],
             "candidate_lines": [int(result["candidate_line"]) for result in results],
             "all_expected": bool(args.all_expected),
+            "approver": approver,
             "note": args.note,
         },
     )
     for result in results:
         print(f"Accepted {result['case_id']} from {Path(candidate_path)} line {result['candidate_line']}.")
+    if approver:
+        print(f"Approver: {approver}")
     print(f"Wrote {Path(output)}.")
     return 0
 
@@ -1406,6 +1413,13 @@ def _config_diff_profile(explicit: str | None, config: dict[str, object]) -> str
 
 def _config_owner_rules(config: dict[str, object]) -> object:
     return config.get("owners")
+
+
+def _config_require_approver(config: dict[str, object]) -> bool:
+    approval = config.get("approval")
+    if not isinstance(approval, dict):
+        return False
+    return bool(approval.get("require_approver"))
 
 
 def _config_report_path(config: dict[str, object], format_key: str, report_key: str) -> str | None:

@@ -257,6 +257,7 @@ autocomplete. Important keys:
 | `replay` | Command used by `eval`; prompts go to stdin unless it contains `{prompt}`. |
 | `workers` | Number of replay cases to run concurrently. |
 | `owners` | Optional pattern-to-owner rules so regressions show the responsible team. |
+| `approval` | Optional local guardrail; `require_approver` makes `accept` record an approver. |
 | `fail_on` | Statuses that fail `diff` or `eval`; use `"none"` for report-only setup. |
 | `reports` | JSON, Markdown, HTML, and JUnit output paths. |
 | `audit` | Append-only JSONL audit log path for evals, judgments, requirements, and accepted baselines. New entries include a local hash chain that `redline audit --verify` can check. |

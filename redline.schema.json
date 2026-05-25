@@ -81,6 +81,17 @@
         }
       ]
     },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional local approval guardrails for team baseline promotion.",
+      "properties": {
+        "require_approver": {
+          "type": "boolean",
+          "description": "When true, redline accept requires --approver and records it in the suite and audit log."
+        }
+      }
+    },
     "fail_on": {
       "description": "Statuses that produce a non-zero diff/eval exit. Use \"none\" for report-only mode.",
       "oneOf": [

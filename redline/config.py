@@ -33,6 +33,9 @@ def default_config(
         "workers": 1,
         "diff_profile": "strict",
         "owners": [],
+        "approval": {
+            "require_approver": False,
+        },
         "fail_on": list(DEFAULT_FAIL_ON),
         "reports": {
             "json": ".redline/reports/{command}.json",

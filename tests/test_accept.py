@@ -24,6 +24,7 @@ class AcceptTests(unittest.TestCase):
             [LogRecord(4, "Return JSON", '{"ok": false}', {"case_id": case_id})],
             case_id,
             note="new contract",
+            approver="lead@example.com",
         )
 
         self.assertEqual(result["accepted_response"], '{"ok": false}')
@@ -33,6 +34,8 @@ class AcceptTests(unittest.TestCase):
         self.assertEqual(len(suite["cases"][0]["content_hash"]), 64)
         self.assertNotIn(case_id, suite.get("judgments", {}))
         self.assertEqual(suite["accepted_baselines"][0]["note"], "new contract")
+        self.assertEqual(suite["accepted_baselines"][0]["approver"], "lead@example.com")
+        self.assertEqual(result["approver"], "lead@example.com")
 
     def test_accept_candidate_falls_back_to_prompt_match(self) -> None:
         suite = build_suite(

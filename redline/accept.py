@@ -14,6 +14,7 @@ def accept_candidate_baseline(
     case_id: str,
     *,
     note: str = "",
+    approver: str = "",
 ) -> dict[str, Any]:
     case = _find_case(suite, case_id)
     candidate = _find_candidate(candidate_records, case)
@@ -33,22 +34,26 @@ def accept_candidate_baseline(
 
     history = suite.setdefault("accepted_baselines", [])
     if isinstance(history, list):
-        history.append(
-            {
-                "case_id": case_id,
-                "accepted_at": datetime.now(timezone.utc).isoformat(),
-                "candidate_line": candidate.line_number,
-                "note": note,
-                "previous_response": previous_response,
-            }
-        )
+        entry = {
+            "case_id": case_id,
+            "accepted_at": datetime.now(timezone.utc).isoformat(),
+            "candidate_line": candidate.line_number,
+            "note": note,
+            "previous_response": previous_response,
+        }
+        if approver.strip():
+            entry["approver"] = approver.strip()
+        history.append(entry)
 
-    return {
+    result = {
         "case_id": case_id,
         "candidate_line": candidate.line_number,
         "previous_response": previous_response,
         "accepted_response": candidate.response,
     }
+    if approver.strip():
+        result["approver"] = approver.strip()
+    return result
 
 
 def expected_case_ids(suite: dict[str, Any]) -> list[str]:
