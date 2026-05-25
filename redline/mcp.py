@@ -102,7 +102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "redline-mcp\n\n"
             "Local MCP stdio server for redline.\n\n"
             "Run this command from an MCP client. It exposes redline doctor, suite,\n"
-            "watch stats, prompts, redact, audit, benchmark, validate, summary, diff, eval, history, dashboard, cases, and case tools.\n",
+            "watch stats, prompts, judges, redact, audit, benchmark, validate, summary, diff, eval, history, dashboard, cases, and case tools.\n",
             end="",
         )
         return 0
@@ -506,6 +506,19 @@ def _tools() -> list[ToolSpec]:
             _build_prompts,
         ),
         ToolSpec(
+            "redline_judges",
+            "List or copy optional judge templates for semantic review of changed cases.",
+            _schema(
+                {
+                    "copy": _string("Template id to copy, or all."),
+                    "out": _string("Output path for one copied template."),
+                    "force": _boolean("Overwrite existing output path."),
+                    "json": _boolean("Print machine-readable JSON."),
+                }
+            ),
+            _build_judges,
+        ),
+        ToolSpec(
             "redline_validate",
             "Validate suite structure, stored features, hashes, requirements, and source freshness.",
             _schema(
@@ -730,6 +743,15 @@ def _build_prompts(arguments: dict[str, Any]) -> list[str]:
     _add_flag(args, "--check", arguments.get("check"))
     _add_flag(args, "--check-suites", arguments.get("check_suites"))
     _add_repeated_options(args, "--ext", arguments.get("extensions"))
+    _add_flag(args, "--json", arguments.get("json"))
+    return args
+
+
+def _build_judges(arguments: dict[str, Any]) -> list[str]:
+    args = ["judges"]
+    _add_option(args, "--copy", arguments.get("copy"))
+    _add_option(args, "--out", arguments.get("out"))
+    _add_flag(args, "--force", arguments.get("force"))
     _add_flag(args, "--json", arguments.get("json"))
     return args
 

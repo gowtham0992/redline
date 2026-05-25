@@ -194,6 +194,7 @@ Use [docs/mcp.md](docs/mcp.md) to wire redline into an MCP client. The MCP
 surface exposes safe capture-readiness, privacy, audit, scale, read,
 case-inspection, eval, and report tools plus workflow prompts like
 `check_prompt_change`, `build_suite_from_logs`, and `review_candidate_outputs`.
+It can also list or copy optional judge templates when semantic review is needed.
 It does not expose baseline mutation commands.
 
 ## CI And GitHub

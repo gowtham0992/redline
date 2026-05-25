@@ -33,6 +33,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_redact", names)
         self.assertIn("redline_watch_stats", names)
         self.assertIn("redline_prompts", names)
+        self.assertIn("redline_judges", names)
         self.assertIn("redline_benchmark", names)
         self.assertIn("redline_eval", names)
         self.assertIn("redline_diff", names)
@@ -346,6 +347,29 @@ class McpServerTests(unittest.TestCase):
         self.assertEqual(check_result["structuredContent"]["exit_code"], 1)
         self.assertIn("redline prompts check", check_result["content"][0]["text"])
         self.assertIn("Suites:   0/1 present", check_result["content"][0]["text"])
+
+    def test_judges_tool_lists_and_copies_semantic_templates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            list_result = call_tool("redline_judges", {"cwd": directory})
+            copy_result = call_tool(
+                "redline_judges",
+                {
+                    "cwd": directory,
+                    "copy": "support-rubric",
+                    "out": "judges/support.md",
+                },
+            )
+            copied = Path(directory) / "judges" / "support.md"
+            copied_exists = copied.exists()
+
+        self.assertFalse(list_result["isError"])
+        self.assertIn("redline judges", list_result["content"][0]["text"])
+        self.assertIn("Support-agent rubric", list_result["content"][0]["text"])
+        self.assertFalse(copy_result["isError"])
+        self.assertEqual(copy_result["structuredContent"]["exit_code"], 0)
+        self.assertTrue(copied_exists)
+        self.assertIn("Wrote judges/support.md.", copy_result["content"][0]["text"])
+        self.assertIn("REDLINE_JUDGE_RUBRIC=judges/support.md", copy_result["content"][0]["text"])
 
     def test_unknown_tool_returns_jsonrpc_error(self) -> None:
         response = handle_jsonrpc_line(
