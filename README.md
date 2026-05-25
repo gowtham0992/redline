@@ -129,6 +129,7 @@ that structural checks cannot prove.
 redline is built around the full prompt-regression loop:
 
 - `redline watch`: collect prompt-response observations from logs or Python code.
+- `redline redact`: scrub common secrets and PII from JSONL logs before suite generation.
 - `redline cluster`: inspect behavior groups before suite generation.
 - `redline suite`: generate a representative eval suite from baseline logs.
 - `redline suite add`: pin hand-picked edge cases the algorithm should never miss.

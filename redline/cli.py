@@ -48,6 +48,7 @@ from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_
 from .judge import apply_judge
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import parse_fail_on, should_fail
+from .redact import DEFAULT_PLACEHOLDER, format_redaction_report, redact_jsonl
 from .reports import format_github_annotations, format_html_report, format_junit_report, format_markdown_report
 from .requirements import add_case_requirement, clear_case_requirements
 from .replay import read_prompt_template, replay_suite
@@ -180,6 +181,14 @@ def build_parser() -> argparse.ArgumentParser:
     watch_parser.add_argument("--idle-timeout", type=float, help="stop follow mode after this many idle seconds")
     watch_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     watch_parser.set_defaults(func=cmd_watch)
+
+    redact_parser = subparsers.add_parser("redact", help="redact secrets and PII from JSONL prompt logs")
+    redact_parser.add_argument("log", help="JSONL prompt-response log to redact")
+    redact_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
+    redact_parser.add_argument("--out", required=True, help="redacted JSONL output path")
+    redact_parser.add_argument("--placeholder", default=DEFAULT_PLACEHOLDER, help="replacement text")
+    redact_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    redact_parser.set_defaults(func=cmd_redact)
 
     cluster_parser = subparsers.add_parser("cluster", help="analyze behavioral clusters in a log")
     cluster_parser.add_argument("log", nargs="?", help="JSONL prompt-response log; defaults to watched log")
@@ -547,6 +556,27 @@ def cmd_watch(args: argparse.Namespace) -> int:
         if result["skipped_duplicates"]:
             print(f"Skipped {result['skipped_duplicates']} duplicate records.")
         print(f"{str(result['mode']).title()} {Path(str(result['output']))}.")
+    return 0
+
+
+def cmd_redact(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    report = redact_jsonl(args.log, args.out, placeholder=args.placeholder)
+    append_audit_event(
+        _config_audit_path(config),
+        {
+            "event": "log_redacted",
+            "source": file_reference(args.log),
+            "output": file_reference(args.out),
+            "records": int(report["records"]),
+            "redactions": int(report["redactions"]),
+            "patterns": report["patterns"],
+        },
+    )
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        print(format_redaction_report(report), end="")
     return 0
 
 

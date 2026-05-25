@@ -609,6 +609,40 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_redact_command_sanitizes_jsonl_and_appends_audit_event(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps({"audit": ".redline/audit.jsonl"}),
+                    encoding="utf-8",
+                )
+                Path("raw.jsonl").write_text(
+                    '{"prompt": "Email ada@example.com", "response": "ok", "api_key": "secret"}\n',
+                    encoding="utf-8",
+                )
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["redact", "raw.jsonl", "--out", "clean.jsonl"]), 0)
+
+                row = json.loads(Path("clean.jsonl").read_text(encoding="utf-8"))
+                self.assertNotIn("ada@example.com", row["prompt"])
+                self.assertEqual(row["api_key"], "[REDACTED]")
+                self.assertIn("Redactions: 2", output.getvalue())
+                audit = [
+                    json.loads(line)
+                    for line in (root / ".redline" / "audit.jsonl").read_text(encoding="utf-8").splitlines()
+                ]
+                self.assertEqual(audit[-1]["event"], "log_redacted")
+                self.assertEqual(audit[-1]["records"], 1)
+                self.assertEqual(audit[-1]["redactions"], 2)
+                self.assertEqual(audit[-1]["patterns"], {"email": 1, "sensitive_field": 1})
+            finally:
+                os.chdir(previous)
+
     def test_judgment_requirement_and_acceptance_append_audit_events(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
