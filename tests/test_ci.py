@@ -63,6 +63,10 @@ class CiTests(unittest.TestCase):
         action = Path("action.yml").read_text(encoding="utf-8")
 
         self.assertIn("using: composite", action)
+        self.assertIn("author: Gowtham Sarveswaran", action)
+        self.assertIn("branding:", action)
+        self.assertIn("icon: activity", action)
+        self.assertIn("color: red", action)
         self.assertIn("prompt-path:", action)
         self.assertIn("record-history:", action)
         self.assertIn("history-label:", action)

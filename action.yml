@@ -1,6 +1,10 @@
 name: redline eval
 description: Run redline as a local-first prompt regression gate in GitHub Actions.
-author: Gowtham
+author: Gowtham Sarveswaran
+
+branding:
+  icon: activity
+  color: red
 
 inputs:
   config:
