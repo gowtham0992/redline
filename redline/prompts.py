@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from shlex import quote
 from typing import Sequence
 
 from .io import read_json
@@ -110,6 +111,7 @@ def check_prompt_suites(manifest: dict[str, object]) -> dict[str, object]:
         prompts = []
     missing: list[dict[str, object]] = []
     invalid: list[dict[str, object]] = []
+    ready: list[dict[str, object]] = []
     present = 0
     valid = 0
     for prompt in prompts:
@@ -138,6 +140,7 @@ def check_prompt_suites(manifest: dict[str, object]) -> dict[str, object]:
                 )
                 continue
             valid += 1
+            ready.append({**prompt_reference, "command": _eval_command(prompt_reference)})
             continue
         missing.append(prompt_reference)
     prompt_count = len([prompt for prompt in prompts if isinstance(prompt, dict)])
@@ -146,6 +149,7 @@ def check_prompt_suites(manifest: dict[str, object]) -> dict[str, object]:
         "prompt_count": prompt_count,
         "suite_count": present,
         "valid_suite_count": valid,
+        "ready_evals": ready,
         "missing_suites": missing,
         "invalid_suites": invalid,
     }
@@ -200,6 +204,15 @@ def format_prompt_manifest_check(report: dict[str, object], *, command: str) -> 
                         previews.append(f"{item.get('id')} -> {item.get('suite')} ({detail})")
                 if previews:
                     lines.append(f"Invalid suites: {', '.join(previews)}")
+        raw_ready = suite_status.get("ready_evals")
+        if isinstance(raw_ready, list) and raw_ready:
+            lines.append("Ready evals:")
+            for item in raw_ready[:5]:
+                if isinstance(item, dict):
+                    lines.append(f"- {item.get('command')}")
+            remaining = len(raw_ready) - 5
+            if remaining > 0:
+                lines.append(f"- ... {remaining} more prompt suite(s)")
 
     if status != "ok":
         lines.extend(["", "Next:"])
@@ -223,6 +236,12 @@ def _suite_status(*, missing: Sequence[object], invalid: Sequence[object]) -> st
     if invalid:
         return "invalid_suites"
     return "ok"
+
+
+def _eval_command(prompt: dict[str, object]) -> str:
+    suite = quote(str(prompt.get("suite") or ""))
+    path = quote(str(prompt.get("path") or ""))
+    return f"redline eval {suite} --prompt {path}"
 
 
 def _normalize_extensions(extensions: Sequence[str] | None) -> tuple[str, ...]:

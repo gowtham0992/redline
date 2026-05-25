@@ -137,6 +137,48 @@ class PromptManifestTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_prompts_cli_check_suites_prints_ready_eval_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                prompts = root / "prompts"
+                prompts.mkdir()
+                (prompts / "support.txt").write_text("support prompt\n", encoding="utf-8")
+                self.assertEqual(
+                    main(["prompts", "prompts", "--suite-dir", "suites", "--out", "redline-prompts.json"]),
+                    0,
+                )
+                suite = root / "suites" / "support.redline-suite.json"
+                suite.parent.mkdir()
+                suite.write_text('{"cases": [], "summary": {"cases": 0}}\n', encoding="utf-8")
+                output = io.StringIO()
+
+                with contextlib.redirect_stdout(output):
+                    code = main(
+                        [
+                            "prompts",
+                            "prompts",
+                            "--suite-dir",
+                            "suites",
+                            "--out",
+                            "redline-prompts.json",
+                            "--check",
+                            "--check-suites",
+                        ]
+                    )
+
+                self.assertEqual(code, 0)
+                self.assertIn("Status:   OK", output.getvalue())
+                self.assertIn("Ready evals:", output.getvalue())
+                self.assertIn(
+                    "redline eval suites/support.redline-suite.json --prompt prompts/support.txt",
+                    output.getvalue(),
+                )
+            finally:
+                os.chdir(previous)
+
     def test_prompts_cli_check_fails_when_manifest_is_stale(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -188,6 +230,13 @@ class PromptManifestTests(unittest.TestCase):
             self.assertEqual(status["status"], "ok")
             self.assertEqual(status["suite_count"], 1)
             self.assertEqual(status["valid_suite_count"], 1)
+            ready = status["ready_evals"]
+            self.assertIsInstance(ready, list)
+            assert isinstance(ready, list)
+            self.assertEqual(
+                ready[0]["command"],
+                f"redline eval {suite.as_posix()} --prompt {prompt.as_posix()}",
+            )
 
     def test_check_prompt_suites_reports_invalid_suite_files(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
