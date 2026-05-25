@@ -42,6 +42,7 @@
 - Teach `redline doctor` to report prompt manifest readiness, mapped suite validation, and aggregate owner coverage.
 - Replace raw JSON parser failures with actionable JSONL-vs-suite guidance for suite and prompt-manifest commands.
 - Add a dashboard ship-readiness panel with blocking counts, review guidance, and the first mark command.
+- Expose guarded `redline_mark` through MCP with explicit `allow_write` and note requirements.
 - Show owner coverage and top owners in `redline summary`.
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Show blocking and changed review counts in the dashboard reports table.

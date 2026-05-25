@@ -21,7 +21,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("prompts", response["result"]["capabilities"])
         self.assertIn("local-first", response["result"]["instructions"])
 
-    def test_tools_list_exposes_safe_redline_tools(self) -> None:
+    def test_tools_list_exposes_redline_tools_with_guarded_writes(self) -> None:
         response = handle_jsonrpc_line(
             json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         )
@@ -42,8 +42,8 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_audit", names)
         self.assertIn("redline_sbom", names)
         self.assertIn("redline_case", names)
+        self.assertIn("redline_mark", names)
         self.assertNotIn("redline_accept", names)
-        self.assertNotIn("redline_mark", names)
         self.assertNotIn("redline_require", names)
 
     def test_prompts_list_exposes_agent_workflows(self) -> None:
@@ -293,6 +293,66 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline case", case_result["content"][0]["text"])
         self.assertIn(case_id, case_result["content"][0]["text"])
         self.assertIn("Baseline response:", case_result["content"][0]["text"])
+
+    def test_mark_tool_requires_write_approval_and_records_judgment(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        baseline = repo / "examples" / "baseline.jsonl"
+
+        with tempfile.TemporaryDirectory() as directory:
+            suite_path = Path(directory) / "redline-suite.json"
+            suite_result = call_tool(
+                "redline_suite",
+                {
+                    "cwd": directory,
+                    "log_path": str(baseline),
+                    "out": str(suite_path),
+                    "all_cases": True,
+                },
+            )
+            self.assertFalse(suite_result["isError"])
+            suite = json.loads(suite_path.read_text(encoding="utf-8"))
+            case_id = suite["cases"][0]["id"]
+
+            denied = handle_jsonrpc_line(
+                json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 35,
+                        "method": "tools/call",
+                        "params": {
+                            "name": "redline_mark",
+                            "arguments": {
+                                "cwd": directory,
+                                "suite_path": str(suite_path),
+                                "case_id": case_id,
+                                "status": "expected",
+                                "note": "intentional behavior change",
+                            },
+                        },
+                    }
+                )
+            )
+            marked = call_tool(
+                "redline_mark",
+                {
+                    "cwd": directory,
+                    "suite_path": str(suite_path),
+                    "case_id": case_id,
+                    "status": "expected",
+                    "note": "intentional behavior change",
+                    "allow_write": True,
+                },
+            )
+            updated = json.loads(suite_path.read_text(encoding="utf-8"))
+
+        assert denied is not None
+        self.assertEqual(denied["error"]["code"], -32602)
+        self.assertIn("allow_write=true", denied["error"]["message"])
+        self.assertFalse(marked["isError"])
+        self.assertEqual(marked["structuredContent"]["exit_code"], 0)
+        self.assertIn(f"Marked {case_id} as expected", marked["content"][0]["text"])
+        self.assertEqual(updated["judgments"][case_id]["status"], "expected")
+        self.assertEqual(updated["judgments"][case_id]["note"], "intentional behavior change")
 
     def test_redact_and_audit_tools_cover_privacy_preflight(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

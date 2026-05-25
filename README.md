@@ -226,7 +226,9 @@ case-inspection, eval, and report tools plus workflow prompts like
 `setup_redline_project`, `check_prompt_change`, `build_suite_from_logs`, and
 `review_candidate_outputs`.
 It can also list or copy runner adapters and optional judge templates during setup.
-It does not expose baseline mutation commands.
+The only mutating MCP tool is guarded: `redline_mark` requires `allow_write: true`
+and a note before it records an intentional case judgment. Baseline promotion
+stays CLI-only.
 
 ## CI And GitHub
 

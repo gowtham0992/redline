@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO
 
 from . import __version__
+from .judgments import JUDGMENT_STATUSES
+
 PROTOCOL_VERSION = "2025-06-18"
 DEFAULT_MAX_OUTPUT_BYTES = 60_000
 
@@ -106,7 +108,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "redline-mcp\n\n"
             "Local MCP stdio server for redline.\n\n"
             "Run this command from an MCP client. It exposes redline doctor, suite,\n"
-            "watch stats, prompts, runners, judges, redact, audit, SBOM, benchmark, validate, summary, diff, eval, history, dashboard, cases, and case tools.\n",
+            "watch stats, prompts, runners, judges, redact, audit, SBOM, benchmark, validate, summary, diff, eval, history, dashboard, cases, case, and guarded mark tools.\n",
             end="",
         )
         return 0
@@ -653,6 +655,27 @@ def _tools() -> list[ToolSpec]:
             _build_case,
         ),
         ToolSpec(
+            "redline_mark",
+            "Mark a case expected, accepted, or ignored after explicit user approval.",
+            _schema(
+                {
+                    "case_id": _string("Suite case ID to mark."),
+                    "status": {
+                        "type": "string",
+                        "enum": list(JUDGMENT_STATUSES),
+                        "description": "Judgment status to record.",
+                    },
+                    "note": _string("Required human-readable reason for the judgment."),
+                    "suite_path": _string("Suite JSON path. Defaults to config."),
+                    "config": _string("Config path to read."),
+                    "out": _string("Write updated suite to a new path."),
+                    "allow_write": _boolean("Must be true because this mutates a local suite file."),
+                },
+                required=("case_id", "status", "note", "allow_write"),
+            ),
+            _build_mark,
+        ),
+        ToolSpec(
             "redline_diff",
             "Compare candidate JSONL outputs against a redline suite and return the behavioral diff.",
             _schema(
@@ -892,6 +915,25 @@ def _build_case(arguments: dict[str, Any]) -> list[str]:
     _add_positional(args, _required_string(arguments, "case_id"))
     _add_option(args, "--config", arguments.get("config"))
     _add_flag(args, "--json", arguments.get("json"))
+    return args
+
+
+def _build_mark(arguments: dict[str, Any]) -> list[str]:
+    if arguments.get("allow_write") is not True:
+        raise ValueError("redline_mark mutates suite files; pass allow_write=true after user approval")
+    note = _required_string(arguments, "note")
+    status = _required_string(arguments, "status")
+    if status not in JUDGMENT_STATUSES:
+        raise ValueError(f"status must be one of: {', '.join(JUDGMENT_STATUSES)}")
+    args = ["mark"]
+    suite_path = arguments.get("suite_path")
+    if suite_path:
+        _add_positional(args, suite_path)
+    _add_positional(args, _required_string(arguments, "case_id"))
+    _add_option(args, "--config", arguments.get("config"))
+    _add_option(args, "--status", status)
+    _add_option(args, "--note", note)
+    _add_option(args, "--out", arguments.get("out"))
     return args
 
 

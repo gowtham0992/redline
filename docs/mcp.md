@@ -47,11 +47,13 @@ For clients that prefer an explicit package runner, use `uvx`:
 
 ## Tools
 
-The first MCP surface is intentionally safe. It does not expose baseline mutation commands.
-That means commands such as `redline accept`, `redline mark`, or `redline require`
-stay out of the MCP server. It can inspect capture readiness, scan/redact logs,
-generate suites, inspect coverage, estimate CI runtime, run diffs/evals, read
-the local audit trail, generate SBOM evidence, check prompt manifests, and write
+The MCP surface is conservative. Most tools are read-only or write new reports,
+but `redline_mark` can mutate a suite judgment and therefore requires
+`allow_write: true` plus a human-readable `note`. Baseline promotion commands
+such as `redline accept` stay out of the MCP server. The server can inspect
+capture readiness, scan/redact logs, generate suites, inspect coverage, estimate
+CI runtime, run diffs/evals, mark intentional findings after approval, read the
+local audit trail, generate SBOM evidence, check prompt manifests, and write
 reports.
 
 Available tools:
@@ -68,6 +70,7 @@ Available tools:
 - `redline_benchmark`
 - `redline_cases`
 - `redline_case`
+- `redline_mark` (guarded write: requires `allow_write: true` and `note`)
 - `redline_diff`
 - `redline_eval`
 - `redline_history`
@@ -97,8 +100,9 @@ reach for most often:
   prompt/log discovery, suite validation, CI scale checks, and optional judge setup.
 
 These prompts are intentionally conservative. They tell the assistant to treat
-redline exit code `1` as a product finding, avoid baseline mutation, and avoid
-claiming a prompt is semantically safe when redline only found neutral output.
+redline exit code `1` as a product finding, avoid baseline mutation unless the
+user explicitly approves a guarded write, and avoid claiming a prompt is
+semantically safe when redline only found neutral output.
 
 ## Example Prompts
 
