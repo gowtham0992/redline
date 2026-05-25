@@ -32,6 +32,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_suite", names)
         self.assertIn("redline_redact", names)
         self.assertIn("redline_watch_stats", names)
+        self.assertIn("redline_prompts", names)
         self.assertIn("redline_benchmark", names)
         self.assertIn("redline_eval", names)
         self.assertIn("redline_diff", names)
@@ -302,6 +303,41 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("Records:           1", result["content"][0]["text"])
         self.assertIn("Skipped captures:  1", result["content"][0]["text"])
         self.assertIn("response_streaming=1", result["content"][0]["text"])
+
+    def test_prompts_tool_checks_manifest_suite_readiness(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prompts = root / "prompts"
+            prompts.mkdir()
+            (prompts / "support.txt").write_text("support prompt\n", encoding="utf-8")
+
+            create_result = call_tool(
+                "redline_prompts",
+                {
+                    "cwd": directory,
+                    "path": "prompts",
+                    "suite_dir": "suites",
+                    "out": "redline-prompts.json",
+                },
+            )
+            check_result = call_tool(
+                "redline_prompts",
+                {
+                    "cwd": directory,
+                    "path": "prompts",
+                    "suite_dir": "suites",
+                    "out": "redline-prompts.json",
+                    "check": True,
+                    "check_suites": True,
+                },
+            )
+
+        self.assertFalse(create_result["isError"])
+        self.assertEqual(create_result["structuredContent"]["exit_code"], 0)
+        self.assertFalse(check_result["isError"])
+        self.assertEqual(check_result["structuredContent"]["exit_code"], 1)
+        self.assertIn("redline prompts check", check_result["content"][0]["text"])
+        self.assertIn("Suites:   0/1 present", check_result["content"][0]["text"])
 
     def test_unknown_tool_returns_jsonrpc_error(self) -> None:
         response = handle_jsonrpc_line(

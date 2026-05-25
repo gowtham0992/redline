@@ -102,7 +102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "redline-mcp\n\n"
             "Local MCP stdio server for redline.\n\n"
             "Run this command from an MCP client. It exposes redline doctor, suite,\n"
-            "watch stats, redact, audit, benchmark, validate, summary, diff, eval, history, dashboard, cases, and case tools.\n",
+            "watch stats, prompts, redact, audit, benchmark, validate, summary, diff, eval, history, dashboard, cases, and case tools.\n",
             end="",
         )
         return 0
@@ -485,6 +485,27 @@ def _tools() -> list[ToolSpec]:
             _build_watch_stats,
         ),
         ToolSpec(
+            "redline_prompts",
+            "Scan prompt files, write or check a prompt-to-suite manifest, and verify mapped suites exist.",
+            _schema(
+                {
+                    "path": _string("Prompt file or directory to scan."),
+                    "suite_dir": _string("Suite directory to map prompt files into."),
+                    "out": _string("Manifest JSON path to write or check."),
+                    "check": _boolean("Exit non-zero when the manifest is stale."),
+                    "check_suites": _boolean("Also exit non-zero when mapped suite files are missing."),
+                    "extensions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Prompt extensions to include.",
+                    },
+                    "json": _boolean("Print machine-readable JSON."),
+                },
+                required=("path",),
+            ),
+            _build_prompts,
+        ),
+        ToolSpec(
             "redline_validate",
             "Validate suite structure, stored features, hashes, requirements, and source freshness.",
             _schema(
@@ -698,6 +719,18 @@ def _build_watch_stats(arguments: dict[str, Any]) -> list[str]:
     return args
 
 
+def _build_prompts(arguments: dict[str, Any]) -> list[str]:
+    args = ["prompts"]
+    _add_positional(args, _required_string(arguments, "path"))
+    _add_option(args, "--suite-dir", arguments.get("suite_dir"))
+    _add_option(args, "--out", arguments.get("out"))
+    _add_flag(args, "--check", arguments.get("check"))
+    _add_flag(args, "--check-suites", arguments.get("check_suites"))
+    _add_repeated_options(args, "--ext", arguments.get("extensions"))
+    _add_flag(args, "--json", arguments.get("json"))
+    return args
+
+
 def _build_validate(arguments: dict[str, Any]) -> list[str]:
     args = ["validate"]
     _add_positional(args, arguments.get("suite_path"))
@@ -840,6 +873,20 @@ def _add_option(args: list[str], flag: str, value: object) -> None:
 def _add_flag(args: list[str], flag: str, value: object) -> None:
     if isinstance(value, bool) and value:
         args.append(flag)
+
+
+def _add_repeated_options(args: list[str], flag: str, values: object) -> None:
+    if values is None or values == "":
+        return
+    if isinstance(values, str):
+        values = [item.strip() for item in values.split(",")]
+    if not isinstance(values, list):
+        raise ValueError(f"{flag} values must be a list of strings")
+    for value in values:
+        if not isinstance(value, str):
+            raise ValueError(f"{flag} values must be strings")
+        if value:
+            args.extend([flag, value])
 
 
 def _required_string(arguments: dict[str, Any], key: str) -> str:
