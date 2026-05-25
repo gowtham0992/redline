@@ -539,6 +539,125 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_suite_and_diff_append_audit_events(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps(
+                        {
+                            "suite": "suite.json",
+                            "fail_on": "none",
+                            "audit": ".redline/audit.jsonl",
+                            "reports": {"json": ".redline/reports/{command}.json"},
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
+                    self.assertEqual(main(["diff", "candidate.jsonl"]), 0)
+
+                rows = [
+                    json.loads(line)
+                    for line in (root / ".redline" / "audit.jsonl").read_text(encoding="utf-8").splitlines()
+                ]
+                self.assertEqual([row["event"] for row in rows], ["suite_generated", "diff_run"])
+                self.assertEqual(rows[1]["summary"]["regression"], 1)
+                self.assertEqual(len(rows[1]["suite"]["sha256"]), 64)
+                self.assertEqual(len(rows[1]["candidate"]["sha256"]), 64)
+                self.assertEqual(len(rows[1]["reports"]["json"]["sha256"]), 64)
+                self.assertNotIn("baseline_response", json.dumps(rows))
+            finally:
+                os.chdir(previous)
+
+    def test_audit_can_be_disabled(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps(
+                        {
+                            "suite": "suite.json",
+                            "audit": False,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
+
+                self.assertFalse((root / ".redline" / "audit.jsonl").exists())
+            finally:
+                os.chdir(previous)
+
+    def test_judgment_requirement_and_acceptance_append_audit_events(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps(
+                        {
+                            "suite": "suite.json",
+                            "audit": ".redline/audit.jsonl",
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": false}"}\n',
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
+                suite = json.loads(Path("suite.json").read_text(encoding="utf-8"))
+                case_id = suite["cases"][0]["id"]
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["mark", "suite.json", case_id, "--status", "expected", "--note", "intentional"]), 0)
+                    self.assertEqual(main(["require", "suite.json", case_id, "--include", "ok", "--note", "must keep ok"]), 0)
+                    self.assertEqual(main(["accept", "suite.json", case_id, "--candidate", "candidate.jsonl", "--note", "approved"]), 0)
+
+                rows = [
+                    json.loads(line)
+                    for line in (root / ".redline" / "audit.jsonl").read_text(encoding="utf-8").splitlines()
+                ]
+                self.assertEqual(
+                    [row["event"] for row in rows],
+                    ["suite_generated", "case_marked", "requirements_updated", "baseline_accepted"],
+                )
+                self.assertEqual(rows[1]["case_id"], case_id)
+                self.assertEqual(rows[1]["status"], "expected")
+                self.assertEqual(rows[2]["requirements"], {"include": 1, "exclude": 0})
+                self.assertEqual(rows[3]["case_ids"], [case_id])
+                self.assertNotIn("accepted_response", json.dumps(rows))
+            finally:
+                os.chdir(previous)
+
     def test_summary_on_jsonl_points_to_suite_generation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

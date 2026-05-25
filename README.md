@@ -250,6 +250,7 @@ autocomplete. Important keys:
 | `workers` | Number of replay cases to run concurrently. |
 | `fail_on` | Statuses that fail `diff` or `eval`; use `"none"` for report-only setup. |
 | `reports` | JSON, Markdown, HTML, and JUnit output paths. |
+| `audit` | Append-only JSONL audit log path for evals, judgments, requirements, and accepted baselines. |
 | `judge` | Optional command for ambiguous `changed` cases. |
 
 Check setup before relying on a suite:

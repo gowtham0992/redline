@@ -27,6 +27,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config["logs"]["observed"], ".redline/logs/prompts.jsonl")
         self.assertEqual(config["runs"]["candidate"], ".redline/runs/candidate.jsonl")
         self.assertEqual(config["runs"]["metadata"], ".redline/runs/replay.json")
+        self.assertEqual(config["audit"], ".redline/audit.jsonl")
 
     def test_create_config_refuses_existing_file_without_force(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

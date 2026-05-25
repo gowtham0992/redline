@@ -109,6 +109,18 @@
         }
       }
     },
+    "audit": {
+      "description": "Append-only JSONL audit log path for suite generation, eval/diff runs, judgments, requirements, and accepted baselines. Use false or \"none\" to disable.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "boolean",
+          "const": false
+        }
+      ]
+    },
     "replay": {
       "type": "string",
       "description": "Command used by redline eval to run each case. The prompt is sent on stdin unless the command contains {prompt}."

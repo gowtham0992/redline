@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .audit import DEFAULT_AUDIT_PATH
 from .policy import DEFAULT_FAIL_ON
 
 
@@ -45,6 +46,7 @@ def default_config(
             "candidate": ".redline/runs/candidate.jsonl",
             "metadata": ".redline/runs/replay.json",
         },
+        "audit": DEFAULT_AUDIT_PATH,
     }
     if replay:
         config["replay"] = replay

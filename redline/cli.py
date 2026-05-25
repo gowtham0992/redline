@@ -12,6 +12,13 @@ from typing import Mapping, Sequence
 
 from . import __version__
 from .accept import accept_candidate_baseline, expected_case_ids
+from .audit import (
+    DEFAULT_AUDIT_PATH,
+    append_audit_event,
+    decision_summary,
+    file_reference,
+    result_summary,
+)
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
 from .ci import default_github_workflow
 from .clusters import cluster_report, format_cluster_report
@@ -586,6 +593,22 @@ def cmd_suite(args: argparse.Namespace) -> int:
         all_cases=args.all_cases,
     )
     write_json(output, suite)
+    append_audit_event(
+        _config_audit_path(config),
+        {
+            "event": "suite_generated",
+            "source": file_reference(log_path),
+            "suite": file_reference(output),
+            "input_field": input_field,
+            "output_field": output_field,
+            "summary": {
+                "records_seen": int(suite["summary"]["records_seen"]),
+                "cases": int(suite["summary"]["cases"]),
+                "clusters": int(suite["summary"]["clusters"]),
+                "selection": str(suite["summary"]["selection"]),
+            },
+        },
+    )
     summary = suite["summary"]
     print(f"Generated {summary['cases']} cases from {summary['records_seen']} records.")
     if summary.get("duplicate_prompt_response_pairs"):
@@ -626,6 +649,16 @@ def cmd_suite_add(args: argparse.Namespace) -> int:
             note=args.note,
         )
     write_json(output, suite)
+    append_audit_event(
+        _config_audit_path(config),
+        {
+            "event": "case_pinned",
+            "suite": file_reference(output),
+            "case_id": str(case["id"]),
+            "note": args.note,
+            "requirements": _requirement_counts(requirements),
+        },
+    )
     if args.json:
         print(
             json.dumps(
@@ -712,10 +745,26 @@ def cmd_diff(args: argparse.Namespace) -> int:
     input_field = args.input_field or str(suite.get("input_field") or config.get("input_field", "prompt"))
     output_field = args.output_field or str(suite.get("output_field") or config.get("output_field", "response"))
     candidate = read_jsonl_records(candidate_path, input_field, output_field)
-    result = compare_suite_to_candidate(suite, candidate, profile=_config_diff_profile(args.profile, config))
+    profile = _config_diff_profile(args.profile, config)
+    result = compare_suite_to_candidate(suite, candidate, profile=profile)
     result = _maybe_apply_judge(args, result, config)
 
-    return _emit_result(args, result, title="redline diff", config=config, report_key="diff")
+    return _emit_result(
+        args,
+        result,
+        title="redline diff",
+        config=config,
+        report_key="diff",
+        audit_event={
+            "event": "diff_run",
+            "suite": file_reference(suite_path),
+            "candidate": file_reference(candidate_path),
+            "input_field": input_field,
+            "output_field": output_field,
+            "profile": profile,
+            "judge": bool(result.get("judge")),
+        },
+    )
 
 
 def cmd_compare(args: argparse.Namespace) -> int:
@@ -818,7 +867,8 @@ def cmd_eval(args: argparse.Namespace) -> int:
     candidate_out = args.candidate_out or _config_candidate_path(config)
     if candidate_out:
         write_jsonl(candidate_out, (record.raw for record in replay.records))
-    result = compare_suite_to_candidate(suite, replay.records, profile=_config_diff_profile(args.profile, config))
+    profile = _config_diff_profile(args.profile, config)
+    result = compare_suite_to_candidate(suite, replay.records, profile=profile)
     result = _maybe_apply_judge(args, result, config)
     result["replay"] = replay.to_metadata()
     _add_result_warnings(result, _eval_warnings(suite, suite_path=suite_path, prompt_path=args.prompt))
@@ -829,7 +879,24 @@ def cmd_eval(args: argparse.Namespace) -> int:
             _run_metadata(replay.to_metadata(), suite_path, candidate_out, result),
         )
 
-    return _emit_result(args, result, title="redline eval", config=config, report_key="eval")
+    return _emit_result(
+        args,
+        result,
+        title="redline eval",
+        config=config,
+        report_key="eval",
+        audit_event={
+            "event": "eval_run",
+            "suite": file_reference(suite_path),
+            "prompt": file_reference(args.prompt),
+            "candidate": file_reference(candidate_out),
+            "run_metadata": file_reference(run_metadata_out),
+            "profile": profile,
+            "workers": workers,
+            "timeout_seconds": timeout_seconds,
+            "judge": bool(result.get("judge")),
+        },
+    )
 
 
 def cmd_mark(args: argparse.Namespace) -> int:
@@ -839,6 +906,16 @@ def cmd_mark(args: argparse.Namespace) -> int:
     mark_suite_case(suite, case_id, status=args.status, note=args.note)
     output = args.out or suite_path
     write_json(output, suite)
+    append_audit_event(
+        _config_audit_path(config),
+        {
+            "event": "case_marked",
+            "suite": file_reference(output),
+            "case_id": case_id,
+            "status": args.status,
+            "note": args.note,
+        },
+    )
     print(f"Marked {case_id} as {args.status} in {Path(output)}.")
     return 0
 
@@ -850,6 +927,15 @@ def cmd_clear(args: argparse.Namespace) -> int:
     removed = clear_suite_case_judgment(suite, case_id)
     output = args.out or suite_path
     write_json(output, suite)
+    append_audit_event(
+        _config_audit_path(config),
+        {
+            "event": "case_judgment_cleared",
+            "suite": file_reference(output),
+            "case_id": case_id,
+            "removed": removed,
+        },
+    )
     if removed:
         print(f"Cleared judgment for {case_id} in {Path(output)}.")
     else:
@@ -876,7 +962,21 @@ def cmd_accept(args: argparse.Namespace) -> int:
         for case_id in case_ids
     ]
     output = args.out or suite_path
+    previous_suite = file_reference(suite_path)
     write_json(output, suite)
+    append_audit_event(
+        _config_audit_path(config),
+        {
+            "event": "baseline_accepted",
+            "suite_before": previous_suite,
+            "suite": file_reference(output),
+            "candidate": file_reference(candidate_path),
+            "case_ids": [str(result["case_id"]) for result in results],
+            "candidate_lines": [int(result["candidate_line"]) for result in results],
+            "all_expected": bool(args.all_expected),
+            "note": args.note,
+        },
+    )
     for result in results:
         print(f"Accepted {result['case_id']} from {Path(candidate_path)} line {result['candidate_line']}.")
     print(f"Wrote {Path(output)}.")
@@ -891,13 +991,26 @@ def cmd_require(args: argparse.Namespace) -> int:
         removed = clear_case_requirements(suite, case_id)
         action = "Cleared" if removed else "No requirements found for"
         print(f"{action} {case_id}.")
+        audit_event = {
+            "event": "requirements_cleared",
+            "case_id": case_id,
+            "removed": removed,
+        }
     else:
         if not args.include and not args.exclude:
             raise ValueError("require needs --include, --exclude, or --clear")
-        add_case_requirement(suite, case_id, include=args.include, exclude=args.exclude, note=args.note)
+        requirement = add_case_requirement(suite, case_id, include=args.include, exclude=args.exclude, note=args.note)
         print(f"Updated requirements for {case_id}.")
+        audit_event = {
+            "event": "requirements_updated",
+            "case_id": case_id,
+            "note": args.note,
+            "requirements": _requirement_counts(requirement),
+        }
     output = args.out or suite_path
     write_json(output, suite)
+    audit_event["suite"] = file_reference(output)
+    append_audit_event(_config_audit_path(config), audit_event)
     print(f"Wrote {Path(output)}.")
     return 0
 
@@ -909,6 +1022,7 @@ def _emit_result(
     title: str,
     config: dict[str, object],
     report_key: str,
+    audit_event: dict[str, object] | None = None,
 ) -> int:
     fail_on = parse_fail_on(_config_fail_on(args.fail_on, config))
     out_json = args.out_json or _config_report_path(config, "json", report_key)
@@ -938,7 +1052,26 @@ def _emit_result(
     else:
         print(format_report(result, title=title), end="")
 
-    return 1 if should_fail(result, fail_on) else 0
+    exit_code = 1 if should_fail(result, fail_on) else 0
+    if audit_event is not None:
+        append_audit_event(
+            _config_audit_path(config),
+            {
+                **audit_event,
+                "summary": result_summary(result),
+                "decision": decision_summary(result),
+                "reports": _report_references(
+                    {
+                        "json": out_json,
+                        "markdown": out_md,
+                        "html": out_html,
+                        "junit": out_junit,
+                    }
+                ),
+                "exit_code": exit_code,
+            },
+        )
+    return exit_code
 
 
 def _append_github_step_summary(markdown_report: str) -> None:
@@ -1005,6 +1138,33 @@ def _config_value(
     if explicit is not None:
         return explicit
     return config.get(key, default)
+
+
+def _config_audit_path(config: dict[str, object]) -> str | None:
+    value = config.get("audit", DEFAULT_AUDIT_PATH)
+    if value is False or value is None or value == "" or value == "none":
+        return None
+    if not isinstance(value, str):
+        raise ValueError("audit must be a path string, false, or \"none\"")
+    return value
+
+
+def _report_references(paths: Mapping[str, str | None]) -> dict[str, dict[str, object]]:
+    reports: dict[str, dict[str, object]] = {}
+    for key, path in paths.items():
+        reference = file_reference(path)
+        if reference is not None:
+            reports[key] = reference
+    return reports
+
+
+def _requirement_counts(requirement: object) -> dict[str, int]:
+    if not isinstance(requirement, dict):
+        return {"include": 0, "exclude": 0}
+    return {
+        "include": len([item for item in requirement.get("include") or [] if str(item).strip()]),
+        "exclude": len([item for item in requirement.get("exclude") or [] if str(item).strip()]),
+    }
 
 
 def _config_int(
