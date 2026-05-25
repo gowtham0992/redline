@@ -32,6 +32,7 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(suite["summary"]["clusters"], 2)
         self.assertEqual(suite["summary"]["high_risk_clusters"], 0)
         self.assertEqual(suite["summary"]["medium_risk_clusters"], 0)
+        self.assertEqual(suite["summary"]["prompt_diversity_cases"], 0)
         self.assertTrue(all("baseline_response" in case for case in suite["cases"]))
         self.assertTrue(all(len(case["content_hash"]) == 64 for case in suite["cases"]))
         self.assertTrue(all(case["selection_reason"] == "cluster_representative" for case in suite["cases"]))
@@ -61,6 +62,7 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("cluster_risk", case_properties)
         self.assertIn("owner", case_properties)
         self.assertIn("owned_cases", schema["properties"]["summary"]["properties"])
+        self.assertIn("prompt_diversity_cases", schema["properties"]["summary"]["properties"])
 
     def test_build_suite_assigns_case_owners_from_rules(self) -> None:
         suite = build_suite(
@@ -164,6 +166,27 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("high_variance_short_edge", reasons)
         self.assertIn("high_variance_long_edge", reasons)
         self.assertEqual(suite["summary"]["medium_risk_clusters"], 1)
+
+    def test_build_suite_selects_prompt_diversity_edges_for_large_clusters(self) -> None:
+        records = [
+            LogRecord(index, f"Summarize support ticket {index} for account {index}", "same shape answer", {})
+            for index in range(1, 7)
+        ]
+
+        suite = build_suite(
+            records,
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=3,
+        )
+
+        reasons = [case["selection_reason"] for case in suite["cases"]]
+        self.assertEqual(suite["summary"]["clusters"], 1)
+        self.assertEqual(suite["summary"]["cases"], 3)
+        self.assertEqual(reasons.count("cluster_representative"), 1)
+        self.assertEqual(reasons.count("prompt_diversity_edge"), 2)
+        self.assertEqual(suite["summary"]["prompt_diversity_cases"], 2)
 
     def test_build_suite_extracts_features_once_per_record(self) -> None:
         records = [

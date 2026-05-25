@@ -114,6 +114,10 @@ redline is deterministic and local-first by default. Optional judge commands are
 available for ambiguous `changed` cases, but redline does not call a cloud model
 unless you explicitly configure that command.
 
+Suite generation groups logs by deterministic behavior signatures, not opaque
+embedding clusters. It picks one representative per group first, then adds
+high-variance and prompt-diverse edges when the case budget allows.
+
 ## Trust Boundary
 
 A green redline run means no configured high-signal structural blockers were

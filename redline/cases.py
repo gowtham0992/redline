@@ -156,6 +156,7 @@ def _format_selection_reason(value: object) -> str:
         "high_variance_short_edge": "short-edge",
         "high_variance_long_edge": "long-edge",
         "high_variance_edge": "edge",
+        "prompt_diversity_edge": "prompt-edge",
         "all_cases": "all",
         "manual_pin": "manual",
     }

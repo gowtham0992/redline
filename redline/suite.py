@@ -107,6 +107,7 @@ def build_suite(
             "medium_risk_clusters": _risk_count(cluster_infos, "medium"),
             "high_variance_clusters": sum(1 for info in cluster_infos.values() if info["high_variance"]),
             "failure_pattern_clusters": sum(1 for info in cluster_infos.values() if info["failure_patterns"]),
+            "prompt_diversity_cases": sum(1 for _, reason in selected if reason == "prompt_diversity_edge"),
             "owned_cases": _owned_case_count(cases),
         },
         "clusters": clusters,
@@ -215,6 +216,21 @@ def _select_representatives(
             if len(selected) >= max_cases:
                 break
 
+    # Large same-shape clusters can still hide prompt-specific edge cases.
+    # Add prompt-diverse representatives after structural/risk coverage.
+    for signature, group in groups:
+        if len(selected) >= max_cases:
+            break
+        if len(group) < 5:
+            continue
+        for record, reason in _prompt_diversity_records(group):
+            if id(record) in selected_ids:
+                continue
+            selected.append((record, reason))
+            selected_ids.add(id(record))
+            if len(selected) >= max_cases:
+                break
+
     return selected
 
 
@@ -301,6 +317,16 @@ def _edge_records(group: list[LogRecord]) -> list[tuple[LogRecord, str]]:
     return [
         (ranked[0], "high_variance_short_edge"),
         (ranked[-1], "high_variance_long_edge"),
+    ]
+
+
+def _prompt_diversity_records(group: list[LogRecord]) -> list[tuple[LogRecord, str]]:
+    ranked = sorted(group, key=lambda record: (len(record.prompt), record.prompt, record.line_number))
+    if len(ranked) <= 1:
+        return [(ranked[0], "prompt_diversity_edge")]
+    return [
+        (ranked[0], "prompt_diversity_edge"),
+        (ranked[-1], "prompt_diversity_edge"),
     ]
 
 

@@ -47,7 +47,8 @@
         "high_risk_clusters": {"type": "integer", "minimum": 0},
         "medium_risk_clusters": {"type": "integer", "minimum": 0},
         "high_variance_clusters": {"type": "integer", "minimum": 0},
-        "failure_pattern_clusters": {"type": "integer", "minimum": 0}
+        "failure_pattern_clusters": {"type": "integer", "minimum": 0},
+        "prompt_diversity_cases": {"type": "integer", "minimum": 0}
       },
       "additionalProperties": true
     },
@@ -97,6 +98,7 @@
               "high_variance_short_edge",
               "high_variance_long_edge",
               "high_variance_edge",
+              "prompt_diversity_edge",
               "all_cases",
               "manual_pin"
             ]
