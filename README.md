@@ -311,6 +311,7 @@ bash scripts/release_check.sh
 - [docs/dogfood.md](docs/dogfood.md): first-user dogfood protocol
 - [docs/runners.md](docs/runners.md): runner and log adapter setup
 - [docs/mcp.md](docs/mcp.md): MCP server setup
+- [docs/benchmarks.md](docs/benchmarks.md): performance contract and CI benchmark artifacts
 - [docs/repository.md](docs/repository.md): GitHub repository controls
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributor validation
 - [SECURITY.md](SECURITY.md): privacy and vulnerability reporting
