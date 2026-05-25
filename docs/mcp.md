@@ -48,9 +48,9 @@ For clients that prefer an explicit package runner, use `uvx`:
 ## Tools
 
 The first MCP surface is intentionally safe. It can scan/redact logs, generate
-suites, inspect coverage, run diffs/evals, read the local audit trail, and write
-reports. It does not expose baseline mutation commands such as `redline accept`,
-`redline mark`, or `redline require`.
+suites, inspect coverage, estimate CI runtime, run diffs/evals, read the local
+audit trail, and write reports. It does not expose baseline mutation commands
+such as `redline accept`, `redline mark`, or `redline require`.
 
 Available tools:
 
@@ -59,6 +59,7 @@ Available tools:
 - `redline_redact`
 - `redline_validate`
 - `redline_summary`
+- `redline_benchmark`
 - `redline_cases`
 - `redline_diff`
 - `redline_eval`

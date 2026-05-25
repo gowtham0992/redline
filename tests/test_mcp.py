@@ -29,6 +29,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_doctor", names)
         self.assertIn("redline_suite", names)
         self.assertIn("redline_redact", names)
+        self.assertIn("redline_benchmark", names)
         self.assertIn("redline_eval", names)
         self.assertIn("redline_diff", names)
         self.assertIn("redline_dashboard", names)
@@ -143,6 +144,39 @@ class McpServerTests(unittest.TestCase):
         self.assertEqual(diff_result["structuredContent"]["exit_code"], 1)
         self.assertIn("regression=4", diff_result["content"][0]["text"])
         self.assertIn("candidate missing JSON keys", diff_result["content"][0]["text"])
+
+    def test_benchmark_tool_reports_ci_scale(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        baseline = repo / "examples" / "baseline.jsonl"
+
+        with tempfile.TemporaryDirectory() as directory:
+            suite_path = Path(directory) / "redline-suite.json"
+            suite_result = call_tool(
+                "redline_suite",
+                {
+                    "cwd": directory,
+                    "log_path": str(baseline),
+                    "out": str(suite_path),
+                    "all_cases": True,
+                },
+            )
+            self.assertFalse(suite_result["isError"])
+
+            benchmark_result = call_tool(
+                "redline_benchmark",
+                {
+                    "cwd": directory,
+                    "suite_path": str(suite_path),
+                    "timeout": 10,
+                    "workers": 2,
+                },
+            )
+
+        self.assertFalse(benchmark_result["isError"])
+        self.assertEqual(benchmark_result["structuredContent"]["exit_code"], 0)
+        self.assertIn("redline benchmark", benchmark_result["content"][0]["text"])
+        self.assertIn("Workers:               2", benchmark_result["content"][0]["text"])
+        self.assertIn("Worst-case eval budget:", benchmark_result["content"][0]["text"])
 
     def test_redact_and_audit_tools_cover_privacy_preflight(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -106,7 +106,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "redline-mcp\n\n"
             "Local MCP stdio server for redline.\n\n"
             "Run this command from an MCP client. It exposes redline doctor, suite,\n"
-            "redact, audit, validate, summary, diff, eval, history, dashboard, and cases tools.\n",
+            "redact, audit, benchmark, validate, summary, diff, eval, history, dashboard, and cases tools.\n",
             end="",
         )
         return 0
@@ -388,7 +388,8 @@ def _build_suite_from_logs_prompt(arguments: dict[str, Any]) -> str:
         "1. Call `redline_suite` for the baseline log and write the suite output.\n"
         "2. Call `redline_validate` on the generated suite.\n"
         "3. Call `redline_summary` so I can see coverage, clusters, pinned cases, and next steps.\n"
-        "4. Explain what behavior redline can catch from this suite and what still needs human review.\n"
+        "4. Call `redline_benchmark` so I can see expected CI runtime before enabling a gate.\n"
+        "5. Explain what behavior redline can catch from this suite and what still needs human review.\n"
     )
 
 
@@ -489,6 +490,20 @@ def _tools() -> list[ToolSpec]:
                 }
             ),
             _build_summary,
+        ),
+        ToolSpec(
+            "redline_benchmark",
+            "Estimate suite eval runtime, timeout budget, and CI scale before enabling a gate.",
+            _schema(
+                {
+                    "suite_path": _string("Suite JSON path. Defaults to config."),
+                    "config": _string("Config path to read."),
+                    "timeout": _number("Per-case timeout in seconds."),
+                    "workers": _integer("Number of replay workers."),
+                    "json": _boolean("Print machine-readable JSON."),
+                }
+            ),
+            _build_benchmark,
         ),
         ToolSpec(
             "redline_cases",
@@ -648,6 +663,16 @@ def _build_summary(arguments: dict[str, Any]) -> list[str]:
     args = ["summary"]
     _add_positional(args, arguments.get("suite_path"))
     _add_option(args, "--config", arguments.get("config"))
+    _add_flag(args, "--json", arguments.get("json"))
+    return args
+
+
+def _build_benchmark(arguments: dict[str, Any]) -> list[str]:
+    args = ["benchmark"]
+    _add_positional(args, arguments.get("suite_path"))
+    _add_option(args, "--config", arguments.get("config"))
+    _add_option(args, "--timeout", arguments.get("timeout"))
+    _add_option(args, "--workers", arguments.get("workers"))
     _add_flag(args, "--json", arguments.get("json"))
     return args
 
