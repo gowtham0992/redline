@@ -1032,7 +1032,8 @@ class CliConfigTests(unittest.TestCase):
                     code = main(["summary", "baseline.jsonl"])
 
                 self.assertEqual(code, 2)
-                self.assertIn("expected one JSON object", stderr.getvalue())
+                self.assertIn("looks like raw JSONL logs", stderr.getvalue())
+                self.assertIn("expects a redline suite JSON or prompt manifest", stderr.getvalue())
                 self.assertIn("redline suite baseline.jsonl --out redline-suite.json", stderr.getvalue())
             finally:
                 os.chdir(previous)

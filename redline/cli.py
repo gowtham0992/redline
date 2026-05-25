@@ -556,7 +556,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     suite_error = None
     if Path(suite_path).exists():
         try:
-            suite = read_json(suite_path)
+            suite = _read_suite_or_manifest(suite_path)
         except ValueError as exc:
             suite_error = str(exc)
     report = doctor_report(
@@ -942,7 +942,7 @@ def cmd_suite_add(args: argparse.Namespace) -> int:
     output = args.out or suite_path
     prompt = _text_arg(args.prompt, args.prompt_file, "prompt")
     response = _text_arg(args.response, args.response_file, "response")
-    suite = read_json(suite_path)
+    suite = _read_suite_or_manifest(suite_path)
     case = add_suite_case(
         suite,
         prompt=prompt,
@@ -1004,7 +1004,7 @@ def cmd_suite_add(args: argparse.Namespace) -> int:
 def cmd_cases(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path = _suite_arg(args.suite, config)
-    suite = read_json(suite_path)
+    suite = _read_suite_or_manifest(suite_path)
     if args.json:
         print(json.dumps({"cases": suite_case_rows(suite)}, indent=2, sort_keys=True))
     else:
@@ -1020,7 +1020,7 @@ def cmd_cases(args: argparse.Namespace) -> int:
 def cmd_case(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path, case_id = _suite_case_args(args.paths, config)
-    suite = read_json(suite_path)
+    suite = _read_suite_or_manifest(suite_path)
     if args.json:
         print(json.dumps(suite_case_detail(suite, case_id), indent=2, sort_keys=True))
     else:
@@ -1031,7 +1031,7 @@ def cmd_case(args: argparse.Namespace) -> int:
 def cmd_summary(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path = _suite_arg(args.suite, config)
-    suite = read_json(suite_path)
+    suite = _read_suite_or_manifest(suite_path)
     if args.json:
         if _is_prompt_manifest(suite):
             print(
@@ -1055,7 +1055,7 @@ def cmd_summary(args: argparse.Namespace) -> int:
 def cmd_benchmark(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path = _suite_arg(args.suite, config)
-    suite = read_json(suite_path)
+    suite = _read_suite_or_manifest(suite_path)
     timeout_seconds = _config_float(args.timeout, config, "timeout_seconds", 30.0)
     workers = _config_int(args.workers, config, "workers", 1)
     if _is_prompt_manifest(suite):
@@ -1090,7 +1090,7 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
 def cmd_validate(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path = _suite_arg(args.suite, config)
-    suite = read_json(suite_path)
+    suite = _read_suite_or_manifest(suite_path)
     if _is_prompt_manifest(suite):
         report = validate_prompt_manifest(suite, manifest_path=suite_path)
     else:
@@ -1109,7 +1109,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
 def cmd_diff(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path, candidate_path = _suite_candidate_args(args.paths, config)
-    suite = read_json(suite_path)
+    suite = _read_suite_or_manifest(suite_path)
     input_field = args.input_field or str(suite.get("input_field") or config.get("input_field", "prompt"))
     output_field = args.output_field or str(suite.get("output_field") or config.get("output_field", "response"))
     candidate = read_jsonl_records(candidate_path, input_field, output_field)
@@ -1224,7 +1224,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
     replay_command = args.replay or _config_replay(config)
     if not replay_command:
         raise ValueError("replay command required; pass --replay or set replay in redline.json")
-    suite = read_json(suite_path)
+    suite = _read_suite_or_manifest(suite_path)
     if _is_prompt_manifest(suite):
         return _cmd_eval_prompt_manifest(args, config, suite_path, suite, replay_command)
     timeout_seconds = _config_float(args.timeout, config, "timeout_seconds", 30.0)
@@ -1306,7 +1306,7 @@ def _cmd_eval_prompt_manifest(
                 f"prompt manifest suite not found for {prompt_id}: {child_suite_path}. "
                 f"Run `redline suite path/to/baseline.jsonl --out {child_suite_path}` first."
             )
-        child_suite = read_json(child_suite_path)
+        child_suite = _read_suite_or_manifest(child_suite_path)
         replay = replay_suite(
             child_suite,
             replay_command,
@@ -1413,7 +1413,7 @@ def _cmd_eval_prompt_manifest(
 def cmd_mark(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path, case_id = _suite_case_args(args.paths, config)
-    suite = read_json(suite_path)
+    suite = _read_suite_or_manifest(suite_path)
     mark_suite_case(suite, case_id, status=args.status, note=args.note)
     output = args.out or suite_path
     write_json(output, suite)
@@ -1434,7 +1434,7 @@ def cmd_mark(args: argparse.Namespace) -> int:
 def cmd_clear(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path, case_id = _suite_case_args(args.paths, config)
-    suite = read_json(suite_path)
+    suite = _read_suite_or_manifest(suite_path)
     removed = clear_suite_case_judgment(suite, case_id)
     output = args.out or suite_path
     write_json(output, suite)
@@ -1457,7 +1457,7 @@ def cmd_clear(args: argparse.Namespace) -> int:
 def cmd_accept(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path, case_ids = _accept_args(args.paths, config, all_expected=args.all_expected)
-    suite = read_json(suite_path)
+    suite = _read_suite_or_manifest(suite_path)
     if args.all_expected:
         case_ids = expected_case_ids(suite)
         if not case_ids:
@@ -1503,7 +1503,7 @@ def cmd_accept(args: argparse.Namespace) -> int:
 def cmd_require(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path, case_id = _suite_case_args(args.paths, config)
-    suite = read_json(suite_path)
+    suite = _read_suite_or_manifest(suite_path)
     if args.clear:
         removed = clear_case_requirements(suite, case_id)
         action = "Cleared" if removed else "No requirements found for"
@@ -1765,6 +1765,20 @@ def _suite_arg(explicit: str | None, config: dict[str, object]) -> str:
     if not suite:
         raise ValueError("suite path required; pass it explicitly or run redline init")
     return str(suite)
+
+
+def _read_suite_or_manifest(path: str) -> dict[str, object]:
+    try:
+        return read_json(path)
+    except ValueError as exc:
+        message = str(exc)
+        if Path(path).suffix == ".jsonl" or "Extra data" in message or "expected one JSON object" in message:
+            raise ValueError(
+                f"{path} looks like raw JSONL logs, but this command expects a redline suite JSON "
+                "or prompt manifest. Build a suite first: "
+                f"redline suite {path} --out redline-suite.json"
+            ) from exc
+        raise
 
 
 def _suite_candidate_args(paths: list[str], config: dict[str, object]) -> tuple[str, str]:
