@@ -1,7 +1,11 @@
 <!-- mcp-name: io.github.gowtham0992/redline -->
 
 <p align="center">
-  <img src="https://gowtham0992.github.io/redline/assets/redline-logo.svg" alt="redline" width="420">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://gowtham0992.github.io/redline/assets/redline-logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://gowtham0992.github.io/redline/assets/redline-logo.svg">
+    <img src="https://gowtham0992.github.io/redline/assets/redline-logo.svg" alt="redline" width="420">
+  </picture>
 </p>
 
 <h2 align="center">Catch prompt regressions before they ship.</h2>
