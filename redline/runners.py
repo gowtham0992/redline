@@ -68,6 +68,26 @@ RUNNER_ADAPTERS: list[dict[str, str]] = [
         "kind": "log",
     },
     {
+        "name": "OpenAI SDK capture",
+        "id": "openai-sdk",
+        "need": "an app that already calls an OpenAI-compatible Python client",
+        "file": "runners/openai_watch_patch.py",
+        "template": "openai_watch_patch.py",
+        "replay": "python runners/openai_watch_patch.py",
+        "setup": "Patch your OpenAI client with redline.patch_openai during app startup.",
+        "kind": "capture",
+    },
+    {
+        "name": "Anthropic SDK capture",
+        "id": "anthropic-sdk",
+        "need": "an app that already calls an Anthropic-compatible Python client",
+        "file": "runners/anthropic_watch_patch.py",
+        "template": "anthropic_watch_patch.py",
+        "replay": "python runners/anthropic_watch_patch.py",
+        "setup": "Patch your Anthropic client with redline.patch_anthropic during app startup.",
+        "kind": "capture",
+    },
+    {
         "name": "LiteLLM or model proxy",
         "id": "litellm",
         "need": "LITELLM_BASE_URL, LITELLM_API_KEY, and LITELLM_MODEL",
@@ -176,13 +196,22 @@ def _replay_for_target(adapter: dict[str, str], target: Path) -> str:
 
 
 def _command_label(adapter: dict[str, Any]) -> str:
-    return "Replay" if adapter.get("kind") == "replay" else "Command"
+    if adapter.get("kind") == "replay":
+        return "Replay"
+    if adapter.get("kind") == "capture":
+        return "Capture"
+    return "Command"
 
 
 def _next_step_for_adapter(adapter: dict[str, str], command: str) -> str:
     if adapter.get("kind") == "log":
         return (
             "Run adapter command, then build a suite: "
+            "redline suite .redline/logs/prompts.jsonl --out redline-suite.json"
+        )
+    if adapter.get("kind") == "capture":
+        return (
+            "Patch your app client, run real traffic, then build a suite: "
             "redline suite .redline/logs/prompts.jsonl --out redline-suite.json"
         )
     return f"Configure replay: redline init --replay {shlex.quote(command)} --force"

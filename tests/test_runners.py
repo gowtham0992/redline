@@ -27,6 +27,8 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("python-chain", ids)
         self.assertIn("http", ids)
         self.assertIn("jsonl-logs", ids)
+        self.assertIn("openai-sdk", ids)
+        self.assertIn("anthropic-sdk", ids)
         self.assertIn("litellm", ids)
 
     def test_replay_runner_adapters_exclude_log_importers(self) -> None:
@@ -35,6 +37,8 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("stdio", ids)
         self.assertIn("openai", ids)
         self.assertNotIn("jsonl-logs", ids)
+        self.assertNotIn("openai-sdk", ids)
+        self.assertNotIn("anthropic-sdk", ids)
 
     def test_format_runner_adapters_prints_replay_commands(self) -> None:
         output = format_runner_adapters()
@@ -48,6 +52,8 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("python runners/stdio_runner.py", output)
         self.assertIn("python runners/http_runner.py", output)
         self.assertIn("Command: python runners/jsonl_log_adapter.py", output)
+        self.assertIn("OpenAI SDK capture", output)
+        self.assertIn("Capture: python runners/openai_watch_patch.py", output)
 
     def test_packaged_runner_templates_match_repo_runners(self) -> None:
         for adapter in runner_adapters():
@@ -81,6 +87,18 @@ class RunnerTests(unittest.TestCase):
 
             self.assertEqual(result["kind"], "log")
             self.assertIn("redline suite .redline/logs/prompts.jsonl", result["next"])
+
+    def test_copy_capture_adapter_returns_suite_next_step(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "openai_watch_patch.py"
+
+            result = copy_runner_adapter("openai-sdk", output=str(output))
+
+            self.assertEqual(result["kind"], "capture")
+            self.assertIn("Patch your app client", result["next"])
+            self.assertIn("redline suite .redline/logs/prompts.jsonl", result["next"])
+            self.assertTrue(output.exists())
+            self.assertIn("patch_openai", output.read_text(encoding="utf-8"))
 
     def test_copy_runner_adapter_refuses_existing_without_force(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -261,6 +279,39 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("## App Logs To JSONL", docs)
         self.assertIn("python runners/jsonl_log_adapter.py logs/export.jsonl", docs)
 
+    def test_runner_docs_include_sdk_capture_adapters(self) -> None:
+        docs = Path("docs/runners.md").read_text(encoding="utf-8")
+
+        self.assertIn("## OpenAI Or Anthropic SDK Patch", docs)
+        self.assertIn("redline runners --copy openai-sdk", docs)
+        self.assertIn("redline runners --copy anthropic-sdk", docs)
+
+    def test_openai_sdk_capture_fails_clearly_without_api_key(self) -> None:
+        completed = subprocess.run(
+            ["python", "runners/openai_watch_patch.py"],
+            input="hello",
+            text=True,
+            capture_output=True,
+            check=False,
+            env={"PATH": os.environ.get("PATH", "")},
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("OPENAI_API_KEY", completed.stderr)
+
+    def test_anthropic_sdk_capture_fails_clearly_without_api_key(self) -> None:
+        completed = subprocess.run(
+            ["python", "runners/anthropic_watch_patch.py"],
+            input="hello",
+            text=True,
+            capture_output=True,
+            check=False,
+            env={"PATH": os.environ.get("PATH", "")},
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("ANTHROPIC_API_KEY", completed.stderr)
+
     def test_litellm_runner_fails_clearly_without_api_key(self) -> None:
         runner = Path("runners/litellm_runner.sh")
 
@@ -336,6 +387,7 @@ class RunnerTests(unittest.TestCase):
             "## LangChain Or LlamaIndex",
             "## HTTP API",
             "## App Logs To JSONL",
+            "## OpenAI Or Anthropic SDK Patch",
             "## LiteLLM Or Model Proxy",
         ]
         positions = [docs.index(heading) for heading in headings]

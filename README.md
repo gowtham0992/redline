@@ -160,15 +160,16 @@ redline init --runner stdio --copy-runner --github-action
 ```
 
 Built-in adapters cover provider-neutral stdio, OpenAI, Anthropic, LiteLLM,
-HTTP APIs, Python chains, and JSONL log imports:
+HTTP APIs, Python chains, JSONL log imports, and OpenAI/Anthropic SDK capture:
 
 ```bash
 redline runners
 redline runners --copy all
 ```
 
-Runner details live in [docs/runners.md](docs/runners.md). Log import adapters
-are for building suites from exported logs, not for `redline eval` replay.
+Runner details live in [docs/runners.md](docs/runners.md). Log import and SDK
+capture adapters are for building suites from real observations, not for
+`redline eval` replay.
 
 ## AI Assistant Native
 

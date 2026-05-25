@@ -100,8 +100,10 @@ class CliConfigTests(unittest.TestCase):
         self.assertIn("redline runners", text)
         self.assertIn("Custom stdio command", text)
         self.assertIn("OpenAI direct", text)
+        self.assertIn("OpenAI SDK capture", text)
         self.assertIn("python runners/stdio_runner.py", text)
         self.assertIn("./runners/openai_runner.sh", text)
+        self.assertIn("Capture: python runners/openai_watch_patch.py", text)
 
     def test_runners_command_can_copy_adapter(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -153,9 +155,11 @@ class CliConfigTests(unittest.TestCase):
                 self.assertTrue((root / "runners" / "http_runner.py").exists())
                 self.assertIn("Adapter commands:", output.getvalue())
                 self.assertIn("jsonl-logs (command):", output.getvalue())
+                self.assertIn("openai-sdk (capture):", output.getvalue())
                 self.assertIn("Next:", output.getvalue())
                 self.assertIn("Configure replay: redline init --replay", output.getvalue())
                 self.assertIn("Run adapter command, then build a suite", output.getvalue())
+                self.assertIn("Patch your app client", output.getvalue())
             finally:
                 os.chdir(previous)
 

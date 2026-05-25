@@ -22,8 +22,16 @@ To copy every built-in adapter for exploration:
 redline runners --copy all
 ```
 
+To copy one SDK capture starter:
+
+```bash
+redline runners --copy openai-sdk
+```
+
 Replay runners are for `redline eval`. Log adapters, such as `jsonl-logs`, are
 for converting exported app logs into redline JSONL before `redline suite`.
+SDK capture adapters, such as `openai-sdk` and `anthropic-sdk`, are for
+recording real app calls into `.redline/logs/prompts.jsonl`.
 
 ## Custom Stdio Command
 
@@ -200,6 +208,13 @@ That's it.
 
 What you need: Python code that already calls an OpenAI-compatible or
 Anthropic-compatible client.
+
+Copy runnable starters:
+
+```bash
+redline runners --copy openai-sdk
+redline runners --copy anthropic-sdk
+```
 
 Patch the client once during app startup:
 

@@ -1567,8 +1567,9 @@ def _runner_replay(runner_id: str | None) -> str | None:
     for adapter in runner_adapters():
         if adapter["id"] == runner_id:
             if adapter.get("kind") != "replay":
+                action = "captures SDK traffic" if adapter.get("kind") == "capture" else "converts logs"
                 raise ValueError(
-                    f"{runner_id} converts logs and cannot be used as eval replay; "
+                    f"{runner_id} {action} and cannot be used as eval replay; "
                     f"use redline runners --copy {runner_id}"
                 )
             return adapter["replay"]
@@ -1576,7 +1577,11 @@ def _runner_replay(runner_id: str | None) -> str | None:
 
 
 def _adapter_command_label(adapter: Mapping[str, object]) -> str:
-    return "replay" if adapter.get("kind") == "replay" else "command"
+    if adapter.get("kind") == "replay":
+        return "replay"
+    if adapter.get("kind") == "capture":
+        return "capture"
+    return "command"
 
 
 def _adapter_copy_all_next_steps(results: Sequence[Mapping[str, object]]) -> list[str]:
@@ -1589,6 +1594,11 @@ def _adapter_copy_all_next_steps(results: Sequence[Mapping[str, object]]) -> lis
     log = next((result for result in results if result.get("kind") == "log"), None)
     if log is not None:
         next_step = log.get("next")
+        if isinstance(next_step, str):
+            steps.append(next_step)
+    capture = next((result for result in results if result.get("kind") == "capture"), None)
+    if capture is not None:
+        next_step = capture.get("next")
         if isinstance(next_step, str):
             steps.append(next_step)
     return steps
