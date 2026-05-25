@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from math import ceil
+from pathlib import Path
 from typing import Any
+
+from .io import read_json
 
 
 def benchmark_suite(
@@ -12,12 +15,7 @@ def benchmark_suite(
     workers: int = 1,
     max_seconds: float | None = None,
 ) -> dict[str, Any]:
-    if timeout_seconds <= 0:
-        raise ValueError("timeout_seconds must be greater than 0")
-    if workers < 1:
-        raise ValueError("workers must be at least 1")
-    if max_seconds is not None and max_seconds <= 0:
-        raise ValueError("max_seconds must be greater than 0")
+    _validate_benchmark_inputs(timeout_seconds=timeout_seconds, workers=workers, max_seconds=max_seconds)
 
     summary = suite.get("summary")
     if not isinstance(summary, dict):
@@ -61,12 +59,106 @@ def benchmark_suite(
     return result
 
 
+def benchmark_prompt_manifest(
+    manifest: dict[str, Any],
+    *,
+    manifest_path: str = "redline-prompts.json",
+    timeout_seconds: float = 30.0,
+    workers: int = 1,
+    max_seconds: float | None = None,
+) -> dict[str, Any]:
+    _validate_benchmark_inputs(timeout_seconds=timeout_seconds, workers=workers, max_seconds=max_seconds)
+
+    prompts = manifest.get("prompts")
+    if not isinstance(prompts, list):
+        raise ValueError("prompt manifest missing prompts list")
+
+    prompt_suites: list[dict[str, Any]] = []
+    for index, item in enumerate(prompts, 1):
+        if not isinstance(item, dict):
+            raise ValueError(f"prompt manifest entry {index} must be an object")
+        prompt_id = str(item.get("id") or "").strip()
+        prompt_path = str(item.get("path") or "").strip()
+        suite_path = str(item.get("suite") or "").strip()
+        if not prompt_id or not prompt_path or not suite_path:
+            raise ValueError(f"prompt manifest entry {index} requires id, path, and suite")
+        if not Path(suite_path).is_file():
+            raise ValueError(
+                f"prompt manifest suite not found for {prompt_id}: {suite_path}. "
+                f"Run `redline suite path/to/baseline.jsonl --out {suite_path}` first."
+            )
+        child_report = benchmark_suite(
+            read_json(suite_path),
+            suite_path=suite_path,
+            timeout_seconds=timeout_seconds,
+            workers=workers,
+        )
+        prompt_suites.append(
+            {
+                "id": prompt_id,
+                "path": prompt_path,
+                "suite": suite_path,
+                "cases": child_report["cases"],
+                "clusters": child_report["clusters"],
+                "records_seen": child_report["records_seen"],
+                "parallel_waves": child_report["parallel_waves"],
+                "worst_case_seconds": child_report["worst_case_seconds"],
+                "sequential_worst_case_seconds": child_report["sequential_worst_case_seconds"],
+                "requirements": child_report["requirements"],
+                "judgments": child_report["judgments"],
+                "size": child_report["size"],
+                "status": child_report["status"],
+            }
+        )
+    if not prompt_suites:
+        raise ValueError("prompt manifest has no prompt entries")
+
+    cases = sum(int(item["cases"]) for item in prompt_suites)
+    clusters = sum(int(item["clusters"]) for item in prompt_suites)
+    records_seen = sum(int(item["records_seen"]) for item in prompt_suites)
+    waves = sum(int(item["parallel_waves"]) for item in prompt_suites)
+    sequential_seconds = sum(float(item["sequential_worst_case_seconds"]) for item in prompt_suites)
+    worst_case_seconds = sum(float(item["worst_case_seconds"]) for item in prompt_suites)
+    case_counts = [int(item["cases"]) for item in prompt_suites]
+    result = {
+        "mode": "static_eval_budget_estimate",
+        "suite": manifest_path,
+        "manifest": manifest_path,
+        "is_prompt_manifest": True,
+        "prompt_count": len(prompt_suites),
+        "suite_count": len(prompt_suites),
+        "cases": cases,
+        "clusters": clusters,
+        "records_seen": records_seen,
+        "workers": workers,
+        "timeout_seconds": timeout_seconds,
+        "parallel_waves": waves,
+        "sequential_worst_case_seconds": sequential_seconds,
+        "worst_case_seconds": worst_case_seconds,
+        "max_seconds": max_seconds,
+        "within_budget": max_seconds is None or worst_case_seconds <= max_seconds,
+        "recommended_workers_for_budget": _recommended_workers_for_manifest_budget(
+            case_counts,
+            timeout_seconds,
+            max_seconds,
+        ),
+        "requirements": sum(int(item["requirements"]) for item in prompt_suites),
+        "judgments": sum(int(item["judgments"]) for item in prompt_suites),
+        "size": _size_label(cases),
+        "prompt_suites": prompt_suites,
+    }
+    result["status"] = _status(result)
+    result["next_steps"] = _next_steps(result)
+    return result
+
+
 def format_benchmark_report(report: dict[str, Any]) -> str:
+    suite_label = "Prompt manifest" if report.get("is_prompt_manifest") else "Suite"
     lines = [
         "redline benchmark",
         "",
         "Mode:                  static estimate; no replay commands are executed",
-        f"Suite:                 {report['suite']}",
+        f"{suite_label + ':':<22}{report['suite']}",
         f"Cases:                 {report['cases']}",
         f"Behavioral clusters:   {report['clusters']}",
         f"Records seen:          {report['records_seen']}",
@@ -90,6 +182,20 @@ def format_benchmark_report(report: dict[str, Any]) -> str:
             f"Status:                {str(report['status']).upper()}",
         ]
     )
+    prompt_suites = report.get("prompt_suites")
+    if isinstance(prompt_suites, list) and prompt_suites:
+        lines.extend(["", "Prompt suites:"])
+        for item in prompt_suites:
+            if not isinstance(item, dict):
+                continue
+            lines.append(
+                "- "
+                f"{item.get('id')} "
+                f"({item.get('path')}): "
+                f"{item.get('cases')} cases, "
+                f"{item.get('parallel_waves')} waves, "
+                f"{_duration(item.get('worst_case_seconds', 0))} budget"
+            )
     next_steps = report.get("next_steps") or []
     if next_steps:
         lines.extend(["", "Next:"])
@@ -106,7 +212,7 @@ def format_benchmark_markdown(report: dict[str, Any]) -> str:
         "",
         "| Metric | Value |",
         "| --- | --- |",
-        f"| Suite | `{report['suite']}` |",
+        f"| {'Prompt manifest' if report.get('is_prompt_manifest') else 'Suite'} | `{report['suite']}` |",
         f"| Cases | {report['cases']} |",
         f"| Behavioral clusters | {report['clusters']} |",
         f"| Workers | {report['workers']} |",
@@ -122,6 +228,28 @@ def format_benchmark_markdown(report: dict[str, Any]) -> str:
         recommended_workers = report.get("recommended_workers_for_budget")
         if not report["within_budget"] and recommended_workers is not None:
             lines.insert(-2, f"| Recommended workers | {recommended_workers} |")
+    prompt_suites = report.get("prompt_suites")
+    if isinstance(prompt_suites, list) and prompt_suites:
+        lines.extend(
+            [
+                "",
+                "### Prompt suites",
+                "",
+                "| Prompt | Suite | Cases | Waves | Budget |",
+                "| --- | --- | ---: | ---: | ---: |",
+            ]
+        )
+        for item in prompt_suites:
+            if not isinstance(item, dict):
+                continue
+            lines.append(
+                "| "
+                f"`{item.get('id')}` | "
+                f"`{item.get('suite')}` | "
+                f"{item.get('cases')} | "
+                f"{item.get('parallel_waves')} | "
+                f"{_duration(item.get('worst_case_seconds', 0))} |"
+            )
     next_steps = report.get("next_steps") or []
     if next_steps:
         lines.extend(["", "Next:"])
@@ -140,6 +268,20 @@ def _size_label(cases: int) -> str:
     if cases <= 500:
         return "large"
     return "very_large"
+
+
+def _validate_benchmark_inputs(
+    *,
+    timeout_seconds: float,
+    workers: int,
+    max_seconds: float | None,
+) -> None:
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be greater than 0")
+    if workers < 1:
+        raise ValueError("workers must be at least 1")
+    if max_seconds is not None and max_seconds <= 0:
+        raise ValueError("max_seconds must be greater than 0")
 
 
 def _status(report: dict[str, Any]) -> str:
@@ -189,6 +331,23 @@ def _recommended_workers_for_budget(
     if allowed_waves < 1:
         return None
     return min(cases, ceil(cases / allowed_waves))
+
+
+def _recommended_workers_for_manifest_budget(
+    case_counts: list[int],
+    timeout_seconds: float,
+    max_seconds: float | None,
+) -> int | None:
+    if not case_counts or max_seconds is None:
+        return None
+    max_workers = max(case_counts)
+    if max_workers <= 0:
+        return None
+    for workers in range(1, max_workers + 1):
+        waves = sum(ceil(cases / workers) for cases in case_counts if cases > 0)
+        if waves * timeout_seconds <= max_seconds:
+            return workers
+    return None
 
 
 def _seconds(value: Any) -> str:

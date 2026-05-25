@@ -610,7 +610,7 @@ def _tools() -> list[ToolSpec]:
         ),
         ToolSpec(
             "redline_benchmark",
-            "Estimate suite eval runtime, timeout budget, and CI scale before enabling a gate.",
+            "Estimate suite or prompt-manifest eval runtime, timeout budget, and CI scale before enabling a gate.",
             _schema(
                 {
                     "suite_path": _string("Suite JSON path. Defaults to config."),

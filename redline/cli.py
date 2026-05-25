@@ -25,7 +25,12 @@ from .audit import (
     result_summary,
     verify_audit_events,
 )
-from .benchmark import benchmark_suite, format_benchmark_markdown, format_benchmark_report
+from .benchmark import (
+    benchmark_prompt_manifest,
+    benchmark_suite,
+    format_benchmark_markdown,
+    format_benchmark_report,
+)
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
 from .ci import default_github_workflow
 from .clusters import cluster_report, format_cluster_report
@@ -1027,13 +1032,22 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     suite = read_json(suite_path)
     timeout_seconds = _config_float(args.timeout, config, "timeout_seconds", 30.0)
     workers = _config_int(args.workers, config, "workers", 1)
-    report = benchmark_suite(
-        suite,
-        suite_path=suite_path,
-        timeout_seconds=timeout_seconds,
-        workers=workers,
-        max_seconds=args.max_seconds,
-    )
+    if _is_prompt_manifest(suite):
+        report = benchmark_prompt_manifest(
+            suite,
+            manifest_path=suite_path,
+            timeout_seconds=timeout_seconds,
+            workers=workers,
+            max_seconds=args.max_seconds,
+        )
+    else:
+        report = benchmark_suite(
+            suite,
+            suite_path=suite_path,
+            timeout_seconds=timeout_seconds,
+            workers=workers,
+            max_seconds=args.max_seconds,
+        )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

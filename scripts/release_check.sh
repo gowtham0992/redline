@@ -151,6 +151,13 @@ printf '\n$ %s -m pip install --no-deps --force-reinstall %s\n' "$venv_dir/bin/p
     --check \
     --check-suites
 
+  printf '\n$ redline benchmark redline-prompts.json --out-json manifest-benchmark.json --out-md manifest-benchmark.md\n'
+  "$venv_dir/bin/redline" benchmark redline-prompts.json \
+    --out-json manifest-benchmark.json \
+    --out-md manifest-benchmark.md
+  test -s manifest-benchmark.json
+  test -s manifest-benchmark.md
+
   manifest_replay="$venv_dir/bin/python -c 'import sys; print(sys.stdin.read())'"
   printf '\n$ redline eval redline-prompts.json --replay "%s" --compact --out-json manifest-eval.json --out-html manifest-eval.html --candidate-out manifest-candidate.jsonl --run-metadata manifest-replay.json --fail-on none\n' "$manifest_replay"
   "$venv_dir/bin/redline" eval redline-prompts.json \

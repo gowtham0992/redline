@@ -145,8 +145,9 @@ redline is built around the full prompt-regression loop:
 - `redline prompts`: scan many prompt files and write or check a versionable prompt-to-suite manifest.
   Add `--check-suites` in CI when every prompt should already have a built and valid suite.
 - `redline suite add`: pin hand-picked edge cases the algorithm should never miss.
-- `redline benchmark`: estimate suite runtime without executing replay commands,
-  write budget artifacts, and optionally fail on a CI time budget.
+- `redline benchmark`: estimate suite or prompt-manifest runtime without
+  executing replay commands, write budget artifacts, and optionally fail on a CI
+  time budget.
 - `redline eval`: replay each suite case through your local app or model runner.
 - `redline diff`: compare candidate JSONL outputs against the suite baseline.
 - `redline mark` and `redline accept`: review intentional changes and promote the
@@ -170,11 +171,13 @@ For repos with many prompt files, the manifest becomes the eval plan:
 ```bash
 redline prompts prompts/ --suite-dir suites --out redline-prompts.json
 redline prompts prompts/ --suite-dir suites --out redline-prompts.json --check --check-suites
+redline benchmark redline-prompts.json
 redline eval redline-prompts.json
 ```
 
-Manifest evals print prompt-level rollups before case details, so large repos
-can see which prompt files or feature folders need attention first.
+Manifest benchmarks aggregate every mapped suite, then manifest evals print
+prompt-level rollups before case details, so large repos can see which prompt
+files or feature folders need attention first.
 
 When mapped suites are valid, the check prints ready commands such as:
 
@@ -238,8 +241,8 @@ Use redline as a composite GitHub Action from another repo:
 ```
 
 For multi-prompt repos, point `suite` at `redline-prompts.json`. The action
-checks every mapped suite with `redline prompts --check --check-suites`, runs the
-manifest eval, and skips the single-suite benchmark with an explicit note.
+checks every mapped suite with `redline prompts --check --check-suites`, runs a
+manifest-wide benchmark, then runs the manifest eval.
 
 The action writes JSON, Markdown, HTML, JUnit, history, dashboard, and audit checkpoint artifacts
 under `.redline/`, appends benchmark, report, and trend summaries to the

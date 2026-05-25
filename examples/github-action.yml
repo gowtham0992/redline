@@ -50,14 +50,10 @@ jobs:
 
       - name: Benchmark redline suite
         run: |
-          if [ "$REDLINE_SUITE_SCHEMA" = "redline-prompt-manifest-v1" ]; then
-            echo "Prompt manifest detected; skipping single-suite benchmark. Benchmark mapped suites individually when you need a CI runtime budget."
-          else
-            python -m redline benchmark "$REDLINE_SUITE_PATH" \
-              --github-summary \
-              --out-json .redline/reports/benchmark.json \
-              --out-md .redline/reports/benchmark.md
-          fi
+          python -m redline benchmark "$REDLINE_SUITE_PATH" \
+            --github-summary \
+            --out-json .redline/reports/benchmark.json \
+            --out-md .redline/reports/benchmark.md
 
       - name: Run redline eval
         run: |

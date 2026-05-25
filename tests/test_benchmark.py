@@ -1,8 +1,14 @@
 import unittest
+from tempfile import TemporaryDirectory
 from typing import Any
 
-from redline.benchmark import benchmark_suite, format_benchmark_markdown, format_benchmark_report
-from redline.io import LogRecord
+from redline.benchmark import (
+    benchmark_prompt_manifest,
+    benchmark_suite,
+    format_benchmark_markdown,
+    format_benchmark_report,
+)
+from redline.io import LogRecord, write_json
 from redline.requirements import add_case_requirement
 from redline.suite import build_suite
 
@@ -56,6 +62,58 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(report["status"], "warn")
         self.assertIn("Set --workers 3", " ".join(report["next_steps"]))
 
+    def test_benchmark_prompt_manifest_aggregates_mapped_suites(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            first_suite_path = f"{temp_dir}/triage.redline-suite.json"
+            second_suite_path = f"{temp_dir}/refunds.redline-suite.json"
+            write_json(
+                first_suite_path,
+                {
+                    "summary": {"cases": 5, "clusters": 2, "records_seen": 11},
+                    "cases": [{"id": f"case_{index:03d}"} for index in range(5)],
+                    "requirements": {"case_001": [{"include": ["owner"]}]},
+                },
+            )
+            write_json(
+                second_suite_path,
+                {
+                    "summary": {"cases": 4, "clusters": 3, "records_seen": 9},
+                    "cases": [{"id": f"case_{index:03d}"} for index in range(4)],
+                    "judgments": {"case_002": {"status": "expected"}},
+                },
+            )
+            manifest = {
+                "schema": "redline-prompt-manifest-v1",
+                "prompts": [
+                    {"id": "support/triage", "path": "prompts/support/triage.txt", "suite": first_suite_path},
+                    {"id": "billing/refunds", "path": "prompts/billing/refunds.txt", "suite": second_suite_path},
+                ],
+            }
+
+            report = benchmark_prompt_manifest(
+                manifest,
+                manifest_path="redline-prompts.json",
+                timeout_seconds=10,
+                workers=2,
+                max_seconds=40,
+            )
+
+        self.assertTrue(report["is_prompt_manifest"])
+        self.assertEqual(report["manifest"], "redline-prompts.json")
+        self.assertEqual(report["prompt_count"], 2)
+        self.assertEqual(report["suite_count"], 2)
+        self.assertEqual(report["cases"], 9)
+        self.assertEqual(report["clusters"], 5)
+        self.assertEqual(report["records_seen"], 20)
+        self.assertEqual(report["parallel_waves"], 5)
+        self.assertEqual(report["worst_case_seconds"], 50)
+        self.assertEqual(report["sequential_worst_case_seconds"], 90)
+        self.assertFalse(report["within_budget"])
+        self.assertEqual(report["recommended_workers_for_budget"], 3)
+        self.assertEqual(report["requirements"], 1)
+        self.assertEqual(report["judgments"], 1)
+        self.assertEqual(len(report["prompt_suites"]), 2)
+
     def test_benchmark_warns_for_large_single_worker_suite(self) -> None:
         suite = {
             "summary": {"cases": 42, "clusters": 12, "records_seen": 42},
@@ -94,6 +152,29 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("| Recommended workers | 5 |", output)
         self.assertIn("| Status | WARN |", output)
         self.assertIn("Add requirements to high-value cases.", output)
+
+    def test_format_benchmark_report_includes_prompt_manifest_rows(self) -> None:
+        report = _sample_report()
+        report["is_prompt_manifest"] = True
+        report["prompt_suites"] = [
+            {
+                "id": "support/triage",
+                "path": "prompts/support/triage.txt",
+                "suite": "suites/support/triage.redline-suite.json",
+                "cases": 3,
+                "parallel_waves": 2,
+                "worst_case_seconds": 60,
+            }
+        ]
+
+        text = format_benchmark_report(report)
+        markdown = format_benchmark_markdown(report)
+
+        self.assertIn("Prompt manifest", text)
+        self.assertIn("Prompt suites:", text)
+        self.assertIn("support/triage", text)
+        self.assertIn("### Prompt suites", markdown)
+        self.assertIn("suites/support/triage.redline-suite.json", markdown)
 
     def test_benchmark_reports_when_timeout_cannot_fit_budget(self) -> None:
         report = benchmark_suite(
