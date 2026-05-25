@@ -53,6 +53,7 @@
 - Return non-zero from `redline audit --verify` when the audit hash chain fails.
 - Verify audit logs against saved checkpoint files with `redline audit --verify --checkpoint`.
 - Show audit checkpoint evidence in the local dashboard when present.
+- Add `redline sbom` and release-build SBOM output for CycloneDX security evidence.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Capture prompt-response pairs from Python functions with the local `@watch` decorator and `record()` helper, with exact duplicate observations skipped by content hash.
 - Normalize common provider response objects and capture latency/token metadata from watched Python calls.

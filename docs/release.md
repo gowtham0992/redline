@@ -22,7 +22,7 @@ bash scripts/release_check.sh
 The release gate runs the unit suite, bytecode compilation, whitespace checks, a
 Ruff lint, mypy type checking, a wheel build, clean virtualenv install,
 `redline demo --compact`, `redline-mcp` stdio smoke checks, runner listing,
-`redline init --runner stdio --copy-runner`, and `redline doctor`. Run it from an environment where
+`redline sbom`, `redline init --runner stdio --copy-runner`, and `redline doctor`. Run it from an environment where
 `python -m pip install -e ".[dev]"` has already completed.
 
 ## Demo GIF
@@ -104,8 +104,12 @@ dogfood artifacts from earlier builds.
 
 ```bash
 bash scripts/build_release.sh /tmp/redline-dist-v0.1.0
-python -m twine upload /tmp/redline-dist-v0.1.0/*
+python -m twine upload /tmp/redline-dist-v0.1.0/redline_ai-*.whl /tmp/redline-dist-v0.1.0/redline_ai-*.tar.gz
 ```
+
+`build_release.sh` also writes `/tmp/redline-dist-v0.1.0/redline-sbom.json` as
+CycloneDX release evidence. Keep it with internal release records or attach it
+to GitHub release artifacts when needed.
 
 Then install in a fresh environment and run:
 

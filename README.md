@@ -157,6 +157,7 @@ redline is built around the full prompt-regression loop:
   local log tail still matches a checkpoint from CI or release evidence. Add
   `--out-checkpoint .redline/audit-checkpoint.json` to persist that evidence,
   then `--checkpoint .redline/audit-checkpoint.json` to verify against it later.
+- `redline sbom`: write CycloneDX SBOM release evidence for security review.
 - `redline history`, `redline compare`, and `redline dashboard`: track quality
   over time and inspect reports locally.
 - `redline-mcp`: let AI coding assistants run checks inside Claude, Codex,

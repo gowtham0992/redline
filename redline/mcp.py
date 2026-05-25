@@ -102,7 +102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "redline-mcp\n\n"
             "Local MCP stdio server for redline.\n\n"
             "Run this command from an MCP client. It exposes redline doctor, suite,\n"
-            "watch stats, prompts, runners, judges, redact, audit, benchmark, validate, summary, diff, eval, history, dashboard, cases, and case tools.\n",
+            "watch stats, prompts, runners, judges, redact, audit, SBOM, benchmark, validate, summary, diff, eval, history, dashboard, cases, and case tools.\n",
             end="",
         )
         return 0
@@ -737,6 +737,17 @@ def _tools() -> list[ToolSpec]:
             ),
             _build_audit,
         ),
+        ToolSpec(
+            "redline_sbom",
+            "Write CycloneDX SBOM release evidence for redline.",
+            _schema(
+                {
+                    "out": _string("Write SBOM JSON to this path."),
+                    "json": _boolean("Print machine-readable JSON."),
+                }
+            ),
+            _build_sbom,
+        ),
     ]
 
 
@@ -932,6 +943,13 @@ def _build_audit(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--expect-last-hash", arguments.get("expect_last_hash"))
     _add_option(args, "--expect-entries", arguments.get("expect_entries"))
     _add_option(args, "--out-checkpoint", arguments.get("out_checkpoint"))
+    _add_flag(args, "--json", arguments.get("json"))
+    return args
+
+
+def _build_sbom(arguments: dict[str, Any]) -> list[str]:
+    args = ["sbom"]
+    _add_option(args, "--out", arguments.get("out"))
     _add_flag(args, "--json", arguments.get("json"))
     return args
 

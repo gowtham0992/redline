@@ -35,10 +35,15 @@ fi
 printf '\n$ %s -m twine check %s/*\n' "$python_bin" "$dist_dir"
 "$python_bin" -m twine check "$dist_dir"/*
 
+sbom_path="$dist_dir/redline-sbom.json"
+printf '\n$ %s -m redline sbom --out %s\n' "$python_bin" "$sbom_path"
+"$python_bin" -m redline sbom --out "$sbom_path"
+test -s "$sbom_path"
+
 printf '\nrelease artifacts:\n'
 for artifact in "$dist_dir"/*; do
   printf -- '- %s\n' "$artifact"
 done
 
 printf '\nupload with:\n'
-printf 'python -m twine upload %s/*\n' "$dist_dir"
+printf 'python -m twine upload %s/redline_ai-*.whl %s/redline_ai-*.tar.gz\n' "$dist_dir" "$dist_dir"

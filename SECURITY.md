@@ -33,6 +33,19 @@ redline doctor
 redline runners
 ```
 
+## Release evidence
+
+Generate a CycloneDX SBOM from the installed package or checkout before security
+review:
+
+```bash
+redline sbom --out redline-sbom.json
+```
+
+The SBOM records the redline package, runtime dependencies, local-first
+guarantee, and telemetry status. `scripts/build_release.sh` writes the same SBOM
+next to wheel and source distribution artifacts.
+
 ## Reporting a vulnerability
 
 Use GitHub private vulnerability reporting if it is enabled for the repository.

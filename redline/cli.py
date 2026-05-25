@@ -79,6 +79,7 @@ from .runners import (
     replay_runner_adapters,
     runner_adapters,
 )
+from .sbom import build_sbom, format_sbom_report
 from .summary import format_suite_summary, suite_summary
 from .suite import add_suite_case, build_suite
 from .validate import format_validation_report, validate_suite
@@ -112,6 +113,7 @@ Start here:
   redline runners
   redline judges
   redline doctor
+  redline sbom
 
 Core loop:
   redline suite path/to/baseline.jsonl --out redline-suite.json
@@ -167,6 +169,11 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     doctor_parser.add_argument("--strict", action="store_true", help="exit non-zero when warnings are present")
     doctor_parser.set_defaults(func=cmd_doctor)
+
+    sbom_parser = subparsers.add_parser("sbom", help="write CycloneDX SBOM release evidence")
+    sbom_parser.add_argument("--out", help="write SBOM JSON to this path")
+    sbom_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    sbom_parser.set_defaults(func=cmd_sbom)
 
     demo_parser = subparsers.add_parser("demo", help="run a first-use prompt regression demo")
     demo_parser.add_argument("--out", default=".redline/demo", help="demo output directory")
@@ -535,6 +542,19 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         return 1
     if args.strict and report["warnings"] > 0:
         return 1
+    return 0
+
+
+def cmd_sbom(args: argparse.Namespace) -> int:
+    sbom = build_sbom()
+    if args.out:
+        write_json(args.out, sbom)
+    if args.json:
+        print(json.dumps(sbom, indent=2, sort_keys=True))
+    else:
+        print(format_sbom_report(sbom), end="")
+        if args.out:
+            print(f"Wrote {Path(args.out)}.")
     return 0
 
 

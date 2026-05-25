@@ -149,6 +149,10 @@ printf '\n$ %s -m pip install --no-deps --force-reinstall %s\n' "$venv_dir/bin/p
   printf '\n$ redline judges\n'
   "$venv_dir/bin/redline" judges
 
+  printf '\n$ redline sbom --out redline-sbom.json\n'
+  "$venv_dir/bin/redline" sbom --out redline-sbom.json
+  test -s redline-sbom.json
+
   printf '\n$ redline init --runner stdio --copy-runner\n'
   "$venv_dir/bin/redline" init --runner stdio --copy-runner
 

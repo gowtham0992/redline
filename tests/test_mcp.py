@@ -40,6 +40,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_diff", names)
         self.assertIn("redline_dashboard", names)
         self.assertIn("redline_audit", names)
+        self.assertIn("redline_sbom", names)
         self.assertIn("redline_case", names)
         self.assertNotIn("redline_accept", names)
         self.assertNotIn("redline_mark", names)
@@ -431,6 +432,24 @@ class McpServerTests(unittest.TestCase):
         self.assertTrue(copied_exists)
         self.assertIn("Wrote runners/http.py.", copy_result["content"][0]["text"])
         self.assertIn("Replay: python runners/http.py", copy_result["content"][0]["text"])
+
+    def test_sbom_tool_writes_release_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = call_tool(
+                "redline_sbom",
+                {
+                    "cwd": directory,
+                    "out": "redline-sbom.json",
+                },
+            )
+            sbom_path = Path(directory) / "redline-sbom.json"
+            payload = json.loads(sbom_path.read_text(encoding="utf-8"))
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        self.assertIn("redline sbom", result["content"][0]["text"])
+        self.assertIn("Wrote redline-sbom.json.", result["content"][0]["text"])
+        self.assertEqual(payload["bomFormat"], "CycloneDX")
 
     def test_unknown_tool_returns_jsonrpc_error(self) -> None:
         response = handle_jsonrpc_line(

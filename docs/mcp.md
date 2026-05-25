@@ -51,7 +51,8 @@ The first MCP surface is intentionally safe. It does not expose baseline mutatio
 That means commands such as `redline accept`, `redline mark`, or `redline require`
 stay out of the MCP server. It can inspect capture readiness, scan/redact logs,
 generate suites, inspect coverage, estimate CI runtime, run diffs/evals, read
-the local audit trail, check prompt manifests, and write reports.
+the local audit trail, generate SBOM evidence, check prompt manifests, and write
+reports.
 
 Available tools:
 
@@ -72,6 +73,7 @@ Available tools:
 - `redline_history`
 - `redline_dashboard`
 - `redline_audit` (including `verify` and checkpoint output for the local audit hash chain)
+- `redline_sbom`
 
 `redline_diff` and `redline_eval` return the underlying redline exit code as
 structured data. Exit code `1` means redline found blocking regressions or
