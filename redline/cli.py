@@ -17,6 +17,8 @@ from .audit import (
     append_audit_event,
     decision_summary,
     file_reference,
+    format_audit_events,
+    read_audit_events,
     result_summary,
 )
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
@@ -189,6 +191,13 @@ def build_parser() -> argparse.ArgumentParser:
     redact_parser.add_argument("--placeholder", default=DEFAULT_PLACEHOLDER, help="replacement text")
     redact_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     redact_parser.set_defaults(func=cmd_redact)
+
+    audit_parser = subparsers.add_parser("audit", help="show recent local audit events")
+    audit_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
+    audit_parser.add_argument("--path", help="audit JSONL path; defaults to config")
+    audit_parser.add_argument("--limit", type=int, default=20, help="recent audit events to show; use 0 for all")
+    audit_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    audit_parser.set_defaults(func=cmd_audit)
 
     cluster_parser = subparsers.add_parser("cluster", help="analyze behavioral clusters in a log")
     cluster_parser.add_argument("log", nargs="?", help="JSONL prompt-response log; defaults to watched log")
@@ -577,6 +586,33 @@ def cmd_redact(args: argparse.Namespace) -> int:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
         print(format_redaction_report(report), end="")
+    return 0
+
+
+def cmd_audit(args: argparse.Namespace) -> int:
+    if args.limit < 0:
+        raise ValueError("audit --limit must be 0 or greater")
+    config = load_config(args.config)
+    audit_path = args.path or _config_audit_path(config)
+    if audit_path is None:
+        raise ValueError("audit disabled by config; pass --path to read a specific audit log")
+    events = read_audit_events(audit_path)
+    limit = None if args.limit == 0 else args.limit
+    shown = events[-limit:] if limit is not None and limit > 0 else events
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "version": "0.1",
+                    "path": audit_path,
+                    "events": shown,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+    else:
+        print(format_audit_events(events, limit=limit), end="")
     return 0
 
 

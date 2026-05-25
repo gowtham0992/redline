@@ -138,6 +138,7 @@ redline is built around the full prompt-regression loop:
 - `redline mark` and `redline accept`: review intentional changes and promote the
   new baseline.
 - `redline require`: add deterministic must-include or must-not-include rules.
+- `redline audit`: inspect the append-only local audit trail for evals and approvals.
 - `redline history`, `redline compare`, and `redline dashboard`: track quality
   over time and inspect reports locally.
 - `redline-mcp`: let AI coding assistants run checks inside Claude, Codex,

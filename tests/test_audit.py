@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.audit import append_audit_event, file_reference, result_summary
+from redline.audit import append_audit_event, file_reference, format_audit_events, read_audit_events, result_summary
 
 
 class AuditTests(unittest.TestCase):
@@ -32,6 +32,33 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(row["case_id"], "case_001")
             self.assertIn("timestamp", row)
             self.assertIn("operator", row)
+
+    def test_read_missing_audit_log_returns_empty_list(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(read_audit_events(Path(directory) / "missing.jsonl"), [])
+
+    def test_format_audit_events_prints_recent_event_summaries(self) -> None:
+        output = format_audit_events(
+            [
+                {
+                    "timestamp": "2026-05-25T00:00:00Z",
+                    "event": "diff_run",
+                    "summary": {"cases": 2, "regression": 1, "neutral": 1},
+                    "exit_code": 1,
+                },
+                {
+                    "timestamp": "2026-05-25T00:01:00Z",
+                    "event": "case_marked",
+                    "case_id": "case_001",
+                },
+            ]
+        )
+
+        self.assertIn("redline audit", output)
+        self.assertIn("diff_run", output)
+        self.assertIn("cases=2", output)
+        self.assertIn("regression=1", output)
+        self.assertIn("case=case_001", output)
 
     def test_result_summary_keeps_only_counts(self) -> None:
         summary = result_summary(

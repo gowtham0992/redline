@@ -643,6 +643,34 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_audit_command_lists_recent_events(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text(
+                    json.dumps({"audit": ".redline/audit.jsonl"}),
+                    encoding="utf-8",
+                )
+                Path("raw.jsonl").write_text(
+                    '{"prompt": "Email ada@example.com", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["redact", "raw.jsonl", "--out", "clean.jsonl"]), 0)
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["audit"]), 0)
+
+                self.assertIn("redline audit", output.getvalue())
+                self.assertIn("log_redacted", output.getvalue())
+                self.assertIn("records=1", output.getvalue())
+                self.assertIn("redactions=1", output.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_judgment_requirement_and_acceptance_append_audit_events(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
