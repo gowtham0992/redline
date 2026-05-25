@@ -4,6 +4,9 @@ import hashlib
 from pathlib import Path
 from typing import Sequence
 
+from .io import read_json
+from .validate import validate_suite
+
 DEFAULT_PROMPT_EXTENSIONS = (".txt", ".md", ".prompt", ".j2", ".jinja", ".yaml", ".yml")
 
 
@@ -105,28 +108,46 @@ def check_prompt_suites(manifest: dict[str, object]) -> dict[str, object]:
     prompts = manifest.get("prompts", [])
     if not isinstance(prompts, list):
         prompts = []
-    missing = []
+    missing: list[dict[str, object]] = []
+    invalid: list[dict[str, object]] = []
     present = 0
+    valid = 0
     for prompt in prompts:
         if not isinstance(prompt, dict):
             continue
         suite = str(prompt.get("suite") or "")
+        prompt_reference: dict[str, object] = {
+            "id": str(prompt.get("id") or ""),
+            "path": str(prompt.get("path") or ""),
+            "suite": suite,
+        }
         if suite and Path(suite).is_file():
             present += 1
+            try:
+                validation = validate_suite(read_json(suite), suite_path=suite)
+            except ValueError as exc:
+                invalid.append({**prompt_reference, "error": str(exc)})
+                continue
+            if not validation.get("valid"):
+                invalid.append(
+                    {
+                        **prompt_reference,
+                        "errors": int(validation.get("errors", 0)),
+                        "warnings": int(validation.get("warnings", 0)),
+                    }
+                )
+                continue
+            valid += 1
             continue
-        missing.append(
-            {
-                "id": str(prompt.get("id") or ""),
-                "path": str(prompt.get("path") or ""),
-                "suite": suite,
-            }
-        )
+        missing.append(prompt_reference)
     prompt_count = len([prompt for prompt in prompts if isinstance(prompt, dict)])
     return {
-        "status": "ok" if not missing else "missing_suites",
+        "status": _suite_status(missing=missing, invalid=invalid),
         "prompt_count": prompt_count,
         "suite_count": present,
+        "valid_suite_count": valid,
         "missing_suites": missing,
+        "invalid_suites": invalid,
     }
 
 
@@ -151,10 +172,13 @@ def format_prompt_manifest_check(report: dict[str, object], *, command: str) -> 
 
     suite_status = report.get("suite_status")
     missing_suites: list[object] = []
+    invalid_suites: list[object] = []
     if isinstance(suite_status, dict):
         suite_count = int(suite_status.get("suite_count") or 0)
+        valid_suite_count = int(suite_status.get("valid_suite_count") or 0)
         prompt_count = int(suite_status.get("prompt_count") or 0)
         lines.append(f"Suites:   {suite_count}/{prompt_count} present")
+        lines.append(f"Valid:    {valid_suite_count}/{prompt_count} valid")
         raw_missing = suite_status.get("missing_suites")
         if isinstance(raw_missing, list):
             missing_suites = raw_missing
@@ -165,6 +189,17 @@ def format_prompt_manifest_check(report: dict[str, object], *, command: str) -> 
                         previews.append(f"{item.get('id')} -> {item.get('suite')}")
                 if previews:
                     lines.append(f"Missing suites: {', '.join(previews)}")
+        raw_invalid = suite_status.get("invalid_suites")
+        if isinstance(raw_invalid, list):
+            invalid_suites = raw_invalid
+            if invalid_suites:
+                previews = []
+                for item in invalid_suites[:5]:
+                    if isinstance(item, dict):
+                        detail = item.get("error") or f"errors={item.get('errors')}"
+                        previews.append(f"{item.get('id')} -> {item.get('suite')} ({detail})")
+                if previews:
+                    lines.append(f"Invalid suites: {', '.join(previews)}")
 
     if status != "ok":
         lines.extend(["", "Next:"])
@@ -176,7 +211,18 @@ def format_prompt_manifest_check(report: dict[str, object], *, command: str) -> 
                 "- Build missing suite: "
                 f"redline suite path/to/baseline.jsonl --out {first_missing.get('suite')}"
             )
+        first_invalid = next((item for item in invalid_suites if isinstance(item, dict)), None)
+        if first_invalid:
+            lines.append(f"- Fix invalid suite: redline validate {first_invalid.get('suite')} --strict")
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _suite_status(*, missing: Sequence[object], invalid: Sequence[object]) -> str:
+    if missing:
+        return "missing_suites"
+    if invalid:
+        return "invalid_suites"
+    return "ok"
 
 
 def _normalize_extensions(extensions: Sequence[str] | None) -> tuple[str, ...]:
