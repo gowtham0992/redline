@@ -1428,6 +1428,16 @@ def cmd_mark(args: argparse.Namespace) -> int:
         },
     )
     print(f"Marked {case_id} as {args.status} in {Path(output)}.")
+    print()
+    print("Next:")
+    print(f"- Validate suite: redline validate {Path(output)}")
+    if args.status == "expected":
+        print(
+            f"- Promote reviewed output: redline accept {Path(output)} {case_id} "
+            '--candidate path/to/candidate.jsonl --note "accepted prompt change"'
+        )
+    else:
+        print(f"- Re-run diff: redline diff {Path(output)} path/to/candidate.jsonl")
     return 0
 
 

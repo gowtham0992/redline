@@ -921,8 +921,26 @@ class CliConfigTests(unittest.TestCase):
                     self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
                 suite = json.loads(Path("suite.json").read_text(encoding="utf-8"))
                 case_id = suite["cases"][0]["id"]
+                mark_output = io.StringIO()
+                with contextlib.redirect_stdout(mark_output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "mark",
+                                "suite.json",
+                                case_id,
+                                "--status",
+                                "expected",
+                                "--note",
+                                "intentional",
+                            ]
+                        ),
+                        0,
+                    )
+                self.assertIn("Next:", mark_output.getvalue())
+                self.assertIn("redline validate suite.json", mark_output.getvalue())
+                self.assertIn("redline accept suite.json", mark_output.getvalue())
                 with contextlib.redirect_stdout(io.StringIO()):
-                    self.assertEqual(main(["mark", "suite.json", case_id, "--status", "expected", "--note", "intentional"]), 0)
                     self.assertEqual(main(["require", "suite.json", case_id, "--include", "ok", "--note", "must keep ok"]), 0)
                     self.assertEqual(
                         main(
