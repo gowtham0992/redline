@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from .audit import DEFAULT_AUDIT_PATH
 from .runners import runner_adapters
 from .validate import validate_suite
 
@@ -88,6 +89,8 @@ def doctor_report(
     elif "runs" in config:
         checks.append({"status": "warn", "name": "runs", "message": "not configured"})
 
+    checks.append(_audit_check(config))
+
     errors = sum(1 for check in checks if check["status"] == "error")
     warnings = sum(1 for check in checks if check["status"] == "warn")
     return {
@@ -125,6 +128,31 @@ def _configured_paths(value: object, keys: tuple[str, ...]) -> list[str]:
         if isinstance(path, str) and path:
             paths.append(f"{key}={path}")
     return paths
+
+
+def _audit_check(config: dict[str, Any]) -> dict[str, str]:
+    value = config.get("audit", DEFAULT_AUDIT_PATH)
+    if value is False or value is None or value == "" or value == "none":
+        return {
+            "status": "warn",
+            "name": "audit",
+            "message": "disabled; eval, redaction, approval, and requirement events will not be logged",
+        }
+    if not isinstance(value, str):
+        return {
+            "status": "error",
+            "name": "audit",
+            "message": 'audit must be a path string, false, or "none"',
+        }
+    if Path(value).is_dir():
+        return {
+            "status": "error",
+            "name": "audit",
+            "message": f"{value} is a directory; configure a JSONL file path",
+        }
+    if Path(value).exists():
+        return {"status": "ok", "name": "audit", "message": f"enabled at {value}; run redline audit"}
+    return {"status": "ok", "name": "audit", "message": f"enabled at {value}; no events yet"}
 
 
 def _missing_suite_message(suite_path: str) -> str:

@@ -102,7 +102,37 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("html=.redline/reports/doctor.html", output)
         self.assertIn("junit=.redline/reports/doctor.xml", output)
         self.assertIn("runs: candidate=.redline/runs/candidate.jsonl", output)
+        self.assertIn("audit: enabled at .redline/audit.jsonl", output)
         self.assertNotIn("Next:", output)
+
+    def test_doctor_warns_when_audit_is_disabled(self) -> None:
+        report = doctor_report(
+            config_path="pyproject.toml",
+            config={
+                "replay": f"{sys.executable} -c pass",
+                "audit": False,
+            },
+            suite={"cases": []},
+        )
+
+        audit = next(check for check in report["checks"] if check["name"] == "audit")
+        self.assertEqual(audit["status"], "warn")
+        self.assertIn("disabled", audit["message"])
+
+    def test_doctor_errors_when_audit_path_is_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            report = doctor_report(
+                config_path="pyproject.toml",
+                config={
+                    "replay": f"{sys.executable} -c pass",
+                    "audit": directory,
+                },
+                suite={"cases": []},
+            )
+
+        audit = next(check for check in report["checks"] if check["name"] == "audit")
+        self.assertEqual(audit["status"], "error")
+        self.assertIn("is a directory", audit["message"])
 
     def test_doctor_calibrates_coverage_for_high_risk_suite_without_semantic_checks(self) -> None:
         suite = build_suite(
