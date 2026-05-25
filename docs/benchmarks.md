@@ -36,6 +36,9 @@ redline benchmark redline-suite.json \
 ```
 
 Exit code `1` means the suite exceeds the requested budget.
+When a budget fails, the report prints the minimum worker count that would fit
+the requested timeout and max-seconds budget when such a worker count is
+possible.
 
 ## Publish benchmark artifacts
 

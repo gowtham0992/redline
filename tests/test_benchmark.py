@@ -52,8 +52,9 @@ class BenchmarkTests(unittest.TestCase):
 
         self.assertFalse(report["within_budget"])
         self.assertEqual(report["max_seconds"], 120)
+        self.assertEqual(report["recommended_workers_for_budget"], 3)
         self.assertEqual(report["status"], "warn")
-        self.assertIn("increase --max-seconds", " ".join(report["next_steps"]))
+        self.assertIn("Set --workers 3", " ".join(report["next_steps"]))
 
     def test_benchmark_warns_for_large_single_worker_suite(self) -> None:
         suite = {
@@ -81,6 +82,7 @@ class BenchmarkTests(unittest.TestCase):
         report = _sample_report()
         report["max_seconds"] = 300
         report["within_budget"] = False
+        report["recommended_workers_for_budget"] = 5
         report["status"] = "warn"
         output = format_benchmark_markdown(report)
 
@@ -89,8 +91,20 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("| Worst-case eval budget | 5m 30s |", output)
         self.assertIn("| Max allowed budget | 5m 0s |", output)
         self.assertIn("| Budget check | FAIL |", output)
+        self.assertIn("| Recommended workers | 5 |", output)
         self.assertIn("| Status | WARN |", output)
         self.assertIn("Add requirements to high-value cases.", output)
+
+    def test_benchmark_reports_when_timeout_cannot_fit_budget(self) -> None:
+        report = benchmark_suite(
+            {"cases": [{"id": "case_001"}]},
+            timeout_seconds=30,
+            workers=1,
+            max_seconds=10,
+        )
+
+        self.assertIsNone(report["recommended_workers_for_budget"])
+        self.assertIn("even one parallel wave exceeds", " ".join(report["next_steps"]))
 
     def test_benchmark_rejects_invalid_workers_and_timeout(self) -> None:
         with self.assertRaisesRegex(ValueError, "workers must be at least 1"):

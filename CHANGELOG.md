@@ -33,6 +33,7 @@
 - Add MCP Registry metadata for publishing the PyPI-backed `redline-mcp` server.
 - Add `redline judges` to list and copy packaged judge commands and domain rubrics from any install.
 - Print copy-pasteable audit checkpoint commands from `redline audit --verify`.
+- Recommend worker counts from `redline benchmark` when CI runtime budgets fail.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Capture prompt-response pairs from Python functions with the local `@watch` decorator and `record()` helper, with exact duplicate observations skipped by content hash.
 - Normalize common provider response objects and capture latency/token metadata from watched Python calls.

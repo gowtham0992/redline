@@ -47,6 +47,11 @@ def benchmark_suite(
         "worst_case_seconds": worst_case_seconds,
         "max_seconds": max_seconds,
         "within_budget": max_seconds is None or worst_case_seconds <= max_seconds,
+        "recommended_workers_for_budget": _recommended_workers_for_budget(
+            cases_count,
+            timeout_seconds,
+            max_seconds,
+        ),
         "requirements": requirements_count,
         "judgments": judgments_count,
         "size": _size_label(cases_count),
@@ -74,6 +79,9 @@ def format_benchmark_report(report: dict[str, Any]) -> str:
     if report.get("max_seconds") is not None:
         lines.append(f"Max allowed budget:    {_duration(report['max_seconds'])}")
         lines.append(f"Budget check:          {'PASS' if report['within_budget'] else 'FAIL'}")
+        recommended_workers = report.get("recommended_workers_for_budget")
+        if not report["within_budget"] and recommended_workers is not None:
+            lines.append(f"Recommended workers:   {recommended_workers}")
     lines.extend(
         [
             f"Requirements:          {report['requirements']}",
@@ -111,6 +119,9 @@ def format_benchmark_markdown(report: dict[str, Any]) -> str:
     if report.get("max_seconds") is not None:
         lines.insert(-2, f"| Max allowed budget | {_duration(report['max_seconds'])} |")
         lines.insert(-2, f"| Budget check | {'PASS' if report['within_budget'] else 'FAIL'} |")
+        recommended_workers = report.get("recommended_workers_for_budget")
+        if not report["within_budget"] and recommended_workers is not None:
+            lines.insert(-2, f"| Recommended workers | {recommended_workers} |")
     next_steps = report.get("next_steps") or []
     if next_steps:
         lines.extend(["", "Next:"])
@@ -155,12 +166,29 @@ def _next_steps(report: dict[str, Any]) -> list[str]:
     if budget > 600:
         steps.append("Split the suite, raise workers, or lower timeout before making this a required CI gate.")
     if not bool(report["within_budget"]):
-        steps.append("Raise workers, lower timeout, or increase --max-seconds to fit the CI budget.")
+        recommended_workers = report.get("recommended_workers_for_budget")
+        if recommended_workers is not None:
+            steps.append(f"Set --workers {recommended_workers} or lower timeout to fit the CI budget.")
+        else:
+            steps.append("Lower timeout or increase --max-seconds; even one parallel wave exceeds the CI budget.")
     if not int(report["requirements"]):
         steps.append("Add requirements to high-value cases so scale does not dilute trust.")
     if cases > 0 and not int(report["judgments"]):
         steps.append("After the first eval, mark expected changes so future diffs stay focused.")
     return steps
+
+
+def _recommended_workers_for_budget(
+    cases: int,
+    timeout_seconds: float,
+    max_seconds: float | None,
+) -> int | None:
+    if cases <= 0 or max_seconds is None:
+        return None
+    allowed_waves = int(max_seconds // timeout_seconds)
+    if allowed_waves < 1:
+        return None
+    return min(cases, ceil(cases / allowed_waves))
 
 
 def _seconds(value: Any) -> str:
