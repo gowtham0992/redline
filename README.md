@@ -116,7 +116,8 @@ unless you explicitly configure that command.
 
 Suite generation groups logs by deterministic behavior signatures, not opaque
 embedding clusters. It picks one representative per group first, then adds
-high-variance and prompt-diverse edges when the case budget allows.
+high-variance edges and evenly spread prompt-diverse samples from large clusters
+when the case budget allows.
 
 ## Trust Boundary
 

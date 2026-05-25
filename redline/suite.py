@@ -15,6 +15,7 @@ from .io import LogRecord
 FeatureCache = dict[int, TextFeatures]
 ClusterInfo = dict[str, Any]
 SUITE_SCHEMA_URL = "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-suite.schema.json"
+PROMPT_DIVERSITY_EDGE_TARGET = 8
 
 
 def build_suite(
@@ -324,10 +325,19 @@ def _prompt_diversity_records(group: list[LogRecord]) -> list[tuple[LogRecord, s
     ranked = sorted(group, key=lambda record: (len(record.prompt), record.prompt, record.line_number))
     if len(ranked) <= 1:
         return [(ranked[0], "prompt_diversity_edge")]
-    return [
-        (ranked[0], "prompt_diversity_edge"),
-        (ranked[-1], "prompt_diversity_edge"),
-    ]
+    limit = min(PROMPT_DIVERSITY_EDGE_TARGET, len(ranked))
+    return [(ranked[index], "prompt_diversity_edge") for index in _spread_indexes(len(ranked), limit)]
+
+
+def _spread_indexes(size: int, count: int) -> list[int]:
+    if size <= 0 or count <= 0:
+        return []
+    if count == 1:
+        return [size // 2]
+    indexes = []
+    for step in range(count):
+        indexes.append(round(step * (size - 1) / (count - 1)))
+    return list(dict.fromkeys(indexes))
 
 
 def _is_high_variance(lengths: list[int]) -> bool:

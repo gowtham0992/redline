@@ -38,6 +38,7 @@
 - Add optional ASGI middleware skip diagnostics so teams can see why a request was not captured without logging body text.
 - Include middleware skip reason counts in `redline watch --stats`.
 - Surface middleware skip diagnostics from `redline doctor` when setup has no captured observations yet.
+- Spread suite budget across more prompt-diverse samples inside very large same-shape clusters.
 - Show suite-readiness guidance in `redline watch --stats` based on unique prompt-response pairs.
 - Print copy-pasteable suite and follow commands from `redline watch --stats`.
 - Skip exact duplicate prompt-response pairs when generating suites from noisy logs.

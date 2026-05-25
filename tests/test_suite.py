@@ -188,6 +188,36 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(reasons.count("prompt_diversity_edge"), 2)
         self.assertEqual(suite["summary"]["prompt_diversity_cases"], 2)
 
+    def test_build_suite_spreads_prompt_diversity_budget_across_large_clusters(self) -> None:
+        records = [
+            LogRecord(
+                index,
+                f"Summarize account {index} " + ("detail " * index),
+                "same shape answer",
+                {},
+            )
+            for index in range(1, 21)
+        ]
+
+        suite = build_suite(
+            records,
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=7,
+        )
+
+        diversity_lines = [
+            case["source_line"]
+            for case in suite["cases"]
+            if case["selection_reason"] == "prompt_diversity_edge"
+        ]
+        self.assertEqual(suite["summary"]["clusters"], 1)
+        self.assertEqual(suite["summary"]["cases"], 7)
+        self.assertEqual(suite["summary"]["prompt_diversity_cases"], 6)
+        self.assertEqual(len(set(diversity_lines)), 6)
+        self.assertTrue(any(1 < line < 20 for line in diversity_lines))
+
     def test_build_suite_extracts_features_once_per_record(self) -> None:
         records = [
             LogRecord(1, "Return JSON for Ada", '{"name":"Ada"}', {}),
