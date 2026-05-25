@@ -1019,12 +1019,7 @@ def cmd_cases(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps({"cases": suite_case_rows(suite)}, indent=2, sort_keys=True))
     else:
-        print(format_suite_cases(suite), end="")
-        rows = suite_case_rows(suite)
-        if rows:
-            print()
-            print("Next:")
-            print(f"- Inspect full case: redline case {Path(suite_path)} {rows[0]['id']}")
+        print(format_suite_cases(suite, suite_path=str(Path(suite_path))), end="")
     return 0
 
 

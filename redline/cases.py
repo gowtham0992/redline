@@ -37,7 +37,7 @@ def suite_case_rows(suite: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
-def format_suite_cases(suite: dict[str, Any]) -> str:
+def format_suite_cases(suite: dict[str, Any], *, suite_path: str | None = None) -> str:
     rows = suite_case_rows(suite)
     lines = ["redline cases", ""]
     if not rows:
@@ -61,7 +61,8 @@ def format_suite_cases(suite: dict[str, Any]) -> str:
             f"{row['requirements']:>5} {row['judgment']:<10} {row['prompt_preview']}"
         )
     first_case = rows[0]["id"]
-    lines.extend(["", "Next:", f"- Inspect full case: redline case {first_case}"])
+    case_args = f"{suite_path} {first_case}" if suite_path else first_case
+    lines.extend(["", "Next:", f"- Inspect full case: redline case {case_args}"])
     return "\n".join(lines) + "\n"
 
 

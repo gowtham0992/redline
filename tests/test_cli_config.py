@@ -1239,6 +1239,7 @@ class CliConfigTests(unittest.TestCase):
                     self.assertEqual(main(["cases", "suite.json"]), 0)
 
                 self.assertIn("Next:", output.getvalue())
+                self.assertEqual(output.getvalue().count("Next:"), 1)
                 self.assertIn("redline case suite.json case_", output.getvalue())
             finally:
                 os.chdir(previous)
