@@ -417,8 +417,9 @@ def _build_suite_from_logs_prompt(arguments: dict[str, Any]) -> str:
         "1. Call `redline_suite` for the baseline log and write the suite output.\n"
         "2. Call `redline_validate` on the generated suite.\n"
         "3. Call `redline_summary` so I can see coverage, clusters, pinned cases, and next steps.\n"
-        "4. Call `redline_benchmark` so I can see expected CI runtime before enabling a gate.\n"
-        "5. Explain what behavior redline can catch from this suite and what still needs human review.\n"
+        "4. If coverage is low or cases look unclear, call `redline_cases` and `redline_case` to inspect representative cases before recommending pins.\n"
+        "5. Call `redline_benchmark` so I can see expected CI runtime before enabling a gate.\n"
+        "6. Explain what behavior redline can catch, what still needs human review, and the exact `redline suite add` command I can run for must-cover edge cases.\n"
     )
 
 
@@ -457,10 +458,11 @@ def _build_setup_redline_project_prompt(arguments: dict[str, Any]) -> str:
         "2. Call `redline_runners` to show adapter choices. If I named a runner, copy that runner; otherwise recommend the safest adapter for my app shape before copying anything.\n"
         "3. If prompt files are available, call `redline_prompts` to create or check a prompt-to-suite manifest.\n"
         "4. If logs are available, call `redline_suite`, then `redline_validate` and `redline_summary` so I can inspect coverage before trusting the suite.\n"
-        "5. Call `redline_benchmark` before recommending CI gating.\n"
-        "6. Call `redline_judges` only when structural checks cannot cover factual, tone, hallucination, or reasoning risk; copy a judge template only after naming why it is needed.\n"
-        "7. Finish by re-running `redline_doctor` with strict setup when possible and list the exact next commands I should run.\n"
-        "8. Do not call baseline mutation commands, do not upload private logs, and do not say green or neutral means semantically safe.\n"
+        "5. If summary reports coverage gaps, call `redline_cases` or `redline_case` and recommend a `redline suite add` command I can run; do not mutate the suite yourself.\n"
+        "6. Call `redline_benchmark` before recommending CI gating.\n"
+        "7. Call `redline_judges` only when structural checks cannot cover factual, tone, hallucination, or reasoning risk; copy a judge template only after naming why it is needed.\n"
+        "8. Finish by re-running `redline_doctor` with strict setup when possible and list the exact next commands I should run.\n"
+        "9. Do not call baseline mutation commands, do not upload private logs, and do not say green or neutral means semantically safe.\n"
     )
 
 

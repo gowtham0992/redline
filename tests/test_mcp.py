@@ -100,6 +100,9 @@ class McpServerTests(unittest.TestCase):
         text = response["result"]["messages"][0]["content"]["text"]
         self.assertIn("redline_suite", text)
         self.assertIn("redline_summary", text)
+        self.assertIn("redline_cases", text)
+        self.assertIn("redline_case", text)
+        self.assertIn("redline suite add", text)
         self.assertIn("redline_benchmark", text)
 
     def test_prompt_get_builds_first_time_setup_workflow(self) -> None:
@@ -130,6 +133,8 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_suite", text)
         self.assertIn("redline_validate", text)
         self.assertIn("redline_summary", text)
+        self.assertIn("redline_cases", text)
+        self.assertIn("redline_case", text)
         self.assertIn("redline_benchmark", text)
         self.assertIn("redline_judges", text)
         self.assertIn("logs/baseline.jsonl", text)
