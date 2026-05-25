@@ -1796,6 +1796,8 @@ class CliConfigTests(unittest.TestCase):
                     self.assertEqual(main(["diff", "candidate.jsonl"]), 0)
 
                 report = json.loads((root / ".redline" / "reports" / "diff.json").read_text(encoding="utf-8"))
+                self.assertEqual(report["suite"], ".redline/suite.json")
+                self.assertEqual(report["candidate"], "candidate.jsonl")
                 self.assertEqual(report["summary"]["neutral"], 1)
                 self.assertEqual(report["summary"]["changed"], 0)
                 self.assertEqual(report["judge"]["cases"], 1)

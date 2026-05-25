@@ -49,6 +49,14 @@
       "type": "array",
       "items": {"type": "string"}
     },
+    "suite": {
+      "type": "string",
+      "description": "Suite path used to generate this report, when emitted by the CLI."
+    },
+    "candidate": {
+      "type": "string",
+      "description": "Candidate JSONL path used to generate this report, when available."
+    },
     "diffs": {
       "type": "array",
       "items": {

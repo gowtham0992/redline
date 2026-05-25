@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from html import escape
+from shlex import quote
 from typing import Any
 from xml.etree import ElementTree
 
@@ -54,6 +55,16 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
                 f"| {_markdown_cell(str(row['owner']))} | {row['blocking']} | {row['changed']} | "
                 f"{row['accepted']} | {row['ignored']} | {row['other']} | {row['total']} |"
             )
+        lines.append("")
+
+    review_commands = _review_command_lines(result)
+    if review_commands:
+        lines.append("## Review Commands")
+        lines.append("")
+        lines.append("Use these only for intentional changes after human review; fix real regressions instead.")
+        lines.append("")
+        for command in review_commands:
+            lines.append(f"- `{command}`")
         lines.append("")
 
     for status in ("regression", "changed", "improved", "accepted", "ignored", "missing", "neutral"):
@@ -248,6 +259,37 @@ def _result_warnings(result: dict[str, Any]) -> list[str]:
     if not isinstance(warnings, list):
         return []
     return [str(warning) for warning in warnings if str(warning).strip()]
+
+
+def _review_command_lines(result: dict[str, Any]) -> list[str]:
+    suite_path = str(result.get("suite") or "").strip()
+    if not suite_path:
+        return []
+    suite = quote(suite_path)
+    diffs = result.get("diffs")
+    if not isinstance(diffs, list):
+        return []
+    reviewable = [
+        str(item.get("case_id") or "").strip()
+        for item in diffs
+        if isinstance(item, dict) and item.get("status") in {"regression", "changed", "missing"}
+    ]
+    reviewable = [case_id for case_id in reviewable if case_id]
+    if not reviewable:
+        return []
+    commands = [
+        f'redline mark {suite} {case_id} --status expected --note "intentional change"'
+        for case_id in reviewable[:5]
+    ]
+    candidate_path = str(result.get("candidate") or "").strip()
+    if candidate_path:
+        candidate = quote(candidate_path)
+        commands.append(
+            f'redline accept {suite} --all-expected --candidate {candidate} --note "accepted reviewed changes"'
+        )
+    if len(reviewable) > 5:
+        commands.append(f"redline cases {suite}")
+    return commands
 
 
 def _owner_review_rows(diffs: Any) -> list[dict[str, int | str]]:

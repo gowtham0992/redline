@@ -36,6 +36,7 @@
 - Recommend worker counts from `redline benchmark` when CI runtime budgets fail.
 - Detect common Spanish, French, Portuguese, German, Chinese, and Japanese AI refusal phrasing.
 - Add owner review rollups to Markdown and HTML reports for PR triage.
+- Add review command guidance to Markdown reports for intentional changes.
 - Show owner coverage and top owners in `redline summary`.
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Summarize confidence and signal mix in the local dashboard.

@@ -23,6 +23,8 @@ class DiffTests(unittest.TestCase):
         self.assertIn("Machine-readable prompt regression report", schema["description"])
         self.assertIn("summary", schema["properties"])
         self.assertIn("decision", schema["properties"])
+        self.assertIn("suite", schema["properties"])
+        self.assertIn("candidate", schema["properties"])
         self.assertIn("diffs", schema["properties"])
 
     def test_classify_json_regression(self) -> None:

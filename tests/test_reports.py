@@ -29,6 +29,8 @@ class ReportTests(unittest.TestCase):
                 "scope": "structural checks only; review semantic risks separately",
             },
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
+            "suite": "redline-suite.json",
+            "candidate": ".redline/runs/candidate.jsonl",
             "diffs": [
                 {
                     "case_id": "case_001",
@@ -58,6 +60,15 @@ class ReportTests(unittest.TestCase):
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn("## Owner Review", report)
         self.assertIn("| @platform-team | 1 | 0 | 0 | 0 | 0 | 1 |", report)
+        self.assertIn("## Review Commands", report)
+        self.assertIn(
+            '`redline mark redline-suite.json case_001 --status expected --note "intentional change"`',
+            report,
+        )
+        self.assertIn(
+            '`redline accept redline-suite.json --all-expected --candidate .redline/runs/candidate.jsonl --note "accepted reviewed changes"`',
+            report,
+        )
         self.assertIn("candidate lost valid JSON format", report)
         self.assertIn("Source: `baseline.jsonl:12`", report)
         self.assertIn("Cluster: `structured_json|json|short`", report)

@@ -1058,6 +1058,8 @@ def cmd_diff(args: argparse.Namespace) -> int:
     candidate = read_jsonl_records(candidate_path, input_field, output_field)
     profile = _config_diff_profile(args.profile, config)
     result = compare_suite_to_candidate(suite, candidate, profile=profile)
+    result["suite"] = str(suite_path)
+    result["candidate"] = str(candidate_path)
     result = _maybe_apply_judge(args, result, config)
 
     return _emit_result(
@@ -1182,6 +1184,9 @@ def cmd_eval(args: argparse.Namespace) -> int:
         write_jsonl(candidate_out, (record.raw for record in replay.records))
     profile = _config_diff_profile(args.profile, config)
     result = compare_suite_to_candidate(suite, replay.records, profile=profile)
+    result["suite"] = str(suite_path)
+    if candidate_out:
+        result["candidate"] = str(candidate_out)
     result = _maybe_apply_judge(args, result, config)
     result["replay"] = replay.to_metadata()
     _add_result_warnings(result, _eval_warnings(suite, suite_path=suite_path, prompt_path=args.prompt))
