@@ -184,6 +184,8 @@ python runners/jsonl_log_adapter.py logs/export.jsonl \
 
 What it does: reads your exported log rows, copies the configured prompt and
 response fields into redline's JSONL shape, writes `prompt` and `response`.
+When a response field contains an OpenAI-style `choices` body or JSON string,
+the adapter extracts the actual model text instead of preserving the wrapper.
 
 Wire it in:
 

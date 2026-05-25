@@ -103,7 +103,7 @@ def _convert_rows(
             raise SystemExit(f"line {line_number} missing field(s): {', '.join(missing)}")
         converted = {
             "prompt": _stringify(prompt),
-            "response": _stringify(response),
+            "response": _stringify_response(response),
             "source_line": line_number,
         }
         if preset:
@@ -144,6 +144,95 @@ def _stringify(value: Any) -> str:
     if isinstance(value, str):
         return value
     return json.dumps(value, sort_keys=True, ensure_ascii=False)
+
+
+def _stringify_response(value: Any) -> str:
+    extracted = _extract_response_text(value)
+    if extracted is not None:
+        return extracted
+    if isinstance(value, str):
+        parsed = _parse_json_string(value)
+        if parsed is not _MISSING:
+            if isinstance(parsed, str):
+                return parsed
+            extracted = _extract_response_text(parsed)
+            if extracted is not None:
+                return extracted
+        return value
+    return _stringify(value)
+
+
+def _parse_json_string(value: str) -> Any:
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return _MISSING
+
+
+def _extract_response_text(value: Any) -> str | None:
+    if isinstance(value, dict):
+        choices = value.get("choices")
+        if isinstance(choices, list):
+            parts = [_extract_choice_text(choice) for choice in choices]
+            text_parts = [part for part in parts if part is not None]
+            if text_parts:
+                return "\n".join(text_parts)
+        for path in (
+            "output_text",
+            "completion",
+            "message.content",
+            "delta.content",
+            "content",
+            "text",
+            "output",
+        ):
+            field = _get_field(value, path)
+            if field is _MISSING:
+                continue
+            text = _coerce_text(field)
+            if text is not None:
+                return text
+    if isinstance(value, list):
+        return _coerce_text(value)
+    return None
+
+
+def _extract_choice_text(choice: Any) -> str | None:
+    if isinstance(choice, str):
+        return choice
+    if not isinstance(choice, dict):
+        return None
+    for path in ("message.content", "delta.content", "text", "content"):
+        field = _get_field(choice, path)
+        if field is _MISSING:
+            continue
+        text = _coerce_text(field)
+        if text is not None:
+            return text
+    return None
+
+
+def _coerce_text(value: Any) -> str | None:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        parts = []
+        for item in value:
+            text = _extract_response_text(item)
+            if text is not None:
+                parts.append(text)
+            elif isinstance(item, str):
+                parts.append(item)
+        if parts:
+            return "\n".join(parts)
+    if isinstance(value, dict):
+        for key in ("text", "content"):
+            text = value.get(key)
+            if isinstance(text, str):
+                return text
+            if isinstance(text, list):
+                return _coerce_text(text)
+    return None
 
 
 def _fields(args: argparse.Namespace, parser: argparse.ArgumentParser) -> tuple[tuple[str, ...], tuple[str, ...]]:

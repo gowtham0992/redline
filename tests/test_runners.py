@@ -334,10 +334,71 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0)
             row = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(row["prompt"], "hello")
-            self.assertEqual(row["response"], '{"choices": [{"text": "world"}]}')
+            self.assertEqual(row["response"], "world")
             self.assertEqual(row["metadata"]["adapter_preset"], "helicone")
             self.assertEqual(row["metadata"]["adapter_prompt_field"], "prompt")
             self.assertEqual(row["metadata"]["adapter_response_field"], "responseBody")
+
+    def test_jsonl_log_adapter_unwraps_json_string_response_bodies(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "helicone.jsonl"
+            output = root / "prompts.jsonl"
+            source.write_text(
+                '{"prompt": "hello", "responseBody": "{\\"choices\\": '
+                '[{\\"message\\": {\\"content\\": \\"world\\"}}]}"}\n',
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(source),
+                    "--preset",
+                    "helicone",
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["prompt"], "hello")
+            self.assertEqual(row["response"], "world")
+
+    def test_jsonl_log_adapter_unwraps_content_parts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "response-parts.jsonl"
+            output = root / "prompts.jsonl"
+            source.write_text(
+                '{"prompt": "hello", "responseBody": {"choices": [{"message": {"content": '
+                '[{"type": "text", "text": "part one"}, {"type": "text", "text": "part two"}]}}]}}\n',
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(source),
+                    "--preset",
+                    "helicone",
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["response"], "part one\npart two")
 
     def test_jsonl_log_adapter_preset_falls_back_to_nested_fields(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
