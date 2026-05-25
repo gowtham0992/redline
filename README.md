@@ -214,8 +214,8 @@ redline is built around the full prompt-regression loop:
 - `redline sbom`: write CycloneDX SBOM release evidence for security review.
 - `redline history`, `redline compare`, and `redline dashboard`: track quality
   over time and inspect reports locally. The dashboard surfaces feature-level
-  rollups, prompt-level eval rows, and a latest-report review queue when reports
-  come from a prompt manifest.
+  rollups, prompt-level eval rows, benchmark evidence, and a latest-report
+  review queue when reports come from a prompt manifest.
 - `redline summary`: inspect suite readiness, or pass `redline-prompts.json` to
   roll up multi-prompt suite coverage, owners, requirements, and missing suites.
 - `redline-mcp`: let AI coding assistants run checks inside Claude, Codex,

@@ -21,6 +21,7 @@ def build_dashboard(
     if limit < 0:
         raise ValueError("dashboard --limit must be 0 or greater")
     reports, report_errors = _collect_reports(Path(reports_dir), limit=limit)
+    benchmarks = _collect_benchmarks(Path(reports_dir), limit=limit)
     history, history_errors = _collect_history(Path(history_path), limit=limit)
     checkpoint, checkpoint_errors = _collect_checkpoint(Path(checkpoint_path))
     trend = history_trend(list(reversed(history))) if history else history_trend([])
@@ -30,6 +31,7 @@ def build_dashboard(
         "history_path": str(history_path),
         "checkpoint_path": str(checkpoint_path),
         "reports": reports,
+        "benchmarks": benchmarks,
         "history": history,
         "checkpoint": checkpoint,
         "trend": trend,
@@ -52,6 +54,9 @@ def format_dashboard_html(
     history = dashboard.get("history")
     if not isinstance(history, list):
         history = []
+    benchmarks = dashboard.get("benchmarks")
+    if not isinstance(benchmarks, list):
+        benchmarks = []
     errors = dashboard.get("errors")
     if not isinstance(errors, list):
         errors = []
@@ -88,6 +93,7 @@ def format_dashboard_html(
             _overview(latest, len(reports), len(history)),
             _ship_panel(latest),
             _trend_panel(trend),
+            _benchmark_panel(benchmarks, output_path=output_path),
             _scope(str(dashboard.get("scope") or TRUST_SCOPE)),
             _checkpoint_panel(checkpoint),
             _trust_panel(trust),
@@ -114,16 +120,17 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
         key=lambda path: (path.stat().st_mtime, path.name),
         reverse=True,
     )
-    if limit:
-        report_paths = report_paths[:limit]
-
-    reports = []
-    errors = []
+    reports: list[dict[str, Any]] = []
+    errors: list[dict[str, str]] = []
     for path in report_paths:
+        if limit and len(reports) >= limit:
+            break
         try:
             report = read_json(path)
         except ValueError as exc:
             errors.append({"path": str(path), "message": str(exc)})
+            continue
+        if _is_benchmark_report(report):
             continue
         summary = report.get("summary")
         if not isinstance(summary, dict):
@@ -150,6 +157,28 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
     return reports, errors
 
 
+def _collect_benchmarks(reports_dir: Path, *, limit: int) -> list[dict[str, Any]]:
+    if not reports_dir.exists():
+        return []
+    report_paths = sorted(
+        (path for path in reports_dir.glob("*.json") if path.is_file()),
+        key=lambda path: (path.stat().st_mtime, path.name),
+        reverse=True,
+    )
+    benchmarks: list[dict[str, Any]] = []
+    for path in report_paths:
+        if limit and len(benchmarks) >= limit:
+            break
+        try:
+            report = read_json(path)
+        except ValueError:
+            continue
+        if not _is_benchmark_report(report):
+            continue
+        benchmarks.append(_benchmark_row(report, path))
+    return benchmarks
+
+
 def _collect_history(history_path: Path, *, limit: int) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     if not history_path.exists():
         return [], []
@@ -170,6 +199,30 @@ def _collect_checkpoint(checkpoint_path: Path) -> tuple[dict[str, Any] | None, l
     except ValueError as exc:
         return None, [{"path": str(checkpoint_path), "message": str(exc)}]
     return {**checkpoint, "path": str(checkpoint_path)}, []
+
+
+def _is_benchmark_report(report: dict[str, Any]) -> bool:
+    return str(report.get("mode") or "") == "static_eval_budget_estimate"
+
+
+def _benchmark_row(report: dict[str, Any], path: Path) -> dict[str, Any]:
+    local = report.get("local_measurement")
+    return {
+        "path": str(path),
+        "name": path.name,
+        "suite": str(report.get("suite") or "-"),
+        "cases": _safe_int(report.get("cases")),
+        "workers": _safe_int(report.get("workers")),
+        "timeout_seconds": _safe_float(report.get("timeout_seconds")),
+        "worst_case_seconds": _safe_float(report.get("worst_case_seconds")),
+        "sequential_worst_case_seconds": _safe_float(report.get("sequential_worst_case_seconds")),
+        "max_seconds": _optional_float(report.get("max_seconds")),
+        "within_budget": bool(report.get("within_budget")),
+        "status": str(report.get("status") or ""),
+        "is_prompt_manifest": bool(report.get("is_prompt_manifest")),
+        "local_measurement": local if isinstance(local, dict) else {},
+        "markdown_path": _existing_sibling(path, ".md"),
+    }
 
 
 def _report_kind(report: dict[str, Any], path: Path) -> str:
@@ -675,6 +728,55 @@ def _trend_class(direction: str) -> str:
     return "unknown"
 
 
+def _benchmark_panel(benchmarks: list[Any], *, output_path: str | Path | None) -> str:
+    if not benchmarks:
+        return ""
+    rows = []
+    for item in benchmarks:
+        if not isinstance(item, dict):
+            continue
+        local = item.get("local_measurement")
+        local_text = "-"
+        if isinstance(local, dict) and local:
+            local_text = (
+                f"{_elapsed(local.get('seconds'))} for "
+                f"{_safe_int(local.get('cases'))} cases "
+                f"({_rate(local.get('cases_per_second'))} cases/sec)"
+            )
+        budget = "PASS" if item.get("within_budget") else "FAIL"
+        links = _links(
+            [
+                ("Markdown", str(item.get("markdown_path") or "")),
+                ("JSON", str(item.get("path") or "")),
+            ],
+            output_path=output_path,
+        )
+        rows.append(
+            "<tr>"
+            f"<td><strong>{_h(str(item.get('name') or '-'))}</strong><span>{_h(str(item.get('suite') or '-'))}</span></td>"
+            f"<td>{_safe_int(item.get('cases'))}</td>"
+            f"<td>{_safe_int(item.get('workers'))}</td>"
+            f"<td>{_duration(item.get('worst_case_seconds'))}</td>"
+            f"<td>{_h(local_text)}</td>"
+            f"<td><span class=\"pill {'better' if item.get('within_budget') else 'worse'}\">{_h(budget)}</span></td>"
+            f"<td>{links}</td>"
+            "</tr>"
+        )
+    if not rows:
+        return ""
+    return (
+        '<section class="panel benchmark-evidence">'
+        "<h2>Benchmark Evidence</h2>"
+        '<div class="table-wrap">'
+        "<table>"
+        "<thead><tr><th>Benchmark</th><th>Cases</th><th>Workers</th><th>Worst Case</th><th>Local Check</th><th>Budget</th><th>Links</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table>"
+        "</div>"
+        "</section>"
+    )
+
+
 def _errors(errors: list[Any]) -> str:
     rows = []
     for error in errors:
@@ -942,6 +1044,55 @@ def _href(path: str, output_path: str | Path | None) -> str:
 
 def _h(value: str) -> str:
     return escape(value, quote=True)
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _safe_float(value: Any) -> float:
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    return _safe_float(value)
+
+
+def _duration(value: Any) -> str:
+    seconds = int(round(_safe_float(value)))
+    minutes, remainder = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h {minutes}m {remainder}s"
+    if minutes:
+        return f"{minutes}m {remainder}s"
+    return f"{remainder}s"
+
+
+def _elapsed(value: Any) -> str:
+    seconds = _safe_float(value)
+    if seconds < 1:
+        return f"{seconds * 1000:.0f}ms"
+    if seconds < 60:
+        return f"{seconds:.2f}s"
+    return _duration(seconds)
+
+
+def _rate(value: Any) -> str:
+    number = _safe_float(value)
+    if number >= 100:
+        return f"{number:.0f}"
+    if number >= 10:
+        return f"{number:.1f}"
+    return f"{number:.2f}"
 
 
 _DASHBOARD_CSS = """

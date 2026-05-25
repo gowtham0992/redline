@@ -81,8 +81,12 @@ printf '\n$ redline validate redline-suite.json --strict\n'
 "$venv_dir/bin/redline" validate redline-suite.json --strict
 
 summary_path="$project_dir/github-summary.md"
-printf '\n$ redline benchmark redline-suite.json --measure-local --github-summary\n'
-GITHUB_STEP_SUMMARY="$summary_path" "$venv_dir/bin/redline" benchmark redline-suite.json --measure-local --github-summary
+printf '\n$ redline benchmark redline-suite.json --measure-local --github-summary --out-json .redline/reports/benchmark.json --out-md .redline/reports/benchmark.md\n'
+GITHUB_STEP_SUMMARY="$summary_path" "$venv_dir/bin/redline" benchmark redline-suite.json \
+  --measure-local \
+  --github-summary \
+  --out-json .redline/reports/benchmark.json \
+  --out-md .redline/reports/benchmark.md
 
 printf '\n$ redline eval --compact --github-summary\n'
 set +e
@@ -104,6 +108,8 @@ if [ "$eval_status" -ne 1 ]; then
 fi
 
 test -s .redline/reports/eval.json
+test -s .redline/reports/benchmark.json
+test -s .redline/reports/benchmark.md
 test -s .redline/reports/eval.md
 test -s .redline/reports/eval-comment.md
 test -s .redline/reports/eval.html
@@ -128,6 +134,7 @@ printf '\n$ redline dashboard --out .redline/dashboard.html\n'
 test -s .redline/history.jsonl
 test -s .redline/history.md
 test -s .redline/dashboard.html
+grep -q "Benchmark Evidence" .redline/dashboard.html
 test -s .redline/audit-checkpoint.json
 
 printf '\naction smoke passed\n'

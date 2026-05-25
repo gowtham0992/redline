@@ -53,6 +53,7 @@
 - Add GitHub Action Marketplace branding and full author metadata.
 - Reshape the README opener into a product-style overview with logo, promise, and three-step workflow.
 - Add a dark-mode README logo so the redline wordmark stays visible on GitHub.
+- Surface benchmark artifacts and local timing evidence in the dashboard.
 - Show owner coverage and top owners in `redline summary`.
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Show blocking and changed review counts in the dashboard reports table.

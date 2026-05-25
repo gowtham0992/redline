@@ -63,6 +63,29 @@ class DashboardTests(unittest.TestCase):
             }
             write_json(reports / "eval.json", report)
             (reports / "eval.html").write_text("<!doctype html>\n", encoding="utf-8")
+            write_json(
+                reports / "benchmark.json",
+                {
+                    "mode": "static_eval_budget_estimate",
+                    "suite": "redline-suite.json",
+                    "cases": 5,
+                    "workers": 2,
+                    "timeout_seconds": 30,
+                    "worst_case_seconds": 90,
+                    "sequential_worst_case_seconds": 150,
+                    "within_budget": True,
+                    "status": "ok",
+                    "local_measurement": {
+                        "mode": "deterministic_baseline_self_check",
+                        "iterations": 1,
+                        "cases": 5,
+                        "cases_processed": 5,
+                        "seconds": 0.005,
+                        "cases_per_second": 1000,
+                    },
+                },
+            )
+            (reports / "benchmark.md").write_text("## redline benchmark\n", encoding="utf-8")
             history = root / ".redline" / "history.jsonl"
             history.parent.mkdir(parents=True, exist_ok=True)
             history.write_text(
@@ -95,6 +118,9 @@ class DashboardTests(unittest.TestCase):
             html = format_dashboard_html(dashboard, output_path=root / ".redline" / "dashboard.html")
 
             self.assertEqual(len(dashboard["reports"]), 1)
+            self.assertEqual(len(dashboard["benchmarks"]), 1)
+            self.assertEqual(dashboard["benchmarks"][0]["suite"], "redline-suite.json")
+            self.assertEqual(dashboard["benchmarks"][0]["cases"], 5)
             self.assertEqual(len(dashboard["history"]), 1)
             self.assertEqual(dashboard["trend"]["direction"], "baseline")
             self.assertEqual(
@@ -182,6 +208,12 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("blocking 1", html)
             self.assertIn("changed 1", html)
             self.assertIn("<h2>Trend</h2>", html)
+            self.assertIn("<h2>Benchmark Evidence</h2>", html)
+            self.assertIn("benchmark.json", html)
+            self.assertIn("redline-suite.json", html)
+            self.assertIn("1m 30s", html)
+            self.assertIn("5ms for 5 cases", html)
+            self.assertIn("1000 cases/sec", html)
             self.assertIn("<h2>Trust Signals</h2>", html)
             self.assertIn("<h2>Audit Checkpoint</h2>", html)
             self.assertIn("abc123", html)
