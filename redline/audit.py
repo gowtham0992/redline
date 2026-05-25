@@ -207,6 +207,12 @@ def _last_entry_hash(path: str | Path) -> str | None:
 
 def _audit_summary(row: dict[str, Any]) -> str:
     parts: list[str] = []
+    operator = row.get("operator")
+    if operator:
+        parts.append(f"operator={operator}")
+    approver = row.get("approver")
+    if approver:
+        parts.append(f"approver={approver}")
     case_id = row.get("case_id")
     if case_id:
         parts.append(f"case={case_id}")

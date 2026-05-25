@@ -120,6 +120,8 @@ class AuditTests(unittest.TestCase):
                 {
                     "timestamp": "2026-05-25T00:01:00Z",
                     "event": "case_marked",
+                    "operator": "eng@example.com",
+                    "approver": "lead@example.com",
                     "case_id": "case_001",
                 },
             ]
@@ -129,6 +131,8 @@ class AuditTests(unittest.TestCase):
         self.assertIn("diff_run", output)
         self.assertIn("cases=2", output)
         self.assertIn("regression=1", output)
+        self.assertIn("operator=eng@example.com", output)
+        self.assertIn("approver=lead@example.com", output)
         self.assertIn("case=case_001", output)
 
     def test_result_summary_keeps_only_counts(self) -> None:

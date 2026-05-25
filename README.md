@@ -260,7 +260,7 @@ autocomplete. Important keys:
 | `approval` | Optional local guardrail; `require_approver` makes `accept` record an approver. |
 | `fail_on` | Statuses that fail `diff` or `eval`; use `"none"` for report-only setup. |
 | `reports` | JSON, Markdown, HTML, and JUnit output paths. |
-| `audit` | Append-only JSONL audit log path for evals, judgments, requirements, and accepted baselines. New entries include a local hash chain that `redline audit --verify` can check. |
+| `audit` | Append-only JSONL audit log path for evals, judgments, requirements, and accepted baselines. New entries include operator/approver context plus a local hash chain that `redline audit --verify` can check. |
 | `judge` | Optional command for ambiguous `changed` cases. |
 
 Check setup before relying on a suite:
