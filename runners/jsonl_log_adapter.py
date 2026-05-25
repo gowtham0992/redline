@@ -8,17 +8,40 @@ from pathlib import Path
 from typing import Any, Iterable, TextIO
 
 
+PRESETS = {
+    "langfuse": {
+        "input_field": "input",
+        "output_field": "output",
+        "description": "Langfuse enriched observations and trace/observation JSONL exports",
+    },
+    "helicone": {
+        "input_field": "prompt",
+        "output_field": "responseBody",
+        "description": "Helicone export rows with request/response bodies included",
+    },
+}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Convert exported app logs into redline prompt/response JSONL."
     )
     parser.add_argument("path", nargs="?", help="input JSONL file; defaults to stdin")
-    parser.add_argument("--input-field", required=True, help="field path containing prompt text")
-    parser.add_argument("--output-field", required=True, help="field path containing response text")
+    parser.add_argument("--preset", choices=sorted(PRESETS), help="known export shape to map automatically")
+    parser.add_argument("--input-field", help="field path containing prompt text")
+    parser.add_argument("--output-field", help="field path containing response text")
     parser.add_argument("--out", help="output JSONL file; defaults to stdout")
     args = parser.parse_args()
 
-    rows = list(_convert_rows(_read_rows(args.path), args.input_field, args.output_field))
+    input_field, output_field = _fields(args, parser)
+    rows = list(
+        _convert_rows(
+            _read_rows(args.path),
+            input_field,
+            output_field,
+            preset=args.preset,
+        )
+    )
     if args.out:
         target = Path(args.out)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -55,6 +78,8 @@ def _convert_rows(
     rows: Iterable[tuple[int, dict[str, Any]]],
     input_field: str,
     output_field: str,
+    *,
+    preset: str | None = None,
 ) -> Iterable[dict[str, Any]]:
     for line_number, row in rows:
         prompt = _get_field(row, input_field)
@@ -66,11 +91,14 @@ def _convert_rows(
             missing.append(output_field)
         if missing:
             raise SystemExit(f"line {line_number} missing field(s): {', '.join(missing)}")
-        yield {
+        converted = {
             "prompt": _stringify(prompt),
             "response": _stringify(response),
             "source_line": line_number,
         }
+        if preset:
+            converted["metadata"] = {"adapter_preset": preset}
+        yield converted
 
 
 def _write_rows(rows: Iterable[dict[str, Any]], handle: TextIO) -> None:
@@ -94,6 +122,15 @@ def _stringify(value: Any) -> str:
     if isinstance(value, str):
         return value
     return json.dumps(value, sort_keys=True, ensure_ascii=False)
+
+
+def _fields(args: argparse.Namespace, parser: argparse.ArgumentParser) -> tuple[str, str]:
+    preset = PRESETS.get(args.preset or "")
+    input_field = args.input_field or (preset or {}).get("input_field")
+    output_field = args.output_field or (preset or {}).get("output_field")
+    if not input_field or not output_field:
+        parser.error("use --preset or pass both --input-field and --output-field")
+    return str(input_field), str(output_field)
 
 
 _MISSING = object()

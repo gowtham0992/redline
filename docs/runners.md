@@ -178,8 +178,7 @@ Your adapter command:
 
 ```bash
 python runners/jsonl_log_adapter.py logs/export.jsonl \
-  --input-field request.prompt \
-  --output-field response.text \
+  --preset langfuse \
   --out .redline/logs/prompts.jsonl
 ```
 
@@ -195,15 +194,20 @@ redline suite .redline/logs/prompts.jsonl
 Common field mappings:
 
 ```bash
-# Langfuse-style exports
---input-field input --output-field output
+# Langfuse enriched observations / trace or observation JSONL exports
+--preset langfuse
 
-# Helicone-style request/response rows
---input-field request.prompt --output-field response.text
+# Helicone exports with request/response bodies included
+--preset helicone
 
 # Your app's own JSONL logs
+--input-field request.prompt --output-field response.text
+
 --input-field messages.user --output-field result.answer
 ```
+
+Preset fields can still be overridden with `--input-field` or `--output-field`
+if your export shape differs.
 
 That's it.
 

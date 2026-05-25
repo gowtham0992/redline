@@ -63,8 +63,8 @@ RUNNER_ADAPTERS: list[dict[str, str]] = [
         "need": "exported production logs as JSONL",
         "file": "runners/jsonl_log_adapter.py",
         "template": "jsonl_log_adapter.py",
-        "replay": "python runners/jsonl_log_adapter.py logs/export.jsonl --input-field request.prompt --output-field response.text --out .redline/logs/prompts.jsonl",
-        "setup": "Export app logs as JSONL, then map prompt and response fields.",
+        "replay": "python runners/jsonl_log_adapter.py logs/export.jsonl --preset langfuse --out .redline/logs/prompts.jsonl",
+        "setup": "Export app logs as JSONL, then use a preset or map prompt and response fields.",
         "kind": "log",
     },
     {

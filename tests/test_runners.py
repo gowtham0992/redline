@@ -273,11 +273,75 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(row["response"], "world")
             self.assertEqual(row["source_line"], 1)
 
+    def test_jsonl_log_adapter_supports_langfuse_preset(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "langfuse.jsonl"
+            output = root / "prompts.jsonl"
+            source.write_text(
+                '{"input": {"messages": ["hello"]}, "output": "world"}\n',
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(source),
+                    "--preset",
+                    "langfuse",
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["prompt"], '{"messages": ["hello"]}')
+            self.assertEqual(row["response"], "world")
+            self.assertEqual(row["metadata"]["adapter_preset"], "langfuse")
+
+    def test_jsonl_log_adapter_supports_helicone_preset(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "helicone.jsonl"
+            output = root / "prompts.jsonl"
+            source.write_text(
+                '{"prompt": "hello", "responseBody": {"choices": [{"text": "world"}]}}\n',
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(source),
+                    "--preset",
+                    "helicone",
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["prompt"], "hello")
+            self.assertEqual(row["response"], '{"choices": [{"text": "world"}]}')
+            self.assertEqual(row["metadata"]["adapter_preset"], "helicone")
+
     def test_runner_docs_include_app_logs_adapter(self) -> None:
         docs = Path("docs/runners.md").read_text(encoding="utf-8")
 
         self.assertIn("## App Logs To JSONL", docs)
         self.assertIn("python runners/jsonl_log_adapter.py logs/export.jsonl", docs)
+        self.assertIn("--preset langfuse", docs)
+        self.assertIn("--preset helicone", docs)
 
     def test_runner_docs_include_sdk_capture_adapters(self) -> None:
         docs = Path("docs/runners.md").read_text(encoding="utf-8")

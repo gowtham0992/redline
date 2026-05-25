@@ -105,6 +105,7 @@
 - Pin hand-picked edge cases into generated suites with `redline suite add`.
 - Include optional OpenAI-, Anthropic-, and LiteLLM-backed judge command templates for ambiguous changes.
 - Scaffold replay runners for OpenAI, Anthropic, HTTP APIs, Python chains, JSONL logs, and LiteLLM.
+- Add Langfuse and Helicone presets to the JSONL log adapter.
 - Initialize projects with config schema, runner setup, and GitHub Actions workflow generation.
 - Call out the default CI failure policy directly after `redline init`.
 - Diagnose setup with actionable doctor checks, suite validation health, and next-step commands.
