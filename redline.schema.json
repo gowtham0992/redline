@@ -121,6 +121,10 @@
           "type": "string",
           "description": "Markdown report path. {command} expands to diff or eval."
         },
+        "comment": {
+          "type": "string",
+          "description": "Concise PR-comment Markdown path. {command} expands to diff or eval."
+        },
         "html": {
           "type": "string",
           "description": "Self-contained HTML report path. {command} expands to diff or eval."

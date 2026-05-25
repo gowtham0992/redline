@@ -59,6 +59,7 @@ cat > redline.json <<'JSON'
   "reports": {
     "json": ".redline/reports/{command}.json",
     "markdown": ".redline/reports/{command}.md",
+    "comment": ".redline/reports/{command}-comment.md",
     "html": ".redline/reports/{command}.html",
     "junit": ".redline/reports/{command}.xml"
   },
@@ -92,6 +93,7 @@ GITHUB_STEP_SUMMARY="$summary_path" "$venv_dir/bin/redline" eval \
   --github-summary \
   --out-json .redline/reports/eval.json \
   --out-md .redline/reports/eval.md \
+  --out-comment .redline/reports/eval-comment.md \
   --out-html .redline/reports/eval.html \
   --out-junit .redline/reports/eval.xml
 eval_status=$?
@@ -103,6 +105,7 @@ fi
 
 test -s .redline/reports/eval.json
 test -s .redline/reports/eval.md
+test -s .redline/reports/eval-comment.md
 test -s .redline/reports/eval.html
 test -s .redline/reports/eval.xml
 test -s "$summary_path"

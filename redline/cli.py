@@ -81,7 +81,13 @@ from .prompts import (
     format_prompt_manifest_check,
 )
 from .redact import DEFAULT_PLACEHOLDER, format_redaction_report, redact_jsonl, scan_jsonl_redactions
-from .reports import format_github_annotations, format_html_report, format_junit_report, format_markdown_report
+from .reports import (
+    format_github_annotations,
+    format_html_report,
+    format_junit_report,
+    format_markdown_report,
+    format_pr_comment,
+)
 from .requirements import add_case_requirement, clear_case_requirements
 from .replay import read_prompt_template, replay_suite
 from .runners import (
@@ -370,6 +376,7 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("--compact", action="store_true", help="print compact one-line-per-case output")
     diff_parser.add_argument("--out-json", help="write machine-readable JSON report")
     diff_parser.add_argument("--out-md", help="write Markdown report")
+    diff_parser.add_argument("--out-comment", help="write concise PR-comment Markdown")
     diff_parser.add_argument("--out-html", help="write self-contained HTML report")
     diff_parser.add_argument("--out-junit", help="write JUnit XML report")
     diff_parser.add_argument("--profile", choices=DIFF_PROFILES, help="diff signal profile; default comes from config or strict")
@@ -438,6 +445,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--compact", action="store_true", help="print compact one-line-per-case output")
     eval_parser.add_argument("--out-json", help="write machine-readable JSON report")
     eval_parser.add_argument("--out-md", help="write Markdown report")
+    eval_parser.add_argument("--out-comment", help="write concise PR-comment Markdown")
     eval_parser.add_argument("--out-html", help="write self-contained HTML report")
     eval_parser.add_argument("--out-junit", help="write JUnit XML report")
     eval_parser.add_argument("--profile", choices=DIFF_PROFILES, help="diff signal profile; default comes from config or strict")
@@ -1536,12 +1544,14 @@ def _emit_result(
     fail_on = parse_fail_on(_config_fail_on(args.fail_on, config))
     out_json = args.out_json or _config_report_path(config, "json", report_key)
     out_md = args.out_md or _config_report_path(config, "markdown", report_key)
+    out_comment = getattr(args, "out_comment", None) or _config_report_path(config, "comment", report_key)
     out_html = args.out_html or _config_report_path(config, "html", report_key)
     out_junit = args.out_junit or _config_report_path(config, "junit", report_key)
     artifacts = _artifact_paths(
         {
             "json": out_json,
             "markdown": out_md,
+            "comment": out_comment,
             "html": out_html,
             "junit": out_junit,
         }
@@ -1549,10 +1559,13 @@ def _emit_result(
     if artifacts:
         result["artifacts"] = artifacts
     markdown_report = format_markdown_report(result, title=title)
+    comment_report = format_pr_comment(result, title=title)
     if out_json:
         write_json(out_json, result)
     if out_md:
         write_text(out_md, markdown_report)
+    if out_comment:
+        write_text(out_comment, comment_report)
     if out_html:
         write_text(out_html, format_html_report(result, title=title))
     if out_junit:
@@ -1583,6 +1596,7 @@ def _emit_result(
                     {
                         "json": out_json,
                         "markdown": out_md,
+                        "comment": out_comment,
                         "html": out_html,
                         "junit": out_junit,
                     }

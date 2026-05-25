@@ -38,6 +38,7 @@
 - Add owner review rollups to Markdown and HTML reports for PR triage.
 - Add review command guidance to Markdown reports for intentional changes.
 - Add review command guidance to HTML reports for intentional changes.
+- Write concise PR-comment Markdown reports with owners, top blocking cases, artifacts, and review commands.
 - Show owner coverage and top owners in `redline summary`.
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Show blocking and changed review counts in the dashboard reports table.

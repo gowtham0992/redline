@@ -86,6 +86,7 @@ class DoctorTests(unittest.TestCase):
                 "judge": f"{sys.executable} -c pass",
                 "reports": {
                     "json": ".redline/reports/doctor.json",
+                    "comment": ".redline/reports/doctor-comment.md",
                     "html": ".redline/reports/doctor.html",
                     "junit": ".redline/reports/doctor.xml",
                 },
@@ -108,6 +109,7 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("requirements=0; judge=yes", output)
         self.assertIn("team-workflow: owners=0/1; owner rules=0; approval required=no", output)
         self.assertIn("reports: json=.redline/reports/doctor.json", output)
+        self.assertIn("comment=.redline/reports/doctor-comment.md", output)
         self.assertIn("html=.redline/reports/doctor.html", output)
         self.assertIn("junit=.redline/reports/doctor.xml", output)
         self.assertIn("runs: candidate=.redline/runs/candidate.jsonl", output)

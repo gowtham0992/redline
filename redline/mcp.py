@@ -666,6 +666,7 @@ def _tools() -> list[ToolSpec]:
                     "json": _boolean("Print machine-readable JSON."),
                     "out_json": _string("Write JSON report."),
                     "out_md": _string("Write Markdown report."),
+                    "out_comment": _string("Write concise PR-comment Markdown report."),
                     "out_html": _string("Write self-contained HTML report."),
                     "out_junit": _string("Write JUnit XML report."),
                     "profile": _string("Diff profile: strict or review."),
@@ -692,6 +693,7 @@ def _tools() -> list[ToolSpec]:
                     "json": _boolean("Print machine-readable JSON."),
                     "out_json": _string("Write JSON report."),
                     "out_md": _string("Write Markdown report."),
+                    "out_comment": _string("Write concise PR-comment Markdown report."),
                     "out_html": _string("Write self-contained HTML report."),
                     "out_junit": _string("Write JUnit XML report."),
                     "candidate_out": _string("Write replayed candidate rows."),
@@ -973,6 +975,7 @@ def _build_sbom(arguments: dict[str, Any]) -> list[str]:
 def _add_common_report_args(args: list[str], arguments: dict[str, Any]) -> None:
     _add_option(args, "--out-json", arguments.get("out_json"))
     _add_option(args, "--out-md", arguments.get("out_md"))
+    _add_option(args, "--out-comment", arguments.get("out_comment"))
     _add_option(args, "--out-html", arguments.get("out_html"))
     _add_option(args, "--out-junit", arguments.get("out_junit"))
 

@@ -9,6 +9,7 @@ from redline.reports import (
     format_html_report,
     format_junit_report,
     format_markdown_report,
+    format_pr_comment,
 )
 
 
@@ -361,6 +362,68 @@ class ReportTests(unittest.TestCase):
 
         self.assertIn("first line%0Asecond 50%25", annotations)
         self.assertIn("Prompt: Discount 50%25", annotations)
+
+    def test_pr_comment_report_is_concise_and_actionable(self) -> None:
+        result = {
+            "suite": "redline-prompts.json",
+            "summary": {
+                "cases": 3,
+                "regression": 1,
+                "changed": 1,
+                "improved": 0,
+                "accepted": 0,
+                "ignored": 0,
+                "neutral": 1,
+                "missing": 0,
+            },
+            "decision": {
+                "confidence": "high",
+                "recommended_action": "fix blocking cases before shipping",
+                "scope": "structural checks only",
+            },
+            "artifacts": {
+                "html": ".redline/reports/eval.html",
+                "comment": ".redline/reports/eval-comment.md",
+            },
+            "diffs": [
+                {
+                    "case_id": "support/case_001",
+                    "suite_case_id": "case_001",
+                    "suite": "suites/support.redline-suite.json",
+                    "status": "regression",
+                    "owner": "@support-team",
+                    "confidence": "high",
+                    "signal": "structural",
+                    "prompt": "Return JSON with owner and priority.",
+                    "reasons": ["candidate lost valid JSON format"],
+                },
+                {
+                    "case_id": "billing/case_002",
+                    "suite_case_id": "case_002",
+                    "suite": "suites/billing.redline-suite.json",
+                    "status": "changed",
+                    "prompt": "Write a refund reply.",
+                    "reasons": ["content changed substantially"],
+                },
+                {
+                    "case_id": "case_003",
+                    "status": "neutral",
+                    "prompt": "Hello",
+                    "reasons": ["no high-signal behavioral change detected"],
+                },
+            ],
+        }
+
+        comment = format_pr_comment(result, title="redline eval")
+
+        self.assertIn("## redline eval", comment)
+        self.assertIn("**Regression:** 1", comment)
+        self.assertIn("**Changed:** 1", comment)
+        self.assertIn("**Action:** fix blocking cases before shipping", comment)
+        self.assertIn("**REGRESSION** `support/case_001` owner @support-team [high/structural]", comment)
+        self.assertIn("redline mark suites/support.redline-suite.json case_001", comment)
+        self.assertIn("PR comment: `.redline/reports/eval-comment.md`", comment)
+        self.assertNotIn("case_003", comment)
 
 
 if __name__ == "__main__":

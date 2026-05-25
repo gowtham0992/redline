@@ -82,7 +82,7 @@ def doctor_report(
     if capture_check is not None:
         checks.append(capture_check)
 
-    report_paths = _configured_paths(config.get("reports"), ("json", "markdown", "html", "junit"))
+    report_paths = _configured_paths(config.get("reports"), ("json", "markdown", "comment", "html", "junit"))
     if report_paths:
         checks.append({"status": "ok", "name": "reports", "message": ", ".join(report_paths)})
     elif "reports" in config:

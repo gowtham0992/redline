@@ -143,6 +143,56 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
     return "\n".join(lines).rstrip() + "\n"
 
 
+def format_pr_comment(result: dict[str, Any], *, title: str = "redline eval", max_cases: int = 8) -> str:
+    summary = result.get("summary")
+    if not isinstance(summary, dict):
+        summary = {}
+    decision = result.get("decision")
+    if not isinstance(decision, dict):
+        decision = {}
+    lines = [
+        f"## {title}",
+        "",
+        _status_line(summary),
+        "",
+    ]
+    action = str(decision.get("recommended_action") or "")
+    confidence = str(decision.get("confidence") or "").upper()
+    scope = str(decision.get("scope") or "")
+    if action:
+        lines.append(f"**Action:** {action}")
+    if confidence:
+        lines.append(f"**Confidence:** {confidence}")
+    if scope:
+        lines.append(f"**Scope:** {scope}")
+    if action or confidence or scope:
+        lines.append("")
+
+    review_items = _pr_comment_items(result.get("diffs"), max_cases=max_cases)
+    if review_items:
+        lines.append("### Review")
+        lines.append("")
+        for item in review_items:
+            lines.extend(_pr_comment_case_lines(item, result))
+        hidden_count = _hidden_pr_comment_count(result.get("diffs"), max_cases=max_cases)
+        if hidden_count > 0:
+            lines.append(f"- ... {hidden_count} more changed or blocking case(s) in the full report.")
+            lines.append("")
+    else:
+        lines.append("No blocking or changed cases in the configured checks.")
+        lines.append("")
+
+    artifact_rows = _artifact_rows(result.get("artifacts"))
+    if artifact_rows:
+        lines.append("### Artifacts")
+        lines.append("")
+        for label, path in artifact_rows:
+            lines.append(f"- {label}: `{path}`")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def format_html_report(result: dict[str, Any], *, title: str = "redline diff") -> str:
     summary = result.get("summary", {})
     if not isinstance(summary, dict):
@@ -315,7 +365,7 @@ def _artifact_rows(value: Any) -> list[tuple[str, str]]:
     if not isinstance(value, dict):
         return []
     rows = []
-    for label in ("json", "markdown", "html", "junit", "dashboard", "audit_checkpoint"):
+    for label in ("json", "markdown", "comment", "html", "junit", "dashboard", "audit_checkpoint"):
         path = value.get(label)
         if isinstance(path, dict):
             path = path.get("path")
@@ -323,7 +373,7 @@ def _artifact_rows(value: Any) -> list[tuple[str, str]]:
             rows.append((_artifact_label(label), path))
     for label, path in sorted(value.items(), key=lambda item: str(item[0])):
         key = str(label)
-        if key in {"json", "markdown", "html", "junit", "dashboard", "audit_checkpoint"}:
+        if key in {"json", "markdown", "comment", "html", "junit", "dashboard", "audit_checkpoint"}:
             continue
         if isinstance(path, dict):
             path = path.get("path")
@@ -338,6 +388,7 @@ def _artifact_label(label: str) -> str:
         "html": "HTML",
         "junit": "JUnit",
         "markdown": "Markdown",
+        "comment": "PR comment",
         "dashboard": "Dashboard",
         "audit_checkpoint": "Audit checkpoint",
     }
@@ -373,6 +424,82 @@ def _review_command_lines(result: dict[str, Any]) -> list[str]:
     if len(reviewable) > 5:
         commands.append(f"redline cases {suite}")
     return commands
+
+
+def _status_line(summary: dict[str, Any]) -> str:
+    parts = []
+    for label, key in (
+        ("Regression", "regression"),
+        ("Missing", "missing"),
+        ("Changed", "changed"),
+        ("Improved", "improved"),
+        ("Accepted", "accepted"),
+        ("Ignored", "ignored"),
+        ("Neutral", "neutral"),
+    ):
+        count = _summary_count(summary, key)
+        if count:
+            parts.append(f"**{label}:** {count}")
+    if parts:
+        return " · ".join(parts)
+    return f"**Cases:** {_summary_count(summary, 'cases')}"
+
+
+def _pr_comment_items(diffs: Any, *, max_cases: int) -> list[dict[str, Any]]:
+    if not isinstance(diffs, list):
+        return []
+    items = [
+        item
+        for item in diffs
+        if isinstance(item, dict) and str(item.get("status") or "") in {"regression", "missing", "changed"}
+    ]
+    priority = {"regression": 0, "missing": 1, "changed": 2}
+    items.sort(key=lambda item: (priority.get(str(item.get("status") or ""), 9), str(item.get("case_id") or "")))
+    return items[: max(0, max_cases)]
+
+
+def _hidden_pr_comment_count(diffs: Any, *, max_cases: int) -> int:
+    if not isinstance(diffs, list):
+        return 0
+    reviewable = len(
+        [
+            item
+            for item in diffs
+            if isinstance(item, dict) and str(item.get("status") or "") in {"regression", "missing", "changed"}
+        ]
+    )
+    return max(0, reviewable - max(0, max_cases))
+
+
+def _pr_comment_case_lines(item: dict[str, Any], result: dict[str, Any]) -> list[str]:
+    status = str(item.get("status") or "unknown").upper()
+    case_id = str(item.get("case_id") or "unknown")
+    reasons = item.get("reasons")
+    first_reason = reasons[0] if isinstance(reasons, list) and reasons else "review case"
+    reason = _preview(str(first_reason), 110)
+    owner = str(item.get("owner") or "").strip()
+    owner_text = f" owner {owner}" if owner else ""
+    confidence = str(item.get("confidence") or "").strip()
+    signal = str(item.get("signal") or "").strip()
+    trust = "/".join(value for value in (confidence, signal) if value)
+    trust_text = f" [{trust}]" if trust else ""
+    lines = [f"- **{status}** `{case_id}`{owner_text}{trust_text}: {reason}"]
+    prompt = str(item.get("prompt") or "").strip()
+    if prompt:
+        lines.append(f"  - Prompt: {_inline_code(_preview(prompt, 120))}")
+    command = _pr_comment_review_command(item, result)
+    if command:
+        lines.append(f"  - Review if intentional: `{command}`")
+    lines.append("")
+    return lines
+
+
+def _pr_comment_review_command(item: dict[str, Any], result: dict[str, Any]) -> str:
+    suite_path = str(item.get("suite") or result.get("suite") or "").strip()
+    case_id = str(item.get("suite_case_id") or item.get("case_id") or "").strip()
+    if not suite_path or not case_id:
+        return ""
+    return f'redline mark {quote(suite_path)} {quote(case_id)} --status expected --note "intentional change"'
 
 
 def _owner_review_rows(diffs: Any) -> list[dict[str, int | str]]:

@@ -67,6 +67,7 @@ jobs:
             --github-annotations \\
             --out-json .redline/reports/eval.json \\
             --out-md .redline/reports/eval.md \\
+            --out-comment .redline/reports/eval-comment.md \\
             --out-html .redline/reports/eval.html \\
             --out-junit .redline/reports/eval.xml
 

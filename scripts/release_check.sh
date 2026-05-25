@@ -165,16 +165,18 @@ printf '\n$ %s -m pip install --no-deps --force-reinstall %s\n' "$venv_dir/bin/p
   test -s manifest-benchmark.md
 
   manifest_replay="$venv_dir/bin/python -c 'import sys; print(sys.stdin.read())'"
-  printf '\n$ redline eval redline-prompts.json --replay "%s" --compact --out-json manifest-eval.json --out-html manifest-eval.html --candidate-out manifest-candidate.jsonl --run-metadata manifest-replay.json --fail-on none\n' "$manifest_replay"
+  printf '\n$ redline eval redline-prompts.json --replay "%s" --compact --out-json manifest-eval.json --out-comment manifest-eval-comment.md --out-html manifest-eval.html --candidate-out manifest-candidate.jsonl --run-metadata manifest-replay.json --fail-on none\n' "$manifest_replay"
   "$venv_dir/bin/redline" eval redline-prompts.json \
     --replay "$manifest_replay" \
     --compact \
     --out-json manifest-eval.json \
+    --out-comment manifest-eval-comment.md \
     --out-html manifest-eval.html \
     --candidate-out manifest-candidate.jsonl \
     --run-metadata manifest-replay.json \
     --fail-on none
   test -s manifest-eval.json
+  test -s manifest-eval-comment.md
   test -s manifest-eval.html
   test -s manifest-candidate.jsonl
   test -s manifest-replay.json
@@ -189,12 +191,14 @@ printf '\n$ %s -m pip install --no-deps --force-reinstall %s\n' "$venv_dir/bin/p
   printf '\n$ redline validate pinned-suite.json\n'
   "$venv_dir/bin/redline" validate pinned-suite.json
 
-  printf '\n$ redline diff all-suite.json .redline/demo/candidate.jsonl --profile review --compact --out-html diff.html --fail-on none\n'
+  printf '\n$ redline diff all-suite.json .redline/demo/candidate.jsonl --profile review --compact --out-comment diff-comment.md --out-html diff.html --fail-on none\n'
   "$venv_dir/bin/redline" diff all-suite.json .redline/demo/candidate.jsonl \
     --profile review \
     --compact \
+    --out-comment diff-comment.md \
     --out-html diff.html \
     --fail-on none
+  test -s diff-comment.md
   test -s diff.html
 
   printf '\n$ redline runners\n'
