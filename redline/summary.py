@@ -131,8 +131,10 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def format_suite_summary(suite: dict[str, Any]) -> str:
+def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None) -> str:
     summary = suite_summary(suite)
+    if suite_path:
+        summary = {**summary, "next_steps": _summary_next_steps(summary, suite_path=suite_path)}
     lines = [
         "redline summary",
         "",
@@ -194,10 +196,17 @@ def format_suite_summary(suite: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _summary_next_steps(summary: dict[str, Any]) -> list[str]:
+def _summary_next_steps(summary: dict[str, Any], *, suite_path: str | None = None) -> list[str]:
     steps = []
     if int(summary["covered_clusters"]) < int(summary["clusters"]):
-        steps.append("Increase --max-cases or pin edge cases with redline suite add.")
+        if suite_path:
+            steps.append(
+                "Increase --max-cases or pin a must-cover edge case: "
+                f"redline suite add {suite_path} --prompt-file path/to/prompt.txt "
+                '--response-file path/to/baseline.txt --include "must keep text"'
+            )
+        else:
+            steps.append("Increase --max-cases or pin edge cases with redline suite add.")
     if int(summary["high_risk_clusters"]) and int(summary["requirements"]) == 0:
         steps.append("Add requirements for must-keep details in high-risk cases.")
     if int(summary["cases"]) and int(summary["owned_cases"]) == 0:

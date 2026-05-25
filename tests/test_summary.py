@@ -163,7 +163,7 @@ class SummaryTests(unittest.TestCase):
         )
 
         summary = suite_summary(suite)
-        output = format_suite_summary(suite)
+        output = format_suite_summary(suite, suite_path="redline-suite.json")
 
         self.assertEqual(summary["cases"], 1)
         self.assertEqual(summary["covered_clusters"], 1)
@@ -171,6 +171,7 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["case_coverage"], 0.5)
         self.assertEqual(summary["cluster_coverage"], 0.5)
         self.assertIn("Increase --max-cases", summary["next_steps"][0])
+        self.assertIn("redline suite add redline-suite.json --prompt-file", output)
         self.assertIn("Cluster coverage:       1/2 (50.0%)", output)
         self.assertIn("Next:", output)
 

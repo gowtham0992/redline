@@ -1003,7 +1003,7 @@ def cmd_summary(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(suite_summary(suite), indent=2, sort_keys=True))
     else:
-        print(format_suite_summary(suite), end="")
+        print(format_suite_summary(suite, suite_path=str(suite_path)), end="")
     return 0
 
 
