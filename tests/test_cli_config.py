@@ -23,6 +23,7 @@ class CliConfigTests(unittest.TestCase):
         self.assertIn("redline init --runner stdio --copy-runner", text)
         self.assertIn("Review loop:", text)
         self.assertIn("redline suite add redline-suite.json", text)
+        self.assertIn("redline eval redline-prompts.json", text)
         self.assertIn("redline <command> --help", text)
 
     def test_root_help_prints_first_run_help(self) -> None:
@@ -2007,6 +2008,95 @@ class CliConfigTests(unittest.TestCase):
                 self.assertIn('"prompt": "hello"', candidate)
                 self.assertIn('"rendered_prompt": "System: answer exactly.\\nUser: hello\\n"', candidate)
                 self.assertEqual(metadata["replay"]["prompt"], "prompts/v2.txt")
+            finally:
+                os.chdir(previous)
+
+    def test_eval_runs_prompt_manifest_as_multi_prompt_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("runner.py").write_text(
+                    "\n".join(
+                        [
+                            "import sys",
+                            "text = sys.stdin.read()",
+                            "if 'Return JSON' in text:",
+                            "    print('not json')",
+                            "elif 'Summarize as table' in text:",
+                            "    print('| A | B |\\n| - | - |\\n| one | two |')",
+                            "else:",
+                            "    print('plain text')",
+                        ]
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                Path("prompts").mkdir()
+                Path("prompts/json.txt").write_text("System: {prompt}\n", encoding="utf-8")
+                Path("prompts/table.txt").write_text("System: {prompt}\n", encoding="utf-8")
+                Path("json-baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("table-baseline.jsonl").write_text(
+                    '{"prompt": "Summarize as table", "response": "| A | B |\\n| - | - |\\n| one | two |"}\n',
+                    encoding="utf-8",
+                )
+                replay = f"{sys.executable} runner.py"
+                Path("redline.json").write_text(
+                    json.dumps(
+                        {
+                            "replay": replay,
+                            "fail_on": "none",
+                            "runs": {
+                                "candidate": ".redline/runs/candidate.jsonl",
+                                "metadata": ".redline/runs/replay.json",
+                            },
+                            "reports": {"json": ".redline/reports/{command}.json"},
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(
+                        main(["suite", "json-baseline.jsonl", "--out", "suites/json.redline-suite.json"]),
+                        0,
+                    )
+                    self.assertEqual(
+                        main(["suite", "table-baseline.jsonl", "--out", "suites/table.redline-suite.json"]),
+                        0,
+                    )
+                    self.assertEqual(
+                        main(["prompts", "prompts", "--suite-dir", "suites", "--out", "redline-prompts.json"]),
+                        0,
+                    )
+                output = io.StringIO()
+
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["eval", "redline-prompts.json", "--compact"]), 0)
+
+                text = output.getvalue()
+                report = json.loads((root / ".redline" / "reports" / "eval.json").read_text(encoding="utf-8"))
+                candidate = (root / ".redline" / "runs" / "candidate.jsonl").read_text(encoding="utf-8")
+                metadata = json.loads((root / ".redline" / "runs" / "replay.json").read_text(encoding="utf-8"))
+                self.assertIn("redline eval: cases=2", text)
+                self.assertEqual(report["manifest"], "redline-prompts.json")
+                self.assertEqual(report["prompt_count"], 2)
+                self.assertEqual(report["summary"]["cases"], 2)
+                self.assertEqual(report["summary"]["regression"], 1)
+                self.assertEqual(len(report["prompt_evals"]), 2)
+                self.assertTrue(
+                    any(diff["case_id"].startswith("table/") for diff in report["diffs"]),
+                    report["diffs"],
+                )
+                self.assertIn('"prompt_id": "json"', candidate)
+                self.assertIn('"prompt_id": "table"', candidate)
+                self.assertEqual(metadata["manifest"], "redline-prompts.json")
+                self.assertEqual(metadata["summary"]["cases"], 2)
+                self.assertEqual(len(metadata["prompt_evals"]), 2)
             finally:
                 os.chdir(previous)
 

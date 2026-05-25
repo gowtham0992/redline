@@ -215,6 +215,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("python -m ruff check .", readme)
         self.assertIn("python -m mypy redline tests scripts examples", readme)
         self.assertIn("redline-prompts.json --check --check-suites", readme)
+        self.assertIn("redline eval redline-prompts.json", readme)
         self.assertIn("redline eval suites/support/triage.redline-suite.json", readme)
 
     def test_private_product_docs_stay_ignored(self) -> None:
@@ -238,6 +239,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline compare", changelog)
         self.assertIn("human-readable behavior labels", changelog)
         self.assertIn("ready `redline eval", changelog)
+        self.assertIn("redline eval redline-prompts.json", changelog)
         self.assertIn("richer judge rubrics", changelog)
         self.assertIn("redline judges", changelog)
         self.assertIn("product-focused README", changelog)

@@ -168,6 +168,7 @@ For repos with many prompt files, the manifest becomes the eval plan:
 ```bash
 redline prompts prompts/ --suite-dir suites --out redline-prompts.json
 redline prompts prompts/ --suite-dir suites --out redline-prompts.json --check --check-suites
+redline eval redline-prompts.json
 ```
 
 When mapped suites are valid, the check prints ready commands such as:

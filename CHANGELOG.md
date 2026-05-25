@@ -47,6 +47,7 @@
 - Show human-readable behavior labels in cluster output and diff/eval reports.
 - Add `redline prompts --check-suites` to catch prompt manifest entries without built suites.
 - Print ready `redline eval <suite> --prompt <file>` commands from prompt manifest suite checks.
+- Run every mapped prompt suite with `redline eval redline-prompts.json`.
 - Expose prompt manifest suite-readiness checks through the MCP server.
 - Add audit checkpoint files from `redline audit --verify --out-checkpoint`.
 - Show accepted-baseline and approver coverage in `redline summary`.
