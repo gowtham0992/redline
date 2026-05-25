@@ -47,6 +47,7 @@ runs:
 
         python -m redline doctor --config "${{ inputs.config }}" --strict
         python -m redline validate "${{ inputs.suite }}" --config "${{ inputs.config }}" --strict
+        python -m redline benchmark "${{ inputs.suite }}" --config "${{ inputs.config }}" --github-summary
 
         eval_args=(
           "${{ inputs.suite }}"

@@ -1,6 +1,7 @@
 import unittest
+from typing import Any
 
-from redline.benchmark import benchmark_suite, format_benchmark_report
+from redline.benchmark import benchmark_suite, format_benchmark_markdown, format_benchmark_report
 from redline.io import LogRecord
 from redline.requirements import add_case_requirement
 from redline.suite import build_suite
@@ -51,24 +52,7 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("Set workers", report["next_steps"][0])
 
     def test_format_benchmark_report_is_readable(self) -> None:
-        output = format_benchmark_report(
-            {
-                "suite": "suite.json",
-                "cases": 42,
-                "clusters": 12,
-                "records_seen": 42,
-                "workers": 4,
-                "timeout_seconds": 30,
-                "parallel_waves": 11,
-                "worst_case_seconds": 330,
-                "sequential_worst_case_seconds": 1260,
-                "requirements": 0,
-                "judgments": 0,
-                "size": "medium",
-                "status": "ok",
-                "next_steps": ["Add requirements to high-value cases."],
-            }
-        )
+        output = format_benchmark_report(_sample_report())
 
         self.assertIn("redline benchmark", output)
         self.assertIn("Worst-case eval budget: 5m 30s", output)
@@ -76,11 +60,38 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("Status:                OK", output)
         self.assertIn("Next:", output)
 
+    def test_format_benchmark_markdown_is_summary_ready(self) -> None:
+        output = format_benchmark_markdown(_sample_report())
+
+        self.assertIn("## redline benchmark", output)
+        self.assertIn("| Worst-case eval budget | 5m 30s |", output)
+        self.assertIn("| Status | OK |", output)
+        self.assertIn("Add requirements to high-value cases.", output)
+
     def test_benchmark_rejects_invalid_workers_and_timeout(self) -> None:
         with self.assertRaisesRegex(ValueError, "workers must be at least 1"):
             benchmark_suite({"cases": []}, workers=0)
         with self.assertRaisesRegex(ValueError, "timeout_seconds must be greater than 0"):
             benchmark_suite({"cases": []}, timeout_seconds=0)
+
+
+def _sample_report() -> dict[str, Any]:
+    return {
+        "suite": "suite.json",
+        "cases": 42,
+        "clusters": 12,
+        "records_seen": 42,
+        "workers": 4,
+        "timeout_seconds": 30,
+        "parallel_waves": 11,
+        "worst_case_seconds": 330,
+        "sequential_worst_case_seconds": 1260,
+        "requirements": 0,
+        "judgments": 0,
+        "size": "medium",
+        "status": "ok",
+        "next_steps": ["Add requirements to high-value cases."],
+    }
 
 
 if __name__ == "__main__":

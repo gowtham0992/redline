@@ -80,6 +80,9 @@ printf '\n$ redline validate redline-suite.json --strict\n'
 "$venv_dir/bin/redline" validate redline-suite.json --strict
 
 summary_path="$project_dir/github-summary.md"
+printf '\n$ redline benchmark redline-suite.json --github-summary\n'
+GITHUB_STEP_SUMMARY="$summary_path" "$venv_dir/bin/redline" benchmark redline-suite.json --github-summary
+
 printf '\n$ redline eval --compact --github-summary\n'
 set +e
 # The smoke intentionally creates regressions; do not emit GitHub error

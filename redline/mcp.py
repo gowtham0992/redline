@@ -500,6 +500,7 @@ def _tools() -> list[ToolSpec]:
                     "config": _string("Config path to read."),
                     "timeout": _number("Per-case timeout in seconds."),
                     "workers": _integer("Number of replay workers."),
+                    "github_summary": _boolean("Append benchmark Markdown to GITHUB_STEP_SUMMARY."),
                     "json": _boolean("Print machine-readable JSON."),
                 }
             ),
@@ -673,6 +674,7 @@ def _build_benchmark(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--config", arguments.get("config"))
     _add_option(args, "--timeout", arguments.get("timeout"))
     _add_option(args, "--workers", arguments.get("workers"))
+    _add_flag(args, "--github-summary", arguments.get("github_summary"))
     _add_flag(args, "--json", arguments.get("json"))
     return args
 

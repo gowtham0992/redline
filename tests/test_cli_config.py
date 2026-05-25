@@ -848,6 +848,33 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_benchmark_appends_github_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            previous_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+            os.chdir(root)
+            try:
+                summary_path = root / "summary.md"
+                os.environ["GITHUB_STEP_SUMMARY"] = str(summary_path)
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "one", "response": "1"}\n',
+                    encoding="utf-8",
+                )
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl", "--out", "suite.json"]), 0)
+                    self.assertEqual(main(["benchmark", "suite.json", "--github-summary"]), 0)
+
+                summary = summary_path.read_text(encoding="utf-8")
+                self.assertIn("## redline benchmark", summary)
+                self.assertIn("| Cases | 1 |", summary)
+            finally:
+                if previous_summary is None:
+                    os.environ.pop("GITHUB_STEP_SUMMARY", None)
+                else:
+                    os.environ["GITHUB_STEP_SUMMARY"] = previous_summary
+                os.chdir(previous)
+
     def test_cases_output_points_to_full_case_detail(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

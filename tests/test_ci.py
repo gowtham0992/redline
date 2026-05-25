@@ -10,6 +10,7 @@ class CiTests(unittest.TestCase):
 
         self.assertIn("python -m redline doctor --strict", workflow)
         self.assertIn("python -m redline validate --strict", workflow)
+        self.assertIn("python -m redline benchmark --github-summary", workflow)
         self.assertIn("python -m redline eval", workflow)
         self.assertIn("python -m pip install redline-ai", workflow)
         self.assertNotIn("pip install -e .", workflow)
@@ -53,13 +54,14 @@ class CiTests(unittest.TestCase):
         self.assertIn("python -m pip install", action)
         self.assertIn("python -m redline doctor", action)
         self.assertIn("python -m redline validate", action)
+        self.assertIn("python -m redline benchmark", action)
+        self.assertIn("--github-summary", action)
         self.assertIn("python -m redline eval", action)
         self.assertIn("redline_status=$?", action)
         self.assertIn("python -m redline history", action)
         self.assertIn("--fail-on none", action)
         self.assertIn("python -m redline dashboard --out .redline/dashboard.html", action)
         self.assertIn('exit "$redline_status"', action)
-        self.assertIn("--github-summary", action)
         self.assertIn("--github-annotations", action)
 
 

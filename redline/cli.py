@@ -21,7 +21,7 @@ from .audit import (
     read_audit_events,
     result_summary,
 )
-from .benchmark import benchmark_suite, format_benchmark_report
+from .benchmark import benchmark_suite, format_benchmark_markdown, format_benchmark_report
 from .cases import format_suite_case_detail, format_suite_cases, suite_case_detail, suite_case_rows
 from .ci import default_github_workflow
 from .clusters import cluster_report, format_cluster_report
@@ -260,6 +260,7 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     benchmark_parser.add_argument("--timeout", type=float, help="per-case timeout in seconds")
     benchmark_parser.add_argument("--workers", type=int, help="number of replay workers")
+    benchmark_parser.add_argument("--github-summary", action="store_true", help="append benchmark to GITHUB_STEP_SUMMARY")
     benchmark_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     benchmark_parser.set_defaults(func=cmd_benchmark)
 
@@ -820,6 +821,8 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
         print(format_benchmark_report(report), end="")
+    if args.github_summary:
+        _append_github_step_summary(format_benchmark_markdown(report))
     return 0
 
 

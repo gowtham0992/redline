@@ -35,6 +35,9 @@ jobs:
       - name: Validate redline suite
         run: python -m redline validate --strict
 
+      - name: Benchmark redline suite
+        run: python -m redline benchmark --github-summary
+
       - name: Run redline eval
         run: |
           python -m redline eval \\

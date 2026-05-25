@@ -72,6 +72,27 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline-suite.json", text)
         self.assertIn("Do not call baseline mutation commands", text)
 
+    def test_prompt_get_build_suite_workflow_includes_benchmark(self) -> None:
+        response = handle_jsonrpc_line(
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 33,
+                    "method": "prompts/get",
+                    "params": {
+                        "name": "build_suite_from_logs",
+                        "arguments": {"log_path": "logs/baseline.jsonl"},
+                    },
+                }
+            )
+        )
+
+        assert response is not None
+        text = response["result"]["messages"][0]["content"]["text"]
+        self.assertIn("redline_suite", text)
+        self.assertIn("redline_summary", text)
+        self.assertIn("redline_benchmark", text)
+
     def test_unknown_prompt_returns_jsonrpc_error(self) -> None:
         response = handle_jsonrpc_line(
             json.dumps(

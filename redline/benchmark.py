@@ -76,6 +76,30 @@ def format_benchmark_report(report: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def format_benchmark_markdown(report: dict[str, Any]) -> str:
+    lines = [
+        "## redline benchmark",
+        "",
+        "| Metric | Value |",
+        "| --- | --- |",
+        f"| Suite | `{report['suite']}` |",
+        f"| Cases | {report['cases']} |",
+        f"| Behavioral clusters | {report['clusters']} |",
+        f"| Workers | {report['workers']} |",
+        f"| Timeout per case | {_seconds(report['timeout_seconds'])} |",
+        f"| Worst-case eval budget | {_duration(report['worst_case_seconds'])} |",
+        f"| Sequential budget | {_duration(report['sequential_worst_case_seconds'])} |",
+        f"| Size | {str(report['size']).replace('_', ' ')} |",
+        f"| Status | {str(report['status']).upper()} |",
+    ]
+    next_steps = report.get("next_steps") or []
+    if next_steps:
+        lines.extend(["", "Next:"])
+        for step in next_steps:
+            lines.append(f"- {step}")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _size_label(cases: int) -> str:
     if cases == 0:
         return "empty"
