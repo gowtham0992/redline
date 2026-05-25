@@ -260,6 +260,7 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     benchmark_parser.add_argument("--timeout", type=float, help="per-case timeout in seconds")
     benchmark_parser.add_argument("--workers", type=int, help="number of replay workers")
+    benchmark_parser.add_argument("--max-seconds", type=float, help="exit 1 when worst-case eval budget exceeds this")
     benchmark_parser.add_argument("--github-summary", action="store_true", help="append benchmark to GITHUB_STEP_SUMMARY")
     benchmark_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     benchmark_parser.set_defaults(func=cmd_benchmark)
@@ -816,6 +817,7 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         suite_path=suite_path,
         timeout_seconds=timeout_seconds,
         workers=workers,
+        max_seconds=args.max_seconds,
     )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
@@ -823,7 +825,7 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         print(format_benchmark_report(report), end="")
     if args.github_summary:
         _append_github_step_summary(format_benchmark_markdown(report))
-    return 0
+    return 0 if report["within_budget"] else 1
 
 
 def cmd_validate(args: argparse.Namespace) -> int:

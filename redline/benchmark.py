@@ -10,11 +10,14 @@ def benchmark_suite(
     suite_path: str = "redline-suite.json",
     timeout_seconds: float = 30.0,
     workers: int = 1,
+    max_seconds: float | None = None,
 ) -> dict[str, Any]:
     if timeout_seconds <= 0:
         raise ValueError("timeout_seconds must be greater than 0")
     if workers < 1:
         raise ValueError("workers must be at least 1")
+    if max_seconds is not None and max_seconds <= 0:
+        raise ValueError("max_seconds must be greater than 0")
 
     summary = suite.get("summary")
     if not isinstance(summary, dict):
@@ -41,6 +44,8 @@ def benchmark_suite(
         "parallel_waves": waves,
         "sequential_worst_case_seconds": sequential_seconds,
         "worst_case_seconds": worst_case_seconds,
+        "max_seconds": max_seconds,
+        "within_budget": max_seconds is None or worst_case_seconds <= max_seconds,
         "requirements": requirements_count,
         "judgments": judgments_count,
         "size": _size_label(cases_count),
@@ -63,11 +68,18 @@ def format_benchmark_report(report: dict[str, Any]) -> str:
         f"Parallel waves:        {report['parallel_waves']}",
         f"Worst-case eval budget: {_duration(report['worst_case_seconds'])}",
         f"Sequential budget:     {_duration(report['sequential_worst_case_seconds'])}",
-        f"Requirements:          {report['requirements']}",
-        f"Judgments:             {report['judgments']}",
-        f"Size:                  {str(report['size']).replace('_', ' ')}",
-        f"Status:                {str(report['status']).upper()}",
     ]
+    if report.get("max_seconds") is not None:
+        lines.append(f"Max allowed budget:    {_duration(report['max_seconds'])}")
+        lines.append(f"Budget check:          {'PASS' if report['within_budget'] else 'FAIL'}")
+    lines.extend(
+        [
+            f"Requirements:          {report['requirements']}",
+            f"Judgments:             {report['judgments']}",
+            f"Size:                  {str(report['size']).replace('_', ' ')}",
+            f"Status:                {str(report['status']).upper()}",
+        ]
+    )
     next_steps = report.get("next_steps") or []
     if next_steps:
         lines.extend(["", "Next:"])
@@ -92,6 +104,9 @@ def format_benchmark_markdown(report: dict[str, Any]) -> str:
         f"| Size | {str(report['size']).replace('_', ' ')} |",
         f"| Status | {str(report['status']).upper()} |",
     ]
+    if report.get("max_seconds") is not None:
+        lines.insert(-2, f"| Max allowed budget | {_duration(report['max_seconds'])} |")
+        lines.insert(-2, f"| Budget check | {'PASS' if report['within_budget'] else 'FAIL'} |")
     next_steps = report.get("next_steps") or []
     if next_steps:
         lines.extend(["", "Next:"])
@@ -115,6 +130,8 @@ def _size_label(cases: int) -> str:
 def _status(report: dict[str, Any]) -> str:
     if int(report["cases"]) == 0:
         return "warn"
+    if not bool(report["within_budget"]):
+        return "warn"
     if float(report["worst_case_seconds"]) > 600:
         return "warn"
     if int(report["workers"]) == 1 and int(report["cases"]) > 25:
@@ -133,6 +150,8 @@ def _next_steps(report: dict[str, Any]) -> list[str]:
         steps.append("Set workers in redline.json or pass --workers to keep CI feedback fast.")
     if budget > 600:
         steps.append("Split the suite, raise workers, or lower timeout before making this a required CI gate.")
+    if not bool(report["within_budget"]):
+        steps.append("Raise workers, lower timeout, or increase --max-seconds to fit the CI budget.")
     if not int(report["requirements"]):
         steps.append("Add requirements to high-value cases so scale does not dilute trust.")
     if cases > 0 and not int(report["judgments"]):

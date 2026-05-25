@@ -190,13 +190,15 @@ class McpServerTests(unittest.TestCase):
                     "suite_path": str(suite_path),
                     "timeout": 10,
                     "workers": 2,
+                    "max_seconds": 5,
                 },
             )
 
         self.assertFalse(benchmark_result["isError"])
-        self.assertEqual(benchmark_result["structuredContent"]["exit_code"], 0)
+        self.assertEqual(benchmark_result["structuredContent"]["exit_code"], 1)
         self.assertIn("redline benchmark", benchmark_result["content"][0]["text"])
         self.assertIn("Workers:               2", benchmark_result["content"][0]["text"])
+        self.assertIn("Budget check:          FAIL", benchmark_result["content"][0]["text"])
         self.assertIn("Worst-case eval budget:", benchmark_result["content"][0]["text"])
 
     def test_redact_and_audit_tools_cover_privacy_preflight(self) -> None:

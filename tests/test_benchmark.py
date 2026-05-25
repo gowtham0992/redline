@@ -36,8 +36,23 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(report["parallel_waves"], 2)
         self.assertEqual(report["worst_case_seconds"], 60)
         self.assertEqual(report["sequential_worst_case_seconds"], 90)
+        self.assertIsNone(report["max_seconds"])
+        self.assertTrue(report["within_budget"])
         self.assertEqual(report["requirements"], 1)
         self.assertEqual(report["status"], "ok")
+
+    def test_benchmark_suite_can_enforce_max_seconds_budget(self) -> None:
+        suite = {
+            "summary": {"cases": 10, "clusters": 2, "records_seen": 10},
+            "cases": [{"id": f"case_{index:03d}"} for index in range(10)],
+        }
+
+        report = benchmark_suite(suite, timeout_seconds=30, workers=1, max_seconds=120)
+
+        self.assertFalse(report["within_budget"])
+        self.assertEqual(report["max_seconds"], 120)
+        self.assertEqual(report["status"], "warn")
+        self.assertIn("increase --max-seconds", " ".join(report["next_steps"]))
 
     def test_benchmark_warns_for_large_single_worker_suite(self) -> None:
         suite = {
@@ -61,11 +76,17 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("Next:", output)
 
     def test_format_benchmark_markdown_is_summary_ready(self) -> None:
-        output = format_benchmark_markdown(_sample_report())
+        report = _sample_report()
+        report["max_seconds"] = 300
+        report["within_budget"] = False
+        report["status"] = "warn"
+        output = format_benchmark_markdown(report)
 
         self.assertIn("## redline benchmark", output)
         self.assertIn("| Worst-case eval budget | 5m 30s |", output)
-        self.assertIn("| Status | OK |", output)
+        self.assertIn("| Max allowed budget | 5m 0s |", output)
+        self.assertIn("| Budget check | FAIL |", output)
+        self.assertIn("| Status | WARN |", output)
         self.assertIn("Add requirements to high-value cases.", output)
 
     def test_benchmark_rejects_invalid_workers_and_timeout(self) -> None:
@@ -73,6 +94,8 @@ class BenchmarkTests(unittest.TestCase):
             benchmark_suite({"cases": []}, workers=0)
         with self.assertRaisesRegex(ValueError, "timeout_seconds must be greater than 0"):
             benchmark_suite({"cases": []}, timeout_seconds=0)
+        with self.assertRaisesRegex(ValueError, "max_seconds must be greater than 0"):
+            benchmark_suite({"cases": []}, max_seconds=0)
 
 
 def _sample_report() -> dict[str, Any]:
@@ -86,6 +109,8 @@ def _sample_report() -> dict[str, Any]:
         "parallel_waves": 11,
         "worst_case_seconds": 330,
         "sequential_worst_case_seconds": 1260,
+        "max_seconds": None,
+        "within_budget": True,
         "requirements": 0,
         "judgments": 0,
         "size": "medium",
