@@ -725,6 +725,29 @@ class CliConfigTests(unittest.TestCase):
 
                 self.assertIn("redline audit verify", verify_output.getvalue())
                 self.assertIn("Status:   OK", verify_output.getvalue())
+
+                audit_rows = [
+                    json.loads(line)
+                    for line in (root / ".redline" / "audit.jsonl").read_text(encoding="utf-8").splitlines()
+                ]
+                checkpoint_output = io.StringIO()
+                with contextlib.redirect_stdout(checkpoint_output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "audit",
+                                "--verify",
+                                "--expect-last-hash",
+                                audit_rows[-1]["entry_hash"],
+                                "--expect-entries",
+                                str(len(audit_rows)),
+                            ]
+                        ),
+                        0,
+                    )
+
+                self.assertIn("Status:   OK", checkpoint_output.getvalue())
+                self.assertNotIn("local hash chains cannot prove", checkpoint_output.getvalue())
             finally:
                 os.chdir(previous)
 

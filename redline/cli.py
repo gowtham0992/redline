@@ -222,6 +222,8 @@ def build_parser() -> argparse.ArgumentParser:
     audit_parser.add_argument("--path", help="audit JSONL path; defaults to config")
     audit_parser.add_argument("--limit", type=int, default=20, help="recent audit events to show; use 0 for all")
     audit_parser.add_argument("--verify", action="store_true", help="verify the audit hash chain")
+    audit_parser.add_argument("--expect-last-hash", help="expected final audit entry hash for tail checks")
+    audit_parser.add_argument("--expect-entries", type=int, help="expected audit entry count for tail checks")
     audit_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     audit_parser.set_defaults(func=cmd_audit)
 
@@ -670,12 +672,24 @@ def cmd_prompts(args: argparse.Namespace) -> int:
 def cmd_audit(args: argparse.Namespace) -> int:
     if args.limit < 0:
         raise ValueError("audit --limit must be 0 or greater")
+    if args.expect_entries is not None and args.expect_entries < 0:
+        raise ValueError("audit --expect-entries must be 0 or greater")
+    if (args.expect_last_hash or args.expect_entries is not None) and not args.verify:
+        raise ValueError("audit expectations require --verify")
     config = load_config(args.config)
     audit_path = args.path or _config_audit_path(config)
     if audit_path is None:
         raise ValueError("audit disabled by config; pass --path to read a specific audit log")
     events = read_audit_events(audit_path)
-    verification = verify_audit_events(events) if args.verify else None
+    verification = (
+        verify_audit_events(
+            events,
+            expected_last_hash=args.expect_last_hash,
+            expected_entries=args.expect_entries,
+        )
+        if args.verify
+        else None
+    )
     limit = None if args.limit == 0 else args.limit
     shown = events[-limit:] if limit is not None and limit > 0 else events
     if args.json:

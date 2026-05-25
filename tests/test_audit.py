@@ -10,6 +10,7 @@ from redline.audit import (
     format_audit_verification,
     read_audit_events,
     result_summary,
+    verify_audit_events,
     verify_audit_log,
 )
 
@@ -78,6 +79,46 @@ class AuditTests(unittest.TestCase):
             self.assertFalse(verification["ok"])
             self.assertEqual(verification["errors"], ["line 1: entry_hash mismatch"])
 
+    def test_verify_audit_log_can_check_expected_tail(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / ".redline" / "audit.jsonl"
+
+            append_audit_event(path, {"event": "suite_generated"})
+            second = append_audit_event(path, {"event": "diff_run"})
+
+            self.assertIsNotNone(second)
+            assert second is not None
+            verification = verify_audit_log(
+                path,
+                expected_last_hash=second["entry_hash"],
+                expected_entries=2,
+            )
+
+            self.assertTrue(verification["ok"])
+            self.assertEqual(verification["warnings"], [])
+
+    def test_verify_audit_events_detects_tail_checkpoint_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / ".redline" / "audit.jsonl"
+
+            first = append_audit_event(path, {"event": "suite_generated"})
+            second = append_audit_event(path, {"event": "diff_run"})
+            self.assertIsNotNone(first)
+            self.assertIsNotNone(second)
+            assert first is not None
+            assert second is not None
+
+            truncated_events = [first]
+            verification = verify_audit_events(
+                truncated_events,
+                expected_last_hash=second["entry_hash"],
+                expected_entries=2,
+            )
+
+            self.assertFalse(verification["ok"])
+            self.assertIn("expected 2 entries, found 1", verification["errors"])
+            self.assertIn("last_hash does not match expected hash", verification["errors"])
+
     def test_format_audit_verification_prints_status_and_errors(self) -> None:
         output = format_audit_verification(
             {
@@ -87,12 +128,14 @@ class AuditTests(unittest.TestCase):
                 "unsigned_entries": 0,
                 "last_hash": "abc123",
                 "errors": ["line 1: entry_hash mismatch"],
+                "warnings": ["tail checkpoint missing"],
             }
         )
 
         self.assertIn("redline audit verify", output)
         self.assertIn("Status:   FAILED", output)
         self.assertIn("line 1: entry_hash mismatch", output)
+        self.assertIn("tail checkpoint missing", output)
 
     def test_append_audit_event_omits_none_values(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

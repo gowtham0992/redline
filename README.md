@@ -146,6 +146,8 @@ redline is built around the full prompt-regression loop:
   new baseline.
 - `redline require`: add deterministic must-include or must-not-include rules.
 - `redline audit --verify`: inspect the local audit trail and verify the hash chain.
+  Add `--expect-last-hash` or `--expect-entries` when you want to prove the
+  local log tail still matches a checkpoint from CI or release evidence.
 - `redline history`, `redline compare`, and `redline dashboard`: track quality
   over time and inspect reports locally.
 - `redline-mcp`: let AI coding assistants run checks inside Claude, Codex,
@@ -265,7 +267,7 @@ autocomplete. Important keys:
 | `approval` | Optional local guardrail; `require_approver` makes `accept` record an approver. |
 | `fail_on` | Statuses that fail `diff` or `eval`; use `"none"` for report-only setup. |
 | `reports` | JSON, Markdown, HTML, and JUnit output paths. |
-| `audit` | Append-only JSONL audit log path for evals, judgments, requirements, and accepted baselines. New entries include operator/approver context plus a local hash chain that `redline audit --verify` can check. |
+| `audit` | Append-only JSONL audit log path for evals, judgments, requirements, and accepted baselines. New entries include operator/approver context plus a local hash chain that `redline audit --verify` can check; use expected hash/count checkpoints to detect tail truncation. |
 | `judge` | Optional command for ambiguous `changed` cases. |
 
 Check setup before relying on a suite:

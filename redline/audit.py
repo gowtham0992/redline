@@ -49,11 +49,20 @@ def read_audit_events(path: str | Path) -> list[dict[str, Any]]:
     return [row for _, row in iter_jsonl(path)]
 
 
-def verify_audit_events(events: list[dict[str, Any]]) -> dict[str, Any]:
+def verify_audit_events(
+    events: list[dict[str, Any]],
+    *,
+    expected_last_hash: str | None = None,
+    expected_entries: int | None = None,
+) -> dict[str, Any]:
     errors: list[str] = []
+    warnings: list[str] = []
     signed_entries = 0
     unsigned_entries = 0
     previous_hash: str | None = None
+
+    if expected_entries is not None and expected_entries != len(events):
+        errors.append(f"expected {expected_entries} entries, found {len(events)}")
 
     for index, row in enumerate(events, start=1):
         entry_hash = row.get("entry_hash")
@@ -80,6 +89,14 @@ def verify_audit_events(events: list[dict[str, Any]]) -> dict[str, Any]:
         signed_entries += 1
         previous_hash = entry_hash
 
+    if expected_last_hash is not None and previous_hash != expected_last_hash:
+        errors.append("last_hash does not match expected hash")
+    if expected_last_hash is None and expected_entries is None:
+        warnings.append(
+            "local hash chains cannot prove the log tail was not truncated; compare last_hash "
+            "or entry count against an external checkpoint for stronger evidence"
+        )
+
     return {
         "ok": not errors,
         "entries": len(events),
@@ -87,11 +104,21 @@ def verify_audit_events(events: list[dict[str, Any]]) -> dict[str, Any]:
         "unsigned_entries": unsigned_entries,
         "last_hash": previous_hash,
         "errors": errors,
+        "warnings": warnings,
     }
 
 
-def verify_audit_log(path: str | Path) -> dict[str, Any]:
-    return verify_audit_events(read_audit_events(path))
+def verify_audit_log(
+    path: str | Path,
+    *,
+    expected_last_hash: str | None = None,
+    expected_entries: int | None = None,
+) -> dict[str, Any]:
+    return verify_audit_events(
+        read_audit_events(path),
+        expected_last_hash=expected_last_hash,
+        expected_entries=expected_entries,
+    )
 
 
 def audit_entry_hash(row: dict[str, Any]) -> str:
@@ -131,6 +158,11 @@ def format_audit_verification(result: dict[str, Any]) -> str:
         lines.extend(["", "Errors:"])
         for error in errors:
             lines.append(f"- {error}")
+    warnings = result.get("warnings")
+    if isinstance(warnings, list) and warnings:
+        lines.extend(["", "Warnings:"])
+        for warning in warnings:
+            lines.append(f"- {warning}")
     return "\n".join(lines).rstrip() + "\n"
 
 
