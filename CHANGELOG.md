@@ -60,6 +60,7 @@
 - Show owner coverage and top owners in `redline summary`.
 - Show explicit guard coverage in `redline summary` for cases with requirements or recorded judgments.
 - Show explicit guard coverage in `redline doctor` before teams rely on structural checks in CI.
+- Print explicit guard next steps from `redline doctor` when suites have no requirements or recorded judgments.
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Show blocking and changed review counts in the dashboard reports table.
 - Group prompt manifest evals by feature in the local dashboard.

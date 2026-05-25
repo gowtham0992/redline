@@ -364,6 +364,13 @@ def _next_steps(checks: list[dict[str, str]], *, suite_path: str) -> list[str]:
     if judge and judge["status"] in {"error", "warn"}:
         steps.append("Fix judge command in redline.json, then rerun: redline doctor")
 
+    coverage = by_name.get("coverage")
+    if coverage and (
+        "add requirements or a judge" in coverage["message"]
+        or "no explicit requirements or recorded judgments yet" in coverage["message"]
+    ):
+        steps.append(_semantic_guard_next_step(suite_path, suite=by_name.get("suite")))
+
     audit = by_name.get("audit")
     if audit and audit["status"] == "error":
         steps.append("Inspect audit integrity: redline audit --verify")
@@ -421,6 +428,15 @@ def _generate_suite_step(suite_path: str) -> str:
     if Path(suite_path).name == "redline-prompts.json":
         return "Scan prompts: redline prompts prompts/ --suite-dir suites --out redline-prompts.json"
     return "Generate suite: redline suite path/to/log.jsonl --out redline-suite.json"
+
+
+def _semantic_guard_next_step(suite_path: str, *, suite: dict[str, str] | None) -> str:
+    if suite and "prompt manifest" in suite.get("message", ""):
+        return f"Inspect explicit guard gaps: redline summary {suite_path}"
+    return (
+        f"Add explicit guards: redline cases {suite_path}, then "
+        f'redline require {suite_path} <case_id> --include "must keep text"'
+    )
 
 
 def _check_has(

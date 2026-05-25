@@ -174,6 +174,10 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("requirements=0; judge=no", coverage["message"])
         self.assertIn("explicit guards=0/1", coverage["message"])
         self.assertIn("no explicit requirements or recorded judgments yet", coverage["message"])
+        self.assertIn(
+            "Inspect explicit guard gaps: redline summary redline-prompts.json",
+            report["next_steps"],
+        )
         workflow = next(check for check in report["checks"] if check["name"] == "team-workflow")
         self.assertIn("owners=0/1", workflow["message"])
 
@@ -327,6 +331,11 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("requirements=0; judge=no", coverage["message"])
         self.assertIn("explicit guards=0/1", coverage["message"])
         self.assertIn("add requirements or a judge", coverage["message"])
+        guard_step = (
+            "Add explicit guards: redline cases redline-suite.json, then "
+            'redline require redline-suite.json <case_id> --include "must keep text"'
+        )
+        self.assertIn(guard_step, report["next_steps"])
 
     def test_doctor_surfaces_team_workflow_posture(self) -> None:
         suite = build_suite(
