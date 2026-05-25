@@ -60,6 +60,8 @@ def format_suite_cases(suite: dict[str, Any]) -> str:
             f"{_format_selection_reason(row['selection_reason']):<12} "
             f"{row['requirements']:>5} {row['judgment']:<10} {row['prompt_preview']}"
         )
+    first_case = rows[0]["id"]
+    lines.extend(["", "Next:", f"- Inspect full case: redline case {first_case}"])
     return "\n".join(lines) + "\n"
 
 

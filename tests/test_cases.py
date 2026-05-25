@@ -183,6 +183,7 @@ class CasesTests(unittest.TestCase):
         self.assertIn("JUDGMENT", output)
         self.assertIn("representative", output)
         self.assertIn("Return JSON for Ada", output)
+        self.assertIn(f"Inspect full case: redline case {suite['cases'][0]['id']}", output)
 
     def test_format_suite_cases_marks_pinned_cases(self) -> None:
         suite = build_suite(
