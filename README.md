@@ -259,7 +259,7 @@ autocomplete. Important keys:
 | `suite` | Suite baseline path, default `redline-suite.json`. |
 | `input_field`, `output_field` | JSONL field paths for prompts and responses. |
 | `max_cases` | Maximum representative cases selected for a suite. |
-| `replay` | Command used by `eval`; prompts go to stdin unless it contains `{prompt}`. |
+| `replay` | Command used by `eval`; prompts go to stdin by default. `{prompt}` is for small legacy argv runners; `{prompt_file}` passes a temporary rendered-prompt file path. |
 | `workers` | Number of replay cases to run concurrently. |
 | `owners` | Optional pattern-to-owner rules so regressions show the responsible team. |
 | `approval` | Optional local guardrail; `require_approver` makes `accept` record an approver. |

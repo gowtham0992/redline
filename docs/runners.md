@@ -5,10 +5,13 @@ candidate response text out; use the provider-specific runners only when they
 save you setup time.
 
 Replay contract: redline sends the rendered prompt to `stdin`; your runner
-prints only the candidate response to `stdout`. Logs belong on `stderr`.
+prints only the candidate response to `stdout`. Logs belong on `stderr`. Prefer
+stdin for large prompts; `{prompt}` is supported for small legacy runners, and
+`{prompt_file}` passes a temporary file path when a runner needs file input.
 
 redline also sets `REDLINE_CASE_ID`, `REDLINE_SOURCE_LINE`, `REDLINE_CLUSTER`,
-and `REDLINE_PROMPT_PATH` for each replay.
+and `REDLINE_PROMPT_PATH` for each replay. When `{prompt_file}` is used, it also
+sets `REDLINE_RENDERED_PROMPT_PATH`.
 
 To set replay config and copy a built-in runner in one step:
 

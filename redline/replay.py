@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import shlex
-import subprocess
 import os
 import re
+import shlex
+import subprocess
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,7 @@ from .io import LogRecord
 
 
 _TEMPLATE_FIELD_RE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+MAX_PROMPT_ARG_BYTES = 32_000
 
 
 @dataclass(frozen=True)
@@ -176,22 +178,37 @@ def _run_replay(
     timeout_seconds: float,
     extra_env: dict[str, str],
 ) -> str:
-    uses_placeholder = any("{prompt}" in arg for arg in argv_template)
-    argv = [arg.replace("{prompt}", prompt) for arg in argv_template]
-    stdin = None if uses_placeholder else prompt
+    uses_prompt_arg = any("{prompt}" in arg for arg in argv_template)
+    uses_prompt_file = any("{prompt_file}" in arg for arg in argv_template)
+    if uses_prompt_arg and len(prompt.encode("utf-8")) > MAX_PROMPT_ARG_BYTES:
+        raise ValueError(
+            "replay command uses {prompt}, but the rendered prompt is too large for safe command-line "
+            "argument passing; read the prompt from stdin or use {prompt_file}"
+        )
+    stdin = None if uses_prompt_arg else prompt
     env = os.environ.copy()
     env.update(extra_env)
+    argv = argv_template
 
     try:
-        completed = subprocess.run(
-            argv,
-            input=stdin,
-            text=True,
-            capture_output=True,
-            timeout=timeout_seconds,
-            check=False,
-            env=env,
-        )
+        with tempfile.TemporaryDirectory(prefix="redline-replay-") as directory:
+            prompt_file = Path(directory) / "prompt.txt" if uses_prompt_file else None
+            if prompt_file is not None:
+                prompt_file.write_text(prompt, encoding="utf-8")
+                env["REDLINE_RENDERED_PROMPT_PATH"] = str(prompt_file)
+            argv = [
+                arg.replace("{prompt}", prompt).replace("{prompt_file}", str(prompt_file or ""))
+                for arg in argv_template
+            ]
+            completed = subprocess.run(
+                argv,
+                input=stdin,
+                text=True,
+                capture_output=True,
+                timeout=timeout_seconds,
+                check=False,
+                env=env,
+            )
     except FileNotFoundError as exc:
         raise ValueError(f"replay command not found: {argv[0]}") from exc
     except subprocess.TimeoutExpired as exc:
