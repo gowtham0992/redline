@@ -1,9 +1,11 @@
+import json
 import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from redline.audit import append_audit_event
 from redline.doctor import doctor_report, format_doctor_report
 from redline.io import LogRecord
 from redline.suite import build_suite
@@ -11,11 +13,17 @@ from redline.suite import build_suite
 
 class DoctorTests(unittest.TestCase):
     def test_doctor_report_warns_for_missing_config_and_suite(self) -> None:
-        report = doctor_report(
-            config_path="missing.json",
-            config={},
-            suite=None,
-        )
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(directory)
+            try:
+                report = doctor_report(
+                    config_path="missing.json",
+                    config={},
+                    suite=None,
+                )
+            finally:
+                os.chdir(previous)
 
         self.assertTrue(report["ok"])
         self.assertEqual(report["errors"], 0)
@@ -119,6 +127,65 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(audit["status"], "warn")
         self.assertIn("disabled", audit["message"])
 
+    def test_doctor_verifies_signed_audit_log(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            audit_path = Path(directory) / "audit.jsonl"
+            append_audit_event(audit_path, {"event": "suite_generated"})
+
+            report = doctor_report(
+                config_path="pyproject.toml",
+                config={
+                    "replay": f"{sys.executable} -c pass",
+                    "audit": str(audit_path),
+                },
+                suite={"cases": []},
+            )
+
+        audit = next(check for check in report["checks"] if check["name"] == "audit")
+        self.assertEqual(audit["status"], "ok")
+        self.assertIn("hash chain ok", audit["message"])
+        self.assertIn("signed events=1", audit["message"])
+
+    def test_doctor_errors_when_audit_hash_chain_is_broken(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            audit_path = Path(directory) / "audit.jsonl"
+            append_audit_event(audit_path, {"event": "case_marked", "case_id": "case_001"})
+            row = json.loads(audit_path.read_text(encoding="utf-8"))
+            row["case_id"] = "case_999"
+            audit_path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+
+            report = doctor_report(
+                config_path="pyproject.toml",
+                config={
+                    "replay": f"{sys.executable} -c pass",
+                    "audit": str(audit_path),
+                },
+                suite={"cases": []},
+            )
+
+        audit = next(check for check in report["checks"] if check["name"] == "audit")
+        self.assertEqual(audit["status"], "error")
+        self.assertIn("hash chain failed", audit["message"])
+        self.assertIn("Inspect audit integrity: redline audit --verify", report["next_steps"])
+
+    def test_doctor_warns_for_legacy_unsigned_audit_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            audit_path = Path(directory) / "audit.jsonl"
+            audit_path.write_text('{"event": "legacy"}\n', encoding="utf-8")
+
+            report = doctor_report(
+                config_path="pyproject.toml",
+                config={
+                    "replay": f"{sys.executable} -c pass",
+                    "audit": str(audit_path),
+                },
+                suite={"cases": []},
+            )
+
+        audit = next(check for check in report["checks"] if check["name"] == "audit")
+        self.assertEqual(audit["status"], "warn")
+        self.assertIn("unsigned legacy event", audit["message"])
+
     def test_doctor_errors_when_audit_path_is_directory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             report = doctor_report(
@@ -168,11 +235,12 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("redline init --runner stdio --copy-runner", output)
 
     def test_doctor_warns_for_empty_artifact_sections(self) -> None:
-        report = doctor_report(
-            config_path="pyproject.toml",
-            config={"reports": {}, "runs": {}},
-            suite={"cases": []},
-        )
+        with tempfile.TemporaryDirectory() as directory:
+            report = doctor_report(
+                config_path="pyproject.toml",
+                config={"reports": {}, "runs": {}, "audit": str(Path(directory) / "audit.jsonl")},
+                suite={"cases": []},
+            )
 
         self.assertEqual(report["warnings"], 4)
         self.assertTrue(any(check["name"] == "reports" for check in report["checks"]))
@@ -186,15 +254,17 @@ class DoctorTests(unittest.TestCase):
             output_field="response",
             max_cases=10,
         )
-        report = doctor_report(
-            config_path="pyproject.toml",
-            config={
-                "suite": ".redline/suite.json",
-                "replay": f"{sys.executable} -c pass",
-            },
-            suite=suite,
-            suite_git_ignored=True,
-        )
+        with tempfile.TemporaryDirectory() as directory:
+            report = doctor_report(
+                config_path="pyproject.toml",
+                config={
+                    "suite": ".redline/suite.json",
+                    "replay": f"{sys.executable} -c pass",
+                    "audit": str(Path(directory) / "audit.jsonl"),
+                },
+                suite=suite,
+                suite_git_ignored=True,
+            )
 
         self.assertEqual(report["warnings"], 1)
         self.assertTrue(any(check["name"] == "suite-git" for check in report["checks"]))

@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from .audit import DEFAULT_AUDIT_PATH
+from .audit import DEFAULT_AUDIT_PATH, verify_audit_log
 from .runners import runner_adapters
 from .validate import validate_suite
 
@@ -151,7 +151,26 @@ def _audit_check(config: dict[str, Any]) -> dict[str, str]:
             "message": f"{value} is a directory; configure a JSONL file path",
         }
     if Path(value).exists():
-        return {"status": "ok", "name": "audit", "message": f"enabled at {value}; run redline audit"}
+        verification = verify_audit_log(value)
+        if not verification["ok"]:
+            return {
+                "status": "error",
+                "name": "audit",
+                "message": f"hash chain failed at {value}; run redline audit --verify",
+            }
+        signed = int(verification.get("signed_entries", 0))
+        unsigned = int(verification.get("unsigned_entries", 0))
+        if unsigned:
+            return {
+                "status": "warn",
+                "name": "audit",
+                "message": f"enabled at {value}; {unsigned} unsigned legacy event(s); run redline audit --verify",
+            }
+        return {
+            "status": "ok",
+            "name": "audit",
+            "message": f"enabled at {value}; hash chain ok; signed events={signed}",
+        }
     return {"status": "ok", "name": "audit", "message": f"enabled at {value}; no events yet"}
 
 
@@ -240,6 +259,10 @@ def _next_steps(checks: list[dict[str, str]], *, suite_path: str) -> list[str]:
     judge = by_name.get("judge")
     if judge and judge["status"] in {"error", "warn"}:
         steps.append("Fix judge command in redline.json, then rerun: redline doctor")
+
+    audit = by_name.get("audit")
+    if audit and audit["status"] == "error":
+        steps.append("Inspect audit integrity: redline audit --verify")
 
     if _check_has(by_name, "suite-git", "warn"):
         steps.append("Commit the suite baseline, or move it out of ignored paths")
