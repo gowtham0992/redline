@@ -7,6 +7,7 @@ from typing import Any
 from .features import extract_features
 from .hashes import prompt_response_hash
 from .io import read_json
+from .judgments import JUDGMENT_STATUSES
 
 
 _FEATURE_KEYS = (
@@ -86,7 +87,7 @@ def validate_suite(suite: dict[str, Any], *, suite_path: str = "") -> dict[str, 
 
     _validate_summary(items, suite, len(cases))
     _validate_references(items, suite.get("requirements"), case_ids, "requirements")
-    _validate_references(items, suite.get("judgments"), case_ids, "judgments")
+    _validate_judgments(items, suite.get("judgments"), case_ids)
     _validate_source_staleness(items, suite)
 
     error_count = _count(items, "error")
@@ -273,6 +274,11 @@ def _next_steps(items: list[dict[str, str]], *, suite_path: str, source: object)
         steps.append(
             f"Update requirement or judgment case IDs, then rerun: redline validate {suite_arg}"
         )
+    if any(
+        item["level"] == "error" and item["path"].startswith("judgments.") and "unknown status" in item["message"]
+        for item in items
+    ):
+        steps.append(f"Use a supported judgment status, then rerun: redline validate {suite_arg}")
     if any(item["level"] == "error" and item["path"] == "cases" for item in items):
         steps.append(f"Fix suite JSON shape, then rerun: redline validate {suite_arg}")
 
@@ -300,6 +306,11 @@ def _next_steps(items: list[dict[str, str]], *, suite_path: str, source: object)
         for item in items
     ):
         steps.append(f"Regenerate suite from newer source log: redline suite {source_arg} --out {suite_arg}")
+    if any(
+        item["level"] == "warning" and item["path"].startswith("judgments.") and item["path"].endswith(".note")
+        for item in items
+    ):
+        steps.append(f"Add judgment notes before team rollout, then rerun: redline validate {suite_arg}")
 
     if items and not steps:
         steps.append(f"Fix findings, then rerun: redline validate {suite_arg}")
@@ -396,6 +407,31 @@ def _validate_references(
     for case_id in value:
         if str(case_id) not in case_ids:
             _add(items, "error", f"{path}.{case_id}", "references unknown case id")
+
+
+def _validate_judgments(
+    items: list[dict[str, str]],
+    value: object,
+    case_ids: set[str],
+) -> None:
+    _validate_references(items, value, case_ids, "judgments")
+    if value is None or not isinstance(value, dict):
+        return
+    for case_id, judgment in value.items():
+        path = f"judgments.{case_id}"
+        if not isinstance(judgment, dict):
+            _add(items, "error", path, "expected judgment object")
+            continue
+        status = str(judgment.get("status") or "").strip()
+        if status not in JUDGMENT_STATUSES:
+            allowed = ", ".join(JUDGMENT_STATUSES)
+            _add(items, "error", f"{path}.status", f"unknown status {status or '<empty>'}; expected one of: {allowed}")
+        note = str(judgment.get("note") or "").strip()
+        if status in {"expected", "ignored"} and not note:
+            _add(items, "warning", f"{path}.note", "expected or ignored judgments should include a reason")
+        updated_at = judgment.get("updated_at")
+        if not isinstance(updated_at, str) or _parse_created_at(updated_at) is None:
+            _add(items, "warning", f"{path}.updated_at", "missing or invalid judgment timestamp")
 
 
 def _add(items: list[dict[str, str]], level: str, path: str, message: str) -> None:

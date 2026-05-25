@@ -158,6 +158,61 @@ class ValidateTests(unittest.TestCase):
         self.assertFalse(report["valid"])
         self.assertTrue(any("references unknown case id" in item["message"] for item in report["items"]))
 
+    def test_validate_suite_warns_for_judgments_without_review_metadata(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Refund policy", "30 days", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        case_id = suite["cases"][0]["id"]
+        suite["judgments"] = {
+            case_id: {
+                "status": "expected",
+                "note": "",
+            }
+        }
+
+        report = validate_suite(suite, suite_path="redline-suite.json")
+        text = format_validation_report(report)
+
+        self.assertTrue(report["valid"])
+        self.assertEqual(report["warnings"], 2)
+        self.assertTrue(any(item["path"] == f"judgments.{case_id}.note" for item in report["items"]))
+        self.assertTrue(any(item["path"] == f"judgments.{case_id}.updated_at" for item in report["items"]))
+        self.assertIn("expected or ignored judgments should include a reason", text)
+        self.assertIn(
+            "Add judgment notes before team rollout, then rerun: redline validate redline-suite.json",
+            report["next_steps"],
+        )
+
+    def test_validate_suite_rejects_unknown_judgment_status(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Refund policy", "30 days", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        case_id = suite["cases"][0]["id"]
+        suite["judgments"] = {
+            case_id: {
+                "status": "accepted",
+                "note": "approved elsewhere",
+                "updated_at": "2026-05-25T00:00:00+00:00",
+            }
+        }
+
+        report = validate_suite(suite, suite_path="redline-suite.json")
+
+        self.assertFalse(report["valid"])
+        self.assertTrue(any("unknown status accepted" in item["message"] for item in report["items"]))
+        self.assertIn(
+            "Use a supported judgment status, then rerun: redline validate redline-suite.json",
+            report["next_steps"],
+        )
+
     def test_validate_prompt_manifest_checks_mapped_suites(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -45,6 +45,7 @@
 - Expose guarded `redline_mark` through MCP with explicit `allow_write` and note requirements.
 - Append concise eval-comment Markdown directly to GitHub step summaries in generated workflows and the composite action.
 - Add fallback field matching plus LangSmith and Braintrust presets to the JSONL log adapter.
+- Validate judgment statuses, timestamps, and missing reasons before team rollout.
 - Show owner coverage and top owners in `redline summary`.
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Show blocking and changed review counts in the dashboard reports table.
