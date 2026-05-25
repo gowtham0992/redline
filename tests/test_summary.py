@@ -35,6 +35,9 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["case_coverage"], 1.0)
         self.assertEqual(summary["cluster_coverage"], 1.0)
         self.assertEqual(summary["pinned_cases"], 0)
+        self.assertEqual(summary["owned_cases"], 0)
+        self.assertEqual(summary["unowned_cases"], 2)
+        self.assertEqual(summary["owners"], {})
         self.assertEqual(summary["judgments"], {"expected": 1})
         self.assertEqual(summary["requirements"], 1)
         self.assertEqual(summary["failure_pattern_clusters"], 0)
@@ -76,10 +79,45 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Cluster coverage:", output)
         self.assertIn("Case coverage:", output)
         self.assertIn("Pinned cases:", output)
+        self.assertIn("Owned cases:", output)
         self.assertIn("High-risk clusters:", output)
         self.assertIn("Failure-pattern clusters:", output)
         self.assertIn("Top clusters:", output)
         self.assertIn("structured JSON prompt -> JSON response", output)
+
+    def test_suite_summary_counts_owners(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Return billing JSON", '{"ok": true}', {}),
+                LogRecord(2, "Summarize support ticket", "- one\n- two", {}),
+            ],
+            source="logs/baseline.jsonl",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+            owner_rules=[
+                {"match": "billing", "owner": "@billing-team"},
+                {"match": "support", "owner": "@support-team"},
+            ],
+        )
+
+        summary = suite_summary(suite)
+        output = format_suite_summary(suite)
+
+        self.assertEqual(summary["owned_cases"], 2)
+        self.assertEqual(summary["unowned_cases"], 0)
+        self.assertEqual(summary["owners"], {"@billing-team": 1, "@support-team": 1})
+        self.assertEqual(
+            summary["top_owners"],
+            [
+                {"owner": "@billing-team", "cases": 1},
+                {"owner": "@support-team", "cases": 1},
+            ],
+        )
+        self.assertIn("Owned cases:            2/2", output)
+        self.assertIn("Owners:", output)
+        self.assertIn("@billing-team", output)
+        self.assertIn("@support-team", output)
 
     def test_suite_summary_recommends_more_coverage_when_budget_is_tight(self) -> None:
         suite = build_suite(

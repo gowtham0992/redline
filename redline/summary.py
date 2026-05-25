@@ -76,6 +76,16 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
             len([case for case in cases if isinstance(case, dict) and case.get("pinned")]),
         )
     )
+    owner_counts: Counter[str] = Counter(
+        str(case.get("owner") or "").strip()
+        for case in cases
+        if isinstance(case, dict) and str(case.get("owner") or "").strip()
+    )
+    top_owners = [
+        {"owner": owner, "cases": count}
+        for owner, count in sorted(owner_counts.items(), key=lambda item: (-item[1], item[0].lower()))[:5]
+    ]
+    owned_cases = sum(owner_counts.values())
 
     result = {
         "source": str(suite.get("source") or ""),
@@ -91,6 +101,10 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "cluster_coverage": _ratio(len(covered_clusters), clusters_count),
         "max_cases": int(summary.get("max_cases", 0)),
         "pinned_cases": pinned_cases,
+        "owned_cases": owned_cases,
+        "unowned_cases": max(0, cases_count - owned_cases),
+        "owners": dict(sorted(owner_counts.items())),
+        "top_owners": top_owners,
         "high_risk_clusters": len(high_risk),
         "medium_risk_clusters": len(medium_risk),
         "high_variance_clusters": len(high_variance),
@@ -119,6 +133,7 @@ def format_suite_summary(suite: dict[str, Any]) -> str:
         f"Representative cases:   {summary['cases']}",
         f"Case coverage:          {summary['cases']}/{summary['unique_prompt_response_pairs']} ({_percent(summary['case_coverage'])})",
         f"Pinned cases:           {summary['pinned_cases']}",
+        f"Owned cases:            {summary['owned_cases']}/{summary['cases']}",
         f"Max cases:              {summary['max_cases']}",
         f"High-risk clusters:     {summary['high_risk_clusters']}",
         f"Medium-risk clusters:   {summary['medium_risk_clusters']}",
@@ -133,6 +148,13 @@ def format_suite_summary(suite: dict[str, Any]) -> str:
         lines.append("Judgments:")
         for status, count in judgments.items():
             lines.append(f"  {status:<10} {count}")
+        lines.append("")
+
+    top_owners = summary["top_owners"]
+    if top_owners:
+        lines.append("Owners:")
+        for owner in top_owners:
+            lines.append(f"  {owner['owner']:<20} {owner['cases']}")
         lines.append("")
 
     top_clusters = summary["top_clusters"]
@@ -162,6 +184,10 @@ def _summary_next_steps(summary: dict[str, Any]) -> list[str]:
         steps.append("Increase --max-cases or pin edge cases with redline suite add.")
     if int(summary["high_risk_clusters"]) and int(summary["requirements"]) == 0:
         steps.append("Add requirements for must-keep details in high-risk cases.")
+    if int(summary["cases"]) and int(summary["owned_cases"]) == 0:
+        steps.append("Add owners with --owner or redline.json owner rules before team rollout.")
+    elif int(summary["unowned_cases"]):
+        steps.append("Assign owners to remaining unowned cases before team rollout.")
     if int(summary["cases"]) and not summary["judgments"]:
         steps.append("After the first eval, mark expected or ignored changes to train the suite.")
     if int(summary["cases"]) == 0:
