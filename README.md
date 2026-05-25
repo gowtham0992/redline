@@ -173,7 +173,7 @@ redline-mcp
 ```
 
 Use [docs/mcp.md](docs/mcp.md) to wire redline into an MCP client. The MCP
-surface exposes safe read/eval/report tools and workflow prompts like
+surface exposes safe privacy, audit, read, eval, and report tools plus workflow prompts like
 `check_prompt_change`, `build_suite_from_logs`, and `review_candidate_outputs`.
 It does not expose baseline mutation commands.
 

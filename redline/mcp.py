@@ -106,7 +106,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "redline-mcp\n\n"
             "Local MCP stdio server for redline.\n\n"
             "Run this command from an MCP client. It exposes redline doctor, suite,\n"
-            "validate, summary, diff, eval, history, dashboard, and cases tools.\n",
+            "redact, audit, validate, summary, diff, eval, history, dashboard, and cases tools.\n",
             end="",
         )
         return 0
@@ -450,6 +450,22 @@ def _tools() -> list[ToolSpec]:
             _build_suite,
         ),
         ToolSpec(
+            "redline_redact",
+            "Scan or redact common secrets and PII from JSONL prompt-response logs.",
+            _schema(
+                {
+                    "log_path": _string("JSONL prompt-response log to scan or redact."),
+                    "config": _string("Config path to read."),
+                    "out": _string("Redacted JSONL output path. Required unless check is true."),
+                    "check": _boolean("Scan only; do not write a redacted file."),
+                    "placeholder": _string("Replacement text for redacted values."),
+                    "json": _boolean("Print machine-readable JSON."),
+                },
+                required=("log_path",),
+            ),
+            _build_redact,
+        ),
+        ToolSpec(
             "redline_validate",
             "Validate suite structure, stored features, hashes, requirements, and source freshness.",
             _schema(
@@ -568,6 +584,19 @@ def _tools() -> list[ToolSpec]:
             ),
             _build_dashboard,
         ),
+        ToolSpec(
+            "redline_audit",
+            "Read recent local audit events for evals, redactions, approvals, and requirements.",
+            _schema(
+                {
+                    "config": _string("Config path to read."),
+                    "path": _string("Audit JSONL path. Defaults to config."),
+                    "limit": _integer("Recent audit events to show; use 0 for all."),
+                    "json": _boolean("Print machine-readable JSON."),
+                }
+            ),
+            _build_audit,
+        ),
     ]
 
 
@@ -592,6 +621,17 @@ def _build_suite(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--output-field", arguments.get("output_field"))
     _add_option(args, "--max-cases", arguments.get("max_cases"))
     _add_flag(args, "--all-cases", arguments.get("all_cases"))
+    return args
+
+
+def _build_redact(arguments: dict[str, Any]) -> list[str]:
+    args = ["redact"]
+    _add_positional(args, _required_string(arguments, "log_path"))
+    _add_option(args, "--config", arguments.get("config"))
+    _add_option(args, "--out", arguments.get("out"))
+    _add_flag(args, "--check", arguments.get("check"))
+    _add_option(args, "--placeholder", arguments.get("placeholder"))
+    _add_flag(args, "--json", arguments.get("json"))
     return args
 
 
@@ -670,6 +710,15 @@ def _build_dashboard(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--reports-dir", arguments.get("reports_dir"))
     _add_option(args, "--history", arguments.get("history"))
     _add_option(args, "--out", arguments.get("out"))
+    _add_option(args, "--limit", arguments.get("limit"))
+    _add_flag(args, "--json", arguments.get("json"))
+    return args
+
+
+def _build_audit(arguments: dict[str, Any]) -> list[str]:
+    args = ["audit"]
+    _add_option(args, "--config", arguments.get("config"))
+    _add_option(args, "--path", arguments.get("path"))
     _add_option(args, "--limit", arguments.get("limit"))
     _add_flag(args, "--json", arguments.get("json"))
     return args

@@ -28,9 +28,11 @@ class McpServerTests(unittest.TestCase):
         names = {tool["name"] for tool in response["result"]["tools"]}
         self.assertIn("redline_doctor", names)
         self.assertIn("redline_suite", names)
+        self.assertIn("redline_redact", names)
         self.assertIn("redline_eval", names)
         self.assertIn("redline_diff", names)
         self.assertIn("redline_dashboard", names)
+        self.assertIn("redline_audit", names)
         self.assertNotIn("redline_accept", names)
         self.assertNotIn("redline_mark", names)
         self.assertNotIn("redline_require", names)
@@ -141,6 +143,32 @@ class McpServerTests(unittest.TestCase):
         self.assertEqual(diff_result["structuredContent"]["exit_code"], 1)
         self.assertIn("regression=4", diff_result["content"][0]["text"])
         self.assertIn("candidate missing JSON keys", diff_result["content"][0]["text"])
+
+    def test_redact_and_audit_tools_cover_privacy_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw = root / "raw.jsonl"
+            raw.write_text(
+                '{"prompt": "Email ada@example.com", "response": "ok", "token": "secret"}\n',
+                encoding="utf-8",
+            )
+
+            redact_result = call_tool(
+                "redline_redact",
+                {"cwd": directory, "log_path": "raw.jsonl", "check": True},
+            )
+            audit_result = call_tool(
+                "redline_audit",
+                {"cwd": directory, "limit": 0},
+            )
+
+        self.assertFalse(redact_result["isError"])
+        self.assertEqual(redact_result["structuredContent"]["exit_code"], 0)
+        self.assertIn("Mode:       check only", redact_result["content"][0]["text"])
+        self.assertIn("Redactions: 2", redact_result["content"][0]["text"])
+        self.assertFalse(audit_result["isError"])
+        self.assertIn("log_redaction_checked", audit_result["content"][0]["text"])
+        self.assertIn("redactions=2", audit_result["content"][0]["text"])
 
     def test_unknown_tool_returns_jsonrpc_error(self) -> None:
         response = handle_jsonrpc_line(
