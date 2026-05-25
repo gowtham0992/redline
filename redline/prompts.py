@@ -69,6 +69,62 @@ def format_prompt_manifest(manifest: dict[str, object], *, output_path: str | No
     return "\n".join(lines).rstrip() + "\n"
 
 
+def check_prompt_manifest(
+    stored: dict[str, object],
+    current: dict[str, object],
+    *,
+    manifest_path: str | Path,
+) -> dict[str, object]:
+    stored_prompts = _prompt_map(stored)
+    current_prompts = _prompt_map(current)
+    added = sorted(set(current_prompts) - set(stored_prompts))
+    removed = sorted(set(stored_prompts) - set(current_prompts))
+    changed = sorted(
+        prompt_id
+        for prompt_id in set(stored_prompts) & set(current_prompts)
+        if stored_prompts[prompt_id] != current_prompts[prompt_id]
+    )
+    field_changes = [
+        field
+        for field in ("schema", "version", "root", "suite_dir", "extensions", "prompt_count")
+        if stored.get(field) != current.get(field)
+    ]
+    status = "ok" if not added and not removed and not changed and not field_changes else "outdated"
+    return {
+        "status": status,
+        "manifest": Path(manifest_path).as_posix(),
+        "prompt_count": current.get("prompt_count", 0),
+        "added": added,
+        "removed": removed,
+        "changed": changed,
+        "field_changes": field_changes,
+    }
+
+
+def format_prompt_manifest_check(report: dict[str, object], *, command: str) -> str:
+    status = str(report.get("status", "outdated"))
+    lines = [
+        "redline prompts check",
+        "",
+        f"Manifest: {report.get('manifest')}",
+        f"Status:   {status.upper()}",
+        f"Prompts:  {report.get('prompt_count')}",
+    ]
+    for label, key in (
+        ("Added", "added"),
+        ("Changed", "changed"),
+        ("Removed", "removed"),
+        ("Fields", "field_changes"),
+    ):
+        values = report.get(key)
+        if isinstance(values, list) and values:
+            lines.append(f"{label}:   {', '.join(str(value) for value in values)}")
+
+    if status != "ok":
+        lines.extend(["", "Next:", f"- Regenerate manifest: {command}"])
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _normalize_extensions(extensions: Sequence[str] | None) -> tuple[str, ...]:
     values = extensions or DEFAULT_PROMPT_EXTENSIONS
     normalized = []
@@ -119,6 +175,20 @@ def _prompt_record(path: Path, *, base: Path, root_path: Path, suite_dir: Path) 
 
 def _has_hidden_relative_part(path: Path) -> bool:
     return any(part.startswith(".") for part in path.parts)
+
+
+def _prompt_map(manifest: dict[str, object]) -> dict[str, dict[str, object]]:
+    prompts = manifest.get("prompts")
+    if not isinstance(prompts, list):
+        return {}
+    result = {}
+    for prompt in prompts:
+        if not isinstance(prompt, dict):
+            continue
+        prompt_id = prompt.get("id")
+        if isinstance(prompt_id, str):
+            result[prompt_id] = dict(prompt)
+    return result
 
 
 def _sha256(path: Path) -> str:

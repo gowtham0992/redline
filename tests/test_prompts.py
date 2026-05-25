@@ -118,6 +118,62 @@ class PromptManifestTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_prompts_cli_check_accepts_current_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                prompts = root / "prompts"
+                prompts.mkdir()
+                (prompts / "support.txt").write_text("support prompt\n", encoding="utf-8")
+                self.assertEqual(main(["prompts", "prompts", "--out", "redline-prompts.json"]), 0)
+                output = io.StringIO()
+
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["prompts", "prompts", "--out", "redline-prompts.json", "--check"]), 0)
+
+                self.assertIn("Status:   OK", output.getvalue())
+            finally:
+                os.chdir(previous)
+
+    def test_prompts_cli_check_fails_when_manifest_is_stale(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                prompts = root / "prompts"
+                prompts.mkdir()
+                prompt = prompts / "support.txt"
+                prompt.write_text("support prompt\n", encoding="utf-8")
+                self.assertEqual(main(["prompts", "prompts", "--out", "redline-prompts.json"]), 0)
+                prompt.write_text("changed support prompt\n", encoding="utf-8")
+                output = io.StringIO()
+
+                with contextlib.redirect_stdout(output):
+                    code = main(["prompts", "prompts", "--out", "redline-prompts.json", "--check"])
+
+                self.assertEqual(code, 1)
+                self.assertIn("Status:   OUTDATED", output.getvalue())
+                self.assertIn("Changed:   support", output.getvalue())
+                self.assertIn("Regenerate manifest: redline prompts prompts", output.getvalue())
+            finally:
+                os.chdir(previous)
+
+    def test_prompts_cli_check_requires_output_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prompt = root / "support.txt"
+            prompt.write_text("support prompt\n", encoding="utf-8")
+            stderr = io.StringIO()
+
+            with contextlib.redirect_stderr(stderr):
+                code = main(["prompts", str(prompt), "--check"])
+
+            self.assertEqual(code, 2)
+            self.assertIn("prompts --check requires --out", stderr.getvalue())
+
     def test_prompts_cli_prints_json(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

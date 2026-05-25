@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import subprocess
 import sys
 import webbrowser
@@ -53,7 +54,12 @@ from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_
 from .judge import apply_judge
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import parse_fail_on, should_fail
-from .prompts import build_prompt_manifest, format_prompt_manifest
+from .prompts import (
+    build_prompt_manifest,
+    check_prompt_manifest,
+    format_prompt_manifest,
+    format_prompt_manifest_check,
+)
 from .redact import DEFAULT_PLACEHOLDER, format_redaction_report, redact_jsonl, scan_jsonl_redactions
 from .reports import format_github_annotations, format_html_report, format_junit_report, format_markdown_report
 from .requirements import add_case_requirement, clear_case_requirements
@@ -206,6 +212,7 @@ def build_parser() -> argparse.ArgumentParser:
     prompts_parser.add_argument("path", help="prompt file or directory to scan")
     prompts_parser.add_argument("--suite-dir", default="suites", help="suite directory to map prompt files into")
     prompts_parser.add_argument("--out", help="write manifest JSON to this path")
+    prompts_parser.add_argument("--check", action="store_true", help="exit non-zero when --out manifest is stale")
     prompts_parser.add_argument("--ext", action="append", default=[], help="prompt extension to include; repeat as needed")
     prompts_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     prompts_parser.set_defaults(func=cmd_prompts)
@@ -641,6 +648,16 @@ def cmd_prompts(args: argparse.Namespace) -> int:
         suite_dir=args.suite_dir,
         extensions=args.ext or None,
     )
+    if args.check:
+        if not args.out:
+            raise ValueError("prompts --check requires --out pointing at the existing manifest")
+        stored = read_json(args.out)
+        report = check_prompt_manifest(stored, manifest, manifest_path=args.out)
+        if args.json:
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            print(format_prompt_manifest_check(report, command=_prompts_regenerate_command(args)), end="")
+        return 0 if report["status"] == "ok" else 1
     if args.out:
         write_json(args.out, manifest)
     if args.json:
@@ -1629,3 +1646,10 @@ def _adapter_copy_all_next_steps(results: Sequence[Mapping[str, object]]) -> lis
         if isinstance(next_step, str):
             steps.append(next_step)
     return steps
+
+
+def _prompts_regenerate_command(args: argparse.Namespace) -> str:
+    parts = ["redline", "prompts", str(args.path), "--suite-dir", str(args.suite_dir), "--out", str(args.out)]
+    for extension in args.ext:
+        parts.extend(["--ext", str(extension)])
+    return " ".join(shlex.quote(part) for part in parts)
