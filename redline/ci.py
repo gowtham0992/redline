@@ -63,13 +63,15 @@ jobs:
         run: |
           python -m redline eval "$REDLINE_SUITE_PATH" \\
             --compact \\
-            --github-summary \\
             --github-annotations \\
             --out-json .redline/reports/eval.json \\
             --out-md .redline/reports/eval.md \\
             --out-comment .redline/reports/eval-comment.md \\
             --out-html .redline/reports/eval.html \\
             --out-junit .redline/reports/eval.xml
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f .redline/reports/eval-comment.md ]; then
+            cat .redline/reports/eval-comment.md >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Compare redline trend
         if: always()

@@ -253,7 +253,7 @@ manifest-wide benchmark, then runs the manifest eval.
 
 The action writes JSON, full Markdown, concise PR-comment Markdown, HTML, JUnit,
 history, dashboard, and audit checkpoint artifacts under `.redline/`, appends
-benchmark, report, and trend summaries to the GitHub step summary, and exits
+benchmark, concise eval, and trend summaries to the GitHub step summary, and exits
 with the eval gate status. Set `benchmark-max-seconds` when a suite should fail
 CI if its worst-case runtime budget grows too far.
 

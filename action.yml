@@ -83,7 +83,6 @@ runs:
           "$suite_path"
           --config "${{ inputs.config }}"
           --compact
-          --github-summary
           --github-annotations
           --fail-on "${{ inputs.fail-on }}"
           --out-json .redline/reports/eval.json
@@ -105,6 +104,10 @@ runs:
         python -m redline eval "${eval_args[@]}"
         redline_status=$?
         set -e
+
+        if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f .redline/reports/eval-comment.md ]; then
+          cat .redline/reports/eval-comment.md >> "$GITHUB_STEP_SUMMARY"
+        fi
 
         if [ "${{ inputs.record-history }}" = "true" ] && [ -f .redline/reports/eval.json ]; then
           history_label="${{ inputs.history-label }}"
