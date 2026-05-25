@@ -20,6 +20,7 @@ from .io import (
     read_jsonl_records_from_offset,
     write_jsonl,
 )
+from .redact import DEFAULT_PLACEHOLDER, redact_object
 
 DEFAULT_WATCH_LOG = ".redline/logs/prompts.jsonl"
 READY_RECORDS = 5
@@ -34,6 +35,8 @@ def watch(
     response_extractor: Callable[[Any], Any] | None = None,
     metadata: dict[str, Any] | Callable[..., dict[str, Any]] | None = None,
     dedupe: bool = True,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
 ) -> Callable[..., Any]:
     """Record prompt-response pairs from a Python function.
 
@@ -63,6 +66,8 @@ def watch(
                     kwargs=kwargs,
                     latency_ms=latency_ms,
                     dedupe=dedupe,
+                    redact=redact,
+                    placeholder=placeholder,
                 )
                 return response
 
@@ -85,6 +90,8 @@ def watch(
                 kwargs=kwargs,
                 latency_ms=latency_ms,
                 dedupe=dedupe,
+                redact=redact,
+                placeholder=placeholder,
             )
             return response
 
@@ -104,12 +111,23 @@ def record(
     source_line: int | None = None,
     metadata: dict[str, Any] | None = None,
     dedupe: bool = True,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
 ) -> dict[str, Any]:
     """Append one prompt-response observation to a local JSONL log."""
 
     prompt_text = _stringify_value(prompt)
     response_text = _stringify_value(_response_value(response))
-    provider_metadata = _provider_metadata(response)
+    merged_metadata = {**_provider_metadata(response), **(metadata or {})}
+    redaction_counts: dict[str, int] = {}
+    if redact:
+        prompt_text = _redact_value(prompt_text, counts=redaction_counts, placeholder=placeholder)
+        response_text = _redact_value(response_text, counts=redaction_counts, placeholder=placeholder)
+        merged_metadata = redact_object(
+            merged_metadata,
+            counts=redaction_counts,
+            placeholder=placeholder,
+        )
     content_hash = prompt_response_hash(prompt_text, response_text)
     row = {
         "prompt": prompt_text,
@@ -117,9 +135,11 @@ def record(
         "source": source,
         "source_line": source_line,
         "observed_at": datetime.now(timezone.utc).isoformat(),
-        "metadata": {**provider_metadata, **(metadata or {})},
+        "metadata": merged_metadata,
         "content_hash": content_hash,
     }
+    if redaction_counts:
+        row["redactions"] = dict(sorted(redaction_counts.items()))
     if dedupe and content_hash in _existing_content_hashes(log):
         return {**row, "recorded": False}
     append_jsonl(log, [row])
@@ -134,6 +154,8 @@ def collect_log(
     output_field: str = "response",
     append: bool = True,
     dedupe: bool = True,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
 ) -> dict[str, Any]:
     records = read_jsonl_records(source, input_field, output_field)
     rows = [
@@ -142,6 +164,8 @@ def collect_log(
             source,
             input_field=input_field,
             output_field=output_field,
+            redact=redact,
+            placeholder=placeholder,
         )
         for record in records
     ]
@@ -165,6 +189,7 @@ def collect_log(
     else:
         write_jsonl(output, rows)
         mode = "wrote"
+    redaction_counts = _rows_redaction_counts(rows)
     return {
         "source": str(source),
         "output": str(output),
@@ -173,6 +198,8 @@ def collect_log(
         "skipped_duplicates": skipped_duplicates,
         "dedupe": dedupe,
         "mode": mode,
+        "redactions": sum(redaction_counts.values()),
+        "redaction_patterns": dict(sorted(redaction_counts.items())),
     }
 
 
@@ -256,6 +283,8 @@ def follow_log(
     idle_timeout: float | None = None,
     dedupe: bool = True,
     replace: bool = False,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
     on_records: Callable[[list[dict[str, Any]]], None] | None = None,
 ) -> dict[str, Any]:
     if poll_interval < 0:
@@ -274,6 +303,7 @@ def follow_log(
     offset = 0
     next_line_number = 1
     existing_keys = _existing_keys(output) if append and dedupe else set()
+    redaction_counts: dict[str, int] = {}
     if replace:
         write_jsonl(output, [])
 
@@ -297,6 +327,8 @@ def follow_log(
                 source,
                 input_field=input_field,
                 output_field=output_field,
+                redact=redact,
+                placeholder=placeholder,
             )
             for record in records
         ]
@@ -313,6 +345,7 @@ def follow_log(
                 pending.append(row)
             rows = pending
         if rows:
+            _merge_counts(redaction_counts, _rows_redaction_counts(rows))
             append_jsonl(output, rows)
             if on_records is not None:
                 on_records(rows)
@@ -344,6 +377,8 @@ def follow_log(
         "dedupe": dedupe,
         "mode": "followed",
         "iterations": iterations,
+        "redactions": sum(redaction_counts.values()),
+        "redaction_patterns": dict(sorted(redaction_counts.items())),
     }
 
 
@@ -353,17 +388,27 @@ def _observed_row(
     *,
     input_field: str,
     output_field: str,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
 ) -> dict[str, Any]:
+    prompt = record.prompt
+    response = record.response
+    counts: dict[str, int] = {}
+    if redact:
+        prompt = _redact_value(prompt, counts=counts, placeholder=placeholder)
+        response = _redact_value(response, counts=counts, placeholder=placeholder)
     row = {
-        "prompt": record.prompt,
-        "response": record.response,
+        "prompt": prompt,
+        "response": response,
         "source": str(source),
         "source_line": record.line_number,
         "observed_at": datetime.now(timezone.utc).isoformat(),
-        "content_hash": prompt_response_hash(record.prompt, record.response),
+        "content_hash": prompt_response_hash(prompt, response),
     }
-    row.setdefault(input_field, record.prompt)
-    row.setdefault(output_field, record.response)
+    if redact and counts:
+        row["redactions"] = dict(sorted(counts.items()))
+    row.setdefault(input_field, prompt)
+    row.setdefault(output_field, response)
     return row
 
 
@@ -404,6 +449,8 @@ def _append_function_observation(
     kwargs: dict[str, Any],
     latency_ms: int,
     dedupe: bool,
+    redact: bool,
+    placeholder: str,
 ) -> None:
     response_value = response_extractor(response) if response_extractor else response
     observation_metadata = {
@@ -418,6 +465,8 @@ def _append_function_observation(
         source_line=_function_line(target),
         metadata=observation_metadata,
         dedupe=dedupe,
+        redact=redact,
+        placeholder=placeholder,
     )
 
 
@@ -486,6 +535,27 @@ def _stringify_value(value: Any) -> str:
         return json.dumps(value, sort_keys=True, ensure_ascii=False)
     except TypeError:
         return str(value)
+
+
+def _redact_value(value: str, *, counts: dict[str, int], placeholder: str) -> str:
+    redacted = redact_object(value, counts=counts, placeholder=placeholder)
+    return redacted if isinstance(redacted, str) else _stringify_value(redacted)
+
+
+def _merge_counts(target: dict[str, int], source: dict[str, int]) -> None:
+    for key, value in source.items():
+        target[key] = target.get(key, 0) + value
+
+
+def _rows_redaction_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        redactions = row.get("redactions")
+        if isinstance(redactions, dict):
+            for key, value in redactions.items():
+                if isinstance(key, str) and isinstance(value, int):
+                    counts[key] = counts.get(key, 0) + value
+    return counts
 
 
 def _elapsed_ms(started: float) -> int:

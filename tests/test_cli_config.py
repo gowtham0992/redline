@@ -1601,6 +1601,34 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_watch_reports_default_redaction_and_supports_raw_opt_out(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("source.jsonl").write_text(
+                    '{"prompt": "Email ada@example.com", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["watch", "--log", "source.jsonl", "--replace"]), 0)
+
+                observed = root / ".redline" / "logs" / "prompts.jsonl"
+                self.assertIn("Redacted 1 sensitive value", output.getvalue())
+                self.assertNotIn("ada@example.com", observed.read_text(encoding="utf-8"))
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(
+                        main(["watch", "--log", "source.jsonl", "--replace", "--no-redact"]),
+                        0,
+                    )
+                self.assertIn("ada@example.com", observed.read_text(encoding="utf-8"))
+            finally:
+                os.chdir(previous)
+
     def test_eval_uses_configured_replay_command(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

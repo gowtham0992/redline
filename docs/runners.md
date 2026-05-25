@@ -223,7 +223,8 @@ app.add_middleware(
 ```
 
 What it does: records each JSON request/response pair to
-`.redline/logs/prompts.jsonl`. Nothing leaves disk.
+`.redline/logs/prompts.jsonl`, redacting common secrets and PII before write by
+default. Nothing leaves disk.
 
 Wire it in:
 

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import tempfile
 import unittest
@@ -71,6 +72,36 @@ class WatchTests(unittest.TestCase):
             self.assertTrue(second["recorded"])
             self.assertEqual(len(records), 2)
             self.assertEqual(records[1].response, "friend")
+
+    def test_record_redacts_sensitive_values_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            row = record(
+                "Email ada@example.com with key sk-abcdefghijklmnopqrstuvwxyz",
+                "Use token ghp_abcdefghijklmnopqrstuvwxyz",
+                log=log,
+                metadata={"api_key": "secret", "note": "owner bob@example.com"},
+            )
+
+            raw = json.loads(log.read_text(encoding="utf-8"))
+            self.assertNotIn("ada@example.com", raw["prompt"])
+            self.assertNotIn("sk-abcdefghijklmnopqrstuvwxyz", raw["prompt"])
+            self.assertNotIn("ghp_abcdefghijklmnopqrstuvwxyz", raw["response"])
+            self.assertNotIn("bob@example.com", raw["metadata"]["note"])
+            self.assertEqual(raw["metadata"]["api_key"], "[REDACTED]")
+            self.assertEqual(row["redactions"]["email"], 2)
+            self.assertEqual(row["redactions"]["sensitive_field"], 1)
+
+    def test_record_can_write_raw_values_when_redaction_is_disabled(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            record("Email ada@example.com", "ok", log=log, redact=False)
+
+            raw = json.loads(log.read_text(encoding="utf-8"))
+            self.assertEqual(raw["prompt"], "Email ada@example.com")
+            self.assertNotIn("redactions", raw)
 
     def test_record_extracts_openai_chat_response_text_and_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -305,6 +336,24 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(records[0].raw["source"], str(source))
             self.assertEqual(records[0].raw["source_line"], 1)
             self.assertIn("observed_at", records[0].raw)
+
+    def test_collect_log_redacts_extracted_fields_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.jsonl"
+            output = root / "observed.jsonl"
+            source.write_text(
+                '{"prompt": "Email ada@example.com", "response": "token ghp_abcdefghijklmnopqrstuvwxyz"}\n',
+                encoding="utf-8",
+            )
+
+            result = collect_log(source, output=output, append=False)
+
+            raw = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(result["redactions"], 2)
+            self.assertEqual(result["redaction_patterns"], {"email": 1, "github_token": 1})
+            self.assertEqual(raw["prompt"], "Email [REDACTED]")
+            self.assertEqual(raw["response"], "token [REDACTED]")
 
     def test_collect_log_skips_duplicate_source_lines_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

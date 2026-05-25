@@ -179,6 +179,8 @@ def build_parser() -> argparse.ArgumentParser:
     watch_parser.add_argument("--output-field", help="JSONL output field")
     watch_parser.add_argument("--replace", action="store_true", help="replace the observed log instead of appending")
     watch_parser.add_argument("--allow-duplicates", action="store_true", help="append records even if source lines were already collected")
+    watch_parser.add_argument("--no-redact", action="store_true", help="write raw values without automatic watch redaction")
+    watch_parser.add_argument("--redaction-placeholder", default=DEFAULT_PLACEHOLDER, help="replacement text for watch redaction")
     watch_parser.add_argument("--stats", action="store_true", help="summarize the observed watch log")
     watch_parser.add_argument("--follow", action="store_true", help="keep polling the source log for new records")
     watch_parser.add_argument("--poll-interval", type=float, default=1.0, help="seconds between follow polls")
@@ -564,6 +566,8 @@ def cmd_watch(args: argparse.Namespace) -> int:
             idle_timeout=args.idle_timeout,
             dedupe=not args.allow_duplicates,
             replace=args.replace,
+            redact=not args.no_redact,
+            placeholder=args.redaction_placeholder,
             on_records=on_records if not args.json else None,
         )
     else:
@@ -574,6 +578,8 @@ def cmd_watch(args: argparse.Namespace) -> int:
             output_field=output_field,
             append=not args.replace,
             dedupe=not args.allow_duplicates,
+            redact=not args.no_redact,
+            placeholder=args.redaction_placeholder,
         )
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
@@ -581,6 +587,8 @@ def cmd_watch(args: argparse.Namespace) -> int:
         print(f"Collected {result['records']} new prompt-response pairs from {Path(args.log)}.")
         if result["skipped_duplicates"]:
             print(f"Skipped {result['skipped_duplicates']} duplicate records.")
+        if result.get("redactions"):
+            print(f"Redacted {result['redactions']} sensitive value(s).")
         print(f"{str(result['mode']).title()} {Path(str(result['output']))}.")
     return 0
 

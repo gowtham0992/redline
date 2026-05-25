@@ -4,6 +4,7 @@ import json
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from .redact import DEFAULT_PLACEHOLDER
 from .watch import DEFAULT_WATCH_LOG, record
 
 
@@ -32,6 +33,8 @@ class RedlineMiddleware:
         response_field: str = "response",
         metadata: Metadata | None = None,
         dedupe: bool = True,
+        redact: bool = True,
+        placeholder: str = DEFAULT_PLACEHOLDER,
     ) -> None:
         self.app = app
         self.log = log
@@ -39,6 +42,8 @@ class RedlineMiddleware:
         self.response_field = response_field
         self.metadata = metadata
         self.dedupe = dedupe
+        self.redact = redact
+        self.placeholder = placeholder
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope.get("type") != "http":
@@ -98,6 +103,8 @@ class RedlineMiddleware:
                 **_metadata(self.metadata, scope, request_json, response_json),
             },
             dedupe=self.dedupe,
+            redact=self.redact,
+            placeholder=self.placeholder,
         )
 
 
