@@ -83,13 +83,13 @@ jobs:
             echo "No redline eval report found at .redline/reports/eval.json; skipping history."
           fi
 
-      - name: Render redline dashboard
-        if: always()
-        run: python -m redline dashboard --out .redline/dashboard.html
-
       - name: Write redline audit checkpoint
         if: always()
         run: python -m redline audit --verify --out-checkpoint .redline/audit-checkpoint.json
+
+      - name: Render redline dashboard
+        if: always()
+        run: python -m redline dashboard --out .redline/dashboard.html
 
       - name: Upload redline reports
         if: always()

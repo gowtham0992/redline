@@ -102,13 +102,13 @@ runs:
             --fail-on none
         fi
 
-        if [ "${{ inputs.render-dashboard }}" = "true" ]; then
-          python -m redline dashboard --out .redline/dashboard.html
-        fi
-
         python -m redline audit \
           --config "${{ inputs.config }}" \
           --verify \
           --out-checkpoint .redline/audit-checkpoint.json
+
+        if [ "${{ inputs.render-dashboard }}" = "true" ]; then
+          python -m redline dashboard --out .redline/dashboard.html
+        fi
 
         exit "$redline_status"

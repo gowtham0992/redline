@@ -295,6 +295,8 @@ redline summary redline-suite.json
 
 `summary` reports cluster/case coverage, owner coverage, accepted baseline
 history, and approver coverage so teams can review suite readiness before CI.
+`dashboard` also shows audit checkpoint evidence when `.redline/audit-checkpoint.json`
+is present.
 
 ## Dogfood Assets
 

@@ -116,11 +116,11 @@ GITHUB_STEP_SUMMARY="$summary_path" "$venv_dir/bin/redline" history \
   --github-summary \
   --fail-on none
 
-printf '\n$ redline dashboard --out .redline/dashboard.html\n'
-"$venv_dir/bin/redline" dashboard --out .redline/dashboard.html
-
 printf '\n$ redline audit --verify --out-checkpoint .redline/audit-checkpoint.json\n'
 "$venv_dir/bin/redline" audit --verify --out-checkpoint .redline/audit-checkpoint.json
+
+printf '\n$ redline dashboard --out .redline/dashboard.html\n'
+"$venv_dir/bin/redline" dashboard --out .redline/dashboard.html
 
 test -s .redline/history.jsonl
 test -s .redline/history.md

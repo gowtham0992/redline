@@ -386,6 +386,7 @@ def build_parser() -> argparse.ArgumentParser:
     dashboard_parser = subparsers.add_parser("dashboard", help="write a local HTML report dashboard")
     dashboard_parser.add_argument("--reports-dir", default=".redline/reports", help="directory containing redline JSON reports")
     dashboard_parser.add_argument("--history", default=".redline/history.jsonl", help="history JSONL path")
+    dashboard_parser.add_argument("--checkpoint", default=".redline/audit-checkpoint.json", help="audit checkpoint JSON path")
     dashboard_parser.add_argument("--out", default=".redline/dashboard.html", help="dashboard HTML output path")
     dashboard_parser.add_argument("--limit", type=int, default=20, help="recent reports/history entries to include; use 0 for all")
     dashboard_parser.add_argument("--open", action="store_true", help="open the dashboard in the default browser")
@@ -1117,6 +1118,7 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
     dashboard = build_dashboard(
         reports_dir=args.reports_dir,
         history_path=args.history,
+        checkpoint_path=args.checkpoint,
         limit=args.limit,
     )
     write_text(args.out, format_dashboard_html(dashboard, output_path=args.out))
@@ -1128,6 +1130,7 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
         print(f"Wrote {Path(args.out)}.")
         print(f"Reports: {len(dashboard['reports'])}")
         print(f"History: {len(dashboard['history'])}")
+        print(f"Checkpoint: {'yes' if dashboard.get('checkpoint') else 'no'}")
         print(f"Warnings: {len(dashboard.get('errors', []))}")
         if args.open:
             print("Opened dashboard in the default browser.")

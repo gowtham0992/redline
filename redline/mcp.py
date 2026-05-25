@@ -675,6 +675,7 @@ def _tools() -> list[ToolSpec]:
                 {
                     "reports_dir": _string("Directory containing redline JSON reports."),
                     "history": _string("History JSONL path."),
+                    "checkpoint": _string("Audit checkpoint JSON path."),
                     "out": _string("Dashboard HTML output path."),
                     "limit": _integer("Recent reports/history entries to include; use 0 for all."),
                     "json": _boolean("Print machine-readable dashboard metadata."),
@@ -878,6 +879,7 @@ def _build_dashboard(arguments: dict[str, Any]) -> list[str]:
     args = ["dashboard"]
     _add_option(args, "--reports-dir", arguments.get("reports_dir"))
     _add_option(args, "--history", arguments.get("history"))
+    _add_option(args, "--checkpoint", arguments.get("checkpoint"))
     _add_option(args, "--out", arguments.get("out"))
     _add_option(args, "--limit", arguments.get("limit"))
     _add_flag(args, "--json", arguments.get("json"))

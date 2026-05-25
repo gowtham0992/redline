@@ -15,23 +15,27 @@ def build_dashboard(
     *,
     reports_dir: str | Path = ".redline/reports",
     history_path: str | Path = ".redline/history.jsonl",
+    checkpoint_path: str | Path = ".redline/audit-checkpoint.json",
     limit: int = 20,
 ) -> dict[str, Any]:
     if limit < 0:
         raise ValueError("dashboard --limit must be 0 or greater")
     reports, report_errors = _collect_reports(Path(reports_dir), limit=limit)
     history, history_errors = _collect_history(Path(history_path), limit=limit)
+    checkpoint, checkpoint_errors = _collect_checkpoint(Path(checkpoint_path))
     trend = history_trend(list(reversed(history))) if history else history_trend([])
     return {
         "version": "0.1",
         "reports_dir": str(reports_dir),
         "history_path": str(history_path),
+        "checkpoint_path": str(checkpoint_path),
         "reports": reports,
         "history": history,
+        "checkpoint": checkpoint,
         "trend": trend,
         "owners": _dashboard_owner_review(reports),
         "trust": _dashboard_trust_summary(reports),
-        "errors": report_errors + history_errors,
+        "errors": report_errors + history_errors + checkpoint_errors,
         "scope": TRUST_SCOPE,
     }
 
@@ -57,6 +61,9 @@ def format_dashboard_html(
     trust = dashboard.get("trust")
     if not isinstance(trust, dict):
         trust = _dashboard_trust_summary([report for report in reports if isinstance(report, dict)])
+    checkpoint = dashboard.get("checkpoint")
+    if not isinstance(checkpoint, dict):
+        checkpoint = {}
     raw_trend = dashboard.get("trend")
     trend = raw_trend if isinstance(raw_trend, dict) else history_trend(list(reversed(history)))
     latest = reports[0] if reports and isinstance(reports[0], dict) else {}
@@ -81,6 +88,7 @@ def format_dashboard_html(
             _overview(latest, len(reports), len(history)),
             _trend_panel(trend),
             _scope(str(dashboard.get("scope") or TRUST_SCOPE)),
+            _checkpoint_panel(checkpoint),
             _trust_panel(trust),
             _owners_panel(owners),
             _errors(errors),
@@ -143,6 +151,16 @@ def _collect_history(history_path: Path, *, limit: int) -> tuple[list[dict[str, 
     if limit:
         entries = entries[-limit:]
     return list(reversed(entries)), []
+
+
+def _collect_checkpoint(checkpoint_path: Path) -> tuple[dict[str, Any] | None, list[dict[str, str]]]:
+    if not checkpoint_path.exists():
+        return None, []
+    try:
+        checkpoint = read_json(checkpoint_path)
+    except ValueError as exc:
+        return None, [{"path": str(checkpoint_path), "message": str(exc)}]
+    return {**checkpoint, "path": str(checkpoint_path)}, []
 
 
 def _report_kind(report: dict[str, Any], path: Path) -> str:
@@ -328,6 +346,31 @@ def _trust_panel(trust: dict[str, Any]) -> str:
         '<div class="trust-grid">'
         f'<div><span>Confidence</span><p>{confidence_pills or "-"}</p></div>'
         f'<div><span>Signal</span><p>{signal_pills or "-"}</p></div>'
+        "</div>"
+        "</section>"
+    )
+
+
+def _checkpoint_panel(checkpoint: dict[str, Any]) -> str:
+    if not checkpoint:
+        return ""
+    status = "OK" if checkpoint.get("ok") else "FAILED"
+    entries = int(checkpoint.get("entries") or 0)
+    signed = int(checkpoint.get("signed_entries") or 0)
+    unsigned = int(checkpoint.get("unsigned_entries") or 0)
+    last_hash = str(checkpoint.get("last_hash") or "")
+    path = str(checkpoint.get("path") or "")
+    events = checkpoint.get("events_by_type")
+    event_pills = _count_pills(events) if isinstance(events, dict) else ""
+    return (
+        '<section class="panel trust-review">'
+        "<h2>Audit Checkpoint</h2>"
+        '<div class="trust-grid">'
+        f"<div><span>Status</span><p>{_h(status)}</p></div>"
+        f"<div><span>Entries</span><p>{entries} signed {signed} unsigned {unsigned}</p></div>"
+        f"<div><span>Last hash</span><p><code>{_h(last_hash or '-')}</code></p></div>"
+        f"<div><span>Path</span><p><code>{_h(path or '-')}</code></p></div>"
+        f"<div><span>Events</span><p>{event_pills or '-'}</p></div>"
         "</div>"
         "</section>"
     )
@@ -589,6 +632,7 @@ h2 { font-size: 18px; margin-bottom: 12px; }
 }
 .trust-grid span { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; }
 .trust-grid p { margin-top: 8px; }
+.trust-grid code { overflow-wrap: anywhere; }
 .card {
   border: 1px solid var(--line);
   border-radius: 8px;

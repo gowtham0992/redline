@@ -55,8 +55,21 @@ class DashboardTests(unittest.TestCase):
                 + "\n",
                 encoding="utf-8",
             )
+            checkpoint = root / ".redline" / "audit-checkpoint.json"
+            write_json(
+                checkpoint,
+                {
+                    "schema": "redline-audit-checkpoint-v1",
+                    "ok": True,
+                    "entries": 3,
+                    "signed_entries": 3,
+                    "unsigned_entries": 0,
+                    "last_hash": "abc123",
+                    "events_by_type": {"eval_run": 1, "suite_generated": 1},
+                },
+            )
 
-            dashboard = build_dashboard(reports_dir=reports, history_path=history)
+            dashboard = build_dashboard(reports_dir=reports, history_path=history, checkpoint_path=checkpoint)
             html = format_dashboard_html(dashboard, output_path=root / ".redline" / "dashboard.html")
 
             self.assertEqual(len(dashboard["reports"]), 1)
@@ -77,10 +90,14 @@ class DashboardTests(unittest.TestCase):
                     "signal": {"judge": 1, "structural": 1},
                 },
             )
+            self.assertEqual(dashboard["checkpoint"]["entries"], 3)
             self.assertIn("<title>redline dashboard</title>", html)
             self.assertIn("eval.json", html)
             self.assertIn("<h2>Trend</h2>", html)
             self.assertIn("<h2>Trust Signals</h2>", html)
+            self.assertIn("<h2>Audit Checkpoint</h2>", html)
+            self.assertIn("abc123", html)
+            self.assertIn("eval run 1", html)
             self.assertIn("high 1", html)
             self.assertIn("structural 1", html)
             self.assertIn("<h2>Owner Review</h2>", html)
@@ -128,6 +145,25 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("Skipped Files", html)
             self.assertIn("bad.json", html)
             self.assertIn("missing summary object", html)
+
+    def test_dashboard_reports_invalid_checkpoint_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            checkpoint = root / ".redline" / "audit-checkpoint.json"
+            checkpoint.parent.mkdir(parents=True)
+            checkpoint.write_text("{not json\n", encoding="utf-8")
+
+            dashboard = build_dashboard(
+                reports_dir=root / ".redline" / "reports",
+                history_path=root / ".redline" / "history.jsonl",
+                checkpoint_path=checkpoint,
+            )
+            html = format_dashboard_html(dashboard)
+
+            self.assertIsNone(dashboard["checkpoint"])
+            self.assertEqual(len(dashboard["errors"]), 1)
+            self.assertIn("Skipped Files", html)
+            self.assertIn("audit-checkpoint.json", html)
 
     def test_cli_writes_dashboard_html(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
