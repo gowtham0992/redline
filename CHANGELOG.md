@@ -37,12 +37,16 @@
 - Detect common Spanish, French, Portuguese, German, Chinese, and Japanese AI refusal phrasing.
 - Add owner review rollups to Markdown and HTML reports for PR triage.
 - Add review command guidance to Markdown reports for intentional changes.
+- Add review command guidance to HTML reports for intentional changes.
 - Show owner coverage and top owners in `redline summary`.
 - Roll up blocking and changed cases by owner in the local dashboard.
+- Show blocking and changed review counts in the dashboard reports table.
 - Summarize confidence and signal mix in the local dashboard.
 - Include event-type counts in audit verification output.
 - Show cluster-level selected-case coverage in `redline cluster`.
+- Show human-readable behavior labels in cluster output and diff/eval reports.
 - Add `redline prompts --check-suites` to catch prompt manifest entries without built suites.
+- Print ready `redline eval <suite> --prompt <file>` commands from prompt manifest suite checks.
 - Expose prompt manifest suite-readiness checks through the MCP server.
 - Add audit checkpoint files from `redline audit --verify --out-checkpoint`.
 - Show accepted-baseline and approver coverage in `redline summary`.
@@ -81,10 +85,12 @@
 - Print repair-oriented next steps from `redline validate` when suite health checks fail.
 - Show suite provenance, selection mode, and pinned-case counts in `redline summary`.
 - Show suite cluster/case coverage ratios and recommended next steps in `redline summary`.
+- Point coverage-gap summaries to a concrete `redline suite add` command when the suite path is known.
 - Show source log provenance in `redline case` detail output.
 - Mark pinned cases in `redline cases` table and JSON rows.
 - Show pinned status in `redline case` detail output.
 - Show case selection reasons and cluster risk in case lists and details.
+- Point `redline cases` output to `redline case <id>` for full prompt and baseline details.
 - Guard generated config keys against schema documentation drift.
 - Lead `redline runners` output with the provider-agnostic stdin/stdout contract.
 - Print adapter-specific setup hints after copying runner templates.
@@ -95,6 +101,7 @@
 - Keep `redline init --help` focused on replay-capable runner adapters.
 - Show replay and log-import next steps after copying all adapters.
 - Keep top-level `redline --help` on the curated first-run path.
+- Include the review loop in top-level `redline --help`.
 - Keep comma-formatted numbers, percentages, and times readable in regression reasons.
 - Preserve baseline order when reporting missing numbers, URLs, and entities.
 - Strip trailing sentence punctuation from extracted URLs.
