@@ -92,6 +92,7 @@ def format_dashboard_html(
             _trust_panel(trust),
             _owners_panel(owners),
             _errors(errors),
+            _prompt_evals_panel(latest.get("prompt_evals") if isinstance(latest, dict) else []),
             _reports_table(reports, output_path=output_path),
             _history_table(history, output_path=output_path),
             "</main>",
@@ -135,6 +136,7 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
                 "owners": _report_owner_review(report.get("diffs")),
                 "trust": _report_trust_summary(report.get("diffs")),
                 "review": _report_review_summary(report.get("diffs")),
+                "prompt_evals": _report_prompt_evals(report.get("prompt_evals")),
                 "html_path": _existing_sibling(path, ".html"),
                 "markdown_path": _existing_sibling(path, ".md"),
             }
@@ -273,6 +275,27 @@ def _report_review_summary(diffs: Any) -> dict[str, int]:
         elif status == "changed":
             changed += 1
     return {"reviewable": blocking + changed, "blocking": blocking, "changed": changed}
+
+
+def _report_prompt_evals(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    rows = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        summary = item.get("summary")
+        decision = item.get("decision")
+        rows.append(
+            {
+                "id": str(item.get("id") or ""),
+                "prompt": str(item.get("prompt") or ""),
+                "suite": str(item.get("suite") or ""),
+                "summary": _summary_counts(summary) if isinstance(summary, dict) else {},
+                "decision": decision if isinstance(decision, dict) else {},
+            }
+        )
+    return rows
 
 
 def _dashboard_trust_summary(reports: list[dict[str, Any]]) -> dict[str, Any]:
@@ -516,6 +539,41 @@ def _reports_table(reports: list[Any], *, output_path: str | Path | None) -> str
         '<div class="table-wrap">'
         "<table>"
         "<thead><tr><th>Report</th><th>Summary</th><th>Review</th><th>Decision</th><th>Links</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table>"
+        "</div>"
+        "</section>"
+    )
+
+
+def _prompt_evals_panel(prompt_evals: Any) -> str:
+    if not isinstance(prompt_evals, list) or not prompt_evals:
+        return ""
+    rows = []
+    for item in prompt_evals:
+        if not isinstance(item, dict):
+            continue
+        summary = item.get("summary")
+        decision = item.get("decision")
+        decision_text = ""
+        if isinstance(decision, dict):
+            decision_text = str(decision.get("recommended_action") or "")
+        rows.append(
+            "<tr>"
+            f"<td><strong>{_h(str(item.get('id') or '-'))}</strong><span>{_h(str(item.get('prompt') or '-'))}</span></td>"
+            f"<td><code>{_h(str(item.get('suite') or '-'))}</code></td>"
+            f"<td>{_summary_pills(summary if isinstance(summary, dict) else {})}</td>"
+            f"<td>{_h(decision_text or '-')}</td>"
+            "</tr>"
+        )
+    if not rows:
+        return ""
+    return (
+        '<section class="panel prompt-evals">'
+        "<h2>Prompt Evals</h2>"
+        '<div class="table-wrap">'
+        "<table>"
+        "<thead><tr><th>Prompt</th><th>Suite</th><th>Summary</th><th>Decision</th></tr></thead>"
         f"<tbody>{''.join(rows)}</tbody>"
         "</table>"
         "</div>"

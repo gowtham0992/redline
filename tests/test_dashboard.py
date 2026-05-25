@@ -22,6 +22,15 @@ class DashboardTests(unittest.TestCase):
                     "neutral": 0,
                 },
                 "decision": {"recommended_action": "review changed cases before shipping"},
+                "prompt_evals": [
+                    {
+                        "id": "support/triage",
+                        "prompt": "prompts/support/triage.txt",
+                        "suite": "suites/support/triage.redline-suite.json",
+                        "summary": {"cases": 2, "regression": 1, "changed": 1},
+                        "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    }
+                ],
                 "diffs": [
                     {
                         "case_id": "case_001",
@@ -95,8 +104,24 @@ class DashboardTests(unittest.TestCase):
                 {"reviewable": 2, "blocking": 1, "changed": 1},
             )
             self.assertEqual(dashboard["checkpoint"]["entries"], 3)
+            self.assertEqual(
+                dashboard["reports"][0]["prompt_evals"],
+                [
+                    {
+                        "id": "support/triage",
+                        "prompt": "prompts/support/triage.txt",
+                        "suite": "suites/support/triage.redline-suite.json",
+                        "summary": {"cases": 2, "regression": 1, "changed": 1},
+                        "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    }
+                ],
+            )
             self.assertIn("<title>redline dashboard</title>", html)
             self.assertIn("eval.json", html)
+            self.assertIn("<h2>Prompt Evals</h2>", html)
+            self.assertIn("support/triage", html)
+            self.assertIn("prompts/support/triage.txt", html)
+            self.assertIn("suites/support/triage.redline-suite.json", html)
             self.assertIn("<th>Review</th>", html)
             self.assertIn("blocking 1", html)
             self.assertIn("changed 1", html)
