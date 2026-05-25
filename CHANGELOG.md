@@ -58,6 +58,7 @@
 - Warn in the dashboard when reports exist without benchmark evidence.
 - Show owner coverage and top owners in `redline summary`.
 - Show explicit guard coverage in `redline summary` for cases with requirements or recorded judgments.
+- Show explicit guard coverage in `redline doctor` before teams rely on structural checks in CI.
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Show blocking and changed review counts in the dashboard reports table.
 - Group prompt manifest evals by feature in the local dashboard.

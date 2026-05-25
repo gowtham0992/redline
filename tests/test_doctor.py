@@ -107,6 +107,7 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("judge: configured", output)
         self.assertIn("coverage: structural checks only", output)
         self.assertIn("requirements=0; judge=yes", output)
+        self.assertIn("explicit guards=0/1", output)
         self.assertIn("team-workflow: owners=0/1; owner rules=0; approval required=no", output)
         self.assertIn("reports: json=.redline/reports/doctor.json", output)
         self.assertIn("comment=.redline/reports/doctor-comment.md", output)
@@ -171,6 +172,8 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(validation["status"], "ok")
         coverage = next(check for check in report["checks"] if check["name"] == "coverage")
         self.assertIn("requirements=0; judge=no", coverage["message"])
+        self.assertIn("explicit guards=0/1", coverage["message"])
+        self.assertIn("no explicit requirements or recorded judgments yet", coverage["message"])
         workflow = next(check for check in report["checks"] if check["name"] == "team-workflow")
         self.assertIn("owners=0/1", workflow["message"])
 
@@ -322,6 +325,7 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(coverage["status"], "ok")
         self.assertIn("high-risk clusters=1", coverage["message"])
         self.assertIn("requirements=0; judge=no", coverage["message"])
+        self.assertIn("explicit guards=0/1", coverage["message"])
         self.assertIn("add requirements or a judge", coverage["message"])
 
     def test_doctor_surfaces_team_workflow_posture(self) -> None:

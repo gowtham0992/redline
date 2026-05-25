@@ -385,6 +385,8 @@ redline validate redline-suite.json --strict
 redline summary redline-suite.json
 ```
 
+`doctor` shows whether the suite has explicit requirements or recorded
+judgments before you rely on structural checks in CI.
 `summary` reports cluster/case coverage, owner coverage, accepted baseline
 history, approver coverage, and explicit guard coverage for cases with
 requirements or recorded judgments so teams can review suite readiness before CI.

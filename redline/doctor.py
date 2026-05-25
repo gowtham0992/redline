@@ -8,7 +8,7 @@ from typing import Any
 
 from .audit import DEFAULT_AUDIT_PATH, verify_audit_log
 from .runners import runner_adapters
-from .summary import prompt_manifest_summary
+from .summary import prompt_manifest_summary, suite_summary
 from .validate import validate_prompt_manifest, validate_suite
 from .watch import DEFAULT_MIDDLEWARE_SKIP_LOG, DEFAULT_WATCH_LOG, watch_stats
 
@@ -225,30 +225,41 @@ def _coverage_check(
         return {"status": "ok", "name": "coverage", "message": message}
 
     if manifest_summary is not None:
+        cases_count = _manifest_int(manifest_summary, "cases")
+        explicit_guard_cases = _manifest_int(manifest_summary, "explicit_guard_cases")
         requirements_count = _manifest_int(manifest_summary, "requirements")
         high_risk_clusters = _manifest_int(manifest_summary, "high_risk_clusters")
         judge_configured = "judge" in config
         message += (
             f"; high-risk clusters={high_risk_clusters}; "
-            f"requirements={requirements_count}; judge={'yes' if judge_configured else 'no'}"
+            f"requirements={requirements_count}; "
+            f"judge={'yes' if judge_configured else 'no'}; "
+            f"explicit guards={explicit_guard_cases}/{cases_count}"
         )
         if high_risk_clusters and not requirements_count and not judge_configured:
             message += "; add requirements or a judge before trusting semantic quality"
+        elif cases_count and not explicit_guard_cases and not judge_configured:
+            message += "; no explicit requirements or recorded judgments yet"
         return {"status": "ok", "name": "coverage", "message": message}
 
+    summary_report = suite_summary(suite)
     summary = suite.get("summary")
-    if not isinstance(summary, dict):
-        summary = {}
-    requirements = suite.get("requirements")
-    requirements_count = len(requirements) if isinstance(requirements, dict) else 0
+    summary = summary if isinstance(summary, dict) else {}
+    cases_count = int(summary_report.get("cases") or 0)
+    explicit_guard_cases = int(summary_report.get("explicit_guard_cases") or 0)
+    requirements_count = int(summary_report.get("requirements") or 0)
     high_risk_clusters = _high_risk_cluster_count(suite, summary)
     judge_configured = "judge" in config
     message += (
         f"; high-risk clusters={high_risk_clusters}; "
-        f"requirements={requirements_count}; judge={'yes' if judge_configured else 'no'}"
+        f"requirements={requirements_count}; "
+        f"judge={'yes' if judge_configured else 'no'}; "
+        f"explicit guards={explicit_guard_cases}/{cases_count}"
     )
     if high_risk_clusters and not requirements_count and not judge_configured:
         message += "; add requirements or a judge before trusting semantic quality"
+    elif cases_count and not explicit_guard_cases and not judge_configured:
+        message += "; no explicit requirements or recorded judgments yet"
     return {"status": "ok", "name": "coverage", "message": message}
 
 
