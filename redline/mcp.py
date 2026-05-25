@@ -102,7 +102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "redline-mcp\n\n"
             "Local MCP stdio server for redline.\n\n"
             "Run this command from an MCP client. It exposes redline doctor, suite,\n"
-            "watch stats, prompts, judges, redact, audit, benchmark, validate, summary, diff, eval, history, dashboard, cases, and case tools.\n",
+            "watch stats, prompts, runners, judges, redact, audit, benchmark, validate, summary, diff, eval, history, dashboard, cases, and case tools.\n",
             end="",
         )
         return 0
@@ -519,6 +519,19 @@ def _tools() -> list[ToolSpec]:
             _build_judges,
         ),
         ToolSpec(
+            "redline_runners",
+            "List or copy runner adapters for replay commands, log import, and SDK capture.",
+            _schema(
+                {
+                    "copy": _string("Runner adapter id to copy, or all."),
+                    "out": _string("Output path for one copied adapter."),
+                    "force": _boolean("Overwrite existing output path."),
+                    "json": _boolean("Print machine-readable JSON."),
+                }
+            ),
+            _build_runners,
+        ),
+        ToolSpec(
             "redline_validate",
             "Validate suite structure, stored features, hashes, requirements, and source freshness.",
             _schema(
@@ -749,6 +762,15 @@ def _build_prompts(arguments: dict[str, Any]) -> list[str]:
 
 def _build_judges(arguments: dict[str, Any]) -> list[str]:
     args = ["judges"]
+    _add_option(args, "--copy", arguments.get("copy"))
+    _add_option(args, "--out", arguments.get("out"))
+    _add_flag(args, "--force", arguments.get("force"))
+    _add_flag(args, "--json", arguments.get("json"))
+    return args
+
+
+def _build_runners(arguments: dict[str, Any]) -> list[str]:
+    args = ["runners"]
     _add_option(args, "--copy", arguments.get("copy"))
     _add_option(args, "--out", arguments.get("out"))
     _add_flag(args, "--force", arguments.get("force"))

@@ -47,6 +47,7 @@
 - Show accepted-baseline and approver coverage in `redline summary`.
 - Validate mapped suite files during `redline prompts --check-suites`.
 - Expose optional judge template discovery and copy through MCP.
+- Expose runner adapter discovery and copy through MCP.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Capture prompt-response pairs from Python functions with the local `@watch` decorator and `record()` helper, with exact duplicate observations skipped by content hash.
 - Normalize common provider response objects and capture latency/token metadata from watched Python calls.

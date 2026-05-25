@@ -34,6 +34,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_watch_stats", names)
         self.assertIn("redline_prompts", names)
         self.assertIn("redline_judges", names)
+        self.assertIn("redline_runners", names)
         self.assertIn("redline_benchmark", names)
         self.assertIn("redline_eval", names)
         self.assertIn("redline_diff", names)
@@ -370,6 +371,29 @@ class McpServerTests(unittest.TestCase):
         self.assertTrue(copied_exists)
         self.assertIn("Wrote judges/support.md.", copy_result["content"][0]["text"])
         self.assertIn("REDLINE_JUDGE_RUBRIC=judges/support.md", copy_result["content"][0]["text"])
+
+    def test_runners_tool_lists_and_copies_replay_adapters(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            list_result = call_tool("redline_runners", {"cwd": directory})
+            copy_result = call_tool(
+                "redline_runners",
+                {
+                    "cwd": directory,
+                    "copy": "http",
+                    "out": "runners/http.py",
+                },
+            )
+            copied = Path(directory) / "runners" / "http.py"
+            copied_exists = copied.exists()
+
+        self.assertFalse(list_result["isError"])
+        self.assertIn("redline runners", list_result["content"][0]["text"])
+        self.assertIn("HTTP API", list_result["content"][0]["text"])
+        self.assertFalse(copy_result["isError"])
+        self.assertEqual(copy_result["structuredContent"]["exit_code"], 0)
+        self.assertTrue(copied_exists)
+        self.assertIn("Wrote runners/http.py.", copy_result["content"][0]["text"])
+        self.assertIn("Replay: python runners/http.py", copy_result["content"][0]["text"])
 
     def test_unknown_tool_returns_jsonrpc_error(self) -> None:
         response = handle_jsonrpc_line(

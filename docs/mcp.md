@@ -60,6 +60,7 @@ Available tools:
 - `redline_redact`
 - `redline_watch_stats`
 - `redline_prompts`
+- `redline_runners`
 - `redline_judges`
 - `redline_validate`
 - `redline_summary`
