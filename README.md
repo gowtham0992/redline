@@ -237,6 +237,10 @@ Use redline as a composite GitHub Action from another repo:
     benchmark-max-seconds: "300"
 ```
 
+For multi-prompt repos, point `suite` at `redline-prompts.json`. The action
+checks every mapped suite with `redline prompts --check --check-suites`, runs the
+manifest eval, and skips the single-suite benchmark with an explicit note.
+
 The action writes JSON, Markdown, HTML, JUnit, history, dashboard, and audit checkpoint artifacts
 under `.redline/`, appends benchmark, report, and trend summaries to the
 GitHub step summary, and exits with the eval gate status. Set

@@ -7,7 +7,7 @@ inputs:
     description: Path to redline.json.
     default: redline.json
   suite:
-    description: Path to the committed redline suite.
+    description: Path to the committed redline suite or prompt manifest.
     default: redline-suite.json
   prompt-path:
     description: Optional prompt template file to evaluate.
@@ -48,22 +48,40 @@ runs:
         cd "${{ inputs.working-directory }}"
         mkdir -p .redline/reports
 
+        suite_path="${{ inputs.suite }}"
+        suite_schema="$(python -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("schema", ""))' "$suite_path")"
+
         python -m redline doctor --config "${{ inputs.config }}" --strict
-        python -m redline validate "${{ inputs.suite }}" --config "${{ inputs.config }}" --strict
-        benchmark_args=(
-          "${{ inputs.suite }}"
-          --config "${{ inputs.config }}"
-          --github-summary
-          --out-json .redline/reports/benchmark.json
-          --out-md .redline/reports/benchmark.md
-        )
-        if [ -n "${{ inputs.benchmark-max-seconds }}" ]; then
-          benchmark_args+=(--max-seconds "${{ inputs.benchmark-max-seconds }}")
+        if [ "$suite_schema" = "redline-prompt-manifest-v1" ]; then
+          if [ -n "${{ inputs.prompt-path }}" ]; then
+            echo "::error::prompt-path is not supported when suite points to a redline prompt manifest"
+            exit 1
+          fi
+          manifest_root="$(python -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("root", "prompts"))' "$suite_path")"
+          manifest_suite_dir="$(python -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("suite_dir", "suites"))' "$suite_path")"
+          python -m redline prompts "$manifest_root" \
+            --suite-dir "$manifest_suite_dir" \
+            --out "$suite_path" \
+            --check \
+            --check-suites
+          echo "Prompt manifest detected; skipping single-suite benchmark. Benchmark mapped suites individually when you need a CI runtime budget."
+        else
+          python -m redline validate "$suite_path" --config "${{ inputs.config }}" --strict
+          benchmark_args=(
+            "$suite_path"
+            --config "${{ inputs.config }}"
+            --github-summary
+            --out-json .redline/reports/benchmark.json
+            --out-md .redline/reports/benchmark.md
+          )
+          if [ -n "${{ inputs.benchmark-max-seconds }}" ]; then
+            benchmark_args+=(--max-seconds "${{ inputs.benchmark-max-seconds }}")
+          fi
+          python -m redline benchmark "${benchmark_args[@]}"
         fi
-        python -m redline benchmark "${benchmark_args[@]}"
 
         eval_args=(
-          "${{ inputs.suite }}"
+          "$suite_path"
           --config "${{ inputs.config }}"
           --compact
           --github-summary

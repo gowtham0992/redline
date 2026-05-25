@@ -44,6 +44,7 @@
 - Group prompt manifest evals by feature in the local dashboard.
 - Print prompt-level rollups in compact prompt manifest eval output.
 - Include prompt manifest rollups in Markdown and HTML eval reports.
+- Support prompt manifests in the composite GitHub Action and generated workflow.
 - Show prompt-level eval rows and a latest-report review queue in the local dashboard.
 - Summarize confidence and signal mix in the local dashboard.
 - Include event-type counts in audit verification output.
