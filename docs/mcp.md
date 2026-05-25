@@ -87,6 +87,8 @@ reach for most often:
 - `check_prompt_change`: run doctor, then eval a changed prompt file.
 - `build_suite_from_logs`: generate a suite, validate it, and summarize coverage.
 - `review_candidate_outputs`: diff candidate JSONL outputs and lead with blocking findings.
+- `setup_redline_project`: guide first-time setup through runner selection,
+  prompt/log discovery, suite validation, CI scale checks, and optional judge setup.
 
 These prompts are intentionally conservative. They tell the assistant to treat
 redline exit code `1` as a product finding, avoid baseline mutation, and avoid
@@ -98,6 +100,11 @@ Ask your assistant:
 
 ```text
 Run redline doctor in this repo and tell me the next setup step.
+```
+
+```text
+Set up redline for this project. Use my existing logs if available, choose the
+right runner adapter, and do not mutate the baseline.
 ```
 
 ```text

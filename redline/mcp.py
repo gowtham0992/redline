@@ -353,6 +353,18 @@ def _prompts() -> list[PromptSpec]:
             ),
             _build_review_candidate_outputs_prompt,
         ),
+        PromptSpec(
+            "setup_redline_project",
+            "Guide first-time redline setup from app shape to runner, suite, and optional judge.",
+            (
+                PromptArgument("cwd", "Project directory where redline should run."),
+                PromptArgument("log_path", "Existing prompt-response JSONL log, if available."),
+                PromptArgument("prompt_path", "Prompt file or directory to scan, if available."),
+                PromptArgument("runner", "Preferred runner adapter id, such as stdio, openai, http, or all."),
+                PromptArgument("judge", "Optional judge template id, such as openai or support-rubric."),
+            ),
+            _build_setup_redline_project_prompt,
+        ),
     ]
 
 
@@ -411,6 +423,30 @@ def _build_review_candidate_outputs_prompt(arguments: dict[str, Any]) -> str:
         "3. Lead with blocking regressions and missing outputs.\n"
         "4. Then summarize changed cases that need human review.\n"
         "5. Do not accept or modify the baseline.\n"
+    )
+
+
+def _build_setup_redline_project_prompt(arguments: dict[str, Any]) -> str:
+    cwd = _optional_prompt_argument(arguments, "cwd", "the current project")
+    log_path = _optional_prompt_argument(arguments, "log_path", "an existing prompt-response JSONL log")
+    prompt_path = _optional_prompt_argument(arguments, "prompt_path", "the project's prompt files")
+    runner = _optional_prompt_argument(arguments, "runner", "the runner adapter that matches my app")
+    judge = _optional_prompt_argument(arguments, "judge", "only if semantic review is needed")
+    return (
+        "Set up redline for this project as a first-time user.\n\n"
+        f"- Run in: {cwd}\n"
+        f"- Prompt/log source: {prompt_path} and {log_path}\n"
+        f"- Runner preference: {runner}\n"
+        f"- Judge preference: {judge}\n\n"
+        "Use this workflow:\n"
+        "1. Call `redline_doctor` first and explain the next setup gap in plain language.\n"
+        "2. Call `redline_runners` to show adapter choices. If I named a runner, copy that runner; otherwise recommend the safest adapter for my app shape before copying anything.\n"
+        "3. If prompt files are available, call `redline_prompts` to create or check a prompt-to-suite manifest.\n"
+        "4. If logs are available, call `redline_suite`, then `redline_validate` and `redline_summary` so I can inspect coverage before trusting the suite.\n"
+        "5. Call `redline_benchmark` before recommending CI gating.\n"
+        "6. Call `redline_judges` only when structural checks cannot cover factual, tone, hallucination, or reasoning risk; copy a judge template only after naming why it is needed.\n"
+        "7. Finish by re-running `redline_doctor` with strict setup when possible and list the exact next commands I should run.\n"
+        "8. Do not call baseline mutation commands, do not upload private logs, and do not say green or neutral means semantically safe.\n"
     )
 
 

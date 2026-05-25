@@ -55,6 +55,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("check_prompt_change", names)
         self.assertIn("build_suite_from_logs", names)
         self.assertIn("review_candidate_outputs", names)
+        self.assertIn("setup_redline_project", names)
 
     def test_prompt_get_builds_check_prompt_change_workflow(self) -> None:
         response = handle_jsonrpc_line(
@@ -99,6 +100,42 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_suite", text)
         self.assertIn("redline_summary", text)
         self.assertIn("redline_benchmark", text)
+
+    def test_prompt_get_builds_first_time_setup_workflow(self) -> None:
+        response = handle_jsonrpc_line(
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 34,
+                    "method": "prompts/get",
+                    "params": {
+                        "name": "setup_redline_project",
+                        "arguments": {
+                            "log_path": "logs/baseline.jsonl",
+                            "prompt_path": "prompts",
+                            "runner": "http",
+                            "judge": "support-rubric",
+                        },
+                    },
+                }
+            )
+        )
+
+        assert response is not None
+        text = response["result"]["messages"][0]["content"]["text"]
+        self.assertIn("redline_doctor", text)
+        self.assertIn("redline_runners", text)
+        self.assertIn("redline_prompts", text)
+        self.assertIn("redline_suite", text)
+        self.assertIn("redline_validate", text)
+        self.assertIn("redline_summary", text)
+        self.assertIn("redline_benchmark", text)
+        self.assertIn("redline_judges", text)
+        self.assertIn("logs/baseline.jsonl", text)
+        self.assertIn("prompts", text)
+        self.assertIn("http", text)
+        self.assertIn("support-rubric", text)
+        self.assertIn("do not say green or neutral means semantically safe", text)
 
     def test_unknown_prompt_returns_jsonrpc_error(self) -> None:
         response = handle_jsonrpc_line(
