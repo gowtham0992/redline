@@ -50,6 +50,7 @@
 - Expose optional judge template discovery and copy through MCP.
 - Expose runner adapter discovery and copy through MCP.
 - Add a first-time MCP setup prompt that guides runner selection, prompt/log discovery, suite validation, CI scale checks, and optional judge setup.
+- Expose parsed JSON stdout in MCP structured content when tools are called with `json: true`.
 - Write audit checkpoint artifacts from generated GitHub Action flows.
 - Return non-zero from `redline audit --verify` when the audit hash chain fails.
 - Verify audit logs against saved checkpoint files with `redline audit --verify --checkpoint`.

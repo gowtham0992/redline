@@ -451,6 +451,24 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("Wrote redline-sbom.json.", result["content"][0]["text"])
         self.assertEqual(payload["bomFormat"], "CycloneDX")
 
+    def test_json_tool_output_is_exposed_as_structured_content(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = call_tool(
+                "redline_sbom",
+                {
+                    "cwd": directory,
+                    "json": True,
+                },
+            )
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        self.assertEqual(result["structuredContent"]["json"]["bomFormat"], "CycloneDX")
+        self.assertEqual(
+            result["structuredContent"]["json"]["metadata"]["component"]["name"],
+            "redline-ai",
+        )
+
     def test_unknown_tool_returns_jsonrpc_error(self) -> None:
         response = handle_jsonrpc_line(
             json.dumps(

@@ -81,6 +81,10 @@ missing outputs; the MCP tool still returns successfully because that is a
 product finding, not a protocol failure. Exit code `2` and above indicates a
 setup or command error.
 
+When a tool is called with `json: true` and stdout is valid JSON, the MCP
+response also includes the parsed payload under `structuredContent.json` so
+assistants can reason over reports without scraping terminal text.
+
 ## Prompts
 
 The server also exposes MCP prompt templates for the workflows agents should

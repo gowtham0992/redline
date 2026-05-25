@@ -41,7 +41,7 @@ class ToolResult:
         return "\n".join(lines).rstrip() + "\n"
 
     def structured(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "command": self.command,
             "cwd": self.cwd,
             "exit_code": self.exit_code,
@@ -49,6 +49,10 @@ class ToolResult:
             "stderr": self.stderr,
             "truncated": self.truncated,
         }
+        parsed_stdout = _parse_json_stdout(self.stdout)
+        if parsed_stdout is not None:
+            payload["json"] = parsed_stdout
+        return payload
 
 
 @dataclass(frozen=True)
@@ -294,6 +298,16 @@ def _truncate_text_to_bytes(text: str, max_bytes: int) -> str:
     if len(encoded) <= max_bytes:
         return text
     return encoded[:max_bytes].decode("utf-8", errors="ignore")
+
+
+def _parse_json_stdout(stdout: str) -> Any | None:
+    text = stdout.strip()
+    if not text:
+        return None
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
 
 
 def _subprocess_env() -> dict[str, str]:
