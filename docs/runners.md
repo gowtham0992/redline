@@ -237,6 +237,10 @@ redline infers prompts from `system`, `messages`, `input`, or `prompt`,
 extracts common provider response text and token metadata, and redacts common
 secrets and PII before write by default.
 
+For `stream=True` calls, redline passes chunks through unchanged and records the
+assembled text after your app consumes the stream. If a stream is never consumed,
+no observation is written.
+
 Wire it in:
 
 ```bash

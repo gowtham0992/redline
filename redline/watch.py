@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import datetime, timezone
 from functools import wraps
 from inspect import iscoroutinefunction, signature
@@ -572,7 +572,7 @@ def _patch_openai_path(
             prompt = _openai_prompt_from_call(args, kwargs)
             started = monotonic()
             response = await original(*args, **kwargs)
-            _record_openai_observation(
+            return _record_openai_observation(
                 path,
                 prompt,
                 response,
@@ -584,7 +584,6 @@ def _patch_openai_path(
                 redact=redact,
                 placeholder=placeholder,
             )
-            return response
 
         wrapper: Callable[..., Any] = async_wrapper
     else:
@@ -594,7 +593,7 @@ def _patch_openai_path(
             prompt = _openai_prompt_from_call(args, kwargs)
             started = monotonic()
             response = original(*args, **kwargs)
-            _record_openai_observation(
+            return _record_openai_observation(
                 path,
                 prompt,
                 response,
@@ -606,7 +605,6 @@ def _patch_openai_path(
                 redact=redact,
                 placeholder=placeholder,
             )
-            return response
 
         wrapper = sync_wrapper
 
@@ -641,7 +639,7 @@ def _patch_anthropic_path(
             prompt = _anthropic_prompt_from_call(args, kwargs)
             started = monotonic()
             response = await original(*args, **kwargs)
-            _record_provider_observation(
+            return _record_provider_observation(
                 provider="anthropic",
                 operation=path,
                 prompt=prompt,
@@ -654,7 +652,6 @@ def _patch_anthropic_path(
                 redact=redact,
                 placeholder=placeholder,
             )
-            return response
 
         wrapper: Callable[..., Any] = async_wrapper
     else:
@@ -664,7 +661,7 @@ def _patch_anthropic_path(
             prompt = _anthropic_prompt_from_call(args, kwargs)
             started = monotonic()
             response = original(*args, **kwargs)
-            _record_provider_observation(
+            return _record_provider_observation(
                 provider="anthropic",
                 operation=path,
                 prompt=prompt,
@@ -677,7 +674,6 @@ def _patch_anthropic_path(
                 redact=redact,
                 placeholder=placeholder,
             )
-            return response
 
         wrapper = sync_wrapper
 
@@ -709,8 +705,8 @@ def _record_openai_observation(
     dedupe: bool,
     redact: bool,
     placeholder: str,
-) -> None:
-    _record_provider_observation(
+) -> Any:
+    return _record_provider_observation(
         provider="openai",
         operation=operation,
         prompt=prompt,
@@ -738,9 +734,24 @@ def _record_provider_observation(
     dedupe: bool,
     redact: bool,
     placeholder: str,
-) -> None:
+) -> Any:
     if prompt is None:
-        return
+        return response
+    stream = _wrap_provider_stream(
+        provider=provider,
+        operation=operation,
+        prompt=prompt,
+        response=response,
+        request_kwargs=request_kwargs,
+        log=log,
+        response_extractor=response_extractor,
+        latency_ms=latency_ms,
+        dedupe=dedupe,
+        redact=redact,
+        placeholder=placeholder,
+    )
+    if stream is not None:
+        return stream
     response_value = response_extractor(response) if response_extractor else response
     metadata = {
         "provider": provider,
@@ -760,6 +771,159 @@ def _record_provider_observation(
         redact=redact,
         placeholder=placeholder,
     )
+    return response
+
+
+def _wrap_provider_stream(
+    *,
+    provider: str,
+    operation: str,
+    prompt: Any,
+    response: Any,
+    request_kwargs: dict[str, Any],
+    log: str | Path,
+    response_extractor: Callable[[Any], Any] | None,
+    latency_ms: int,
+    dedupe: bool,
+    redact: bool,
+    placeholder: str,
+) -> Any | None:
+    if request_kwargs.get("stream") is not True:
+        return None
+    recorder = _StreamRecorder(
+        provider=provider,
+        operation=operation,
+        prompt=prompt,
+        request_kwargs=request_kwargs,
+        log=log,
+        response_extractor=response_extractor,
+        latency_ms=latency_ms,
+        dedupe=dedupe,
+        redact=redact,
+        placeholder=placeholder,
+    )
+    if hasattr(response, "__aiter__"):
+        return _AsyncObservedStream(response, recorder)
+    if hasattr(response, "__iter__") and not isinstance(response, str | bytes | bytearray | dict | list | tuple):
+        return _ObservedStream(response, recorder)
+    return None
+
+
+class _StreamRecorder:
+    def __init__(
+        self,
+        *,
+        provider: str,
+        operation: str,
+        prompt: Any,
+        request_kwargs: dict[str, Any],
+        log: str | Path,
+        response_extractor: Callable[[Any], Any] | None,
+        latency_ms: int,
+        dedupe: bool,
+        redact: bool,
+        placeholder: str,
+    ) -> None:
+        self.provider = provider
+        self.operation = operation
+        self.prompt = prompt
+        self.request_kwargs = request_kwargs
+        self.log = log
+        self.response_extractor = response_extractor
+        self.latency_ms = latency_ms
+        self.dedupe = dedupe
+        self.redact = redact
+        self.placeholder = placeholder
+        self.chunks: list[Any] = []
+        self.recorded = False
+
+    def add(self, chunk: Any) -> None:
+        self.chunks.append(chunk)
+
+    def record(self) -> None:
+        if self.recorded:
+            return
+        self.recorded = True
+        response_value = (
+            self.response_extractor(self.chunks)
+            if self.response_extractor
+            else _stream_chunks_text(self.chunks)
+        )
+        metadata = {
+            "provider": self.provider,
+            "operation": self.operation,
+            "latency_ms": self.latency_ms,
+            "stream": True,
+        }
+        model = self.request_kwargs.get("model")
+        if isinstance(model, str) and model:
+            metadata["request_model"] = model
+        for chunk in self.chunks:
+            metadata.update(_provider_metadata(chunk))
+        record(
+            self.prompt,
+            response_value,
+            log=self.log,
+            source=f"python:{self.provider}.{self.operation}",
+            metadata=metadata,
+            dedupe=self.dedupe,
+            redact=self.redact,
+            placeholder=self.placeholder,
+        )
+
+
+class _ObservedStream:
+    def __init__(self, stream: Any, recorder: _StreamRecorder) -> None:
+        self._stream = stream
+        self._recorder = recorder
+
+    def __iter__(self) -> Iterator[Any]:
+        for chunk in self._stream:
+            self._recorder.add(chunk)
+            yield chunk
+        self._recorder.record()
+
+    def __enter__(self) -> _ObservedStream:
+        enter = getattr(self._stream, "__enter__", None)
+        if callable(enter):
+            enter()
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> Any:
+        exit_ = getattr(self._stream, "__exit__", None)
+        if callable(exit_):
+            return exit_(exc_type, exc, traceback)
+        return None
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._stream, name)
+
+
+class _AsyncObservedStream:
+    def __init__(self, stream: Any, recorder: _StreamRecorder) -> None:
+        self._stream = stream
+        self._recorder = recorder
+
+    async def __aiter__(self) -> AsyncIterator[Any]:
+        async for chunk in self._stream:
+            self._recorder.add(chunk)
+            yield chunk
+        self._recorder.record()
+
+    async def __aenter__(self) -> _AsyncObservedStream:
+        enter = getattr(self._stream, "__aenter__", None)
+        if callable(enter):
+            await enter()
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc: Any, traceback: Any) -> Any:
+        exit_ = getattr(self._stream, "__aexit__", None)
+        if callable(exit_):
+            return await exit_(exc_type, exc, traceback)
+        return None
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._stream, name)
 
 
 def _openai_prompt_from_call(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
@@ -932,6 +1096,61 @@ def _elapsed_ms(started: float) -> int:
 def _response_value(value: Any) -> Any:
     provider_text = _provider_response_text(value)
     return provider_text if provider_text is not None else value
+
+
+def _stream_chunks_text(chunks: list[Any]) -> str:
+    parts = []
+    for chunk in chunks:
+        text = _stream_chunk_text(chunk)
+        if text:
+            parts.append(text)
+    return "".join(parts)
+
+
+def _stream_chunk_text(chunk: Any) -> str | None:
+    delta = _field(chunk, "delta")
+    if isinstance(delta, str):
+        return delta
+    text = _field(delta, "text")
+    if isinstance(text, str):
+        return text
+    content = _field(delta, "content")
+    if isinstance(content, str):
+        return content
+    nested = _blocks_text(content)
+    if nested:
+        return nested
+
+    choices = _field(chunk, "choices")
+    if isinstance(choices, list) and choices:
+        parts = []
+        for choice in choices:
+            choice_delta = _field(choice, "delta")
+            content = _field(choice_delta, "content")
+            if isinstance(content, str):
+                parts.append(content)
+                continue
+            text = _field(choice_delta, "text")
+            if isinstance(text, str):
+                parts.append(text)
+                continue
+            text = _field(choice, "text")
+            if isinstance(text, str):
+                parts.append(text)
+        if parts:
+            return "".join(parts)
+
+    for field in ("output_text", "text", "content"):
+        value = _field(chunk, field)
+        if isinstance(value, str):
+            return value
+        text = _blocks_text(value)
+        if text:
+            return text
+
+    content_block = _field(chunk, "content_block")
+    text = _field(content_block, "text")
+    return text if isinstance(text, str) else None
 
 
 def _provider_response_text(value: Any) -> str | None:

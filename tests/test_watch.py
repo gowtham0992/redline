@@ -358,6 +358,28 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(records[0].response, "Status is green")
             self.assertEqual(records[0].raw["source"], "python:openai.responses.create")
 
+    def test_patch_openai_records_stream_after_chunks_are_consumed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            client = _FakeOpenAIClient()
+
+            patch_openai(client, log=log)
+            stream = client.chat.completions.create(
+                model="gpt-test",
+                stream=True,
+                messages=[{"role": "user", "content": "What is the refund window?"}],
+            )
+
+            self.assertFalse(log.exists())
+            chunks = list(stream)
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(len(chunks), 2)
+            self.assertEqual(records[0].prompt, "user: What is the refund window?")
+            self.assertEqual(records[0].response, "30 days")
+            self.assertNotIn("_FakeOpenAIStream", records[0].response)
+            self.assertTrue(records[0].raw["metadata"]["stream"])
+
     def test_patch_openai_does_not_double_wrap_same_client(self) -> None:
         client = _FakeOpenAIClient()
 
@@ -390,6 +412,28 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(metadata["operation"], "messages.create")
             self.assertEqual(metadata["request_model"], "claude-test")
             self.assertEqual(metadata["model"], "claude-test")
+
+    def test_patch_anthropic_records_stream_after_chunks_are_consumed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            client = _FakeAnthropicClient()
+
+            patch_anthropic(client, log=log)
+            stream = client.messages.create(
+                model="claude-test",
+                stream=True,
+                messages=[{"role": "user", "content": "What is the refund window?"}],
+            )
+
+            self.assertFalse(log.exists())
+            chunks = list(stream)
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(len(chunks), 2)
+            self.assertEqual(records[0].prompt, "user: What is the refund window?")
+            self.assertEqual(records[0].response, "30 days")
+            self.assertNotIn("_FakeAnthropicStream", records[0].response)
+            self.assertTrue(records[0].raw["metadata"]["stream"])
 
     def test_patch_anthropic_exports_from_package_root(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -697,7 +741,9 @@ class _FakeResponses:
 
 
 class _FakeCompletions:
-    def create(self, **kwargs: Any) -> dict[str, Any]:
+    def create(self, **kwargs: Any) -> Any:
+        if kwargs.get("stream"):
+            return _FakeOpenAIStream(["30 ", "days"])
         return {
             "id": "chatcmpl_test",
             "model": kwargs.get("model", "gpt-test"),
@@ -723,7 +769,9 @@ class _FakeOpenAIClient:
 
 
 class _FakeAnthropicMessages:
-    def create(self, **kwargs: Any) -> dict[str, Any]:
+    def create(self, **kwargs: Any) -> Any:
+        if kwargs.get("stream"):
+            return _FakeAnthropicStream(["30 ", "days"])
         return {
             "id": "msg_test",
             "model": kwargs.get("model", "claude-test"),
@@ -735,6 +783,24 @@ class _FakeAnthropicMessages:
 class _FakeAnthropicClient:
     def __init__(self) -> None:
         self.messages = _FakeAnthropicMessages()
+
+
+class _FakeOpenAIStream:
+    def __init__(self, deltas: list[str]) -> None:
+        self._deltas = deltas
+
+    def __iter__(self) -> Any:
+        for delta in self._deltas:
+            yield {"choices": [{"delta": {"content": delta}}]}
+
+
+class _FakeAnthropicStream:
+    def __init__(self, deltas: list[str]) -> None:
+        self._deltas = deltas
+
+    def __iter__(self) -> Any:
+        for delta in self._deltas:
+            yield {"type": "content_block_delta", "delta": {"type": "text_delta", "text": delta}}
 
 
 if __name__ == "__main__":
