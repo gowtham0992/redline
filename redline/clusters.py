@@ -7,13 +7,17 @@ def cluster_report(suite: dict[str, Any]) -> dict[str, Any]:
     clusters = suite.get("clusters", [])
     if not isinstance(clusters, list):
         clusters = []
+    cases = suite.get("cases", [])
+    if not isinstance(cases, list):
+        cases = []
+    selected_cases = _selected_case_counts(cases)
 
     summary = suite.get("summary", {})
     if not isinstance(summary, dict):
         summary = {}
 
     rows = [
-        _cluster_row(cluster)
+        _cluster_row(cluster, selected_cases=selected_cases.get(str(cluster.get("signature", "")), 0))
         for cluster in clusters
         if isinstance(cluster, dict)
     ]
@@ -26,6 +30,7 @@ def cluster_report(suite: dict[str, Any]) -> dict[str, Any]:
         "duplicate_prompt_response_pairs": int(summary.get("duplicate_prompt_response_pairs", 0)),
         "clusters": len(rows),
         "suggested_cases": int(summary.get("cases", 0)),
+        "case_coverage": _ratio(int(summary.get("cases", 0)), int(summary.get("unique_prompt_response_pairs", 0))),
         "max_cases": int(summary.get("max_cases", 0)),
         "high_variance_clusters": len(high_variance),
         "failure_pattern_clusters": len(failure_patterns),
@@ -45,19 +50,20 @@ def format_cluster_report(suite: dict[str, Any]) -> str:
         f"High-variance clusters: {report['high_variance_clusters']}",
         f"Failure-pattern clusters: {report['failure_pattern_clusters']}",
         f"Suggested eval suite: {report['suggested_cases']} representative cases.",
+        f"Case coverage: {report['suggested_cases']}/{report['unique_prompt_response_pairs']} ({_percent(report['case_coverage'])})",
         "",
     ]
 
     clusters = report["top_clusters"]
     if clusters:
-        lines.append(f"{'SIZE':>4} {'WORDS':>11} {'RISK':>6} {'VAR':>3}  {'FLAGS':<32} SIGNATURE")
-        lines.append(f"{'-' * 4} {'-' * 11} {'-' * 6} {'-' * 3}  {'-' * 32} {'-' * 60}")
+        lines.append(f"{'SIZE':>4} {'SEL':>3} {'WORDS':>11} {'RISK':>6} {'VAR':>3}  {'FLAGS':<32} SIGNATURE")
+        lines.append(f"{'-' * 4} {'-' * 3} {'-' * 11} {'-' * 6} {'-' * 3}  {'-' * 32} {'-' * 60}")
         for cluster in clusters:
             marker = "yes" if cluster["high_variance"] else ""
             word_range = f"{cluster['word_count_min']}-{cluster['word_count_max']}"
             flags = ", ".join(cluster["failure_patterns"])
             lines.append(
-                f"{cluster['size']:>4} {word_range:>11} {cluster['risk']:>6} {marker:>3}  "
+                f"{cluster['size']:>4} {cluster['selected_cases']:>3} {word_range:>11} {cluster['risk']:>6} {marker:>3}  "
                 f"{flags:<32} {cluster['signature']}"
             )
         lines.append("")
@@ -65,10 +71,11 @@ def format_cluster_report(suite: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _cluster_row(cluster: dict[str, Any]) -> dict[str, Any]:
+def _cluster_row(cluster: dict[str, Any], *, selected_cases: int) -> dict[str, Any]:
     return {
         "signature": str(cluster.get("signature", "")),
         "size": int(cluster.get("size", 0)),
+        "selected_cases": selected_cases,
         "word_count_min": int(cluster.get("word_count_min", 0)),
         "word_count_max": int(cluster.get("word_count_max", 0)),
         "high_variance": bool(cluster.get("high_variance")),
@@ -87,3 +94,26 @@ def _cluster_risk(value: object) -> str:
     if value in {"high", "medium", "low"}:
         return str(value)
     return "low"
+
+
+def _selected_case_counts(cases: list[Any]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for case in cases:
+        if not isinstance(case, dict):
+            continue
+        signature = str(case.get("cluster") or "")
+        if signature:
+            counts[signature] = counts.get(signature, 0) + 1
+    return counts
+
+
+def _ratio(part: int, total: int) -> float | None:
+    if total <= 0:
+        return None
+    return part / total
+
+
+def _percent(value: Any) -> str:
+    if isinstance(value, float):
+        return f"{value * 100:.1f}%"
+    return "n/a"

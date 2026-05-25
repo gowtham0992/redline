@@ -40,6 +40,7 @@
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Summarize confidence and signal mix in the local dashboard.
 - Include event-type counts in audit verification output.
+- Show cluster-level selected-case coverage in `redline cluster`.
 - Watch and follow prompt logs, validate suites, compare report runs, and append report history.
 - Capture prompt-response pairs from Python functions with the local `@watch` decorator and `record()` helper, with exact duplicate observations skipped by content hash.
 - Normalize common provider response objects and capture latency/token metadata from watched Python calls.

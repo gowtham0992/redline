@@ -26,10 +26,12 @@ class ClusterReportTests(unittest.TestCase):
         self.assertEqual(report["duplicate_prompt_response_pairs"], 0)
         self.assertEqual(report["clusters"], 2)
         self.assertEqual(report["suggested_cases"], 2)
+        self.assertEqual(report["case_coverage"], 2 / 3)
         self.assertEqual(report["high_variance_clusters"], 0)
         self.assertEqual(report["failure_pattern_clusters"], 0)
         self.assertEqual(report["high_risk_clusters"], 0)
         self.assertEqual(report["top_clusters"][0]["size"], 2)
+        self.assertEqual(report["top_clusters"][0]["selected_cases"], 1)
         self.assertEqual(report["top_clusters"][0]["risk"], "low")
 
     def test_cluster_report_surfaces_failure_patterns(self) -> None:
@@ -68,7 +70,9 @@ class ClusterReportTests(unittest.TestCase):
         self.assertIn("High-risk clusters: 0", output)
         self.assertIn("Failure-pattern clusters: 0", output)
         self.assertIn("Suggested eval suite: 1 representative cases.", output)
+        self.assertIn("Case coverage: 1/1 (100.0%)", output)
         self.assertIn("RISK", output)
+        self.assertIn("SEL", output)
         self.assertIn("FLAGS", output)
         self.assertIn("SIGNATURE", output)
 
@@ -95,6 +99,26 @@ class ClusterReportTests(unittest.TestCase):
         self.assertEqual(report["high_variance_clusters"], 1)
         self.assertEqual(report["high_risk_clusters"], 0)
         self.assertEqual(report["top_clusters"][0]["risk"], "medium")
+
+    def test_cluster_report_counts_selected_cases_per_large_cluster(self) -> None:
+        records = [
+            LogRecord(index, f"Summarize support ticket {index}", "same shape answer", {})
+            for index in range(1, 7)
+        ]
+        suite = build_suite(
+            records,
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=3,
+        )
+
+        report = cluster_report(suite)
+
+        self.assertEqual(report["clusters"], 1)
+        self.assertEqual(report["top_clusters"][0]["size"], 6)
+        self.assertEqual(report["top_clusters"][0]["selected_cases"], 3)
+        self.assertEqual(report["case_coverage"], 0.5)
 
 
 if __name__ == "__main__":
