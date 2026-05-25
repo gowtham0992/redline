@@ -5,6 +5,8 @@ from shlex import quote
 from typing import Any
 from xml.etree import ElementTree
 
+from .labels import behavior_label
+
 
 def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff") -> str:
     summary = result["summary"]
@@ -243,6 +245,7 @@ def _metadata_lines(item: dict[str, Any]) -> list[str]:
     cluster = str(item.get("cluster") or "")
     if cluster:
         lines.append(f"Cluster: {_inline_code(cluster)}")
+        lines.append(f"Behavior: {_inline_code(behavior_label(cluster))}")
     owner = str(item.get("owner") or "")
     if owner:
         lines.append(f"Owner: {_inline_code(owner)}")
@@ -652,6 +655,7 @@ def _html_case(item: dict[str, Any]) -> str:
     status = str(item.get("status") or "unknown")
     case_id = str(item.get("case_id") or "unknown")
     location = _source_location(item)
+    cluster = str(item.get("cluster") or "")
     owner = str(item.get("owner") or "")
     confidence = str(item.get("confidence") or "")
     signal = str(item.get("signal") or "")
@@ -668,6 +672,8 @@ def _html_case(item: dict[str, Any]) -> str:
     ]
     if location:
         lines.append(f'<div class="meta">{_h(location)}</div>')
+    if cluster:
+        lines.append(f'<div class="meta">Behavior: {_h(behavior_label(cluster))}</div>')
     if owner:
         lines.append(f'<div class="meta">Owner: {_h(owner)}</div>')
     if confidence or signal:
