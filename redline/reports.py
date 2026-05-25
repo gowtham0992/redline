@@ -43,6 +43,19 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
             lines.append(f"- {warning}")
         lines.append("")
 
+    owner_rows = _owner_review_rows(result.get("diffs"))
+    if owner_rows:
+        lines.append("## Owner Review")
+        lines.append("")
+        lines.append("| Owner | Blocking | Changed | Accepted | Ignored | Other | Total |")
+        lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: |")
+        for row in owner_rows:
+            lines.append(
+                f"| {_markdown_cell(str(row['owner']))} | {row['blocking']} | {row['changed']} | "
+                f"{row['accepted']} | {row['ignored']} | {row['other']} | {row['total']} |"
+            )
+        lines.append("")
+
     for status in ("regression", "changed", "improved", "accepted", "ignored", "missing", "neutral"):
         matching = [item for item in result["diffs"] if item["status"] == status]
         if not matching:
@@ -106,6 +119,7 @@ def format_html_report(result: dict[str, Any], *, title: str = "redline diff") -
             _html_summary(summary),
             _html_decision(decision),
             _html_warnings(result),
+            _html_owner_review(diffs),
             _html_cases(diffs),
             "</main>",
             "</body>",
@@ -236,6 +250,51 @@ def _result_warnings(result: dict[str, Any]) -> list[str]:
     return [str(warning) for warning in warnings if str(warning).strip()]
 
 
+def _owner_review_rows(diffs: Any) -> list[dict[str, int | str]]:
+    if not isinstance(diffs, list):
+        return []
+    rows: dict[str, dict[str, int | str]] = {}
+    for item in diffs:
+        if not isinstance(item, dict):
+            continue
+        owner = str(item.get("owner") or "").strip()
+        if not owner:
+            continue
+        status = str(item.get("status") or "")
+        row = rows.setdefault(
+            owner,
+            {
+                "owner": owner,
+                "blocking": 0,
+                "changed": 0,
+                "accepted": 0,
+                "ignored": 0,
+                "other": 0,
+                "total": 0,
+            },
+        )
+        row["total"] = int(row["total"]) + 1
+        if status in {"regression", "missing"}:
+            row["blocking"] = int(row["blocking"]) + 1
+        elif status == "changed":
+            row["changed"] = int(row["changed"]) + 1
+        elif status == "accepted":
+            row["accepted"] = int(row["accepted"]) + 1
+        elif status == "ignored":
+            row["ignored"] = int(row["ignored"]) + 1
+        else:
+            row["other"] = int(row["other"]) + 1
+    return sorted(
+        rows.values(),
+        key=lambda row: (
+            -int(row["blocking"]),
+            -int(row["changed"]),
+            -int(row["total"]),
+            str(row["owner"]).lower(),
+        ),
+    )
+
+
 def _junit_properties(item: dict[str, Any]) -> dict[str, str]:
     properties = {}
     location = _source_location(item)
@@ -342,7 +401,7 @@ h3 { margin: 0; font-size: 16px; letter-spacing: 0; }
 }
 .metric strong { display: block; font-size: 24px; }
 .metric span { color: var(--muted); font-size: 13px; text-transform: uppercase; }
-.decision, .case {
+.panel, .decision, .case {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -351,6 +410,17 @@ h3 { margin: 0; font-size: 16px; letter-spacing: 0; }
 .decision p { margin: 8px 0 0; }
 .scope { color: var(--muted); }
 .case { margin: 14px 0; }
+.panel { margin: 14px 0; }
+.owner-review table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.owner-review th, .owner-review td {
+  border-top: 1px solid var(--line);
+  padding: 9px 8px;
+}
+.owner-review th:first-child, .owner-review td:first-child { text-align: left; }
+.owner-review th:not(:first-child), .owner-review td:not(:first-child) { text-align: right; }
 .case-header {
   display: flex;
   flex-wrap: wrap;
@@ -459,6 +529,41 @@ def _html_warnings(result: dict[str, Any]) -> str:
     return "".join(lines)
 
 
+def _html_owner_review(diffs: list[Any]) -> str:
+    rows = _owner_review_rows(diffs)
+    if not rows:
+        return ""
+    lines = [
+        '<section class="panel owner-review">',
+        "<h2>Owner review</h2>",
+        "<table>",
+        "<thead><tr>",
+        "<th>Owner</th>",
+        "<th>Blocking</th>",
+        "<th>Changed</th>",
+        "<th>Accepted</th>",
+        "<th>Ignored</th>",
+        "<th>Other</th>",
+        "<th>Total</th>",
+        "</tr></thead>",
+        "<tbody>",
+    ]
+    for row in rows:
+        lines.append(
+            "<tr>"
+            f"<td>{_h(str(row['owner']))}</td>"
+            f"<td>{row['blocking']}</td>"
+            f"<td>{row['changed']}</td>"
+            f"<td>{row['accepted']}</td>"
+            f"<td>{row['ignored']}</td>"
+            f"<td>{row['other']}</td>"
+            f"<td>{row['total']}</td>"
+            "</tr>"
+        )
+    lines.append("</tbody></table></section>")
+    return "".join(lines)
+
+
 def _html_cases(diffs: list[Any]) -> str:
     lines = ["<section>", "<h2>Cases</h2>"]
     if not diffs:
@@ -534,6 +639,10 @@ def _html_response(title: str, value: str) -> str:
 def _count_value(summary: dict[str, Any], key: str) -> str:
     value = summary.get(key, 0)
     return str(value if isinstance(value, int) else 0)
+
+
+def _markdown_cell(value: str) -> str:
+    return str(value).replace("|", "\\|")
 
 
 def _h(value: str) -> str:
