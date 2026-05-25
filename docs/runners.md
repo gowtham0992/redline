@@ -200,14 +200,21 @@ Common field mappings:
 # Helicone exports with request/response bodies included
 --preset helicone
 
+# LangSmith dataset, run, or trace exports with input/output objects
+--preset langsmith
+
+# Braintrust experiment or dataset rows with input/output fields
+--preset braintrust
+
 # Your app's own JSONL logs
 --input-field request.prompt --output-field response.text
 
 --input-field messages.user --output-field result.answer
 ```
 
-Preset fields can still be overridden with `--input-field` or `--output-field`
-if your export shape differs.
+Presets try several common field paths and record the matched paths in row
+metadata. Preset fields can still be overridden with `--input-field` or
+`--output-field` if your export shape differs.
 
 That's it.
 

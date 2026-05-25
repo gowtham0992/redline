@@ -10,14 +10,24 @@ from typing import Any, Iterable, TextIO
 
 PRESETS = {
     "langfuse": {
-        "input_field": "input",
-        "output_field": "output",
+        "input_fields": ("input", "request.input", "trace.input", "inputs"),
+        "output_fields": ("output", "response.output", "trace.output", "outputs"),
         "description": "Langfuse enriched observations and trace/observation JSONL exports",
     },
     "helicone": {
-        "input_field": "prompt",
-        "output_field": "responseBody",
+        "input_fields": ("prompt", "request.prompt", "requestBody.prompt", "request.body.prompt"),
+        "output_fields": ("responseBody", "response.body", "response.text", "response"),
         "description": "Helicone export rows with request/response bodies included",
+    },
+    "langsmith": {
+        "input_fields": ("inputs", "input", "example.inputs", "run.inputs"),
+        "output_fields": ("outputs", "output", "run.outputs", "feedback.output"),
+        "description": "LangSmith dataset, run, or trace exports with input/output objects",
+    },
+    "braintrust": {
+        "input_fields": ("input", "inputs", "example.input", "span.input"),
+        "output_fields": ("output", "expected", "outputs", "span.output"),
+        "description": "Braintrust experiment or dataset rows with input/output fields",
     },
 }
 
@@ -33,12 +43,12 @@ def main() -> int:
     parser.add_argument("--out", help="output JSONL file; defaults to stdout")
     args = parser.parse_args()
 
-    input_field, output_field = _fields(args, parser)
+    input_fields, output_fields = _fields(args, parser)
     rows = list(
         _convert_rows(
             _read_rows(args.path),
-            input_field,
-            output_field,
+            input_fields,
+            output_fields,
             preset=args.preset,
         )
     )
@@ -76,19 +86,19 @@ def _iter_rows(handle: TextIO, *, label: str) -> Iterable[tuple[int, dict[str, A
 
 def _convert_rows(
     rows: Iterable[tuple[int, dict[str, Any]]],
-    input_field: str,
-    output_field: str,
+    input_fields: tuple[str, ...],
+    output_fields: tuple[str, ...],
     *,
     preset: str | None = None,
 ) -> Iterable[dict[str, Any]]:
     for line_number, row in rows:
-        prompt = _get_field(row, input_field)
-        response = _get_field(row, output_field)
+        prompt_field, prompt = _first_field(row, input_fields)
+        response_field, response = _first_field(row, output_fields)
         missing = []
         if prompt is _MISSING:
-            missing.append(input_field)
+            missing.append("prompt field: " + ", ".join(input_fields))
         if response is _MISSING:
-            missing.append(output_field)
+            missing.append("response field: " + ", ".join(output_fields))
         if missing:
             raise SystemExit(f"line {line_number} missing field(s): {', '.join(missing)}")
         converted = {
@@ -97,7 +107,11 @@ def _convert_rows(
             "source_line": line_number,
         }
         if preset:
-            converted["metadata"] = {"adapter_preset": preset}
+            converted["metadata"] = {
+                "adapter_preset": preset,
+                "adapter_prompt_field": prompt_field,
+                "adapter_response_field": response_field,
+            }
         yield converted
 
 
@@ -118,19 +132,27 @@ def _get_field(row: dict[str, Any], path: str) -> Any:
     return current
 
 
+def _first_field(row: dict[str, Any], paths: tuple[str, ...]) -> tuple[str, Any]:
+    for path in paths:
+        value = _get_field(row, path)
+        if value is not _MISSING:
+            return path, value
+    return "", _MISSING
+
+
 def _stringify(value: Any) -> str:
     if isinstance(value, str):
         return value
     return json.dumps(value, sort_keys=True, ensure_ascii=False)
 
 
-def _fields(args: argparse.Namespace, parser: argparse.ArgumentParser) -> tuple[str, str]:
+def _fields(args: argparse.Namespace, parser: argparse.ArgumentParser) -> tuple[tuple[str, ...], tuple[str, ...]]:
     preset = PRESETS.get(args.preset or "")
-    input_field = args.input_field or (preset or {}).get("input_field")
-    output_field = args.output_field or (preset or {}).get("output_field")
-    if not input_field or not output_field:
+    input_fields = (args.input_field,) if args.input_field else tuple((preset or {}).get("input_fields") or ())
+    output_fields = (args.output_field,) if args.output_field else tuple((preset or {}).get("output_fields") or ())
+    if not input_fields or not output_fields:
         parser.error("use --preset or pass both --input-field and --output-field")
-    return str(input_field), str(output_field)
+    return tuple(str(field) for field in input_fields), tuple(str(field) for field in output_fields)
 
 
 _MISSING = object()

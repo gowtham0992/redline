@@ -209,8 +209,8 @@ redline runners --copy all
 
 Runner details live in [docs/runners.md](docs/runners.md). Log import and SDK
 capture adapters are for building suites from real observations, not for
-`redline eval` replay. The JSONL log adapter includes Langfuse and Helicone
-presets for exported observability logs.
+`redline eval` replay. The JSONL log adapter includes Langfuse, Helicone,
+LangSmith, and Braintrust presets for exported observability logs.
 
 ## AI Assistant Native
 

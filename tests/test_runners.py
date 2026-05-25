@@ -303,6 +303,8 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(row["prompt"], '{"messages": ["hello"]}')
             self.assertEqual(row["response"], "world")
             self.assertEqual(row["metadata"]["adapter_preset"], "langfuse")
+            self.assertEqual(row["metadata"]["adapter_prompt_field"], "input")
+            self.assertEqual(row["metadata"]["adapter_response_field"], "output")
 
     def test_jsonl_log_adapter_supports_helicone_preset(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -334,6 +336,100 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(row["prompt"], "hello")
             self.assertEqual(row["response"], '{"choices": [{"text": "world"}]}')
             self.assertEqual(row["metadata"]["adapter_preset"], "helicone")
+            self.assertEqual(row["metadata"]["adapter_prompt_field"], "prompt")
+            self.assertEqual(row["metadata"]["adapter_response_field"], "responseBody")
+
+    def test_jsonl_log_adapter_preset_falls_back_to_nested_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "langfuse-nested.jsonl"
+            output = root / "prompts.jsonl"
+            source.write_text(
+                '{"request": {"input": "hello"}, "response": {"output": "world"}}\n',
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(source),
+                    "--preset",
+                    "langfuse",
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["prompt"], "hello")
+            self.assertEqual(row["response"], "world")
+            self.assertEqual(row["metadata"]["adapter_prompt_field"], "request.input")
+            self.assertEqual(row["metadata"]["adapter_response_field"], "response.output")
+
+    def test_jsonl_log_adapter_supports_langsmith_and_braintrust_presets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            langsmith = root / "langsmith.jsonl"
+            braintrust = root / "braintrust.jsonl"
+            langsmith_out = root / "langsmith-prompts.jsonl"
+            braintrust_out = root / "braintrust-prompts.jsonl"
+            langsmith.write_text(
+                '{"run": {"inputs": {"question": "hello"}, "outputs": {"answer": "world"}}}\n',
+                encoding="utf-8",
+            )
+            braintrust.write_text(
+                '{"span": {"input": "refund policy", "output": "30 days"}}\n',
+                encoding="utf-8",
+            )
+
+            langsmith_completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(langsmith),
+                    "--preset",
+                    "langsmith",
+                    "--out",
+                    str(langsmith_out),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            braintrust_completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(braintrust),
+                    "--preset",
+                    "braintrust",
+                    "--out",
+                    str(braintrust_out),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(langsmith_completed.returncode, 0)
+            self.assertEqual(braintrust_completed.returncode, 0)
+            langsmith_row = json.loads(langsmith_out.read_text(encoding="utf-8"))
+            braintrust_row = json.loads(braintrust_out.read_text(encoding="utf-8"))
+            self.assertEqual(langsmith_row["prompt"], '{"question": "hello"}')
+            self.assertEqual(langsmith_row["response"], '{"answer": "world"}')
+            self.assertEqual(langsmith_row["metadata"]["adapter_preset"], "langsmith")
+            self.assertEqual(langsmith_row["metadata"]["adapter_prompt_field"], "run.inputs")
+            self.assertEqual(langsmith_row["metadata"]["adapter_response_field"], "run.outputs")
+            self.assertEqual(braintrust_row["prompt"], "refund policy")
+            self.assertEqual(braintrust_row["response"], "30 days")
+            self.assertEqual(braintrust_row["metadata"]["adapter_preset"], "braintrust")
+            self.assertEqual(braintrust_row["metadata"]["adapter_prompt_field"], "span.input")
+            self.assertEqual(braintrust_row["metadata"]["adapter_response_field"], "span.output")
 
     def test_runner_docs_include_app_logs_adapter(self) -> None:
         docs = Path("docs/runners.md").read_text(encoding="utf-8")
@@ -342,6 +438,8 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("python runners/jsonl_log_adapter.py logs/export.jsonl", docs)
         self.assertIn("--preset langfuse", docs)
         self.assertIn("--preset helicone", docs)
+        self.assertIn("--preset langsmith", docs)
+        self.assertIn("--preset braintrust", docs)
 
     def test_runner_docs_include_sdk_capture_adapters(self) -> None:
         docs = Path("docs/runners.md").read_text(encoding="utf-8")
