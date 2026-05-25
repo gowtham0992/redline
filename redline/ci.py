@@ -55,6 +55,7 @@ jobs:
       - name: Benchmark redline suite
         run: |
           python -m redline benchmark "$REDLINE_SUITE_PATH" \\
+            --measure-local \\
             --github-summary \\
             --out-json .redline/reports/benchmark.json \\
             --out-md .redline/reports/benchmark.md

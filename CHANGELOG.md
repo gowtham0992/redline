@@ -49,6 +49,7 @@
 - Validate judgment statuses, timestamps, and missing reasons before team rollout.
 - Print validation and promotion next steps after `redline mark`.
 - Add `redline benchmark --measure-local` to time deterministic local diff work without calling replay.
+- Include measured local benchmark checks in generated GitHub workflows and the composite action.
 - Show owner coverage and top owners in `redline summary`.
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Show blocking and changed review counts in the dashboard reports table.

@@ -70,6 +70,7 @@ runs:
         benchmark_args=(
           "$suite_path"
           --config "${{ inputs.config }}"
+          --measure-local
           --github-summary
           --out-json .redline/reports/benchmark.json
           --out-md .redline/reports/benchmark.md
