@@ -131,6 +131,7 @@ def format_html_report(result: dict[str, Any], *, title: str = "redline diff") -
             _html_decision(decision),
             _html_warnings(result),
             _html_owner_review(diffs),
+            _html_review_commands(result),
             _html_cases(diffs),
             "</main>",
             "</body>",
@@ -463,6 +464,18 @@ h3 { margin: 0; font-size: 16px; letter-spacing: 0; }
 }
 .owner-review th:first-child, .owner-review td:first-child { text-align: left; }
 .owner-review th:not(:first-child), .owner-review td:not(:first-child) { text-align: right; }
+.review-commands p { color: var(--muted); margin: 0 0 12px; }
+.review-commands ul { margin: 0; padding-left: 20px; }
+.review-commands li { margin: 8px 0; }
+.review-commands code {
+  background: #f0f3f8;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  padding: 4px 6px;
+}
 .case-header {
   display: flex;
   flex-wrap: wrap;
@@ -603,6 +616,22 @@ def _html_owner_review(diffs: list[Any]) -> str:
             "</tr>"
         )
     lines.append("</tbody></table></section>")
+    return "".join(lines)
+
+
+def _html_review_commands(result: dict[str, Any]) -> str:
+    commands = _review_command_lines(result)
+    if not commands:
+        return ""
+    lines = [
+        '<section class="panel review-commands">',
+        "<h2>Review commands</h2>",
+        "<p>Use these only for intentional changes after human review; fix real regressions instead.</p>",
+        "<ul>",
+    ]
+    for command in commands:
+        lines.append(f"<li><code>{_h(command)}</code></li>")
+    lines.append("</ul></section>")
     return "".join(lines)
 
 

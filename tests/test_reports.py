@@ -137,6 +137,8 @@ class ReportTests(unittest.TestCase):
                 "rationale": ["1 regression case(s)"],
             },
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
+            "suite": "redline-suite.json",
+            "candidate": ".redline/runs/candidate.jsonl",
             "diffs": [
                 {
                     "case_id": "case_001",
@@ -167,6 +169,15 @@ class ReportTests(unittest.TestCase):
         self.assertIn("<h2>Warnings</h2>", report)
         self.assertIn("<h2>Owner review</h2>", report)
         self.assertIn("<td>@platform-team</td><td>1</td><td>0</td>", report)
+        self.assertIn("<h2>Review commands</h2>", report)
+        self.assertIn(
+            'redline mark redline-suite.json case_001 --status expected --note &quot;intentional change&quot;',
+            report,
+        )
+        self.assertIn(
+            'redline accept redline-suite.json --all-expected --candidate .redline/runs/candidate.jsonl --note &quot;accepted reviewed changes&quot;',
+            report,
+        )
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn("case_001", report)
         self.assertIn("Baseline", report)
