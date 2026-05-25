@@ -1,6 +1,29 @@
-# redline
-
 <!-- mcp-name: io.github.gowtham0992/redline -->
+
+<p align="center">
+  <img src="https://gowtham0992.github.io/redline/assets/redline-logo.svg" alt="redline" width="420">
+</p>
+
+<h2 align="center">Catch prompt regressions before they ship.</h2>
+
+<p align="center">
+  <strong>Automatic eval suites from the prompt logs you already have.</strong>
+</p>
+
+<p align="center">
+  redline turns real prompt-response logs into local regression tests. It selects
+  representative cases, replays your changed prompt, and shows the behavioral
+  diff before a bad prompt reaches users.
+</p>
+
+<p align="center">
+  <a href="https://gowtham0992.github.io/redline/">Website</a> ·
+  <a href="#project-docs">Docs</a> ·
+  <a href="docs/mcp.md">MCP</a> ·
+  <a href="https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline">MCP Registry</a> ·
+  <a href="SECURITY.md">Security</a> ·
+  <a href="LICENSE">License</a>
+</p>
 
 [![CI](https://github.com/gowtham0992/redline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gowtham0992/redline/actions/workflows/ci.yml)
 [![GitHub Pages](https://github.com/gowtham0992/redline/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/gowtham0992/redline/actions/workflows/pages.yml)
@@ -9,15 +32,56 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/gowtham0992/redline?style=social)](https://github.com/gowtham0992/redline/stargazers)
 
-[Website](https://gowtham0992.github.io/redline/) · [Docs](#project-docs) · [MCP](docs/mcp.md) · [MCP Registry](https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline) · [Security](SECURITY.md) · [License](LICENSE)
-
-**Automatic eval suites from the prompt logs you already have.**
-
-redline turns real prompt-response logs into regression tests. It watches or
-imports existing outputs, selects representative cases, replays your changed
-prompt, and shows the behavioral diff before a bad prompt ships.
-
 ![redline product demo](https://gowtham0992.github.io/redline/assets/redline-product-demo.gif)
+
+## What Is redline?
+
+redline is an open-source, local-first eval tool for AI teams. It uses logs you
+already have: prompts, outputs, support tickets, traces, model responses, and
+production JSONL exports.
+
+Instead of asking you to hand-write evals first, redline generates the first
+suite from real behavior. You can then run that suite every time a prompt,
+model, or runner changes.
+
+No cloud account is required. No manual test writing is required. No LLM judge
+is required for the core regression signal.
+
+## How It Works
+
+redline gives you three primitives that cover the prompt-regression loop:
+
+### 1. Logs
+
+Start with prompt-response data you already have. Import JSONL, convert exports
+from tools like Langfuse or Helicone, capture OpenAI/Anthropic SDK calls, or add
+bounded FastAPI/ASGI middleware.
+
+```bash
+redline suite logs/baseline.jsonl --out redline-suite.json
+```
+
+### 2. Suite
+
+redline groups behavior into deterministic signatures and selects
+representative cases first. You can add pinned edge cases and explicit
+requirements when a scenario must never be missed.
+
+```bash
+redline cases redline-suite.json
+redline suite add redline-suite.json --prompt "..." --response "..."
+```
+
+### 3. Eval
+
+Replay a changed prompt or compare candidate outputs. redline names the
+behavior that broke: missing JSON keys, URLs, numbers, tables, code blocks,
+refusals, empty answers, or requirement failures.
+
+```bash
+redline eval --prompt prompts/v2.txt
+redline diff redline-suite.json logs/candidate.jsonl
+```
 
 ## Product Promise
 
@@ -27,22 +91,6 @@ you did not want to ship.
 That promise is intentionally narrow. redline is not a hosted eval platform, a
 generic score, or a replacement for human judgment. It is the local safety loop
 between "I changed the prompt" and "this is safe enough to merge."
-
-## Why It Exists
-
-Most teams already have the raw material for evals: prompts, outputs, support
-tickets, traces, model responses, and production logs. What they usually do not
-have is time to hand-write a full regression suite before every prompt edit.
-
-redline makes the first suite free:
-
-1. Use the logs you already have.
-2. Cluster behavior into representative cases.
-3. Re-run the suite after a prompt change.
-4. See exactly what broke: JSON keys, required numbers, URLs, tables, code
-   blocks, refusals, empty answers, and other high-signal changes.
-5. Mark intentional changes, accept reviewed outputs, and keep the suite moving
-   with the product.
 
 ## Start Here
 

@@ -212,7 +212,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline", readme)
         self.assertIn("[![License: MIT]", readme)
         self.assertIn("[![Stars](https://img.shields.io/github/stars/gowtham0992/redline?style=social)]", readme)
-        self.assertIn("[License](LICENSE)", readme)
+        self.assertIn('<a href="LICENSE">License</a>', readme)
         self.assertIn("python -m pip install redline-ai", readme)
         self.assertIn("redline judges", readme)
         self.assertIn("feature-level", readme)
