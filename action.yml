@@ -30,6 +30,9 @@ inputs:
   render-dashboard:
     description: Render .redline/dashboard.html after eval.
     default: "true"
+  benchmark-max-seconds:
+    description: Optional maximum worst-case eval budget in seconds. Empty means report only.
+    default: ""
 
 runs:
   using: composite
@@ -47,7 +50,15 @@ runs:
 
         python -m redline doctor --config "${{ inputs.config }}" --strict
         python -m redline validate "${{ inputs.suite }}" --config "${{ inputs.config }}" --strict
-        python -m redline benchmark "${{ inputs.suite }}" --config "${{ inputs.config }}" --github-summary
+        benchmark_args=(
+          "${{ inputs.suite }}"
+          --config "${{ inputs.config }}"
+          --github-summary
+        )
+        if [ -n "${{ inputs.benchmark-max-seconds }}" ]; then
+          benchmark_args+=(--max-seconds "${{ inputs.benchmark-max-seconds }}")
+        fi
+        python -m redline benchmark "${benchmark_args[@]}"
 
         eval_args=(
           "${{ inputs.suite }}"

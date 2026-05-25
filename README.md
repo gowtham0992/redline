@@ -192,11 +192,14 @@ Use redline as a composite GitHub Action from another repo:
 - uses: gowtham0992/redline@v0.1.0
   with:
     prompt-path: prompts/v2.txt
+    benchmark-max-seconds: "300"
 ```
 
 The action writes JSON, Markdown, HTML, JUnit, history, and dashboard artifacts
-under `.redline/`, appends the report and trend summary to the GitHub step
-summary, and exits with the eval gate status.
+under `.redline/`, appends benchmark, report, and trend summaries to the
+GitHub step summary, and exits with the eval gate status. Set
+`benchmark-max-seconds` when a suite should fail CI if its worst-case runtime
+budget grows too far.
 
 ## Reports
 
