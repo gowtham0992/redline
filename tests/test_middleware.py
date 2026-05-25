@@ -105,6 +105,80 @@ class MiddlewareTests(unittest.TestCase):
 
             self.assertFalse(log.exists())
 
+    def test_asgi_middleware_skips_request_when_content_length_exceeds_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+                await receive()
+                response = {"response": "small answer"}
+                await send({"type": "http.response.start", "status": 200, "headers": _json_headers()})
+                await send({"type": "http.response.body", "body": json.dumps(response).encode("utf-8")})
+
+            middleware = RedlineMiddleware(app, log=str(log), max_body_bytes=64)
+
+            asyncio.run(_call_app(middleware, {"prompt": "hello"}, request_content_length=65))
+
+            self.assertFalse(log.exists())
+
+    def test_asgi_middleware_skips_response_when_content_length_exceeds_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+                await receive()
+                response = {"response": "small answer"}
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [
+                            (b"content-type", b"application/json"),
+                            (b"content-length", b"65"),
+                        ],
+                    }
+                )
+                await send({"type": "http.response.body", "body": json.dumps(response).encode("utf-8")})
+
+            middleware = RedlineMiddleware(app, log=str(log), max_body_bytes=64)
+
+            asyncio.run(_call_app(middleware, {"prompt": "hello"}))
+
+            self.assertFalse(log.exists())
+
+    def test_asgi_middleware_skips_streaming_responses_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+                await receive()
+                await send({"type": "http.response.start", "status": 200, "headers": _json_headers()})
+                await send({"type": "http.response.body", "body": b'{"response":"streamed', "more_body": True})
+                await send({"type": "http.response.body", "body": b' answer"}'})
+
+            middleware = RedlineMiddleware(app, log=str(log))
+
+            asyncio.run(_call_app(middleware, {"prompt": "hello"}))
+
+            self.assertFalse(log.exists())
+
+    def test_asgi_middleware_can_capture_streaming_responses_when_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+                await receive()
+                await send({"type": "http.response.start", "status": 200, "headers": _json_headers()})
+                await send({"type": "http.response.body", "body": b'{"response":"streamed', "more_body": True})
+                await send({"type": "http.response.body", "body": b' answer"}'})
+
+            middleware = RedlineMiddleware(app, log=str(log), capture_streaming_responses=True)
+
+            asyncio.run(_call_app(middleware, {"prompt": "hello"}))
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(records[0].response, "streamed answer")
+
     def test_asgi_middleware_rejects_invalid_body_limit(self) -> None:
         async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
             return None
@@ -144,6 +218,7 @@ async def _call_app(
     body: dict[str, Any],
     *,
     content_type: bytes = b"application/json",
+    request_content_length: int | None = None,
 ) -> list[dict[str, Any]]:
     sent: list[dict[str, Any]] = []
     received = False
@@ -162,13 +237,12 @@ async def _call_app(
     async def send(message: dict[str, Any]) -> None:
         sent.append(message)
 
+    headers = [(b"content-type", content_type)]
+    if request_content_length is not None:
+        headers.append((b"content-length", str(request_content_length).encode("ascii")))
+
     await app(
-        {
-            "type": "http",
-            "method": "POST",
-            "path": "/generate",
-            "headers": [(b"content-type", content_type)],
-        },
+        {"type": "http", "method": "POST", "path": "/generate", "headers": headers},
         receive,
         send,
     )

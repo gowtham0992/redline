@@ -283,7 +283,10 @@ What it does: records each JSON request/response pair to
 `.redline/logs/prompts.jsonl`, redacting common secrets and PII before write by
 default. Nothing leaves disk. By default, the middleware only captures
 JSON-compatible content types and skips request or response bodies larger than
-1 MB; pass `max_body_bytes=` if your prompt payloads need a different cap.
+1 MB; pass `max_body_bytes=` if your prompt payloads need a different cap. It
+also skips streaming responses by default so long-lived streams or binary
+downloads are never buffered; pass `capture_streaming_responses=True` only for
+bounded JSON responses that are intentionally sent in chunks.
 
 Wire it in:
 

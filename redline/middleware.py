@@ -21,8 +21,9 @@ DEFAULT_CAPTURE_CONTENT_TYPES = ("application/json", "application/*+json")
 class RedlineMiddleware:
     """ASGI middleware that records JSON prompt-response pairs locally.
 
-    Works with FastAPI and other ASGI apps without importing FastAPI. It buffers
-    one JSON HTTP request and response body up to ``max_body_bytes``, extracts
+    Works with FastAPI and other ASGI apps without importing FastAPI. It
+    captures JSON-only HTTP request and response bodies up to
+    ``max_body_bytes``, skips streaming responses by default, extracts
     configured JSON fields, and appends a redline observation when both prompt
     and response are present.
     """
@@ -40,6 +41,7 @@ class RedlineMiddleware:
         placeholder: str = DEFAULT_PLACEHOLDER,
         max_body_bytes: int | None = DEFAULT_MAX_BODY_BYTES,
         capture_content_types: tuple[str, ...] = DEFAULT_CAPTURE_CONTENT_TYPES,
+        capture_streaming_responses: bool = False,
     ) -> None:
         if max_body_bytes is not None and max_body_bytes <= 0:
             raise ValueError("max_body_bytes must be greater than 0")
@@ -53,44 +55,47 @@ class RedlineMiddleware:
         self.placeholder = placeholder
         self.max_body_bytes = max_body_bytes
         self.capture_content_types = capture_content_types
+        self.capture_streaming_responses = capture_streaming_responses
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope.get("type") != "http":
             await self.app(scope, receive, send)
             return
 
-        request_chunks: list[bytes] = []
-        response_chunks: list[bytes] = []
-        request_capture = _scope_content_type_allowed(scope, self.capture_content_types)
+        request_body = _CaptureBuffer(self.max_body_bytes)
+        response_body = _CaptureBuffer(self.max_body_bytes)
+        request_capture = _scope_capture_allowed(scope, self.capture_content_types, self.max_body_bytes)
         response_capture = False
-        request_too_large = False
-        response_too_large = False
+        response_streaming = False
         status_code: int | None = None
 
         async def capture_receive() -> Message:
-            nonlocal request_too_large
             message = await receive()
             if message.get("type") == "http.request":
                 body = message.get("body", b"")
-                if request_capture and not request_too_large and isinstance(body, bytes) and body:
-                    request_too_large = _append_limited(request_chunks, body, self.max_body_bytes)
+                if request_capture and isinstance(body, bytes) and body:
+                    request_body.append(body)
             return message
 
         async def capture_send(message: Message) -> None:
-            nonlocal response_capture, response_too_large, status_code
+            nonlocal response_capture, response_streaming, status_code
             if message.get("type") == "http.response.start":
                 status = message.get("status")
                 if isinstance(status, int):
                     status_code = status
-                response_capture = _message_content_type_allowed(message, self.capture_content_types)
+                response_capture = _message_capture_allowed(message, self.capture_content_types, self.max_body_bytes)
             elif message.get("type") == "http.response.body":
                 body = message.get("body", b"")
-                if response_capture and not response_too_large and isinstance(body, bytes) and body:
-                    response_too_large = _append_limited(response_chunks, body, self.max_body_bytes)
+                if response_capture and message.get("more_body", False) and not self.capture_streaming_responses:
+                    response_streaming = True
+                    response_capture = False
+                    response_body.clear()
+                elif response_capture and isinstance(body, bytes) and body:
+                    response_body.append(body)
             await send(message)
             if message.get("type") == "http.response.body" and not message.get("more_body", False):
-                if request_capture and response_capture and not request_too_large and not response_too_large:
-                    self._record_observation(scope, request_chunks, response_chunks, status_code)
+                if request_capture and response_capture and not response_streaming:
+                    self._record_observation(scope, request_body.chunks, response_body.chunks, status_code)
 
         await self.app(scope, capture_receive, capture_send)
 
@@ -127,6 +132,27 @@ class RedlineMiddleware:
 _MISSING = object()
 
 
+class _CaptureBuffer:
+    def __init__(self, max_body_bytes: int | None) -> None:
+        self.max_body_bytes = max_body_bytes
+        self.bytes_seen = 0
+        self.too_large = False
+        self.chunks: list[bytes] = []
+
+    def append(self, body: bytes) -> None:
+        if self.too_large:
+            return
+        self.bytes_seen += len(body)
+        if self.max_body_bytes is not None and self.bytes_seen > self.max_body_bytes:
+            self.clear()
+            self.too_large = True
+            return
+        self.chunks.append(body)
+
+    def clear(self) -> None:
+        self.chunks.clear()
+
+
 def _decode_json(chunks: list[bytes]) -> Any:
     if not chunks:
         return None
@@ -136,24 +162,14 @@ def _decode_json(chunks: list[bytes]) -> Any:
         return None
 
 
-def _append_limited(chunks: list[bytes], body: bytes, max_body_bytes: int | None) -> bool:
-    if max_body_bytes is None:
-        chunks.append(body)
-        return False
-    current = sum(len(chunk) for chunk in chunks)
-    if current + len(body) > max_body_bytes:
-        chunks.clear()
-        return True
-    chunks.append(body)
-    return False
+def _scope_capture_allowed(scope: Scope, allowed: tuple[str, ...], max_body_bytes: int | None) -> bool:
+    headers = scope.get("headers")
+    return _content_type_allowed(_headers_content_type(headers), allowed) and _content_length_allowed(headers, max_body_bytes)
 
 
-def _scope_content_type_allowed(scope: Scope, allowed: tuple[str, ...]) -> bool:
-    return _content_type_allowed(_headers_content_type(scope.get("headers")), allowed)
-
-
-def _message_content_type_allowed(message: Message, allowed: tuple[str, ...]) -> bool:
-    return _content_type_allowed(_headers_content_type(message.get("headers")), allowed)
+def _message_capture_allowed(message: Message, allowed: tuple[str, ...], max_body_bytes: int | None) -> bool:
+    headers = message.get("headers")
+    return _content_type_allowed(_headers_content_type(headers), allowed) and _content_length_allowed(headers, max_body_bytes)
 
 
 def _headers_content_type(headers: Any) -> str | None:
@@ -165,6 +181,29 @@ def _headers_content_type(headers: Any) -> str | None:
         if key.lower() == b"content-type":
             return value.decode("latin-1").split(";", 1)[0].strip().lower()
     return None
+
+
+def _headers_content_length(headers: Any) -> int | None:
+    if not isinstance(headers, list):
+        return None
+    for key, value in headers:
+        if not isinstance(key, bytes) or not isinstance(value, bytes):
+            continue
+        if key.lower() != b"content-length":
+            continue
+        try:
+            length = int(value.decode("latin-1").strip())
+        except ValueError:
+            return None
+        return length if length >= 0 else None
+    return None
+
+
+def _content_length_allowed(headers: Any, max_body_bytes: int | None) -> bool:
+    if max_body_bytes is None:
+        return True
+    content_length = _headers_content_length(headers)
+    return content_length is None or content_length <= max_body_bytes
 
 
 def _content_type_allowed(content_type: str | None, allowed: tuple[str, ...]) -> bool:
