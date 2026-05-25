@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
+from .labels import behavior_label
+
 
 def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
     clusters = suite.get("clusters", [])
@@ -43,6 +45,7 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
     top_clusters = [
         {
             "signature": str(cluster.get("signature", "")),
+            "behavior": behavior_label(str(cluster.get("signature", ""))),
             "size": int(cluster.get("size", 0)),
             "high_variance": bool(cluster.get("high_variance")),
             "failure_patterns": list(cluster.get("failure_patterns") or []),
@@ -140,7 +143,7 @@ def format_suite_summary(suite: dict[str, Any]) -> str:
             flags = cluster["failure_patterns"]
             if flags:
                 marker = f"{marker} flags={','.join(str(flag) for flag in flags)}"
-            lines.append(f"  {cluster['size']:>4}  {cluster['signature']}{marker}")
+            lines.append(f"  {cluster['size']:>4}  {cluster['behavior']}{marker}")
         lines.append("")
 
     next_steps = summary["next_steps"]

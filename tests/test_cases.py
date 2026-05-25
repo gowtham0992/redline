@@ -26,6 +26,10 @@ class CasesTests(unittest.TestCase):
         self.assertEqual(rows[0]["requirements"], 0)
         self.assertEqual(rows[0]["judgment"], "")
         self.assertFalse(rows[0]["pinned"])
+        self.assertEqual(
+            rows[0]["behavior"],
+            "structured JSON prompt -> JSON response (short; JSON dict keys: name)",
+        )
         self.assertEqual(rows[0]["cluster_risk"], "low")
         self.assertEqual(rows[0]["selection_reason"], "cluster_representative")
 
@@ -44,11 +48,16 @@ class CasesTests(unittest.TestCase):
 
         self.assertEqual(detail["content_hash"], suite["cases"][0]["content_hash"])
         self.assertFalse(detail["pinned"])
+        self.assertEqual(
+            detail["behavior"],
+            "structured JSON prompt -> JSON response (short; JSON dict keys: name)",
+        )
         self.assertEqual(detail["cluster_risk"], "low")
         self.assertEqual(detail["selection_reason"], "cluster_representative")
         self.assertIn("Pinned:     no", text)
         self.assertEqual(detail["source"], "logs/baseline.jsonl")
         self.assertIn("Source:      logs/baseline.jsonl:1", text)
+        self.assertIn("Behavior:    structured JSON prompt -> JSON response", text)
         self.assertIn("Risk:        low", text)
         self.assertIn("Selected:    representative", text)
         self.assertIn("Content hash:", text)

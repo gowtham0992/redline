@@ -38,6 +38,10 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["judgments"], {"expected": 1})
         self.assertEqual(summary["requirements"], 1)
         self.assertEqual(summary["failure_pattern_clusters"], 0)
+        self.assertEqual(
+            summary["top_clusters"][0]["behavior"],
+            "structured JSON prompt -> JSON response (short; JSON dict keys: ok)",
+        )
 
     def test_suite_summary_counts_failure_pattern_clusters(self) -> None:
         suite = build_suite(
@@ -75,6 +79,7 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("High-risk clusters:", output)
         self.assertIn("Failure-pattern clusters:", output)
         self.assertIn("Top clusters:", output)
+        self.assertIn("structured JSON prompt -> JSON response", output)
 
     def test_suite_summary_recommends_more_coverage_when_budget_is_tight(self) -> None:
         suite = build_suite(

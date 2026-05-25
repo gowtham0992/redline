@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .labels import behavior_label
+
 
 def suite_case_rows(suite: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -20,6 +22,7 @@ def suite_case_rows(suite: dict[str, Any]) -> list[dict[str, Any]]:
                 "content_hash": str(case.get("content_hash", "")),
                 "source_line": case.get("source_line"),
                 "cluster": str(case.get("cluster", "")),
+                "behavior": behavior_label(str(case.get("cluster", ""))),
                 "cluster_risk": str(case.get("cluster_risk", "")),
                 "selection_reason": str(case.get("selection_reason", "")),
                 "prompt": str(case.get("prompt", "")),
@@ -74,6 +77,7 @@ def suite_case_detail(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
         "source": str(case.get("source") or suite.get("source") or ""),
         "source_line": case.get("source_line"),
         "cluster": str(case.get("cluster", "")),
+        "behavior": behavior_label(str(case.get("cluster", ""))),
         "cluster_risk": str(case.get("cluster_risk", "")),
         "selection_reason": str(case.get("selection_reason", "")),
         "prompt": str(case.get("prompt", "")),
@@ -93,6 +97,7 @@ def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
         f"Pinned:     {_format_bool(detail['pinned'])}",
         f"Source:      {_format_source(detail['source'], detail['source_line'])}",
         f"Cluster:     {detail['cluster']}",
+        f"Behavior:    {detail['behavior']}",
         f"Risk:        {detail['cluster_risk'] or '<unknown>'}",
         f"Selected:    {_format_selection_reason(detail['selection_reason']) or '<unknown>'}",
         f"Content hash: {detail['content_hash']}",
