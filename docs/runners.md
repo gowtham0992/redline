@@ -274,7 +274,9 @@ app.add_middleware(
 
 What it does: records each JSON request/response pair to
 `.redline/logs/prompts.jsonl`, redacting common secrets and PII before write by
-default. Nothing leaves disk.
+default. Nothing leaves disk. By default, the middleware only captures
+JSON-compatible content types and skips request or response bodies larger than
+1 MB; pass `max_body_bytes=` if your prompt payloads need a different cap.
 
 Wire it in:
 

@@ -19,7 +19,7 @@ class MiddlewareTests(unittest.TestCase):
                 message = await receive()
                 request = json.loads(message["body"].decode("utf-8"))
                 response = {"answer": f"reply: {request['prompt']}"}
-                await send({"type": "http.response.start", "status": 200, "headers": []})
+                await send({"type": "http.response.start", "status": 200, "headers": _json_headers()})
                 await send({"type": "http.response.body", "body": json.dumps(response).encode("utf-8")})
 
             middleware = RedlineMiddleware(app, log=str(log), response_field="answer")
@@ -41,7 +41,7 @@ class MiddlewareTests(unittest.TestCase):
             async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
                 await receive()
                 response = {"choices": [{"message": {"content": "nested answer"}}]}
-                await send({"type": "http.response.start", "status": 201, "headers": []})
+                await send({"type": "http.response.start", "status": 201, "headers": _json_headers()})
                 await send({"type": "http.response.body", "body": json.dumps(response).encode("utf-8")})
 
             middleware = RedlineMiddleware(
@@ -65,7 +65,7 @@ class MiddlewareTests(unittest.TestCase):
 
             async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
                 await receive()
-                await send({"type": "http.response.start", "status": 200, "headers": []})
+                await send({"type": "http.response.start", "status": 200, "headers": _json_headers()})
                 await send({"type": "http.response.body", "body": b"not json"})
 
             middleware = RedlineMiddleware(app, log=str(log))
@@ -74,11 +74,77 @@ class MiddlewareTests(unittest.TestCase):
 
             self.assertFalse(log.exists())
 
+    def test_asgi_middleware_skips_non_json_content_types(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+                await receive()
+                await send({"type": "http.response.start", "status": 200, "headers": [(b"content-type", b"text/plain")]})
+                await send({"type": "http.response.body", "body": b"plain response"})
+
+            middleware = RedlineMiddleware(app, log=str(log))
+
+            asyncio.run(_call_app(middleware, {"prompt": "hello"}, content_type=b"text/plain"))
+
+            self.assertFalse(log.exists())
+
+    def test_asgi_middleware_skips_oversized_bodies(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+                await receive()
+                response = {"response": "x" * 256}
+                await send({"type": "http.response.start", "status": 200, "headers": _json_headers()})
+                await send({"type": "http.response.body", "body": json.dumps(response).encode("utf-8")})
+
+            middleware = RedlineMiddleware(app, log=str(log), max_body_bytes=64)
+
+            asyncio.run(_call_app(middleware, {"prompt": "hello"}))
+
+            self.assertFalse(log.exists())
+
+    def test_asgi_middleware_rejects_invalid_body_limit(self) -> None:
+        async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+            return None
+
+        with self.assertRaisesRegex(ValueError, "max_body_bytes"):
+            RedlineMiddleware(app, max_body_bytes=0)
+
+    def test_asgi_middleware_accepts_json_suffix_content_type(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+                await receive()
+                response = {"response": "json suffix"}
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [(b"content-type", b"application/vnd.api+json")],
+                    }
+                )
+                await send({"type": "http.response.body", "body": json.dumps(response).encode("utf-8")})
+
+            middleware = RedlineMiddleware(app, log=str(log))
+
+            asyncio.run(_call_app(middleware, {"prompt": "hello"}, content_type=b"application/vnd.api+json"))
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(records[0].response, "json suffix")
+
     def test_asgi_middleware_exports_from_package_root(self) -> None:
         self.assertIs(ExportedRedlineMiddleware, RedlineMiddleware)
 
 
-async def _call_app(app: Any, body: dict[str, Any]) -> list[dict[str, Any]]:
+async def _call_app(
+    app: Any,
+    body: dict[str, Any],
+    *,
+    content_type: bytes = b"application/json",
+) -> list[dict[str, Any]]:
     sent: list[dict[str, Any]] = []
     received = False
 
@@ -96,8 +162,21 @@ async def _call_app(app: Any, body: dict[str, Any]) -> list[dict[str, Any]]:
     async def send(message: dict[str, Any]) -> None:
         sent.append(message)
 
-    await app({"type": "http", "method": "POST", "path": "/generate"}, receive, send)
+    await app(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/generate",
+            "headers": [(b"content-type", content_type)],
+        },
+        receive,
+        send,
+    )
     return sent
+
+
+def _json_headers() -> list[tuple[bytes, bytes]]:
+    return [(b"content-type", b"application/json")]
 
 
 if __name__ == "__main__":

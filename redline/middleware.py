@@ -14,14 +14,17 @@ Receive = Callable[[], Awaitable[Message]]
 Send = Callable[[Message], Awaitable[None]]
 ASGIApp = Callable[[Scope, Receive, Send], Awaitable[None]]
 Metadata = dict[str, Any] | Callable[[Scope, Any, Any], dict[str, Any]]
+DEFAULT_MAX_BODY_BYTES = 1_000_000
+DEFAULT_CAPTURE_CONTENT_TYPES = ("application/json", "application/*+json")
 
 
 class RedlineMiddleware:
     """ASGI middleware that records JSON prompt-response pairs locally.
 
     Works with FastAPI and other ASGI apps without importing FastAPI. It buffers
-    one HTTP request and response body, extracts configured JSON fields, and
-    appends a redline observation when both prompt and response are present.
+    one JSON HTTP request and response body up to ``max_body_bytes``, extracts
+    configured JSON fields, and appends a redline observation when both prompt
+    and response are present.
     """
 
     def __init__(
@@ -35,7 +38,11 @@ class RedlineMiddleware:
         dedupe: bool = True,
         redact: bool = True,
         placeholder: str = DEFAULT_PLACEHOLDER,
+        max_body_bytes: int | None = DEFAULT_MAX_BODY_BYTES,
+        capture_content_types: tuple[str, ...] = DEFAULT_CAPTURE_CONTENT_TYPES,
     ) -> None:
+        if max_body_bytes is not None and max_body_bytes <= 0:
+            raise ValueError("max_body_bytes must be greater than 0")
         self.app = app
         self.log = log
         self.prompt_field = prompt_field
@@ -44,6 +51,8 @@ class RedlineMiddleware:
         self.dedupe = dedupe
         self.redact = redact
         self.placeholder = placeholder
+        self.max_body_bytes = max_body_bytes
+        self.capture_content_types = capture_content_types
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope.get("type") != "http":
@@ -52,29 +61,36 @@ class RedlineMiddleware:
 
         request_chunks: list[bytes] = []
         response_chunks: list[bytes] = []
+        request_capture = _scope_content_type_allowed(scope, self.capture_content_types)
+        response_capture = False
+        request_too_large = False
+        response_too_large = False
         status_code: int | None = None
 
         async def capture_receive() -> Message:
+            nonlocal request_too_large
             message = await receive()
             if message.get("type") == "http.request":
                 body = message.get("body", b"")
-                if isinstance(body, bytes) and body:
-                    request_chunks.append(body)
+                if request_capture and not request_too_large and isinstance(body, bytes) and body:
+                    request_too_large = _append_limited(request_chunks, body, self.max_body_bytes)
             return message
 
         async def capture_send(message: Message) -> None:
-            nonlocal status_code
+            nonlocal response_capture, response_too_large, status_code
             if message.get("type") == "http.response.start":
                 status = message.get("status")
                 if isinstance(status, int):
                     status_code = status
+                response_capture = _message_content_type_allowed(message, self.capture_content_types)
             elif message.get("type") == "http.response.body":
                 body = message.get("body", b"")
-                if isinstance(body, bytes) and body:
-                    response_chunks.append(body)
+                if response_capture and not response_too_large and isinstance(body, bytes) and body:
+                    response_too_large = _append_limited(response_chunks, body, self.max_body_bytes)
             await send(message)
             if message.get("type") == "http.response.body" and not message.get("more_body", False):
-                self._record_observation(scope, request_chunks, response_chunks, status_code)
+                if request_capture and response_capture and not request_too_large and not response_too_large:
+                    self._record_observation(scope, request_chunks, response_chunks, status_code)
 
         await self.app(scope, capture_receive, capture_send)
 
@@ -118,6 +134,51 @@ def _decode_json(chunks: list[bytes]) -> Any:
         return json.loads(b"".join(chunks).decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         return None
+
+
+def _append_limited(chunks: list[bytes], body: bytes, max_body_bytes: int | None) -> bool:
+    if max_body_bytes is None:
+        chunks.append(body)
+        return False
+    current = sum(len(chunk) for chunk in chunks)
+    if current + len(body) > max_body_bytes:
+        chunks.clear()
+        return True
+    chunks.append(body)
+    return False
+
+
+def _scope_content_type_allowed(scope: Scope, allowed: tuple[str, ...]) -> bool:
+    return _content_type_allowed(_headers_content_type(scope.get("headers")), allowed)
+
+
+def _message_content_type_allowed(message: Message, allowed: tuple[str, ...]) -> bool:
+    return _content_type_allowed(_headers_content_type(message.get("headers")), allowed)
+
+
+def _headers_content_type(headers: Any) -> str | None:
+    if not isinstance(headers, list):
+        return None
+    for key, value in headers:
+        if not isinstance(key, bytes) or not isinstance(value, bytes):
+            continue
+        if key.lower() == b"content-type":
+            return value.decode("latin-1").split(";", 1)[0].strip().lower()
+    return None
+
+
+def _content_type_allowed(content_type: str | None, allowed: tuple[str, ...]) -> bool:
+    if not content_type:
+        return False
+    for pattern in allowed:
+        normalized = pattern.lower().strip()
+        if normalized == content_type:
+            return True
+        if normalized.endswith("/*+json"):
+            prefix = normalized.removesuffix("*+json")
+            if content_type.startswith(prefix) and content_type.endswith("+json"):
+                return True
+    return False
 
 
 def _path_value(value: Any, path: str) -> Any:
