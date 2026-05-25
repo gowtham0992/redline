@@ -129,6 +129,7 @@ that structural checks cannot prove.
 redline is built around the full prompt-regression loop:
 
 - `redline watch`: collect prompt-response observations from logs or Python code.
+- `RedlineMiddleware`: capture FastAPI or ASGI request/response pairs locally.
 - `redline redact --check`: scan logs for common secrets and PII, then write a scrubbed copy when needed.
 - `redline cluster`: inspect behavior groups before suite generation.
 - `redline suite`: generate a representative eval suite from baseline logs.

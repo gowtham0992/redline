@@ -196,6 +196,44 @@ Common field mappings:
 
 That's it.
 
+## FastAPI Or ASGI Middleware
+
+What you need: a Python ASGI app that receives JSON and returns JSON.
+
+Add middleware:
+
+```python
+from redline import RedlineMiddleware
+
+app.add_middleware(
+    RedlineMiddleware,
+    prompt_field="prompt",
+    response_field="answer",
+)
+```
+
+For nested chat-style payloads:
+
+```python
+app.add_middleware(
+    RedlineMiddleware,
+    prompt_field="messages.0.content",
+    response_field="choices.0.message.content",
+)
+```
+
+What it does: records each JSON request/response pair to
+`.redline/logs/prompts.jsonl`. Nothing leaves disk.
+
+Wire it in:
+
+```bash
+redline watch --stats
+redline suite .redline/logs/prompts.jsonl --out redline-suite.json
+```
+
+That's it.
+
 ## LiteLLM Or Model Proxy
 
 What you need: a LiteLLM-compatible `/v1/chat/completions` endpoint.
