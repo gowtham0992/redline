@@ -8,10 +8,11 @@ from threading import Thread
 from time import sleep
 from typing import Any
 
+from redline import patch_openai as exported_patch_openai
 from redline import record as exported_record
 from redline import watch as exported_watch
 from redline.io import read_jsonl_records
-from redline.watch import collect_log, follow_log, format_follow_records, format_watch_stats, record, watch, watch_stats
+from redline.watch import collect_log, follow_log, format_follow_records, format_watch_stats, patch_openai, record, watch, watch_stats
 
 
 class WatchTests(unittest.TestCase):
@@ -306,6 +307,55 @@ class WatchTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "could not infer prompt"):
             generate_response()
 
+    def test_patch_openai_records_chat_completion_calls(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            client = _FakeOpenAIClient()
+
+            result = patch_openai(client, log=log)
+            response = client.chat.completions.create(
+                model="gpt-test",
+                messages=[
+                    {"role": "system", "content": "Be concise."},
+                    {"role": "user", "content": "What is the refund window?"},
+                ],
+            )
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(result["patched"], ["chat.completions.create", "responses.create"])
+            self.assertEqual(response["choices"][0]["message"]["content"], "30 days")
+            self.assertEqual(records[0].prompt, "system: Be concise.\nuser: What is the refund window?")
+            self.assertEqual(records[0].response, "30 days")
+            self.assertEqual(records[0].raw["source"], "python:openai.chat.completions.create")
+            metadata = records[0].raw["metadata"]
+            self.assertEqual(metadata["provider"], "openai")
+            self.assertEqual(metadata["operation"], "chat.completions.create")
+            self.assertEqual(metadata["request_model"], "gpt-test")
+            self.assertEqual(metadata["model"], "gpt-test")
+            self.assertIsInstance(metadata["latency_ms"], int)
+
+    def test_patch_openai_records_responses_api_input(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            client = _FakeOpenAIClient()
+
+            exported_patch_openai(client, log=log)
+            client.responses.create(model="gpt-test", input="Summarize status")
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(records[0].prompt, "Summarize status")
+            self.assertEqual(records[0].response, "Status is green")
+            self.assertEqual(records[0].raw["source"], "python:openai.responses.create")
+
+    def test_patch_openai_does_not_double_wrap_same_client(self) -> None:
+        client = _FakeOpenAIClient()
+
+        first = patch_openai(client)
+        second = patch_openai(client)
+
+        self.assertEqual(first["patched"], ["chat.completions.create", "responses.create"])
+        self.assertEqual(second["patched"], [])
+
     def test_collect_log_writes_normalized_observed_records(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -584,6 +634,42 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(result["records"], 2)
             self.assertEqual([record.prompt for record in records], ["one", "two"])
             self.assertEqual(records[1].raw["source_line"], 2)
+
+
+class _FakeResponses:
+    def create(self, **kwargs: Any) -> dict[str, Any]:
+        return {
+            "id": "resp_test",
+            "model": kwargs.get("model", "gpt-test"),
+            "output_text": "Status is green",
+            "usage": {"input_tokens": 3, "output_tokens": 4, "total_tokens": 7},
+        }
+
+
+class _FakeCompletions:
+    def create(self, **kwargs: Any) -> dict[str, Any]:
+        return {
+            "id": "chatcmpl_test",
+            "model": kwargs.get("model", "gpt-test"),
+            "choices": [
+                {
+                    "message": {"content": "30 days"},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 8, "completion_tokens": 2, "total_tokens": 10},
+        }
+
+
+class _FakeChat:
+    def __init__(self) -> None:
+        self.completions = _FakeCompletions()
+
+
+class _FakeOpenAIClient:
+    def __init__(self) -> None:
+        self.chat = _FakeChat()
+        self.responses = _FakeResponses()
 
 
 if __name__ == "__main__":

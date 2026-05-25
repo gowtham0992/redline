@@ -196,6 +196,35 @@ Common field mappings:
 
 That's it.
 
+## OpenAI-Compatible SDK Patch
+
+What you need: Python code that already calls an OpenAI-compatible client.
+
+Patch the client once during app startup:
+
+```python
+from openai import OpenAI
+from redline import patch_openai
+
+client = OpenAI()
+patch_openai(client)
+```
+
+Calls like `client.chat.completions.create(...)` and
+`client.responses.create(...)` now append prompt-response observations to
+`.redline/logs/prompts.jsonl`. redline infers prompts from `messages`, `input`,
+or `prompt`, extracts common provider response text and token metadata, and
+redacts common secrets and PII before write by default.
+
+Wire it in:
+
+```bash
+redline watch --stats
+redline suite .redline/logs/prompts.jsonl --out redline-suite.json
+```
+
+That's it.
+
 ## FastAPI Or ASGI Middleware
 
 What you need: a Python ASGI app that receives JSON and returns JSON.

@@ -102,6 +102,39 @@ def watch(
     return decorate(func)
 
 
+def patch_openai(
+    client: Any | None = None,
+    *,
+    log: str | Path = DEFAULT_WATCH_LOG,
+    response_extractor: Callable[[Any], Any] | None = None,
+    dedupe: bool = True,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
+) -> dict[str, Any]:
+    """Patch an OpenAI-compatible module or client to record local observations.
+
+    Pass an OpenAI module or client instance, or omit ``client`` to import the
+    installed ``openai`` module. The patch is dependency-free from redline's
+    point of view and records only when it can infer a prompt from common
+    ``messages``, ``input``, or ``prompt`` arguments.
+    """
+
+    target = client if client is not None else _import_openai_module()
+    patched = []
+    for path in ("chat.completions.create", "responses.create", "ChatCompletion.create"):
+        if _patch_openai_path(
+            target,
+            path,
+            log=log,
+            response_extractor=response_extractor,
+            dedupe=dedupe,
+            redact=redact,
+            placeholder=placeholder,
+        ):
+            patched.append(path)
+    return {"provider": "openai", "log": str(log), "patched": patched}
+
+
 def record(
     prompt: Any,
     response: Any,
@@ -468,6 +501,177 @@ def _append_function_observation(
         redact=redact,
         placeholder=placeholder,
     )
+
+
+def _import_openai_module() -> Any:
+    try:
+        import openai  # type: ignore[import-not-found]
+    except ImportError as exc:  # pragma: no cover - depends on user environment.
+        raise ValueError("OpenAI package not installed; pass an OpenAI-compatible client to patch_openai") from exc
+    return openai
+
+
+def _patch_openai_path(
+    root: Any,
+    path: str,
+    *,
+    log: str | Path,
+    response_extractor: Callable[[Any], Any] | None,
+    dedupe: bool,
+    redact: bool,
+    placeholder: str,
+) -> bool:
+    parent = _resolve_parent(root, path)
+    if parent is None:
+        return False
+    name = path.rsplit(".", 1)[-1]
+    original = getattr(parent, name, None)
+    if not callable(original) or getattr(original, "__redline_patched__", False):
+        return False
+
+    if iscoroutinefunction(original):
+
+        @wraps(original)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            prompt = _openai_prompt_from_call(args, kwargs)
+            started = monotonic()
+            response = await original(*args, **kwargs)
+            _record_openai_observation(
+                path,
+                prompt,
+                response,
+                kwargs,
+                log=log,
+                response_extractor=response_extractor,
+                latency_ms=_elapsed_ms(started),
+                dedupe=dedupe,
+                redact=redact,
+                placeholder=placeholder,
+            )
+            return response
+
+        wrapper: Callable[..., Any] = async_wrapper
+    else:
+
+        @wraps(original)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            prompt = _openai_prompt_from_call(args, kwargs)
+            started = monotonic()
+            response = original(*args, **kwargs)
+            _record_openai_observation(
+                path,
+                prompt,
+                response,
+                kwargs,
+                log=log,
+                response_extractor=response_extractor,
+                latency_ms=_elapsed_ms(started),
+                dedupe=dedupe,
+                redact=redact,
+                placeholder=placeholder,
+            )
+            return response
+
+        wrapper = sync_wrapper
+
+    setattr(wrapper, "__redline_patched__", True)
+    setattr(wrapper, "__redline_original__", original)
+    setattr(parent, name, wrapper)
+    return True
+
+
+def _resolve_parent(root: Any, path: str) -> Any | None:
+    current = root
+    parts = path.split(".")
+    for part in parts[:-1]:
+        current = _field(current, part)
+        if current is None:
+            return None
+    return current
+
+
+def _record_openai_observation(
+    operation: str,
+    prompt: Any,
+    response: Any,
+    request_kwargs: dict[str, Any],
+    *,
+    log: str | Path,
+    response_extractor: Callable[[Any], Any] | None,
+    latency_ms: int,
+    dedupe: bool,
+    redact: bool,
+    placeholder: str,
+) -> None:
+    if prompt is None:
+        return
+    response_value = response_extractor(response) if response_extractor else response
+    metadata = {
+        "provider": "openai",
+        "operation": operation,
+        "latency_ms": latency_ms,
+    }
+    model = request_kwargs.get("model")
+    if isinstance(model, str) and model:
+        metadata["request_model"] = model
+    record(
+        prompt,
+        response_value,
+        log=log,
+        source=f"python:openai.{operation}",
+        metadata=metadata,
+        dedupe=dedupe,
+        redact=redact,
+        placeholder=placeholder,
+    )
+
+
+def _openai_prompt_from_call(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+    for key in ("messages", "input", "prompt"):
+        if key in kwargs:
+            return _openai_prompt_value(kwargs[key])
+    for value in args:
+        prompt = _openai_prompt_value(value)
+        if prompt is not None:
+            return prompt
+    return None
+
+
+def _openai_prompt_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        messages = _openai_messages_text(value)
+        return messages if messages is not None else value
+    return value
+
+
+def _openai_messages_text(messages: list[Any]) -> str | None:
+    rows = []
+    for message in messages:
+        role = _field(message, "role")
+        content = _field(message, "content")
+        text = _openai_content_text(content)
+        if not text:
+            continue
+        if isinstance(role, str) and role:
+            rows.append(f"{role}: {text}")
+        else:
+            rows.append(text)
+    return "\n".join(rows) if rows else None
+
+
+def _openai_content_text(content: Any) -> str | None:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            text = _field(item, "text")
+            if isinstance(text, str) and text:
+                parts.append(text)
+        return "\n".join(parts) if parts else None
+    return None
 
 
 def _prompt_from_call(
