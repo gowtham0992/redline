@@ -43,6 +43,7 @@
 - Show blocking and changed review counts in the dashboard reports table.
 - Group prompt manifest evals by feature in the local dashboard.
 - Summarize prompt manifests with readiness, owners, requirements, and missing suite rollups.
+- Validate prompt manifests and their mapped suites through `redline validate redline-prompts.json`.
 - Print prompt-level rollups in compact prompt manifest eval output.
 - Include prompt manifest rollups in Markdown and HTML eval reports.
 - Support prompt manifests in the composite GitHub Action and generated workflow.

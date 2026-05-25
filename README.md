@@ -174,14 +174,15 @@ For repos with many prompt files, the manifest becomes the eval plan:
 redline prompts prompts/ --suite-dir suites --out redline-prompts.json
 redline prompts prompts/ --suite-dir suites --out redline-prompts.json --check --check-suites
 redline summary redline-prompts.json
+redline validate redline-prompts.json --strict
 redline benchmark redline-prompts.json
 redline eval redline-prompts.json
 ```
 
 Manifest summaries show readiness across every mapped suite, manifest
-benchmarks aggregate runtime budget, and manifest evals print prompt-level rollups
-before case details. Large repos can see which prompt files or feature folders
-need attention first.
+validation checks every mapped suite, manifest benchmarks aggregate runtime
+budget, and manifest evals print prompt-level rollups before case details. Large
+repos can see which prompt files or feature folders need attention first.
 
 When mapped suites are valid, the check prints ready commands such as:
 

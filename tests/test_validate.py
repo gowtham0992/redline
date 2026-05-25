@@ -2,9 +2,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.io import LogRecord
+from redline.io import LogRecord, write_json
 from redline.suite import build_suite
-from redline.validate import format_validation_report, validate_suite
+from redline.validate import format_validation_report, validate_prompt_manifest, validate_suite
 
 
 class ValidateTests(unittest.TestCase):
@@ -157,6 +157,50 @@ class ValidateTests(unittest.TestCase):
 
         self.assertFalse(report["valid"])
         self.assertTrue(any("references unknown case id" in item["message"] for item in report["items"]))
+
+    def test_validate_prompt_manifest_checks_mapped_suites(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prompt = root / "prompts" / "support.txt"
+            prompt.parent.mkdir()
+            prompt.write_text("Support prompt", encoding="utf-8")
+            suite_path = root / "suites" / "support.redline-suite.json"
+            suite_path.parent.mkdir()
+            write_json(
+                suite_path,
+                build_suite(
+                    [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+                    source="memory",
+                    input_field="prompt",
+                    output_field="response",
+                    max_cases=10,
+                ),
+            )
+            manifest = {
+                "schema": "redline-prompt-manifest-v1",
+                "prompts": [
+                    {"id": "support", "path": str(prompt), "suite": str(suite_path)},
+                    {
+                        "id": "billing",
+                        "path": str(root / "prompts" / "billing.txt"),
+                        "suite": str(root / "suites" / "billing.redline-suite.json"),
+                    },
+                ],
+            }
+
+            report = validate_prompt_manifest(manifest, manifest_path="redline-prompts.json")
+            text = format_validation_report(report)
+
+        self.assertFalse(report["valid"])
+        self.assertEqual(report["prompt_count"], 2)
+        self.assertEqual(report["suite_count"], 1)
+        self.assertEqual(report["errors"], 1)
+        self.assertEqual(report["warnings"], 1)
+        self.assertTrue(any("mapped suite not found" in item["message"] for item in report["items"]))
+        self.assertTrue(any("prompt file not found" in item["message"] for item in report["items"]))
+        self.assertIn("Prompt manifest: redline-prompts.json", text)
+        self.assertIn("Suites:   1/2", text)
+        self.assertIn("Build missing suite:", text)
 
     def test_format_validation_report_includes_findings(self) -> None:
         report = {

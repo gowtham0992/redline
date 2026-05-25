@@ -585,10 +585,10 @@ def _tools() -> list[ToolSpec]:
         ),
         ToolSpec(
             "redline_validate",
-            "Validate suite structure, stored features, hashes, requirements, and source freshness.",
+            "Validate suite or prompt-manifest structure, mapped suites, hashes, requirements, and source freshness.",
             _schema(
                 {
-                    "suite_path": _string("Suite JSON path. Defaults to config."),
+                    "suite_path": _string("Suite or prompt manifest JSON path. Defaults to config."),
                     "config": _string("Config path to read."),
                     "json": _boolean("Print machine-readable JSON."),
                     "strict": _boolean("Exit non-zero when warnings are present."),
@@ -598,10 +598,10 @@ def _tools() -> list[ToolSpec]:
         ),
         ToolSpec(
             "redline_summary",
-            "Summarize suite provenance, coverage, clusters, pinned cases, requirements, and next steps.",
+            "Summarize suite or prompt-manifest provenance, coverage, clusters, owners, requirements, and next steps.",
             _schema(
                 {
-                    "suite_path": _string("Suite JSON path. Defaults to config."),
+                    "suite_path": _string("Suite or prompt manifest JSON path. Defaults to config."),
                     "config": _string("Config path to read."),
                     "json": _boolean("Print machine-readable JSON."),
                 }

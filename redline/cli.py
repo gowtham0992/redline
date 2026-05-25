@@ -99,7 +99,7 @@ from .summary import (
     suite_summary,
 )
 from .suite import add_suite_case, build_suite
-from .validate import format_validation_report, validate_suite
+from .validate import format_validation_report, validate_prompt_manifest, validate_suite
 from .watch import collect_log, follow_log, format_follow_records, format_watch_stats, watch_stats
 
 
@@ -1083,7 +1083,10 @@ def cmd_validate(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path = _suite_arg(args.suite, config)
     suite = read_json(suite_path)
-    report = validate_suite(suite, suite_path=suite_path)
+    if _is_prompt_manifest(suite):
+        report = validate_prompt_manifest(suite, manifest_path=suite_path)
+    else:
+        report = validate_suite(suite, suite_path=suite_path)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

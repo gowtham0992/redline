@@ -154,6 +154,9 @@ printf '\n$ %s -m pip install --no-deps --force-reinstall %s\n' "$venv_dir/bin/p
   printf '\n$ redline summary redline-prompts.json\n'
   "$venv_dir/bin/redline" summary redline-prompts.json
 
+  printf '\n$ redline validate redline-prompts.json --strict\n'
+  "$venv_dir/bin/redline" validate redline-prompts.json --strict
+
   printf '\n$ redline benchmark redline-prompts.json --out-json manifest-benchmark.json --out-md manifest-benchmark.md\n'
   "$venv_dir/bin/redline" benchmark redline-prompts.json \
     --out-json manifest-benchmark.json \
