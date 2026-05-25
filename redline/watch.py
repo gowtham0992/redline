@@ -135,6 +135,32 @@ def patch_openai(
     return {"provider": "openai", "log": str(log), "patched": patched}
 
 
+def patch_anthropic(
+    client: Any | None = None,
+    *,
+    log: str | Path = DEFAULT_WATCH_LOG,
+    response_extractor: Callable[[Any], Any] | None = None,
+    dedupe: bool = True,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
+) -> dict[str, Any]:
+    """Patch an Anthropic-compatible module or client to record observations."""
+
+    target = client if client is not None else _import_anthropic_module()
+    patched = []
+    if _patch_anthropic_path(
+        target,
+        "messages.create",
+        log=log,
+        response_extractor=response_extractor,
+        dedupe=dedupe,
+        redact=redact,
+        placeholder=placeholder,
+    ):
+        patched.append("messages.create")
+    return {"provider": "anthropic", "log": str(log), "patched": patched}
+
+
 def record(
     prompt: Any,
     response: Any,
@@ -511,6 +537,16 @@ def _import_openai_module() -> Any:
     return openai
 
 
+def _import_anthropic_module() -> Any:
+    try:
+        import anthropic  # type: ignore[import-not-found]
+    except ImportError as exc:  # pragma: no cover - depends on user environment.
+        raise ValueError(
+            "Anthropic package not installed; pass an Anthropic-compatible client to patch_anthropic"
+        ) from exc
+    return anthropic
+
+
 def _patch_openai_path(
     root: Any,
     path: str,
@@ -580,6 +616,77 @@ def _patch_openai_path(
     return True
 
 
+def _patch_anthropic_path(
+    root: Any,
+    path: str,
+    *,
+    log: str | Path,
+    response_extractor: Callable[[Any], Any] | None,
+    dedupe: bool,
+    redact: bool,
+    placeholder: str,
+) -> bool:
+    parent = _resolve_parent(root, path)
+    if parent is None:
+        return False
+    name = path.rsplit(".", 1)[-1]
+    original = getattr(parent, name, None)
+    if not callable(original) or getattr(original, "__redline_patched__", False):
+        return False
+
+    if iscoroutinefunction(original):
+
+        @wraps(original)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            prompt = _anthropic_prompt_from_call(args, kwargs)
+            started = monotonic()
+            response = await original(*args, **kwargs)
+            _record_provider_observation(
+                provider="anthropic",
+                operation=path,
+                prompt=prompt,
+                response=response,
+                request_kwargs=kwargs,
+                log=log,
+                response_extractor=response_extractor,
+                latency_ms=_elapsed_ms(started),
+                dedupe=dedupe,
+                redact=redact,
+                placeholder=placeholder,
+            )
+            return response
+
+        wrapper: Callable[..., Any] = async_wrapper
+    else:
+
+        @wraps(original)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            prompt = _anthropic_prompt_from_call(args, kwargs)
+            started = monotonic()
+            response = original(*args, **kwargs)
+            _record_provider_observation(
+                provider="anthropic",
+                operation=path,
+                prompt=prompt,
+                response=response,
+                request_kwargs=kwargs,
+                log=log,
+                response_extractor=response_extractor,
+                latency_ms=_elapsed_ms(started),
+                dedupe=dedupe,
+                redact=redact,
+                placeholder=placeholder,
+            )
+            return response
+
+        wrapper = sync_wrapper
+
+    setattr(wrapper, "__redline_patched__", True)
+    setattr(wrapper, "__redline_original__", original)
+    setattr(parent, name, wrapper)
+    return True
+
+
 def _resolve_parent(root: Any, path: str) -> Any | None:
     current = root
     parts = path.split(".")
@@ -603,11 +710,40 @@ def _record_openai_observation(
     redact: bool,
     placeholder: str,
 ) -> None:
+    _record_provider_observation(
+        provider="openai",
+        operation=operation,
+        prompt=prompt,
+        response=response,
+        request_kwargs=request_kwargs,
+        log=log,
+        response_extractor=response_extractor,
+        latency_ms=latency_ms,
+        dedupe=dedupe,
+        redact=redact,
+        placeholder=placeholder,
+    )
+
+
+def _record_provider_observation(
+    *,
+    provider: str,
+    operation: str,
+    prompt: Any,
+    response: Any,
+    request_kwargs: dict[str, Any],
+    log: str | Path,
+    response_extractor: Callable[[Any], Any] | None,
+    latency_ms: int,
+    dedupe: bool,
+    redact: bool,
+    placeholder: str,
+) -> None:
     if prompt is None:
         return
     response_value = response_extractor(response) if response_extractor else response
     metadata = {
-        "provider": "openai",
+        "provider": provider,
         "operation": operation,
         "latency_ms": latency_ms,
     }
@@ -618,7 +754,7 @@ def _record_openai_observation(
         prompt,
         response_value,
         log=log,
-        source=f"python:openai.{operation}",
+        source=f"python:{provider}.{operation}",
         metadata=metadata,
         dedupe=dedupe,
         redact=redact,
@@ -635,6 +771,33 @@ def _openai_prompt_from_call(args: tuple[Any, ...], kwargs: dict[str, Any]) -> A
         if prompt is not None:
             return prompt
     return None
+
+
+def _anthropic_prompt_from_call(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str | None:
+    rows = []
+    system = kwargs.get("system")
+    system_text = _anthropic_content_text(system)
+    if system_text:
+        rows.append(f"system: {system_text}")
+    messages = kwargs.get("messages")
+    if isinstance(messages, list):
+        message_text = _openai_messages_text(messages)
+        if message_text:
+            rows.append(message_text)
+    if rows:
+        return "\n".join(rows)
+    for value in args:
+        if isinstance(value, list):
+            message_text = _openai_messages_text(value)
+            if message_text:
+                return message_text
+    return None
+
+
+def _anthropic_content_text(content: Any) -> str | None:
+    if isinstance(content, str):
+        return content
+    return _openai_content_text(content)
 
 
 def _openai_prompt_value(value: Any) -> Any:

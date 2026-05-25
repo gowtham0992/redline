@@ -196,25 +196,31 @@ Common field mappings:
 
 That's it.
 
-## OpenAI-Compatible SDK Patch
+## OpenAI Or Anthropic SDK Patch
 
-What you need: Python code that already calls an OpenAI-compatible client.
+What you need: Python code that already calls an OpenAI-compatible or
+Anthropic-compatible client.
 
 Patch the client once during app startup:
 
 ```python
 from openai import OpenAI
-from redline import patch_openai
+from anthropic import Anthropic
+from redline import patch_anthropic, patch_openai
 
-client = OpenAI()
-patch_openai(client)
+openai_client = OpenAI()
+patch_openai(openai_client)
+
+anthropic_client = Anthropic()
+patch_anthropic(anthropic_client)
 ```
 
 Calls like `client.chat.completions.create(...)` and
-`client.responses.create(...)` now append prompt-response observations to
-`.redline/logs/prompts.jsonl`. redline infers prompts from `messages`, `input`,
-or `prompt`, extracts common provider response text and token metadata, and
-redacts common secrets and PII before write by default.
+`client.responses.create(...)`, or `client.messages.create(...)` for Anthropic,
+now append prompt-response observations to `.redline/logs/prompts.jsonl`.
+redline infers prompts from `system`, `messages`, `input`, or `prompt`,
+extracts common provider response text and token metadata, and redacts common
+secrets and PII before write by default.
 
 Wire it in:
 

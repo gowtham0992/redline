@@ -8,11 +8,22 @@ from threading import Thread
 from time import sleep
 from typing import Any
 
+from redline import patch_anthropic as exported_patch_anthropic
 from redline import patch_openai as exported_patch_openai
 from redline import record as exported_record
 from redline import watch as exported_watch
 from redline.io import read_jsonl_records
-from redline.watch import collect_log, follow_log, format_follow_records, format_watch_stats, patch_openai, record, watch, watch_stats
+from redline.watch import (
+    collect_log,
+    follow_log,
+    format_follow_records,
+    format_watch_stats,
+    patch_anthropic,
+    patch_openai,
+    record,
+    watch,
+    watch_stats,
+)
 
 
 class WatchTests(unittest.TestCase):
@@ -356,6 +367,45 @@ class WatchTests(unittest.TestCase):
         self.assertEqual(first["patched"], ["chat.completions.create", "responses.create"])
         self.assertEqual(second["patched"], [])
 
+    def test_patch_anthropic_records_messages_create_calls(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            client = _FakeAnthropicClient()
+
+            result = patch_anthropic(client, log=log)
+            response = client.messages.create(
+                model="claude-test",
+                system="Be concise.",
+                messages=[{"role": "user", "content": "What is the refund window?"}],
+            )
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(result["patched"], ["messages.create"])
+            self.assertEqual(response["content"][0]["text"], "30 days")
+            self.assertEqual(records[0].prompt, "system: Be concise.\nuser: What is the refund window?")
+            self.assertEqual(records[0].response, "30 days")
+            self.assertEqual(records[0].raw["source"], "python:anthropic.messages.create")
+            metadata = records[0].raw["metadata"]
+            self.assertEqual(metadata["provider"], "anthropic")
+            self.assertEqual(metadata["operation"], "messages.create")
+            self.assertEqual(metadata["request_model"], "claude-test")
+            self.assertEqual(metadata["model"], "claude-test")
+
+    def test_patch_anthropic_exports_from_package_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            client = _FakeAnthropicClient()
+
+            exported_patch_anthropic(client, log=log)
+            client.messages.create(
+                model="claude-test",
+                messages=[{"role": "user", "content": [{"type": "text", "text": "Summarize status"}]}],
+            )
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(records[0].prompt, "user: Summarize status")
+            self.assertEqual(records[0].response, "30 days")
+
     def test_collect_log_writes_normalized_observed_records(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -670,6 +720,21 @@ class _FakeOpenAIClient:
     def __init__(self) -> None:
         self.chat = _FakeChat()
         self.responses = _FakeResponses()
+
+
+class _FakeAnthropicMessages:
+    def create(self, **kwargs: Any) -> dict[str, Any]:
+        return {
+            "id": "msg_test",
+            "model": kwargs.get("model", "claude-test"),
+            "content": [{"type": "text", "text": "30 days"}],
+            "usage": {"input_tokens": 6, "output_tokens": 2},
+        }
+
+
+class _FakeAnthropicClient:
+    def __init__(self) -> None:
+        self.messages = _FakeAnthropicMessages()
 
 
 if __name__ == "__main__":
