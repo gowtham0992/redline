@@ -21,6 +21,23 @@ _REFUSAL_RE = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+_MULTILINGUAL_REFUSAL_RE = re.compile(
+    r"^(?:"
+    r"(?:lo siento,?\s+pero\s+)?no puedo\s+"
+    r"(?:ayudar|ayudarte|responder|proporcionar|cumplir|hacer|compartir|generar|crear|escribir|acceder)|"
+    r"(?:désolé|desole),?\s+mais\s+je ne peux pas\s+"
+    r"(?:aider|répondre|repondre|fournir|respecter|faire|partager|générer|generer|créer|creer|écrire|ecrire|accéder|acceder)|"
+    r"je ne peux pas\s+"
+    r"(?:aider|répondre|repondre|fournir|respecter|faire|partager|générer|generer|créer|creer|écrire|ecrire|accéder|acceder)|"
+    r"(?:desculpe,?\s+mas\s+)?n[aã]o posso\s+"
+    r"(?:ajudar|responder|fornecer|cumprir|fazer|compartilhar|gerar|criar|escrever|acessar)|"
+    r"(?:es tut mir leid,?\s+aber\s+)?ich kann(?:\s+\w+){0,4}\s+nicht\s+"
+    r"(?:helfen|beantworten|bereitstellen|erfüllen|erfullen|tun|teilen|generieren|erstellen|schreiben|zugreifen)|"
+    r"(?:抱歉|对不起)[，,]?(?:我)?(?:不能|无法)(?:帮助|回答|提供|遵守|完成|生成|创建|写|访问)|"
+    r"(?:申し訳ありません|すみません)[、,]?(?:できません|お手伝いできません|回答できません|提供できません)"
+    r")",
+    re.IGNORECASE,
+)
 _BULLET_RE = re.compile(r"(?m)^\s*[-*+]\s+")
 _NUMBERED_RE = re.compile(r"(?m)^\s*\d+[.)]\s+")
 _URL_RE = re.compile(r"https?://\S+")
@@ -287,7 +304,7 @@ def _has_refusal(text: str) -> bool:
             continue
         checked += 1
         normalized = re.sub(r"^(?:>\s*)?(?:[-*+]\s+|\d+[.)]\s+)?", "", line)
-        if _REFUSAL_RE.match(normalized):
+        if _REFUSAL_RE.match(normalized) or _MULTILINGUAL_REFUSAL_RE.match(normalized):
             return True
         if checked >= 3:
             return False

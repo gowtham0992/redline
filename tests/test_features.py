@@ -75,6 +75,22 @@ class FeatureTests(unittest.TestCase):
 
         self.assertFalse(features.refusal)
 
+    def test_refusal_detection_handles_common_non_english_ai_refusals(self) -> None:
+        samples = [
+            "Lo siento, pero no puedo ayudar con eso.",
+            "Désolé, mais je ne peux pas répondre à cette demande.",
+            "Não posso fornecer essas informações.",
+            "Es tut mir leid, aber ich kann dabei nicht helfen.",
+            "抱歉，我无法提供这些信息。",
+            "申し訳ありません、回答できません。",
+        ]
+
+        for sample in samples:
+            with self.subTest(sample=sample):
+                features = extract_features(sample)
+                self.assertTrue(features.refusal)
+                self.assertEqual(features.shape, "refusal")
+
 
 if __name__ == "__main__":
     unittest.main()
