@@ -12,3 +12,4 @@ recursive-include scripts *.py *.sh
 recursive-include site *.html *.css *.png *.svg *.gif
 recursive-include redline py.typed
 recursive-include redline/runner_templates *.py *.sh
+recursive-include redline/judge_template_files *.py *.sh *.md

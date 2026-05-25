@@ -146,6 +146,9 @@ printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_pat
   printf '\n$ redline runners\n'
   "$venv_dir/bin/redline" runners
 
+  printf '\n$ redline judges\n'
+  "$venv_dir/bin/redline" judges
+
   printf '\n$ redline init --runner stdio --copy-runner\n'
   "$venv_dir/bin/redline" init --runner stdio --copy-runner
 

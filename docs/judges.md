@@ -17,35 +17,43 @@ Allowed `confidence` values are `low`, `medium`, and `high`.
 
 ## Model-backed judges
 
+List and copy templates from any install:
+
+```bash
+redline judges
+redline judges --copy openai
+redline judges --copy support-rubric
+```
+
 The provider templates include a strict default rubric and accept an optional
 domain rubric file through `REDLINE_JUDGE_RUBRIC`.
 
 ```bash
-REDLINE_JUDGE_RUBRIC=examples/judges/support_rubric.md \
+REDLINE_JUDGE_RUBRIC=judges/support_rubric.md \
   OPENAI_API_KEY="..." \
   redline diff redline-suite.json candidate.jsonl \
-  --judge "./examples/openai_judge.sh"
+  --judge "./judges/openai_judge.sh"
 
-REDLINE_JUDGE_RUBRIC=examples/judges/extraction_rubric.md \
+REDLINE_JUDGE_RUBRIC=judges/extraction_rubric.md \
   ANTHROPIC_API_KEY="..." \
   redline diff redline-suite.json candidate.jsonl \
-  --judge "./examples/anthropic_judge.sh"
+  --judge "./judges/anthropic_judge.sh"
 
-REDLINE_JUDGE_RUBRIC=examples/judges/safety_rubric.md \
+REDLINE_JUDGE_RUBRIC=judges/safety_rubric.md \
   LITELLM_API_KEY="..." LITELLM_JUDGE_MODEL="..." \
   redline diff redline-suite.json candidate.jsonl \
-  --judge "./examples/litellm_judge.sh"
+  --judge "./judges/litellm_judge.sh"
 ```
 
 Use the same commands with `redline eval` after replay is configured.
 
 ## Included rubrics
 
-- `examples/judges/support_rubric.md`: support-agent regressions such as lost
+- `judges/support_rubric.md`: support-agent regressions such as lost
   owners, policy URLs, SLAs, IDs, routing targets, and escalation paths.
-- `examples/judges/extraction_rubric.md`: structured-output regressions such as
+- `judges/extraction_rubric.md`: structured-output regressions such as
   invalid JSON, missing keys, table/list/code loss, and weaker extracted values.
-- `examples/judges/safety_rubric.md`: safety/compliance regressions such as
+- `judges/safety_rubric.md`: safety/compliance regressions such as
   weaker caveats, secret requests, unsafe policy flips, and changed approval
   criteria.
 

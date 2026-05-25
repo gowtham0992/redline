@@ -177,6 +177,88 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_judges_command_lists_templates(self) -> None:
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(["judges"]), 0)
+
+        text = output.getvalue()
+        self.assertIn("redline judges", text)
+        self.assertIn("OpenAI judge", text)
+        self.assertIn("./judges/openai_judge.sh", text)
+        self.assertIn("Support-agent rubric", text)
+        self.assertIn("REDLINE_JUDGE_RUBRIC=judges/support_rubric.md", text)
+
+    def test_judges_command_can_copy_model_template(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(["judges", "--copy", "openai", "--out", str(root / "openai_judge.sh")]),
+                    0,
+                )
+
+            self.assertTrue((root / "openai_judge.sh").exists())
+            text = output.getvalue()
+            self.assertIn("Judge:", text)
+            self.assertIn("Setup:  Set OPENAI_API_KEY", text)
+            self.assertIn("Next:   Configure judge: redline init --judge", text)
+
+    def test_judges_command_can_copy_rubric(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(["judges", "--copy", "support-rubric", "--out", str(root / "support.md")]),
+                    0,
+                )
+
+            self.assertTrue((root / "support.md").exists())
+            text = output.getvalue()
+            self.assertIn("Rubric: REDLINE_JUDGE_RUBRIC=", text)
+            self.assertIn("Setup:  Use through REDLINE_JUDGE_RUBRIC", text)
+            self.assertIn("Next:   Use with a model judge", text)
+
+    def test_judges_command_can_copy_all_templates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                output = io.StringIO()
+
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["judges", "--copy", "all"]), 0)
+
+                self.assertTrue((root / "judges" / "openai_judge.sh").exists())
+                self.assertTrue((root / "judges" / "support_rubric.md").exists())
+                self.assertIn("Judge commands:", output.getvalue())
+                self.assertIn("openai (judge):", output.getvalue())
+                self.assertIn("support-rubric (rubric):", output.getvalue())
+                self.assertIn("Configure judge: redline init --judge", output.getvalue())
+                self.assertIn("Use with a model judge", output.getvalue())
+            finally:
+                os.chdir(previous)
+
+    def test_judges_command_refuses_out_with_copy_all(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(Path(directory))
+            try:
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    code = main(["judges", "--copy", "all", "--out", "judge.sh"])
+
+                self.assertEqual(code, 2)
+                self.assertIn("--out can only be used", stderr.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_init_can_write_github_action_workflow(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

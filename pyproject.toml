@@ -43,7 +43,7 @@ redline-mcp = "redline.mcp:main"
 include = ["redline*"]
 
 [tool.setuptools.package-data]
-redline = ["py.typed", "runner_templates/*"]
+redline = ["py.typed", "runner_templates/*", "judge_template_files/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

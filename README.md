@@ -241,10 +241,13 @@ Use judges only where structural checks are not enough. redline sends only
 ambiguous `changed` cases to the configured command as JSON on stdin:
 
 ```bash
+redline judges
+redline judges --copy openai
+redline judges --copy support-rubric
 redline diff logs/candidate.jsonl --judge "python examples/judge_changed.py"
 ```
 
-Included templates:
+Repo examples and installable templates:
 
 - [examples/judge_changed.py](examples/judge_changed.py)
 - [examples/openai_judge.sh](examples/openai_judge.sh)

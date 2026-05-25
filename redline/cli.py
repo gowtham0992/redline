@@ -52,6 +52,12 @@ from .history import (
 )
 from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judge import apply_judge
+from .judge_templates import (
+    copy_all_judge_templates,
+    copy_judge_template,
+    format_judge_templates,
+    judge_templates,
+)
 from .judgments import JUDGMENT_STATUSES, clear_suite_case_judgment, mark_suite_case
 from .policy import parse_fail_on, should_fail
 from .prompts import (
@@ -102,6 +108,7 @@ Start here:
   redline dashboard
   redline init --runner stdio --copy-runner
   redline runners
+  redline judges
   redline doctor
 
 Core loop:
@@ -180,6 +187,17 @@ def build_parser() -> argparse.ArgumentParser:
     runners_parser.add_argument("--force", action="store_true", help="overwrite existing output path for --copy")
     runners_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     runners_parser.set_defaults(func=cmd_runners)
+
+    judges_parser = subparsers.add_parser("judges", help="list or copy optional judge templates")
+    judges_parser.add_argument(
+        "--copy",
+        choices=["all", *[template["id"] for template in judge_templates()]],
+        help="copy one judge template or rubric, or all templates, into this project",
+    )
+    judges_parser.add_argument("--out", help="output path for --copy; defaults to template file path")
+    judges_parser.add_argument("--force", action="store_true", help="overwrite existing output path for --copy")
+    judges_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    judges_parser.set_defaults(func=cmd_judges)
 
     watch_parser = subparsers.add_parser("watch", help="collect prompt-response records from a JSONL log")
     watch_parser.add_argument("--log", help="JSONL prompt-response log to collect")
@@ -555,6 +573,46 @@ def cmd_runners(args: argparse.Namespace) -> int:
         print(json.dumps({"runners": adapters}, indent=2, sort_keys=True))
     else:
         print(format_runner_adapters(adapters), end="")
+    return 0
+
+
+def cmd_judges(args: argparse.Namespace) -> int:
+    if args.copy:
+        if args.copy == "all":
+            if args.out:
+                raise ValueError("--out can only be used when copying one judge template")
+            results = copy_all_judge_templates(force=args.force)
+            if args.json:
+                print(json.dumps({"judges": results}, indent=2, sort_keys=True))
+            else:
+                for result in results:
+                    print(f"Wrote {Path(result['path'])}.")
+                print("Judge commands:")
+                for result in results:
+                    label = _judge_template_command_label(result)
+                    value = result["command"] or f"REDLINE_JUDGE_RUBRIC={result['path']}"
+                    print(f"  {result['id']} ({label}): {value}")
+                print("Next:")
+                for step in _judge_template_copy_all_next_steps(results):
+                    print(f"  - {step}")
+            return 0
+        result = copy_judge_template(args.copy, output=args.out, force=args.force)
+        if args.json:
+            print(json.dumps(result, indent=2, sort_keys=True))
+        else:
+            print(f"Wrote {Path(result['path'])}.")
+            if result["command"]:
+                print(f"Judge:  {result['command']}")
+            else:
+                print(f"Rubric: REDLINE_JUDGE_RUBRIC={result['path']}")
+            print(f"Setup:  {result['setup']}")
+            print(f"Next:   {result['next']}")
+        return 0
+    templates = judge_templates()
+    if args.json:
+        print(json.dumps({"judges": templates}, indent=2, sort_keys=True))
+    else:
+        print(format_judge_templates(templates), end="")
     return 0
 
 
@@ -1657,6 +1715,27 @@ def _adapter_copy_all_next_steps(results: Sequence[Mapping[str, object]]) -> lis
     capture = next((result for result in results if result.get("kind") == "capture"), None)
     if capture is not None:
         next_step = capture.get("next")
+        if isinstance(next_step, str):
+            steps.append(next_step)
+    return steps
+
+
+def _judge_template_command_label(template: Mapping[str, object]) -> str:
+    if template.get("kind") == "rubric":
+        return "rubric"
+    return "judge"
+
+
+def _judge_template_copy_all_next_steps(results: Sequence[Mapping[str, object]]) -> list[str]:
+    steps: list[str] = []
+    judge = next((result for result in results if result.get("kind") == "judge"), None)
+    if judge is not None:
+        next_step = judge.get("next")
+        if isinstance(next_step, str):
+            steps.append(next_step)
+    rubric = next((result for result in results if result.get("kind") == "rubric"), None)
+    if rubric is not None:
+        next_step = rubric.get("next")
         if isinstance(next_step, str):
             steps.append(next_step)
     return steps

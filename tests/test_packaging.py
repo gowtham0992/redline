@@ -39,6 +39,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline-suite.schema.json", manifest)
         self.assertIn("redline-report.schema.json", manifest)
         self.assertIn("redline/runner_templates", manifest)
+        self.assertIn("redline/judge_template_files", manifest)
         self.assertIn("examples *.jsonl *.md", manifest)
         self.assertIn("docs *.md *.jsonl", manifest)
         self.assertIn("scripts *.py *.sh", manifest)
@@ -122,6 +123,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline validate pinned-suite.json", script)
         self.assertIn("--out-html diff.html", script)
         self.assertIn("--profile review", script)
+        self.assertIn("redline judges", script)
         self.assertIn("redline doctor", script)
 
     def test_release_build_script_uses_fresh_output_dir(self) -> None:
@@ -201,6 +203,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("[![Stars](https://img.shields.io/github/stars/gowtham0992/redline?style=social)]", readme)
         self.assertIn("[License](LICENSE)", readme)
         self.assertIn("python -m pip install redline-ai", readme)
+        self.assertIn("redline judges", readme)
         self.assertIn("From a repo checkout, record the public demo", readme)
         self.assertIn("scripts/normalize_ai_session_logs.py", readme)
         self.assertIn("actions/workflows/ci.yml/badge.svg?branch=main", readme)
@@ -230,6 +233,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline dashboard", changelog)
         self.assertIn("redline compare", changelog)
         self.assertIn("richer judge rubrics", changelog)
+        self.assertIn("redline judges", changelog)
         self.assertIn("product-focused README", changelog)
         self.assertIn("redline-mcp", changelog)
         self.assertIn("MCP Registry metadata", changelog)
@@ -451,6 +455,7 @@ class PackagingTests(unittest.TestCase):
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 
         self.assertIn("runner_templates/*", pyproject["tool"]["setuptools"]["package-data"]["redline"])
+        self.assertIn("judge_template_files/*", pyproject["tool"]["setuptools"]["package-data"]["redline"])
 
     def test_readme_product_gif_is_committed(self) -> None:
         gif = Path("site/assets/redline-product-demo.gif")
