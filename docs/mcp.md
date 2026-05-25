@@ -61,6 +61,7 @@ Available tools:
 - `redline_summary`
 - `redline_benchmark`
 - `redline_cases`
+- `redline_case`
 - `redline_diff`
 - `redline_eval`
 - `redline_history`

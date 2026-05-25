@@ -34,6 +34,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_diff", names)
         self.assertIn("redline_dashboard", names)
         self.assertIn("redline_audit", names)
+        self.assertIn("redline_case", names)
         self.assertNotIn("redline_accept", names)
         self.assertNotIn("redline_mark", names)
         self.assertNotIn("redline_require", names)
@@ -206,6 +207,40 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("Worst-case eval budget:", benchmark_result["content"][0]["text"])
         self.assertTrue(wrote_json)
         self.assertTrue(wrote_markdown)
+
+    def test_case_tool_shows_one_suite_case_detail(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        baseline = repo / "examples" / "baseline.jsonl"
+
+        with tempfile.TemporaryDirectory() as directory:
+            suite_path = Path(directory) / "redline-suite.json"
+            suite_result = call_tool(
+                "redline_suite",
+                {
+                    "cwd": directory,
+                    "log_path": str(baseline),
+                    "out": str(suite_path),
+                    "all_cases": True,
+                },
+            )
+            self.assertFalse(suite_result["isError"])
+            suite = json.loads(suite_path.read_text(encoding="utf-8"))
+            case_id = suite["cases"][0]["id"]
+
+            case_result = call_tool(
+                "redline_case",
+                {
+                    "cwd": directory,
+                    "suite_path": str(suite_path),
+                    "case_id": case_id,
+                },
+            )
+
+        self.assertFalse(case_result["isError"])
+        self.assertEqual(case_result["structuredContent"]["exit_code"], 0)
+        self.assertIn("redline case", case_result["content"][0]["text"])
+        self.assertIn(case_id, case_result["content"][0]["text"])
+        self.assertIn("Baseline response:", case_result["content"][0]["text"])
 
     def test_redact_and_audit_tools_cover_privacy_preflight(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

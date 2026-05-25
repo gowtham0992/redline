@@ -106,7 +106,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "redline-mcp\n\n"
             "Local MCP stdio server for redline.\n\n"
             "Run this command from an MCP client. It exposes redline doctor, suite,\n"
-            "redact, audit, benchmark, validate, summary, diff, eval, history, dashboard, and cases tools.\n",
+            "redact, audit, benchmark, validate, summary, diff, eval, history, dashboard, cases, and case tools.\n",
             end="",
         )
         return 0
@@ -522,6 +522,20 @@ def _tools() -> list[ToolSpec]:
             _build_cases,
         ),
         ToolSpec(
+            "redline_case",
+            "Show full detail for one suite case, including owner, requirements, source, and baseline response.",
+            _schema(
+                {
+                    "case_id": _string("Suite case ID to inspect."),
+                    "suite_path": _string("Suite JSON path. Defaults to config."),
+                    "config": _string("Config path to read."),
+                    "json": _boolean("Print machine-readable JSON."),
+                },
+                required=("case_id",),
+            ),
+            _build_case,
+        ),
+        ToolSpec(
             "redline_diff",
             "Compare candidate JSONL outputs against a redline suite and return the behavioral diff.",
             _schema(
@@ -689,6 +703,17 @@ def _build_benchmark(arguments: dict[str, Any]) -> list[str]:
 def _build_cases(arguments: dict[str, Any]) -> list[str]:
     args = ["cases"]
     _add_positional(args, arguments.get("suite_path"))
+    _add_option(args, "--config", arguments.get("config"))
+    _add_flag(args, "--json", arguments.get("json"))
+    return args
+
+
+def _build_case(arguments: dict[str, Any]) -> list[str]:
+    args = ["case"]
+    suite_path = arguments.get("suite_path")
+    if suite_path:
+        _add_positional(args, suite_path)
+    _add_positional(args, _required_string(arguments, "case_id"))
     _add_option(args, "--config", arguments.get("config"))
     _add_flag(args, "--json", arguments.get("json"))
     return args
