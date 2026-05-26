@@ -36,6 +36,52 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/gowtham0992/redline?style=social)](https://github.com/gowtham0992/redline/stargazers)
 
+## Start Here
+
+Install from PyPI:
+
+```bash
+python -m pip install redline-ai
+```
+
+Run the public proof:
+
+```bash
+redline demo --public --compact
+```
+
+The demo catches ten synthetic regressions without API keys, private logs, a
+cloud account, or an LLM judge. It writes JSON, Markdown, and self-contained
+HTML reports under `.redline/demo`.
+
+Open the local demo report index:
+
+```bash
+redline dashboard --reports-dir .redline/demo/reports --open
+```
+
+On headless CI or remote shells, skip `--open` and use the printed HTML path:
+
+```bash
+redline dashboard --reports-dir .redline/demo/reports --out .redline/dashboard.html
+```
+
+<details>
+<summary>First-run troubleshooting</summary>
+
+- `redline: command not found`: run `python -m pip install redline-ai`, then
+  confirm `python -m pip show redline-ai`.
+- Dashboard did not open: use `--out .redline/dashboard.html` and open or
+  upload that file from your environment.
+- Suite not found: run `redline suite logs/baseline.jsonl --out redline-suite.json`.
+- Validation failed: run `redline validate redline-suite.json --strict` and fix
+  the first reported error.
+- GitHub Action cannot find a suite: commit `redline-suite.json` or point the
+  action `suite` input at your prompt manifest.
+
+Full guide: [docs/troubleshooting.md](docs/troubleshooting.md).
+</details>
+
 ![redline product demo](https://gowtham0992.github.io/redline/assets/redline-product-demo.gif)
 
 ## What Is redline?
@@ -49,7 +95,9 @@ suite from real behavior. You can then run that suite every time a prompt,
 model, or runner changes.
 
 No cloud account is required. No manual test writing is required. No LLM judge
-is required for the core regression signal.
+is required for the core regression signal. The package has zero runtime
+dependencies, which keeps installs fast and the default supply-chain surface
+small.
 
 ## How It Works
 
@@ -62,9 +110,8 @@ from tools like Langfuse or Helicone, capture OpenAI/Anthropic SDK calls, or add
 bounded FastAPI/ASGI middleware.
 
 ```bash
-redline watch --snippet all
-redline watch --stats
-redline suite .redline/logs/prompts.jsonl --out redline-suite.json
+redline suite logs/baseline.jsonl --out redline-suite.json
+redline cases redline-suite.json
 ```
 
 ### 2. Suite
@@ -97,30 +144,6 @@ you did not want to ship.
 That promise is intentionally narrow. redline is not a hosted eval platform, a
 generic score, or a replacement for human judgment. It is the local safety loop
 between "I changed the prompt" and "this is safe enough to merge."
-
-## Start Here
-
-Install from PyPI:
-
-```bash
-python -m pip install redline-ai
-```
-
-Run the public proof:
-
-```bash
-redline demo --public --compact
-```
-
-The demo catches ten synthetic regressions without API keys, private logs, a
-cloud account, or an LLM judge. It writes JSON, Markdown, and self-contained
-HTML reports under `.redline/demo`.
-
-Open the local demo report index:
-
-```bash
-redline dashboard --reports-dir .redline/demo/reports --open
-```
 
 ## Real Workflow
 
@@ -443,6 +466,8 @@ bash scripts/release_check.sh
 
 - [docs/release.md](docs/release.md): package, tag, PyPI, and MCP Registry release flow
 - [docs/launch.md](docs/launch.md): public alpha launch plan
+- [docs/troubleshooting.md](docs/troubleshooting.md): first-run and CI failure recovery
+- [docs/commands.md](docs/commands.md): compact CLI command reference
 - [docs/dogfood.md](docs/dogfood.md): first-user dogfood protocol
 - [docs/case-studies.md](docs/case-studies.md): reproducible dogfood case studies
 - [docs/internet-dogfood-sources.md](docs/internet-dogfood-sources.md): public prompt-response datasets for dogfood sourcing
@@ -450,6 +475,8 @@ bash scripts/release_check.sh
 - [docs/mcp.md](docs/mcp.md): MCP server setup
 - [docs/benchmarks.md](docs/benchmarks.md): performance contract and CI benchmark artifacts
 - [docs/repository.md](docs/repository.md): GitHub repository controls
+- [scripts/README.md](scripts/README.md): maintainer script index
+- [ROADMAP.md](ROADMAP.md): next public beta, ecosystem, and enterprise roadmap
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributor validation
 - [SECURITY.md](SECURITY.md): privacy and vulnerability reporting
 - [LICENSE](LICENSE): MIT open source license

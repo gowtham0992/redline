@@ -18,8 +18,8 @@ fi
 
 printf 'release dist dir: %s\n\n' "$dist_dir"
 
-printf '$ %s -m build --no-isolation --outdir %s\n' "$python_bin" "$dist_dir"
-"$python_bin" -m build --no-isolation --outdir "$dist_dir"
+printf '$ %s -m build --outdir %s\n' "$python_bin" "$dist_dir"
+"$python_bin" -m build --outdir "$dist_dir"
 
 wheel_files=("$dist_dir"/redline_ai-*.whl)
 sdist_files=("$dist_dir"/redline_ai-*.tar.gz)

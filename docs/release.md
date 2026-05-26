@@ -7,6 +7,9 @@ alpha post, demo GIF, and first feedback loops. Use
 [docs/repository.md](repository.md) to verify GitHub branch protection, tag,
 security, and Pages settings before announcing.
 
+redline follows SemVer. Until `1.0`, minor versions may include breaking
+changes; patch versions are reserved for compatible fixes.
+
 ## Preflight
 
 - Work from a clean release branch that is pushed to origin.

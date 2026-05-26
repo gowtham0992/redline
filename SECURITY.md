@@ -25,6 +25,12 @@ Core redline commands are local-only. Network calls happen only when you
 explicitly configure a replay command, judge command, or runner template that
 calls a provider, proxy, or application endpoint.
 
+`RedlineMiddleware` and SDK watch snippets run inside your application process.
+They still write locally, but they can observe prompts, request bodies, response
+bodies, headers, and metadata that your app handles. Capture is bounded,
+JSON-oriented, and redacted with best-effort common secret and PII patterns, but
+that redaction is not a privacy boundary. Review logs before sharing them.
+
 Before running third-party or copied runner scripts, inspect the command in
 `redline.json` and the environment variables it needs:
 

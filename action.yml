@@ -23,7 +23,7 @@ inputs:
     description: Repository directory where redline should run.
     default: "."
   extra-args:
-    description: Extra arguments appended to redline eval.
+    description: Space-separated extra arguments appended to redline eval. Values containing spaces are not supported; use redline.json for complex values.
     default: ""
   record-history:
     description: Append eval results to .redline/history.jsonl and GitHub summary.

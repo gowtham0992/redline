@@ -3,6 +3,10 @@
 Use this before a public alpha push. The goal is to find the first five-minute
 failure a stranger would hit.
 
+Plan for 45-60 minutes total: 10 minutes for the first-run demo, 5 minutes for
+runner setup, 10 minutes for checked-in fixtures, 10-15 minutes for private
+assistant logs, and 10 minutes for notes and prioritization.
+
 ## Rules
 
 - Start from a fresh temp directory, not this repo checkout.
@@ -12,6 +16,8 @@ failure a stranger would hit.
 - Treat unclear output as a product bug, even if the command technically works.
 
 ## Pass 1: First-Run Demo
+
+Estimated time: 10 minutes.
 
 ```bash
 python -m pip install redline-ai
@@ -28,6 +34,8 @@ explains exactly what to run next.
 
 ## Pass 2: Real Replay Setup
 
+Estimated time: 5 minutes.
+
 ```bash
 redline init --runner stdio --copy-runner --github-action
 redline doctor
@@ -37,6 +45,8 @@ Expected result: redline writes config, copies a runnable adapter, and explains
 that the missing suite is solved by `redline suite path/to/log.jsonl`.
 
 ## Pass 3: Core Loop
+
+Estimated time: 10 minutes.
 
 ```bash
 redline suite .redline/demo/baseline.jsonl --out redline-suite.json
@@ -53,6 +63,8 @@ suite which reviewed changes are now the baseline.
 
 ## Pass 4: Larger Sample
 
+Estimated time: 10 minutes.
+
 Use the bigger checked-in sample to confirm redline catches more than one demo
 pattern:
 
@@ -65,6 +77,8 @@ Expected result: the diff includes regressions for missing JSON keys, refusals,
 lost Markdown tables, lost code blocks, lost numbered lists, and empty output.
 
 ## Pass 5: Public-Pattern Fixture
+
+Estimated time: 10 minutes.
 
 Use the synthetic public-pattern fixture when you need a launch-safe proof that
 does not depend on private logs, API keys, or copied third-party rows:
@@ -86,6 +100,8 @@ redline diff /tmp/redline-public-suite.json examples/public_dogfood_candidate.js
 ```
 
 ## Pass 6: AI Assistant Session Logs
+
+Estimated time: 10-15 minutes after private exports exist.
 
 Use the same prompts in [ai-session-dogfood-prompts.jsonl](ai-session-dogfood-prompts.jsonl)
 across Claude, Kiro, Antigravity, or another assistant. Ask each tool to export

@@ -71,6 +71,7 @@ class CiTests(unittest.TestCase):
         self.assertIn("icon: activity", action)
         self.assertIn("color: red", action)
         self.assertIn("prompt-path:", action)
+        self.assertIn("Values containing spaces are not supported", action)
         self.assertIn("record-history:", action)
         self.assertIn("history-label:", action)
         self.assertIn("render-dashboard:", action)

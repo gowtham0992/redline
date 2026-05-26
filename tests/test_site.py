@@ -44,6 +44,7 @@ class GitHubPagesSiteTests(unittest.TestCase):
         self.assertIn("A certified local product loop", html)
         self.assertIn("Open source surface", html)
         self.assertIn("Review the checks before you trust the gate", html)
+        self.assertIn('loading="lazy"', html)
         self.assertIn("bash scripts/release_check.sh", html)
         self.assertIn("bash scripts/action_smoke.sh", html)
         self.assertIn("redline history --fail-on worse", html)
@@ -84,7 +85,19 @@ class GitHubPagesSiteTests(unittest.TestCase):
             parser.links,
         )
         self.assertIn(
+            "https://github.com/gowtham0992/redline#project-docs",
+            parser.links,
+        )
+        self.assertIn(
+            "https://github.com/gowtham0992/redline/stargazers",
+            parser.links,
+        )
+        self.assertIn(
             ("assets/redline-preview.png", "redline terminal and dashboard preview showing four prompt regressions caught"),
+            parser.images,
+        )
+        self.assertIn(
+            ("https://img.shields.io/github/stars/gowtham0992/redline?style=social", "GitHub stars"),
             parser.images,
         )
         self.assertIn(("assets/redline-mark.svg", ""), parser.images)

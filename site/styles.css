@@ -205,6 +205,18 @@ code {
   gap: 12px;
 }
 
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -8px 0 24px;
+}
+
+.badges img {
+  display: block;
+  height: 20px;
+}
+
 .button {
   display: inline-flex;
   align-items: center;
