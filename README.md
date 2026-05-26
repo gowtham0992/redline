@@ -199,7 +199,7 @@ redline is built around the full prompt-regression loop:
 - `redline prompts`: scan many prompt files and write or check a versionable prompt-to-suite manifest.
   Add `--check-suites` in CI when every prompt should already have a built and valid suite.
 - `redline suite add`: pin hand-picked edge cases the algorithm should never miss.
-- `redline benchmark`: estimate suite or prompt-manifest runtime without
+- `redline budget` / `redline benchmark`: estimate suite or prompt-manifest runtime without
   executing replay commands, write budget artifacts, and optionally fail on a CI
   time budget. Add `--measure-local` to time redline's deterministic local diff
   work on your suite baselines without calling a model.

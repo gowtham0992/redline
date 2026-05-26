@@ -1,7 +1,8 @@
 # redline benchmarks
 
 redline is meant to stay fast enough for normal prompt work, not just nightly CI.
-Use `redline benchmark` before making an eval suite a required gate.
+Use `redline budget` before making an eval suite a required gate. `redline
+benchmark` is kept as a backwards-compatible alias.
 
 ## Performance contract
 
@@ -16,7 +17,7 @@ These are the working targets for local structural checks:
 | Diff report generation | under 500ms for normal CI reports |
 | MCP tool response | under 2 seconds before external runner or judge latency |
 
-The benchmark command is a static budget estimate from suite size, timeout, and
+The budget/benchmark command is a static budget estimate from suite size, timeout, and
 worker count. It does not run replay commands, call models, or pretend to know
 your model latency. Treat it as a CI capacity preflight.
 

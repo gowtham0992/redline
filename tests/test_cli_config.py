@@ -1125,6 +1125,30 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_budget_alias_matches_benchmark_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "one", "response": "1"}\n'
+                    '{"prompt": "two", "response": "2"}\n',
+                    encoding="utf-8",
+                )
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(main(["suite", "baseline.jsonl", "--out", "suite.json", "--all-cases"]), 0)
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["budget", "suite.json", "--workers", "2"]), 0)
+
+                self.assertIn("redline benchmark", output.getvalue())
+                self.assertIn("static estimate; no replay commands are executed", output.getvalue())
+                self.assertIn("Workers:               2", output.getvalue())
+            finally:
+                os.chdir(previous)
+
     def test_benchmark_measure_local_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
