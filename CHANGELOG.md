@@ -94,6 +94,7 @@
 - Write audit checkpoint artifacts from generated GitHub Action flows.
 - Return non-zero from `redline audit --verify` when the audit hash chain fails.
 - Verify audit logs against saved checkpoint files with `redline audit --verify --checkpoint`.
+- Warn from audit verification when events lack a known operator identity.
 - Show audit checkpoint evidence in the local dashboard when present.
 - Add `redline sbom` and release-build SBOM output for CycloneDX security evidence.
 - Include default data-egress and judge data-flow guarantees in SBOM evidence.

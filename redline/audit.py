@@ -60,6 +60,7 @@ def verify_audit_events(
     warnings: list[str] = []
     signed_entries = 0
     unsigned_entries = 0
+    unknown_operator_entries = 0
     previous_hash: str | None = None
     event_counts: Counter[str] = Counter()
 
@@ -68,6 +69,9 @@ def verify_audit_events(
 
     for index, row in enumerate(events, start=1):
         event_counts[str(row.get("event") or "unknown")] += 1
+        operator = str(row.get("operator") or "").strip()
+        if not operator or operator == "unknown":
+            unknown_operator_entries += 1
         entry_hash = row.get("entry_hash")
         if not entry_hash:
             unsigned_entries += 1
@@ -99,12 +103,19 @@ def verify_audit_events(
             "local hash chains cannot prove the log tail was not truncated; compare last_hash "
             "or entry count against an external checkpoint for stronger evidence"
         )
+    if unknown_operator_entries:
+        warnings.append(
+            f"{unknown_operator_entries} audit entr"
+            f"{'y has' if unknown_operator_entries == 1 else 'ies have'} unknown operator; "
+            "set REDLINE_OPERATOR or run in CI with GITHUB_ACTOR for stronger review evidence"
+        )
 
     return {
         "ok": not errors,
         "entries": len(events),
         "signed_entries": signed_entries,
         "unsigned_entries": unsigned_entries,
+        "unknown_operator_entries": unknown_operator_entries,
         "last_hash": previous_hash,
         "events_by_type": dict(sorted(event_counts.items())),
         "errors": errors,
@@ -134,6 +145,7 @@ def audit_checkpoint(result: dict[str, Any], *, path: str | Path | None = None) 
         "entries": int(result.get("entries", 0)),
         "signed_entries": int(result.get("signed_entries", 0)),
         "unsigned_entries": int(result.get("unsigned_entries", 0)),
+        "unknown_operator_entries": int(result.get("unknown_operator_entries", 0)),
         "last_hash": result.get("last_hash"),
         "events_by_type": result.get("events_by_type") if isinstance(result.get("events_by_type"), dict) else {},
         "errors": result.get("errors") if isinstance(result.get("errors"), list) else [],
@@ -172,6 +184,7 @@ def format_audit_verification(result: dict[str, Any]) -> str:
         f"Entries:  {int(result.get('entries', 0))}",
         f"Signed:   {int(result.get('signed_entries', 0))}",
         f"Unsigned: {int(result.get('unsigned_entries', 0))}",
+        f"Unknown operators: {int(result.get('unknown_operator_entries', 0))}",
     ]
     last_hash = result.get("last_hash")
     if last_hash:

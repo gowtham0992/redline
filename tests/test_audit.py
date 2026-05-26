@@ -114,9 +114,20 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(checkpoint["schema"], "redline-audit-checkpoint-v1")
             self.assertEqual(checkpoint["entries"], 2)
             self.assertEqual(checkpoint["signed_entries"], 2)
+            self.assertEqual(checkpoint["unknown_operator_entries"], 0)
             self.assertEqual(checkpoint["last_hash"], second["entry_hash"])
             self.assertEqual(checkpoint["events_by_type"], {"diff_run": 1, "suite_generated": 1})
             self.assertEqual(checkpoint["audit"], {"path": str(path)})
+
+    def test_verify_audit_events_warns_about_unknown_operator(self) -> None:
+        verification = verify_audit_events(
+            [{"event": "diff_run", "operator": "unknown"}],
+            expected_entries=1,
+        )
+
+        self.assertTrue(verification["ok"])
+        self.assertEqual(verification["unknown_operator_entries"], 1)
+        self.assertIn("unknown operator", " ".join(verification["warnings"]))
 
     def test_verify_audit_events_detects_tail_checkpoint_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -156,6 +167,7 @@ class AuditTests(unittest.TestCase):
 
         self.assertIn("redline audit verify", output)
         self.assertIn("Status:   FAILED", output)
+        self.assertIn("Unknown operators: 0", output)
         self.assertIn("line 1: entry_hash mismatch", output)
         self.assertIn("tail checkpoint missing", output)
         self.assertIn("Events:   case_marked=1", output)
