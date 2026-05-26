@@ -177,6 +177,8 @@ What you need: exported production logs as JSONL.
 Your adapter command:
 
 ```bash
+python runners/jsonl_log_adapter.py --list-presets
+
 python runners/jsonl_log_adapter.py logs/export.jsonl \
   --preset langfuse \
   --out .redline/logs/prompts.jsonl

@@ -47,6 +47,7 @@
 - Append concise eval-comment Markdown directly to GitHub step summaries in generated workflows and the composite action.
 - Add fallback field matching plus LangSmith and Braintrust presets to the JSONL log adapter.
 - Extract actual model text from OpenAI-style `choices` response bodies in the JSONL log adapter.
+- Add `--list-presets` to the JSONL log adapter so exported-log integrations are discoverable.
 - Validate judgment statuses, timestamps, and missing reasons before team rollout.
 - Print validation and promotion next steps after `redline mark`.
 - Add `redline benchmark --measure-local` to time deterministic local diff work without calling replay.

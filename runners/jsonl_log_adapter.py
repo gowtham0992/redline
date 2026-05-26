@@ -38,10 +38,15 @@ def main() -> int:
     )
     parser.add_argument("path", nargs="?", help="input JSONL file; defaults to stdin")
     parser.add_argument("--preset", choices=sorted(PRESETS), help="known export shape to map automatically")
+    parser.add_argument("--list-presets", action="store_true", help="print known presets and exit")
     parser.add_argument("--input-field", help="field path containing prompt text")
     parser.add_argument("--output-field", help="field path containing response text")
     parser.add_argument("--out", help="output JSONL file; defaults to stdout")
     args = parser.parse_args()
+
+    if args.list_presets:
+        sys.stdout.write(format_presets())
+        return 0
 
     input_fields, output_fields = _fields(args, parser)
     rows = list(
@@ -119,6 +124,26 @@ def _write_rows(rows: Iterable[dict[str, Any]], handle: TextIO) -> None:
     for row in rows:
         json.dump(row, handle, sort_keys=True, ensure_ascii=False)
         handle.write("\n")
+
+
+def format_presets() -> str:
+    lines = ["redline JSONL log adapter presets", ""]
+    for name in sorted(PRESETS):
+        preset = PRESETS[name]
+        lines.extend(
+            [
+                name,
+                f"  {preset['description']}",
+                f"  input:  {', '.join(preset['input_fields'])}",
+                f"  output: {', '.join(preset['output_fields'])}",
+                (
+                    "  use:    python runners/jsonl_log_adapter.py logs/export.jsonl "
+                    f"--preset {name} --out .redline/logs/prompts.jsonl"
+                ),
+                "",
+            ]
+        )
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _get_field(row: dict[str, Any], path: str) -> Any:

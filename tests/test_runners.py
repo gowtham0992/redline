@@ -432,6 +432,27 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(row["metadata"]["adapter_prompt_field"], "request.input")
             self.assertEqual(row["metadata"]["adapter_response_field"], "response.output")
 
+    def test_jsonl_log_adapter_lists_presets(self) -> None:
+        completed = subprocess.run(
+            [
+                "python",
+                "runners/jsonl_log_adapter.py",
+                "--list-presets",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(completed.returncode, 0)
+        self.assertIn("redline JSONL log adapter presets", completed.stdout)
+        self.assertIn("langfuse", completed.stdout)
+        self.assertIn("helicone", completed.stdout)
+        self.assertIn("langsmith", completed.stdout)
+        self.assertIn("braintrust", completed.stdout)
+        self.assertIn("--preset langfuse", completed.stdout)
+        self.assertEqual(completed.stderr, "")
+
     def test_jsonl_log_adapter_supports_langsmith_and_braintrust_presets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -497,6 +518,7 @@ class RunnerTests(unittest.TestCase):
 
         self.assertIn("## App Logs To JSONL", docs)
         self.assertIn("python runners/jsonl_log_adapter.py logs/export.jsonl", docs)
+        self.assertIn("python runners/jsonl_log_adapter.py --list-presets", docs)
         self.assertIn("--preset langfuse", docs)
         self.assertIn("--preset helicone", docs)
         self.assertIn("--preset langsmith", docs)
