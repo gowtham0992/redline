@@ -458,13 +458,14 @@ def _build_setup_redline_project_prompt(arguments: dict[str, Any]) -> str:
         "Use this workflow:\n"
         "1. Call `redline_doctor` first and explain the next setup gap in plain language.\n"
         "2. Call `redline_runners` to show adapter choices. If I named a runner, copy that runner; otherwise recommend the safest adapter for my app shape before copying anything.\n"
-        "3. If prompt files are available, call `redline_prompts` to create or check a prompt-to-suite manifest.\n"
-        "4. If logs are available, call `redline_suite`, then `redline_validate` and `redline_summary` so I can inspect coverage before trusting the suite.\n"
-        "5. If summary reports coverage gaps, call `redline_cases` or `redline_case` and recommend a `redline suite add` command I can run; do not mutate the suite yourself.\n"
-        "6. Call `redline_benchmark` before recommending CI gating.\n"
-        "7. Call `redline_judges` only when structural checks cannot cover factual, tone, hallucination, or reasoning risk; copy a judge template only after naming why it is needed.\n"
-        "8. Finish by re-running `redline_doctor` with strict setup when possible and list the exact next commands I should run.\n"
-        "9. Do not call baseline mutation commands, do not upload private logs, and do not say green or neutral means semantically safe.\n"
+        "3. If I do not already have logs, call `redline_watch_snippets` for the app shape so I can add local capture first.\n"
+        "4. If prompt files are available, call `redline_prompts` to create or check a prompt-to-suite manifest.\n"
+        "5. If logs are available, call `redline_suite`, then `redline_validate` and `redline_summary` so I can inspect coverage before trusting the suite.\n"
+        "6. If summary reports coverage gaps, call `redline_cases` or `redline_case` and recommend a `redline suite add` command I can run; do not mutate the suite yourself.\n"
+        "7. Call `redline_benchmark` before recommending CI gating.\n"
+        "8. Call `redline_judges` only when structural checks cannot cover factual, tone, hallucination, or reasoning risk; copy a judge template only after naming why it is needed.\n"
+        "9. Finish by re-running `redline_doctor` with strict setup when possible and list the exact next commands I should run.\n"
+        "10. Do not call baseline mutation commands, do not upload private logs, and do not say green or neutral means semantically safe.\n"
     )
 
 
@@ -537,6 +538,20 @@ def _tools() -> list[ToolSpec]:
                 }
             ),
             _build_watch_stats,
+        ),
+        ToolSpec(
+            "redline_watch_snippets",
+            "Print copy-paste local capture snippets for decorators, SDK patching, or FastAPI middleware.",
+            _schema(
+                {
+                    "kind": {
+                        "type": "string",
+                        "enum": ["all", "decorator", "openai", "anthropic", "fastapi"],
+                        "description": "Capture setup snippet to print. Defaults to all.",
+                    },
+                }
+            ),
+            _build_watch_snippets,
         ),
         ToolSpec(
             "redline_prompts",
@@ -838,6 +853,10 @@ def _build_watch_stats(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--skip-log", arguments.get("skip_log"))
     _add_flag(args, "--json", arguments.get("json"))
     return args
+
+
+def _build_watch_snippets(arguments: dict[str, Any]) -> list[str]:
+    return ["watch", "--snippet", str(arguments.get("kind") or "all")]
 
 
 def _build_prompts(arguments: dict[str, Any]) -> list[str]:

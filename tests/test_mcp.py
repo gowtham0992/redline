@@ -32,6 +32,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_suite", names)
         self.assertIn("redline_redact", names)
         self.assertIn("redline_watch_stats", names)
+        self.assertIn("redline_watch_snippets", names)
         self.assertIn("redline_prompts", names)
         self.assertIn("redline_judges", names)
         self.assertIn("redline_runners", names)
@@ -129,6 +130,7 @@ class McpServerTests(unittest.TestCase):
         text = response["result"]["messages"][0]["content"]["text"]
         self.assertIn("redline_doctor", text)
         self.assertIn("redline_runners", text)
+        self.assertIn("redline_watch_snippets", text)
         self.assertIn("redline_prompts", text)
         self.assertIn("redline_suite", text)
         self.assertIn("redline_validate", text)
@@ -181,6 +183,22 @@ class McpServerTests(unittest.TestCase):
         self.assertEqual(result["structuredContent"]["exit_code"], 0)
         self.assertIn("redline doctor", result["content"][0]["text"])
         self.assertIn("redline init --runner stdio --copy-runner", result["content"][0]["text"])
+
+    def test_watch_snippets_tool_prints_capture_setup(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = call_tool(
+                "redline_watch_snippets",
+                {
+                    "cwd": directory,
+                    "kind": "fastapi",
+                },
+            )
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        self.assertIn("FastAPI or ASGI middleware", result["content"][0]["text"])
+        self.assertIn("RedlineMiddleware", result["content"][0]["text"])
+        self.assertIn("redline watch --stats", result["content"][0]["text"])
 
     def test_diff_regressions_are_product_findings_not_mcp_errors(self) -> None:
         repo = Path(__file__).resolve().parents[1]

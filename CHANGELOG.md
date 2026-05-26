@@ -35,6 +35,7 @@
 - Add a product-focused README with a committed demo GIF for first-time users.
 - Add `redline-mcp`, a local MCP stdio server and agent workflow prompts for running redline checks without mutating baselines.
 - Expose watch capture readiness and middleware skip diagnostics through the MCP server.
+- Expose watch capture setup snippets through the MCP server for AI-editor onboarding.
 - Add MCP Registry metadata for publishing the PyPI-backed `redline-mcp` server.
 - Highlight the MCP Registry path on the GitHub Pages product site.
 - Add `redline judges` to list and copy packaged judge commands and domain rubrics from any install.
