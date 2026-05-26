@@ -29,6 +29,7 @@ class ReportTests(unittest.TestCase):
                 "confidence": "high",
                 "recommended_action": "fix blocking cases before shipping",
                 "scope": "structural checks only; review semantic risks separately",
+                "diagnosis": "Candidate lost required structure; fix blocking cases before shipping.",
             },
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "suite": "redline-suite.json",
@@ -81,6 +82,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("**Confidence:** HIGH", report)
         self.assertIn("**Recommended action:** fix blocking cases before shipping", report)
         self.assertIn("**Scope:** structural checks only", report)
+        self.assertIn("**Diagnosis:** Candidate lost required structure; fix blocking cases before shipping.", report)
         self.assertIn("## Warnings", report)
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn("## Artifacts", report)
@@ -169,6 +171,7 @@ class ReportTests(unittest.TestCase):
                 "confidence": "high",
                 "recommended_action": "fix blocking cases before shipping",
                 "scope": "structural checks only; review semantic risks separately",
+                "diagnosis": "Candidate lost required structure; fix blocking cases before shipping.",
                 "rationale": ["1 regression case(s)"],
             },
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
@@ -225,6 +228,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Confidence: high | Signal: structural", report)
         self.assertIn("fix blocking cases before shipping", report)
         self.assertIn("structural checks only", report)
+        self.assertIn("Candidate lost required structure; fix blocking cases before shipping.", report)
         self.assertIn("<h2>Warnings</h2>", report)
         self.assertIn("<h2>Artifacts</h2>", report)
         self.assertIn("<td>HTML</td><td>.redline/reports/eval.html</td>", report)
@@ -385,6 +389,7 @@ class ReportTests(unittest.TestCase):
                 "confidence": "high",
                 "recommended_action": "fix blocking cases before shipping",
                 "scope": "structural checks only",
+                "diagnosis": "Candidate lost required structure; fix blocking cases before shipping.",
             },
             "artifacts": {
                 "html": ".redline/reports/eval.html",
@@ -426,6 +431,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("**Regression:** 1", comment)
         self.assertIn("**Changed:** 1", comment)
         self.assertIn("**Action:** fix blocking cases before shipping", comment)
+        self.assertIn("**Diagnosis:** Candidate lost required structure; fix blocking cases before shipping.", comment)
         self.assertIn("### Owners", comment)
         self.assertIn(
             '- @support-team: 1 blocking case (1 owned case) · first review: `redline mark suites/support.redline-suite.json case_001 --status expected --note "intentional change"`',
@@ -458,6 +464,7 @@ class ReportTests(unittest.TestCase):
                 "confidence": "high",
                 "recommended_action": "fix blocking cases before shipping",
                 "scope": "structural checks only",
+                "diagnosis": "Candidate lost required structure; fix blocking cases before shipping.",
             },
             "artifacts": {
                 "html": ".redline/reports/eval.html",
@@ -498,6 +505,7 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(payload["blocks"][0]["type"], "header")
         self.assertIn("fix blocking cases before shipping", body)
         self.assertIn("structural checks only", body)
+        self.assertIn("Candidate lost required structure", body)
         self.assertIn("candidate lost valid JSON format", body)
         self.assertIn("@support-team", body)
         self.assertIn("1 more changed or blocking case", body)

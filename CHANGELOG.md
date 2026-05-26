@@ -85,6 +85,7 @@
 - Add reproducible dogfood case studies using the checked-in public and support-agent fixtures.
 - Add an internet dogfood source shortlist covering Dolly, OpenAssistant, WildChat, LMSYS, and Alpaca.
 - Reduce noisy entity-loss signals from pronouns and bullet-leading adjectives found during Dolly dogfood.
+- Add plain-English diff diagnoses so users see what changed before the case list.
 - Group prompt manifest evals by feature in the local dashboard.
 - Summarize prompt manifests with readiness, owners, requirements, and missing suite rollups.
 - Validate prompt manifests and their mapped suites through `redline validate redline-prompts.json`.

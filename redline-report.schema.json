@@ -41,6 +41,7 @@
         "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
         "recommended_action": {"type": "string"},
         "scope": {"type": "string"},
+        "diagnosis": {"type": "string"},
         "rationale": {"type": "array", "items": {"type": "string"}}
       },
       "additionalProperties": true

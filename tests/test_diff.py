@@ -23,6 +23,7 @@ class DiffTests(unittest.TestCase):
         self.assertIn("Machine-readable prompt regression report", schema["description"])
         self.assertIn("summary", schema["properties"])
         self.assertIn("decision", schema["properties"])
+        self.assertIn("diagnosis", schema["properties"]["decision"]["properties"])
         self.assertIn("suite", schema["properties"])
         self.assertIn("candidate", schema["properties"])
         self.assertIn("diffs", schema["properties"])
@@ -294,6 +295,7 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(result["summary"]["missing"], 1)
         self.assertEqual(result["decision"]["confidence"], "high")
         self.assertEqual(result["decision"]["recommended_action"], "fix blocking cases before shipping")
+        self.assertIn("missed candidate outputs", result["decision"]["diagnosis"])
         self.assertEqual(result["diffs"][0]["status"], "missing")
         self.assertEqual(result["diffs"][0]["baseline_response"], "30 days")
         self.assertIsNone(result["diffs"][0]["candidate_response"])
@@ -302,6 +304,34 @@ class DiffTests(unittest.TestCase):
         self.assertIn("cluster", result["diffs"][0])
         self.assertEqual(result["diffs"][0]["confidence"], "high")
         self.assertEqual(result["diffs"][0]["signal"], "structural")
+
+    def test_compare_summarizes_plain_english_diagnosis(self) -> None:
+        prompt = "Return a numbered rollout checklist with owner, URL, and 30 day deadline."
+        suite = build_suite(
+            [
+                LogRecord(
+                    1,
+                    prompt,
+                    "1. Owner Platform ML must review https://example.com/runbook within 30 days.\n"
+                    "2. Notify Security Operations after rollout.",
+                    {},
+                )
+            ],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        candidate = [LogRecord(1, prompt, "Looks good.", {})]
+
+        result = compare_suite_to_candidate(suite, candidate)
+
+        self.assertEqual(result["summary"]["regression"], 1)
+        self.assertEqual(
+            result["decision"]["diagnosis"],
+            "Candidate got shorter, lost required structure, and dropped concrete details; "
+            "fix blocking cases before shipping.",
+        )
 
     def test_compare_labels_changed_cases_with_calibrated_signal(self) -> None:
         suite = build_suite(
@@ -413,6 +443,7 @@ class DiffTests(unittest.TestCase):
                 "confidence": "medium",
                 "recommended_action": "no structural blockers detected; review semantic risks before shipping",
                 "scope": "structural checks only; review semantic risks separately",
+                "diagnosis": "No structural blockers were detected; still review semantic risks.",
             },
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "diffs": [],
@@ -423,6 +454,7 @@ class DiffTests(unittest.TestCase):
         self.assertIn("Confidence: MEDIUM", report)
         self.assertIn("Recommended action: no structural blockers detected; review semantic risks before shipping", report)
         self.assertIn("Scope: structural checks only", report)
+        self.assertIn("Diagnosis: No structural blockers were detected", report)
         self.assertIn("Warnings:", report)
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
 
@@ -442,6 +474,7 @@ class DiffTests(unittest.TestCase):
                 "confidence": "high",
                 "recommended_action": "fix blocking cases before shipping",
                 "scope": "structural checks only; review semantic risks separately",
+                "diagnosis": "Candidate lost required structure; fix blocking cases before shipping.",
             },
             "prompt_evals": [
                 {
@@ -486,6 +519,7 @@ class DiffTests(unittest.TestCase):
         self.assertIn("redline eval: cases=2 regression=1 changed=1", report)
         self.assertIn("Confidence: HIGH | fix blocking cases before shipping", report)
         self.assertIn("Scope: structural checks only", report)
+        self.assertIn("Diagnosis: Candidate lost required structure; fix blocking cases before shipping.", report)
         self.assertIn("Warning: prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn("Prompt evals:", report)
         self.assertIn(

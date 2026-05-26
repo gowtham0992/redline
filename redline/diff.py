@@ -260,12 +260,13 @@ def compare_suite_to_candidate(
         "neutral": counts["neutral"],
         "missing": counts["missing"],
     }
+    decision = summarize_result_decision(summary, [diff.to_dict() for diff in diffs])
     return {
         "$schema": REPORT_SCHEMA_URL,
         "version": "0.1",
         "profile": profile,
         "summary": summary,
-        "decision": summarize_decision(summary),
+        "decision": decision,
         "diffs": [diff.to_dict() for diff in diffs],
     }
 
@@ -552,6 +553,9 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
             scope = str(decision.get("scope") or "")
             if scope:
                 lines.append(f"Scope: {scope}")
+            diagnosis = str(decision.get("diagnosis") or "")
+            if diagnosis:
+                lines.append(f"Diagnosis: {diagnosis}")
             lines.append("")
 
     warnings = _result_warnings(result)
@@ -601,6 +605,9 @@ def format_compact_report(result: dict[str, Any], *, title: str = "redline diff"
             scope = str(decision.get("scope") or "")
             if scope:
                 lines.append(f"Scope: {scope}")
+            diagnosis = str(decision.get("diagnosis") or "")
+            if diagnosis:
+                lines.append(f"Diagnosis: {diagnosis}")
     for warning in _result_warnings(result):
         lines.append(f"Warning: {warning}")
 
@@ -736,6 +743,115 @@ def summarize_decision(summary: dict[str, Any]) -> dict[str, Any]:
             "neutral does not prove identical meaning, factual correctness, tone, hallucination safety, or reasoning quality",
         ],
     }
+
+
+def summarize_result_decision(summary: dict[str, Any], diffs: list[dict[str, Any]]) -> dict[str, Any]:
+    decision = summarize_decision(summary)
+    decision["diagnosis"] = _diagnosis(summary, diffs)
+    return decision
+
+
+def _diagnosis(summary: dict[str, Any], diffs: list[dict[str, Any]]) -> str:
+    cases = _summary_count(summary, "cases")
+    regression = _summary_count(summary, "regression")
+    missing = _summary_count(summary, "missing")
+    changed = _summary_count(summary, "changed")
+    improved = _summary_count(summary, "improved")
+    if cases == 0:
+        return "No baseline cases are available yet; generate or add cases before relying on redline."
+
+    reasons = _actionable_reasons(diffs)
+    if regression or missing:
+        fragments = _diagnosis_fragments(reasons, missing=bool(missing))
+        if fragments:
+            return f"Candidate {_join_fragments(fragments)}; fix blocking cases before shipping."
+        return "Candidate introduced blocking behavioral regressions; fix blocking cases before shipping."
+    if changed:
+        fragments = _diagnosis_fragments(reasons, missing=False)
+        if fragments:
+            return f"Candidate {_join_fragments(fragments)}; review changed cases before shipping."
+        return "Candidate changed behavior without structural blockers; review changed cases before shipping."
+    if improved:
+        return (
+            "Candidate improved one or more structural checks; review the changes and semantic risks before "
+            "shipping."
+        )
+    return (
+        "No structural blockers were detected; still review factual correctness, tone, hallucinations, "
+        "and reasoning separately."
+    )
+
+
+def _actionable_reasons(diffs: list[dict[str, Any]]) -> list[str]:
+    reasons: list[str] = []
+    for item in diffs:
+        if not isinstance(item, dict):
+            continue
+        if item.get("status") not in {"regression", "changed", "missing"}:
+            continue
+        raw_reasons = item.get("reasons")
+        if not isinstance(raw_reasons, list):
+            continue
+        reasons.extend(str(reason) for reason in raw_reasons)
+    return reasons
+
+
+def _diagnosis_fragments(reasons: list[str], *, missing: bool) -> list[str]:
+    fragments: list[str] = []
+    if any("much shorter" in reason for reason in reasons):
+        fragments.append("got shorter")
+    if any(_is_structure_loss_reason(reason) for reason in reasons):
+        fragments.append("lost required structure")
+    if any(_is_detail_loss_reason(reason) for reason in reasons):
+        fragments.append("dropped concrete details")
+    if any("newly refuses" in reason for reason in reasons):
+        fragments.append("started refusing prompts")
+    if any("became empty" in reason for reason in reasons):
+        fragments.append("returned empty outputs")
+    if missing or any("output missing" in reason for reason in reasons):
+        fragments.append("missed candidate outputs")
+    if any(reason.startswith(("tone changed:", "confidence wording changed:")) for reason in reasons):
+        fragments.append("changed tone or confidence wording")
+    if any(reason.startswith("policy meaning changed:") for reason in reasons):
+        fragments.append("changed policy meaning")
+    if any(reason.startswith("content changed substantially:") for reason in reasons):
+        fragments.append("changed content substantially")
+    return fragments[:5]
+
+
+def _is_structure_loss_reason(reason: str) -> bool:
+    return reason.startswith(
+        (
+            "candidate lost valid JSON format",
+            "candidate missing JSON keys:",
+            "candidate lost code block structure",
+            "candidate lost bullet list structure",
+            "candidate lost numbered list structure",
+            "candidate lost markdown table structure",
+            "shape changed:",
+        )
+    )
+
+
+def _is_detail_loss_reason(reason: str) -> bool:
+    return reason.startswith(
+        (
+            "candidate missing required text:",
+            "candidate missing numbers:",
+            "candidate missing URLs:",
+            "candidate missing entities:",
+        )
+    )
+
+
+def _join_fragments(fragments: list[str]) -> str:
+    if not fragments:
+        return "changed behavior"
+    if len(fragments) == 1:
+        return fragments[0]
+    if len(fragments) == 2:
+        return f"{fragments[0]} and {fragments[1]}"
+    return f"{', '.join(fragments[:-1])}, and {fragments[-1]}"
 
 
 def _index_by_prompt(records: list[LogRecord]) -> dict[str, list[LogRecord]]:

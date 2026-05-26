@@ -37,6 +37,10 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
             if scope:
                 lines.append(f"**Scope:** {scope}")
                 lines.append("")
+            diagnosis = str(decision.get("diagnosis") or "")
+            if diagnosis:
+                lines.append(f"**Diagnosis:** {diagnosis}")
+                lines.append("")
 
     warnings = _result_warnings(result)
     if warnings:
@@ -160,13 +164,16 @@ def format_pr_comment(result: dict[str, Any], *, title: str = "redline eval", ma
     action = str(decision.get("recommended_action") or "")
     confidence = str(decision.get("confidence") or "").upper()
     scope = str(decision.get("scope") or "")
+    diagnosis = str(decision.get("diagnosis") or "")
     if action:
         lines.append(f"**Action:** {action}")
     if confidence:
         lines.append(f"**Confidence:** {confidence}")
     if scope:
         lines.append(f"**Scope:** {scope}")
-    if action or confidence or scope:
+    if diagnosis:
+        lines.append(f"**Diagnosis:** {diagnosis}")
+    if action or confidence or scope or diagnosis:
         lines.append("")
 
     owner_lines = _pr_comment_owner_lines(result.get("diffs"), result=result)
@@ -233,6 +240,7 @@ def format_slack_report(
     action = str(decision.get("recommended_action") or "").strip()
     confidence = str(decision.get("confidence") or "").strip().upper()
     scope = str(decision.get("scope") or "").strip()
+    diagnosis = str(decision.get("diagnosis") or "").strip()
     if action:
         fields.append(
             {"type": "mrkdwn", "text": _slack_mrkdwn(f"*Action*\n{_preview(action, 180)}")}
@@ -241,6 +249,10 @@ def format_slack_report(
         fields.append({"type": "mrkdwn", "text": _slack_mrkdwn(f"*Confidence*\n{confidence}")})
     if scope:
         fields.append({"type": "mrkdwn", "text": _slack_mrkdwn(f"*Scope*\n{_preview(scope, 180)}")})
+    if diagnosis:
+        fields.append(
+            {"type": "mrkdwn", "text": _slack_mrkdwn(f"*Diagnosis*\n{_preview(diagnosis, 180)}")}
+        )
     if fields:
         payload["blocks"].append({"type": "section", "fields": fields})
 
@@ -1104,6 +1116,7 @@ def _html_decision(decision: dict[str, Any]) -> str:
     confidence = str(decision.get("confidence") or "").upper()
     action = str(decision.get("recommended_action") or "")
     scope = str(decision.get("scope") or "")
+    diagnosis = str(decision.get("diagnosis") or "")
     rationale = decision.get("rationale")
     lines = ['<section class="decision">', "<h2>Decision</h2>"]
     if confidence:
@@ -1112,6 +1125,8 @@ def _html_decision(decision: dict[str, Any]) -> str:
         lines.append(f"<p><strong>Recommended action:</strong> {_h(action)}</p>")
     if scope:
         lines.append(f'<p class="scope"><strong>Scope:</strong> {_h(scope)}</p>')
+    if diagnosis:
+        lines.append(f"<p><strong>Diagnosis:</strong> {_h(diagnosis)}</p>")
     if isinstance(rationale, list) and rationale:
         lines.append("<ul>")
         for item in rationale:
