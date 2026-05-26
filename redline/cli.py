@@ -107,7 +107,14 @@ from .summary import (
 )
 from .suite import add_suite_case, build_suite
 from .validate import format_validation_report, validate_prompt_manifest, validate_suite
-from .watch import collect_log, follow_log, format_follow_records, format_watch_stats, watch_stats
+from .watch import (
+    collect_log,
+    follow_log,
+    format_follow_records,
+    format_watch_snippets,
+    format_watch_stats,
+    watch_stats,
+)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -251,6 +258,11 @@ def build_parser() -> argparse.ArgumentParser:
     watch_parser.add_argument("--redaction-placeholder", default=DEFAULT_PLACEHOLDER, help="replacement text for watch redaction")
     watch_parser.add_argument("--stats", action="store_true", help="summarize the observed watch log")
     watch_parser.add_argument("--skip-log", help="middleware skip diagnostics JSONL to include with --stats")
+    watch_parser.add_argument(
+        "--snippet",
+        choices=["all", "decorator", "openai", "anthropic", "fastapi"],
+        help="print copy-paste Python capture setup and exit",
+    )
     watch_parser.add_argument("--follow", action="store_true", help="keep polling the source log for new records")
     watch_parser.add_argument("--poll-interval", type=float, default=1.0, help="seconds between follow polls")
     watch_parser.add_argument("--max-records", type=int, help="stop follow mode after collecting this many new records")
@@ -694,6 +706,9 @@ def cmd_watch(args: argparse.Namespace) -> int:
     input_field = str(_config_value(args.input_field, config, "input_field", "prompt"))
     output_field = str(_config_value(args.output_field, config, "output_field", "response"))
     output = args.out or _config_observed_log_path(config) or ".redline/logs/prompts.jsonl"
+    if args.snippet:
+        print(format_watch_snippets(args.snippet), end="")
+        return 0
     if args.stats:
         result = watch_stats(output, input_field=input_field, output_field=output_field, skip_log=args.skip_log)
         if args.json:

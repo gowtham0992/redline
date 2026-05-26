@@ -17,6 +17,7 @@ from redline.watch import (
     collect_log,
     follow_log,
     format_follow_records,
+    format_watch_snippets,
     format_watch_stats,
     patch_anthropic,
     patch_openai,
@@ -195,6 +196,20 @@ class WatchTests(unittest.TestCase):
                 "WatchTests.test_watch_decorator_records_sync_function_calls.<locals>.generate_response",
             )
             self.assertIsInstance(records[0].raw["metadata"]["latency_ms"], int)
+
+    def test_format_watch_snippets_prints_copy_paste_capture_paths(self) -> None:
+        snippets = format_watch_snippets("all")
+
+        self.assertIn("redline watch snippets", snippets)
+        self.assertIn("from redline import watch", snippets)
+        self.assertIn("patch_openai(client)", snippets)
+        self.assertIn("patch_anthropic(client)", snippets)
+        self.assertIn("RedlineMiddleware", snippets)
+        self.assertIn("redline suite .redline/logs/prompts.jsonl", snippets)
+
+    def test_format_watch_snippets_rejects_unknown_kind(self) -> None:
+        with self.assertRaisesRegex(ValueError, "watch snippet must be one of"):
+            format_watch_snippets("unknown")
 
     def test_watch_decorator_supports_custom_response_extractor(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -36,6 +36,19 @@ for converting exported app logs into redline JSONL before `redline suite`.
 SDK capture adapters, such as `openai-sdk` and `anthropic-sdk`, are for
 recording real app calls into `.redline/logs/prompts.jsonl`.
 
+For zero-runner onboarding, ask the CLI for copy-paste capture snippets:
+
+```bash
+redline watch --snippet decorator
+redline watch --snippet openai
+redline watch --snippet anthropic
+redline watch --snippet fastapi
+```
+
+Those snippets all write local prompt-response rows to
+`.redline/logs/prompts.jsonl`. Check readiness with `redline watch --stats`,
+then build the first suite with `redline suite .redline/logs/prompts.jsonl`.
+
 ## Custom Stdio Command
 
 What you need: any command that reads prompt text from `stdin` and prints only

@@ -27,6 +27,63 @@ DEFAULT_MIDDLEWARE_SKIP_LOG = ".redline/logs/middleware-skips.jsonl"
 READY_RECORDS = 5
 READY_PATTERNS = 3
 
+WATCH_SNIPPETS = {
+    "decorator": {
+        "title": "Python function decorator",
+        "body": """
+from redline import watch
+
+@watch
+async def generate(prompt: str) -> str:
+    return await your_llm_call(prompt)
+""",
+    },
+    "openai": {
+        "title": "OpenAI-compatible client",
+        "body": """
+from openai import OpenAI
+from redline import patch_openai
+
+client = OpenAI()
+patch_openai(client)
+
+response = client.chat.completions.create(
+    model="your-model",
+    messages=[{"role": "user", "content": "Write a refund reply."}],
+)
+""",
+    },
+    "anthropic": {
+        "title": "Anthropic client",
+        "body": """
+from anthropic import Anthropic
+from redline import patch_anthropic
+
+client = Anthropic()
+patch_anthropic(client)
+
+response = client.messages.create(
+    model="your-model",
+    max_tokens=500,
+    messages=[{"role": "user", "content": "Write a refund reply."}],
+)
+""",
+    },
+    "fastapi": {
+        "title": "FastAPI or ASGI middleware",
+        "body": """
+from redline import RedlineMiddleware
+
+app.add_middleware(
+    RedlineMiddleware,
+    prompt_field="messages.0.content",
+    response_field="choices.0.message.content",
+    skip_log=".redline/logs/middleware-skips.jsonl",
+)
+""",
+    },
+}
+
 
 def watch(
     func: Callable[..., Any] | None = None,
@@ -101,6 +158,36 @@ def watch(
     if func is None:
         return decorate
     return decorate(func)
+
+
+def format_watch_snippets(kind: str = "all") -> str:
+    """Return copy-pasteable local capture snippets."""
+
+    keys = list(WATCH_SNIPPETS)
+    if kind != "all" and kind not in WATCH_SNIPPETS:
+        choices = ", ".join(["all", *keys])
+        raise ValueError(f"watch snippet must be one of: {choices}")
+    selected = keys if kind == "all" else [kind]
+    lines = ["redline watch snippets", ""]
+    for key in selected:
+        snippet = WATCH_SNIPPETS[key]
+        lines.append(f"## {snippet['title']}")
+        lines.append("")
+        lines.append("```python")
+        lines.append(str(snippet["body"]).strip())
+        lines.append("```")
+        lines.append("")
+    lines.extend(
+        [
+            "Next:",
+            "- Check captured rows: redline watch --stats",
+            "- Build a suite: redline suite .redline/logs/prompts.jsonl --out redline-suite.json",
+            "- Configure replay when ready: redline init --runner stdio --copy-runner",
+            "- Run a diff after changing a prompt: redline eval --prompt prompts/v2.txt",
+            "",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def patch_openai(

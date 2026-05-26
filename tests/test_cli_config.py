@@ -1874,6 +1874,17 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_watch_snippet_prints_setup_without_log_file(self) -> None:
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(["watch", "--snippet", "decorator"]), 0)
+
+        text = output.getvalue()
+        self.assertIn("Python function decorator", text)
+        self.assertIn("from redline import watch", text)
+        self.assertIn("redline watch --stats", text)
+
     def test_watch_uses_configured_observed_log_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

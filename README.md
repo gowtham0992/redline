@@ -62,7 +62,9 @@ from tools like Langfuse or Helicone, capture OpenAI/Anthropic SDK calls, or add
 bounded FastAPI/ASGI middleware.
 
 ```bash
-redline suite logs/baseline.jsonl --out redline-suite.json
+redline watch --snippet all
+redline watch --stats
+redline suite .redline/logs/prompts.jsonl --out redline-suite.json
 ```
 
 ### 2. Suite
