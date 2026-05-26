@@ -1,11 +1,12 @@
 import json
+import sys
 import unittest
 from pathlib import Path
 
-try:
+if sys.version_info >= (3, 11):
     import tomllib
-except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10.
-    import tomli as tomllib  # type: ignore[import-not-found,no-redef]
+else:  # pragma: no cover - exercised on Python 3.10.
+    import tomli as tomllib
 
 
 class PackagingTests(unittest.TestCase):
