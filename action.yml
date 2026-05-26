@@ -47,17 +47,35 @@ runs:
 
     - name: Run redline
       shell: bash
+      env:
+        REDLINE_ACTION_CONFIG: ${{ inputs.config }}
+        REDLINE_ACTION_SUITE: ${{ inputs.suite }}
+        REDLINE_ACTION_PROMPT_PATH: ${{ inputs.prompt-path }}
+        REDLINE_ACTION_FAIL_ON: ${{ inputs.fail-on }}
+        REDLINE_ACTION_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        REDLINE_ACTION_EXTRA_ARGS: ${{ inputs.extra-args }}
+        REDLINE_ACTION_RECORD_HISTORY: ${{ inputs.record-history }}
+        REDLINE_ACTION_HISTORY_LABEL: ${{ inputs.history-label }}
+        REDLINE_ACTION_RENDER_DASHBOARD: ${{ inputs.render-dashboard }}
+        REDLINE_ACTION_BENCHMARK_MAX_SECONDS: ${{ inputs.benchmark-max-seconds }}
       run: |
         set -euo pipefail
-        cd "${{ inputs.working-directory }}"
+        cd "$REDLINE_ACTION_WORKING_DIRECTORY"
         mkdir -p .redline/reports
 
-        suite_path="${{ inputs.suite }}"
+        config_path="$REDLINE_ACTION_CONFIG"
+        suite_path="$REDLINE_ACTION_SUITE"
+        if [ ! -f "$suite_path" ]; then
+          python -m redline doctor --config "$config_path" || true
+          echo "::error::redline suite or prompt manifest not found: $suite_path"
+          echo "::error::Generate and commit one with: redline suite path/to/baseline.jsonl --out $suite_path"
+          exit 1
+        fi
         suite_schema="$(python -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("schema", ""))' "$suite_path")"
 
-        python -m redline doctor --config "${{ inputs.config }}" --strict
+        python -m redline doctor --config "$config_path" --strict
         if [ "$suite_schema" = "redline-prompt-manifest-v1" ]; then
-          if [ -n "${{ inputs.prompt-path }}" ]; then
+          if [ -n "$REDLINE_ACTION_PROMPT_PATH" ]; then
             echo "::error::prompt-path is not supported when suite points to a redline prompt manifest"
             exit 1
           fi
@@ -69,27 +87,27 @@ runs:
             --check \
             --check-suites
         else
-          python -m redline validate "$suite_path" --config "${{ inputs.config }}" --strict
+          python -m redline validate "$suite_path" --config "$config_path" --strict
         fi
         benchmark_args=(
           "$suite_path"
-          --config "${{ inputs.config }}"
+          --config "$config_path"
           --measure-local
           --github-summary
           --out-json .redline/reports/benchmark.json
           --out-md .redline/reports/benchmark.md
         )
-        if [ -n "${{ inputs.benchmark-max-seconds }}" ]; then
-          benchmark_args+=(--max-seconds "${{ inputs.benchmark-max-seconds }}")
+        if [ -n "$REDLINE_ACTION_BENCHMARK_MAX_SECONDS" ]; then
+          benchmark_args+=(--max-seconds "$REDLINE_ACTION_BENCHMARK_MAX_SECONDS")
         fi
         python -m redline benchmark "${benchmark_args[@]}"
 
         eval_args=(
           "$suite_path"
-          --config "${{ inputs.config }}"
+          --config "$config_path"
           --compact
           --github-annotations
-          --fail-on "${{ inputs.fail-on }}"
+          --fail-on "$REDLINE_ACTION_FAIL_ON"
           --out-json .redline/reports/eval.json
           --out-md .redline/reports/eval.md
           --out-comment .redline/reports/eval-comment.md
@@ -97,12 +115,11 @@ runs:
           --out-junit .redline/reports/eval.xml
           --out-slack .redline/reports/eval.slack.json
         )
-        if [ -n "${{ inputs.prompt-path }}" ]; then
-          eval_args+=(--prompt "${{ inputs.prompt-path }}")
+        if [ -n "$REDLINE_ACTION_PROMPT_PATH" ]; then
+          eval_args+=(--prompt "$REDLINE_ACTION_PROMPT_PATH")
         fi
-        if [ -n "${{ inputs.extra-args }}" ]; then
-          # shellcheck disable=SC2206
-          extra_args=( ${{ inputs.extra-args }} )
+        if [ -n "$REDLINE_ACTION_EXTRA_ARGS" ]; then
+          read -r -a extra_args <<< "$REDLINE_ACTION_EXTRA_ARGS"
           eval_args+=("${extra_args[@]}")
         fi
 
@@ -115,8 +132,8 @@ runs:
           cat .redline/reports/eval-comment.md >> "$GITHUB_STEP_SUMMARY"
         fi
 
-        if [ "${{ inputs.record-history }}" = "true" ] && [ -f .redline/reports/eval.json ]; then
-          history_label="${{ inputs.history-label }}"
+        if [ "$REDLINE_ACTION_RECORD_HISTORY" = "true" ] && [ -f .redline/reports/eval.json ]; then
+          history_label="$REDLINE_ACTION_HISTORY_LABEL"
           if [ -z "$history_label" ]; then
             history_label="${GITHUB_SHA:-redline-action}"
           fi
@@ -130,11 +147,11 @@ runs:
         fi
 
         python -m redline audit \
-          --config "${{ inputs.config }}" \
+          --config "$config_path" \
           --verify \
           --out-checkpoint .redline/audit-checkpoint.json
 
-        if [ "${{ inputs.render-dashboard }}" = "true" ]; then
+        if [ "$REDLINE_ACTION_RENDER_DASHBOARD" = "true" ]; then
           python -m redline dashboard --out .redline/dashboard.html
         fi
 

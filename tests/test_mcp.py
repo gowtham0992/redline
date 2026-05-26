@@ -47,6 +47,22 @@ class McpServerTests(unittest.TestCase):
         self.assertNotIn("redline_accept", names)
         self.assertNotIn("redline_require", names)
 
+    def test_eval_and_diff_tools_do_not_accept_dynamic_commands(self) -> None:
+        response = handle_jsonrpc_line(
+            json.dumps({"jsonrpc": "2.0", "id": 20, "method": "tools/list"})
+        )
+
+        assert response is not None
+        tools = {tool["name"]: tool for tool in response["result"]["tools"]}
+        diff_props = tools["redline_diff"]["inputSchema"]["properties"]
+        eval_props = tools["redline_eval"]["inputSchema"]["properties"]
+
+        self.assertNotIn("judge", diff_props)
+        self.assertNotIn("judge_timeout", diff_props)
+        self.assertNotIn("replay", eval_props)
+        self.assertNotIn("judge", eval_props)
+        self.assertNotIn("judge_timeout", eval_props)
+
     def test_prompts_list_exposes_agent_workflows(self) -> None:
         response = handle_jsonrpc_line(
             json.dumps({"jsonrpc": "2.0", "id": 30, "method": "prompts/list"})

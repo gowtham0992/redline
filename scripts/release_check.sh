@@ -16,8 +16,8 @@ export PIP_DISABLE_PIP_VERSION_CHECK=1
 
 printf 'release check work dir: %s\n\n' "$work_dir"
 
-printf '$ %s -m unittest discover\n' "$python_bin"
-"$python_bin" -m unittest discover
+printf '$ %s -m pytest -q\n' "$python_bin"
+"$python_bin" -m pytest -q
 
 printf '\n$ %s -m compileall redline tests examples scripts\n' "$python_bin"
 "$python_bin" -m compileall redline tests examples scripts

@@ -709,8 +709,6 @@ def _tools() -> list[ToolSpec]:
                     "out_junit": _string("Write JUnit XML report."),
                     "out_slack": _string("Write Slack Block Kit JSON report."),
                     "profile": _string("Diff profile: strict or review."),
-                    "judge": _string("Optional judge command for ambiguous changed cases."),
-                    "judge_timeout": _number("Per-case judge timeout in seconds."),
                     "fail_on": _string("Comma-separated statuses that produce exit code 1; use none for report-only."),
                 },
                 required=("candidate_path",),
@@ -724,7 +722,6 @@ def _tools() -> list[ToolSpec]:
                 {
                     "suite_path": _string("Suite JSON path. Defaults to config."),
                     "config": _string("Config path to read."),
-                    "replay": _string("Replay command; receives prompt on stdin unless it contains {prompt}."),
                     "prompt": _string("Prompt template file to render for each case."),
                     "timeout": _number("Per-case replay timeout in seconds."),
                     "workers": _integer("Number of replay cases to run concurrently."),
@@ -739,8 +736,6 @@ def _tools() -> list[ToolSpec]:
                     "candidate_out": _string("Write replayed candidate rows."),
                     "run_metadata": _string("Write replay metadata JSON."),
                     "profile": _string("Diff profile: strict or review."),
-                    "judge": _string("Optional judge command for ambiguous changed cases."),
-                    "judge_timeout": _number("Per-case judge timeout in seconds."),
                     "fail_on": _string("Comma-separated statuses that produce exit code 1; use none for report-only."),
                 }
             ),
@@ -978,7 +973,6 @@ def _build_eval(arguments: dict[str, Any]) -> list[str]:
     args = ["eval"]
     _add_positional(args, arguments.get("suite_path"))
     _add_option(args, "--config", arguments.get("config"))
-    _add_option(args, "--replay", arguments.get("replay"))
     _add_option(args, "--prompt", arguments.get("prompt"))
     _add_option(args, "--timeout", arguments.get("timeout"))
     _add_option(args, "--workers", arguments.get("workers"))
@@ -1046,8 +1040,6 @@ def _add_common_report_args(args: list[str], arguments: dict[str, Any]) -> None:
 
 def _add_common_review_args(args: list[str], arguments: dict[str, Any]) -> None:
     _add_option(args, "--profile", arguments.get("profile"))
-    _add_option(args, "--judge", arguments.get("judge"))
-    _add_option(args, "--judge-timeout", arguments.get("judge_timeout"))
     _add_option(args, "--fail-on", arguments.get("fail_on"))
 
 

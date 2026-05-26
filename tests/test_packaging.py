@@ -1,7 +1,11 @@
 import json
-import tomllib
 import unittest
 from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10.
+    import tomli as tomllib  # type: ignore[import-not-found,no-redef]
 
 
 class PackagingTests(unittest.TestCase):
@@ -9,6 +13,7 @@ class PackagingTests(unittest.TestCase):
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 
         self.assertEqual(pyproject["build-system"]["build-backend"], "setuptools.build_meta")
+        self.assertIn("setuptools>=77", pyproject["build-system"]["requires"])
         self.assertEqual(pyproject["project"]["name"], "redline-ai")
         self.assertEqual(pyproject["project"]["license"], "MIT")
         self.assertEqual(pyproject["project"]["scripts"]["redline"], "redline.cli:main")
@@ -25,7 +30,8 @@ class PackagingTests(unittest.TestCase):
         dev_dependencies = pyproject["project"]["optional-dependencies"]["dev"]
 
         self.assertIn("build>=1.2", dev_dependencies)
-        self.assertIn("setuptools>=68", dev_dependencies)
+        self.assertIn("setuptools>=77", dev_dependencies)
+        self.assertIn("tomli>=2; python_version < '3.11'", dev_dependencies)
         self.assertIn("twine>=5", dev_dependencies)
 
     def test_package_is_marked_typed(self) -> None:
@@ -42,7 +48,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline/judge_template_files", manifest)
         self.assertIn("examples *.jsonl *.md", manifest)
         self.assertIn("docs *.md *.jsonl", manifest)
-        self.assertIn("scripts *.py *.sh", manifest)
+        self.assertIn("prune scripts", manifest)
+        self.assertNotIn("recursive-include scripts", manifest)
         self.assertIn("site *.html *.css *.png *.svg *.gif", manifest)
 
     def test_license_file_matches_package_metadata(self) -> None:
@@ -93,7 +100,7 @@ class PackagingTests(unittest.TestCase):
     def test_release_check_builds_and_smokes_installed_wheel(self) -> None:
         script = Path("scripts/release_check.sh").read_text(encoding="utf-8")
 
-        self.assertIn("-m unittest discover", script)
+        self.assertIn("-m pytest -q", script)
         self.assertIn("-m compileall redline tests examples scripts", script)
         self.assertIn("-m ruff check .", script)
         self.assertIn("-m mypy redline tests scripts examples", script)

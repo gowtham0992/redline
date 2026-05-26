@@ -9,6 +9,11 @@ not start a cloud service, does not add telemetry, and does not call model
 providers unless the project already configured a replay or judge command that
 does so.
 
+For command execution safety, MCP tools do not accept ad hoc replay or judge
+command strings from the assistant. Configure those commands in `redline.json`
+with `redline init --runner ...` or `redline init --judge ...`, review them as
+repo-local code, then let MCP invoke the configured project setup.
+
 ## Install
 
 ```bash
@@ -135,6 +140,8 @@ The MCP server inherits redline's trust model:
 - local-first by default
 - deterministic structural checks first
 - optional judges only when explicitly configured
+- replay and judge commands must come from reviewed project configuration, not
+  ad hoc MCP tool arguments
 - neutral does not mean semantically safe
 - human review closes the loop before baselines are changed
 
