@@ -169,7 +169,7 @@ def format_pr_comment(result: dict[str, Any], *, title: str = "redline eval", ma
     if action or confidence or scope:
         lines.append("")
 
-    owner_lines = _pr_comment_owner_lines(result.get("diffs"))
+    owner_lines = _pr_comment_owner_lines(result.get("diffs"), result=result)
     if owner_lines:
         lines.append("### Owners")
         lines.append("")
@@ -607,7 +607,12 @@ def _hidden_pr_comment_count(diffs: Any, *, max_cases: int) -> int:
     return max(0, reviewable - max(0, max_cases))
 
 
-def _pr_comment_owner_lines(diffs: Any, *, max_owners: int = 6) -> list[str]:
+def _pr_comment_owner_lines(
+    diffs: Any,
+    *,
+    result: dict[str, Any],
+    max_owners: int = 6,
+) -> list[str]:
     rows = [
         row
         for row in _owner_review_rows(diffs)
@@ -625,13 +630,27 @@ def _pr_comment_owner_lines(diffs: Any, *, max_owners: int = 6) -> list[str]:
             parts.append(_plural_count(blocking, "blocking case"))
         if changed:
             parts.append(_plural_count(changed, "changed case"))
-        lines.append(
-            f"- {row['owner']}: {', '.join(parts)} ({_plural_count(total, 'owned case')})"
-        )
+        line = f"- {row['owner']}: {', '.join(parts)} ({_plural_count(total, 'owned case')})"
+        command = _first_owner_review_command(diffs, str(row["owner"]), result)
+        if command:
+            line += f" · first review: `{command}`"
+        lines.append(line)
     hidden = len(rows) - max(0, max_owners)
     if hidden > 0:
         lines.append(f"- ... {hidden} more owner(s) in the full report.")
     return lines
+
+
+def _first_owner_review_command(diffs: Any, owner: str, result: dict[str, Any]) -> str:
+    if not isinstance(diffs, list):
+        return ""
+    for item in _pr_comment_items(diffs, max_cases=len(diffs)):
+        if str(item.get("owner") or "").strip() != owner:
+            continue
+        command = _pr_comment_review_command(item, result)
+        if command:
+            return command
+    return ""
 
 
 def _pr_comment_case_lines(item: dict[str, Any], result: dict[str, Any]) -> list[str]:

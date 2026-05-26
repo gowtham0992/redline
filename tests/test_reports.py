@@ -427,8 +427,14 @@ class ReportTests(unittest.TestCase):
         self.assertIn("**Changed:** 1", comment)
         self.assertIn("**Action:** fix blocking cases before shipping", comment)
         self.assertIn("### Owners", comment)
-        self.assertIn("- @support-team: 1 blocking case (1 owned case)", comment)
-        self.assertIn("- @billing-team: 1 changed case (1 owned case)", comment)
+        self.assertIn(
+            '- @support-team: 1 blocking case (1 owned case) · first review: `redline mark suites/support.redline-suite.json case_001 --status expected --note "intentional change"`',
+            comment,
+        )
+        self.assertIn(
+            '- @billing-team: 1 changed case (1 owned case) · first review: `redline mark suites/billing.redline-suite.json case_002 --status expected --note "intentional change"`',
+            comment,
+        )
         self.assertIn("**REGRESSION** `support/case_001` owner @support-team [high/structural]", comment)
         self.assertIn("**CHANGED** `billing/case_002` owner @billing-team", comment)
         self.assertIn("redline mark suites/support.redline-suite.json case_001", comment)

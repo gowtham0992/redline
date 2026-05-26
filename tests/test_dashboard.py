@@ -130,8 +130,25 @@ class DashboardTests(unittest.TestCase):
             self.assertEqual(
                 dashboard["owners"],
                 [
-                    {"owner": "@platform-team", "blocking": 1, "changed": 0, "provenance": 1, "total": 1},
-                    {"owner": "@support-team", "blocking": 0, "changed": 1, "provenance": 0, "total": 1},
+                    {
+                        "owner": "@platform-team",
+                        "blocking": 1,
+                        "changed": 0,
+                        "provenance": 1,
+                        "command": (
+                            'redline mark suites/support/triage.redline-suite.json case_001 '
+                            '--status expected --note "intentional change"'
+                        ),
+                        "total": 1,
+                    },
+                    {
+                        "owner": "@support-team",
+                        "blocking": 0,
+                        "changed": 1,
+                        "provenance": 0,
+                        "command": "",
+                        "total": 1,
+                    },
                 ],
             )
             self.assertEqual(
@@ -227,6 +244,8 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("structural 1", html)
             self.assertIn("<h2>Owner Review</h2>", html)
             self.assertIn("Rule provenance", html)
+            self.assertIn("First review", html)
+            self.assertIn("redline mark suites/support/triage.redline-suite.json case_001", html)
             self.assertIn("@platform-team", html)
             self.assertIn("@support-team", html)
             self.assertIn("regression 1", html)

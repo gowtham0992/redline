@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from html import escape
 from pathlib import Path
+from shlex import quote as shell_quote
 from typing import Any
 from urllib.parse import quote
 
@@ -150,7 +151,7 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
                 "kind": _report_kind(report, path),
                 "summary": _summary_counts(summary),
                 "decision": report.get("decision") if isinstance(report.get("decision"), dict) else {},
-                "owners": _report_owner_review(report.get("diffs")),
+                "owners": _report_owner_review(report.get("diffs"), suite_path=str(report.get("suite") or "")),
                 "trust": _report_trust_summary(report.get("diffs")),
                 "review": _report_review_summary(report.get("diffs")),
                 "review_cases": _report_review_cases(report.get("diffs")),
@@ -276,7 +277,7 @@ def _summary_counts(summary: dict[str, Any]) -> dict[str, int]:
     return counts
 
 
-def _report_owner_review(diffs: Any) -> list[dict[str, int | str]]:
+def _report_owner_review(diffs: Any, *, suite_path: str = "") -> list[dict[str, int | str]]:
     if not isinstance(diffs, list):
         return []
     rows: dict[str, dict[str, int | str]] = {}
@@ -294,12 +295,15 @@ def _report_owner_review(diffs: Any) -> list[dict[str, int | str]]:
                 "blocking": 0,
                 "changed": 0,
                 "provenance": 0,
+                "command": "",
                 "total": 0,
             },
         )
         row["total"] = int(row["total"]) + 1
         if isinstance(item.get("owner_rule"), dict):
             row["provenance"] = int(row["provenance"]) + 1
+        if not str(row.get("command") or ""):
+            row["command"] = _dashboard_review_command(item, suite_path=suite_path)
         if status in {"regression", "missing"}:
             row["blocking"] = int(row["blocking"]) + 1
         elif status == "changed":
@@ -321,13 +325,26 @@ def _dashboard_owner_review(reports: list[dict[str, Any]]) -> list[dict[str, int
                 continue
             row = rows.setdefault(
                 owner,
-                {"owner": owner, "blocking": 0, "changed": 0, "provenance": 0, "total": 0},
+                {"owner": owner, "blocking": 0, "changed": 0, "provenance": 0, "command": "", "total": 0},
             )
             row["blocking"] = int(row["blocking"]) + int(owner_row.get("blocking") or 0)
             row["changed"] = int(row["changed"]) + int(owner_row.get("changed") or 0)
             row["provenance"] = int(row["provenance"]) + int(owner_row.get("provenance") or 0)
+            if not str(row.get("command") or ""):
+                row["command"] = str(owner_row.get("command") or "")
             row["total"] = int(row["total"]) + int(owner_row.get("total") or 0)
     return _sort_owner_rows(rows.values())
+
+
+def _dashboard_review_command(item: dict[str, Any], *, suite_path: str = "") -> str:
+    status = str(item.get("status") or "")
+    if status not in {"regression", "missing", "changed"}:
+        return ""
+    suite = str(item.get("suite") or suite_path).strip()
+    case_id = str(item.get("suite_case_id") or item.get("case_id") or "").strip()
+    if not suite or not case_id:
+        return ""
+    return f'redline mark {shell_quote(suite)} {shell_quote(case_id)} --status expected --note "intentional change"'
 
 
 def _report_trust_summary(diffs: Any) -> dict[str, Any]:
@@ -721,6 +738,7 @@ def _owners_panel(owners: list[Any]) -> str:
             f"<td>{int(item.get('blocking') or 0)}</td>"
             f"<td>{int(item.get('changed') or 0)}</td>"
             f"<td>{int(item.get('provenance') or 0)}</td>"
+            f"<td>{_owner_command_cell(str(item.get('command') or ''))}</td>"
             f"<td>{int(item.get('total') or 0)}</td>"
             "</tr>"
         )
@@ -731,12 +749,18 @@ def _owners_panel(owners: list[Any]) -> str:
         "<h2>Owner Review</h2>"
         '<div class="table-wrap">'
         "<table>"
-        "<thead><tr><th>Owner</th><th>Blocking</th><th>Changed</th><th>Rule provenance</th><th>Total</th></tr></thead>"
+        "<thead><tr><th>Owner</th><th>Blocking</th><th>Changed</th><th>Rule provenance</th><th>First review</th><th>Total</th></tr></thead>"
         f"<tbody>{''.join(rows)}</tbody>"
         "</table>"
         "</div>"
         "</section>"
     )
+
+
+def _owner_command_cell(command: str) -> str:
+    if not command:
+        return "-"
+    return f"<code>{_h(command)}</code>"
 
 
 def _scope(scope: str) -> str:
