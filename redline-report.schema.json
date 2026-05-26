@@ -79,6 +79,15 @@
           "source_line": {"type": ["integer", "string", "null"]},
           "cluster": {"type": "string"},
           "owner": {"type": "string"},
+          "owner_rule": {
+            "type": ["object", "null"],
+            "properties": {
+              "match": {"type": "string"},
+              "field": {"type": "string"},
+              "source": {"type": "string"}
+            },
+            "additionalProperties": false
+          },
           "prompt": {"type": "string"},
           "baseline_response": {"type": "string"},
           "candidate_response": {"type": ["string", "null"]},

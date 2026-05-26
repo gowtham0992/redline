@@ -26,6 +26,8 @@ class DiffTests(unittest.TestCase):
         self.assertIn("suite", schema["properties"])
         self.assertIn("candidate", schema["properties"])
         self.assertIn("diffs", schema["properties"])
+        diff_properties = schema["properties"]["diffs"]["items"]["properties"]
+        self.assertIn("owner_rule", diff_properties)
 
     def test_classify_json_regression(self) -> None:
         baseline = extract_features('{"name":"Ada","status":"active"}').to_dict()
