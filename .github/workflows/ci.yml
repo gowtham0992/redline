@@ -36,7 +36,7 @@ jobs:
         run: bash -n scripts/*.sh
 
       - name: Run tests
-        run: python -m pytest -q
+        run: python -m pytest -q --cov=redline --cov-report=term-missing
 
       - name: Run Ruff
         run: python -m ruff check .

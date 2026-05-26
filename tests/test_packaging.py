@@ -34,6 +34,7 @@ class PackagingTests(unittest.TestCase):
 
         self.assertIn("build>=1.2", dev_dependencies)
         self.assertIn("pre-commit>=3.7", dev_dependencies)
+        self.assertIn("pytest-cov>=5", dev_dependencies)
         self.assertIn("setuptools>=77", dev_dependencies)
         self.assertIn("tomli>=2; python_version < '3.11'", dev_dependencies)
         self.assertIn("twine>=5", dev_dependencies)
@@ -430,6 +431,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn('python -m pip install -e ".[dev]"', workflow)
         self.assertIn("bash -n scripts/*.sh", workflow)
         self.assertIn("python -m pytest -q", workflow)
+        self.assertIn("--cov=redline --cov-report=term-missing", workflow)
         self.assertIn("python -m ruff check .", workflow)
         self.assertIn("python -m mypy redline tests scripts examples", workflow)
         self.assertIn("bash scripts/action_smoke.sh", workflow)

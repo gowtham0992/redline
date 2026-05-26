@@ -56,6 +56,24 @@ scripts/          release, smoke, demo, and certification helpers
 tests/            unit and integration tests for every product surface
 ```
 
+## Architecture map
+
+```mermaid
+flowchart LR
+  Logs["Prompt-response logs"] --> Suite["redline suite"]
+  Suite --> Cases["Representative cases + requirements"]
+  Cases --> Eval["redline diff / eval"]
+  Replay["Local replay runner"] --> Eval
+  Eval --> Reports["JSON / Markdown / HTML / JUnit"]
+  Reports --> Dashboard["Local dashboard"]
+  Reports --> History["History + compare"]
+  Reports --> CI["GitHub Action"]
+  Suite --> MCP["redline-mcp"]
+  Eval --> MCP
+  Reports --> MCP
+  Requirements["Human mark / require / accept loop"] --> Suite
+```
+
 Good first issues are usually docs, runner examples, importer presets, report
 polish, or small false-positive reductions with a focused fixture. Start with
 `docs/troubleshooting.md`, `docs/commands.md`, and tests around the behavior you
