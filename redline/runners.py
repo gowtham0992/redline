@@ -64,6 +64,7 @@ RUNNER_ADAPTERS: list[dict[str, str]] = [
         "file": "runners/jsonl_log_adapter.py",
         "template": "jsonl_log_adapter.py",
         "replay": "python runners/jsonl_log_adapter.py logs/export.jsonl --preset langfuse --out .redline/logs/prompts.jsonl",
+        "discover": "python runners/jsonl_log_adapter.py --list-presets",
         "setup": "Export app logs as JSONL, then use a preset or map prompt and response fields.",
         "kind": "log",
     },
@@ -117,6 +118,7 @@ def format_runner_adapters(adapters: list[dict[str, Any]] | None = None) -> str:
         "",
     ]
     for adapter in items:
+        discovery_command = adapter.get("discover")
         lines.extend(
             [
                 str(adapter["name"]),
@@ -124,9 +126,11 @@ def format_runner_adapters(adapters: list[dict[str, Any]] | None = None) -> str:
                 f"  Setup:  {adapter['setup']}",
                 f"  File:   {adapter['file']}",
                 f"  {_command_label(adapter)}: {adapter['replay']}",
-                "",
             ]
         )
+        if discovery_command:
+            lines.append(f"  Presets: {discovery_command}")
+        lines.append("")
     lines.append("Docs: docs/runners.md")
     return "\n".join(lines).rstrip() + "\n"
 

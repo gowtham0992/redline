@@ -52,6 +52,7 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("python runners/stdio_runner.py", output)
         self.assertIn("python runners/http_runner.py", output)
         self.assertIn("Command: python runners/jsonl_log_adapter.py", output)
+        self.assertIn("Presets: python runners/jsonl_log_adapter.py --list-presets", output)
         self.assertIn("OpenAI SDK capture", output)
         self.assertIn("Capture: python runners/openai_watch_patch.py", output)
 
