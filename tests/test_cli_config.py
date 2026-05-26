@@ -611,6 +611,33 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_suite_output_explains_representative_selection(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON for Ada", "response": "{\\"name\\":\\"Ada\\"}"}\n'
+                    '{"prompt": "Return JSON for Bob", "response": "{\\"name\\":\\"Bob\\"}"}\n'
+                    '{"prompt": "Return JSON for Cy", "response": "{\\"name\\":\\"Cy\\"}"}\n',
+                    encoding="utf-8",
+                )
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(["suite", "baseline.jsonl", "--out", "suite.json", "--max-cases", "1"]),
+                        0,
+                    )
+
+                text = output.getvalue()
+                self.assertIn("Selected 1 representative cases from 3 unique prompt-response pairs.", text)
+                self.assertIn("Use --all-cases for exhaustive coverage", text)
+                self.assertIn("redline suite add for must-cover edge cases", text)
+            finally:
+                os.chdir(previous)
+
     def test_suite_reports_skipped_duplicate_prompt_response_pairs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -964,6 +964,14 @@ def cmd_suite(args: argparse.Namespace) -> int:
     if summary.get("duplicate_prompt_response_pairs"):
         print(f"Skipped {summary['duplicate_prompt_response_pairs']} duplicate prompt-response pairs.")
     print(f"Detected {summary['clusters']} behavioral clusters.")
+    if summary.get("selection") != "all":
+        unique_pairs = int(summary.get("unique_prompt_response_pairs", summary["records_seen"]))
+        cases = int(summary["cases"])
+        if unique_pairs > cases:
+            print(
+                f"Selected {cases} representative cases from {unique_pairs} unique prompt-response pairs. "
+                "Use --all-cases for exhaustive coverage or redline suite add for must-cover edge cases."
+            )
     print(f"Wrote {Path(output)}.")
     print()
     print("Next:")
