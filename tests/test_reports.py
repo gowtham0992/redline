@@ -63,6 +63,7 @@ class ReportTests(unittest.TestCase):
                     "source_line": 12,
                     "cluster": "structured_json|json|short",
                     "owner": "@platform-team",
+                    "owner_rule": {"match": "platform", "field": "prompt"},
                     "confidence": "high",
                     "signal": "structural",
                     "prompt": "Return JSON",
@@ -86,7 +87,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("| HTML | `.redline/reports/eval.html` |", report)
         self.assertIn("| JUnit | `.redline/reports/eval.xml` |", report)
         self.assertIn("## Owner Review", report)
-        self.assertIn("| @platform-team | 1 | 0 | 0 | 0 | 0 | 1 |", report)
+        self.assertIn("| @platform-team | 1 | 0 | 0 | 0 | 0 | 1 | 1 |", report)
         self.assertIn("## Feature Summary", report)
         self.assertIn("| support | 1 | 1 | 1 | 0 | 0 | 0 | fix blocking cases before shipping |", report)
         self.assertIn("| billing | 1 | 2 | 0 | 0 | 0 | 2 | clean |", report)
@@ -203,6 +204,7 @@ class ReportTests(unittest.TestCase):
                     "source_line": 12,
                     "cluster": "structured_json|json|short",
                     "owner": "@platform-team",
+                    "owner_rule": {"match": "platform", "field": "prompt"},
                     "confidence": "high",
                     "signal": "structural",
                     "prompt": "Return <JSON>",
@@ -228,7 +230,9 @@ class ReportTests(unittest.TestCase):
         self.assertIn("<td>HTML</td><td>.redline/reports/eval.html</td>", report)
         self.assertIn("<td>JUnit</td><td>.redline/reports/eval.xml</td>", report)
         self.assertIn("<h2>Owner review</h2>", report)
+        self.assertIn("<th>Rule provenance</th>", report)
         self.assertIn("<td>@platform-team</td><td>1</td><td>0</td>", report)
+        self.assertIn("<td>0</td><td>1</td><td>1</td>", report)
         self.assertIn("<h2>Feature summary</h2>", report)
         self.assertIn("<td>support</td><td>1</td><td>1</td><td>1</td>", report)
         self.assertIn("<td>billing</td><td>1</td><td>2</td><td>0</td>", report)

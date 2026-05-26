@@ -60,12 +60,13 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
     if owner_rows:
         lines.append("## Owner Review")
         lines.append("")
-        lines.append("| Owner | Blocking | Changed | Accepted | Ignored | Other | Total |")
-        lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: |")
+        lines.append("| Owner | Blocking | Changed | Accepted | Ignored | Other | Rule provenance | Total |")
+        lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
         for row in owner_rows:
             lines.append(
                 f"| {_markdown_cell(str(row['owner']))} | {row['blocking']} | {row['changed']} | "
-                f"{row['accepted']} | {row['ignored']} | {row['other']} | {row['total']} |"
+                f"{row['accepted']} | {row['ignored']} | {row['other']} | {row['provenance']} | "
+                f"{row['total']} |"
             )
         lines.append("")
 
@@ -718,10 +719,13 @@ def _owner_review_rows(diffs: Any) -> list[dict[str, int | str]]:
                 "accepted": 0,
                 "ignored": 0,
                 "other": 0,
+                "provenance": 0,
                 "total": 0,
             },
         )
         row["total"] = int(row["total"]) + 1
+        if isinstance(item.get("owner_rule"), dict):
+            row["provenance"] = int(row["provenance"]) + 1
         if status in {"regression", "missing"}:
             row["blocking"] = int(row["blocking"]) + 1
         elif status == "changed":
@@ -1141,6 +1145,7 @@ def _html_owner_review(diffs: list[Any]) -> str:
         "<th>Accepted</th>",
         "<th>Ignored</th>",
         "<th>Other</th>",
+        "<th>Rule provenance</th>",
         "<th>Total</th>",
         "</tr></thead>",
         "<tbody>",
@@ -1154,6 +1159,7 @@ def _html_owner_review(diffs: list[Any]) -> str:
             f"<td>{row['accepted']}</td>"
             f"<td>{row['ignored']}</td>"
             f"<td>{row['other']}</td>"
+            f"<td>{row['provenance']}</td>"
             f"<td>{row['total']}</td>"
             "</tr>"
         )

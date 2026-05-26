@@ -79,6 +79,7 @@
 - Show owner-rule coverage in summary and doctor output for team readiness.
 - Carry owner-rule provenance into diff/eval reports and the dashboard owner review table.
 - Document owner-rule provenance in the public report JSON schema.
+- Show owner-rule provenance counts in Markdown and HTML owner review tables.
 - Group prompt manifest evals by feature in the local dashboard.
 - Summarize prompt manifests with readiness, owners, requirements, and missing suite rollups.
 - Validate prompt manifests and their mapped suites through `redline validate redline-prompts.json`.
