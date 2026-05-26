@@ -132,6 +132,10 @@
         "junit": {
           "type": "string",
           "description": "JUnit XML report path. {command} expands to diff or eval."
+        },
+        "slack": {
+          "type": "string",
+          "description": "Slack Block Kit JSON report path. {command} expands to diff or eval. redline only writes the local artifact; posting it is up to your CI or webhook integration."
         }
       }
     },

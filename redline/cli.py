@@ -87,6 +87,7 @@ from .reports import (
     format_junit_report,
     format_markdown_report,
     format_pr_comment,
+    format_slack_report,
 )
 from .requirements import add_case_requirement, clear_case_requirements
 from .replay import read_prompt_template, replay_suite
@@ -390,6 +391,7 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("--out-comment", help="write concise PR-comment Markdown")
     diff_parser.add_argument("--out-html", help="write self-contained HTML report")
     diff_parser.add_argument("--out-junit", help="write JUnit XML report")
+    diff_parser.add_argument("--out-slack", help="write Slack Block Kit JSON report")
     diff_parser.add_argument("--profile", choices=DIFF_PROFILES, help="diff signal profile; default comes from config or strict")
     diff_parser.add_argument("--github-summary", action="store_true", help="append Markdown report to GITHUB_STEP_SUMMARY")
     diff_parser.add_argument("--github-annotations", action="store_true", help="emit GitHub error/warning annotations")
@@ -459,6 +461,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--out-comment", help="write concise PR-comment Markdown")
     eval_parser.add_argument("--out-html", help="write self-contained HTML report")
     eval_parser.add_argument("--out-junit", help="write JUnit XML report")
+    eval_parser.add_argument("--out-slack", help="write Slack Block Kit JSON report")
     eval_parser.add_argument("--profile", choices=DIFF_PROFILES, help="diff signal profile; default comes from config or strict")
     eval_parser.add_argument("--github-summary", action="store_true", help="append Markdown report to GITHUB_STEP_SUMMARY")
     eval_parser.add_argument("--github-annotations", action="store_true", help="emit GitHub error/warning annotations")
@@ -1569,6 +1572,7 @@ def _emit_result(
     out_comment = getattr(args, "out_comment", None) or _config_report_path(config, "comment", report_key)
     out_html = args.out_html or _config_report_path(config, "html", report_key)
     out_junit = args.out_junit or _config_report_path(config, "junit", report_key)
+    out_slack = getattr(args, "out_slack", None) or _config_report_path(config, "slack", report_key)
     artifacts = _artifact_paths(
         {
             "json": out_json,
@@ -1576,6 +1580,7 @@ def _emit_result(
             "comment": out_comment,
             "html": out_html,
             "junit": out_junit,
+            "slack": out_slack,
         }
     )
     if artifacts:
@@ -1592,6 +1597,8 @@ def _emit_result(
         write_text(out_html, format_html_report(result, title=title))
     if out_junit:
         write_text(out_junit, format_junit_report(result, suite_name=title.replace(" ", ".")))
+    if out_slack:
+        write_json(out_slack, format_slack_report(result, title=title))
     if getattr(args, "github_summary", False):
         _append_github_step_summary(markdown_report)
     if getattr(args, "github_annotations", False):
@@ -1621,6 +1628,7 @@ def _emit_result(
                         "comment": out_comment,
                         "html": out_html,
                         "junit": out_junit,
+                        "slack": out_slack,
                     }
                 ),
                 "exit_code": exit_code,

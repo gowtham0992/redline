@@ -65,7 +65,8 @@ jobs:
             --out-md .redline/reports/eval.md \
             --out-comment .redline/reports/eval-comment.md \
             --out-html .redline/reports/eval.html \
-            --out-junit .redline/reports/eval.xml
+            --out-junit .redline/reports/eval.xml \
+            --out-slack .redline/reports/eval.slack.json
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f .redline/reports/eval-comment.md ]; then
             cat .redline/reports/eval-comment.md >> "$GITHUB_STEP_SUMMARY"
           fi

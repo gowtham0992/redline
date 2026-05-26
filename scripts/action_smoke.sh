@@ -99,7 +99,8 @@ GITHUB_STEP_SUMMARY="$summary_path" "$venv_dir/bin/redline" eval \
   --out-md .redline/reports/eval.md \
   --out-comment .redline/reports/eval-comment.md \
   --out-html .redline/reports/eval.html \
-  --out-junit .redline/reports/eval.xml
+  --out-junit .redline/reports/eval.xml \
+  --out-slack .redline/reports/eval.slack.json
 eval_status=$?
 set -e
 if [ "$eval_status" -ne 1 ]; then
@@ -114,6 +115,7 @@ test -s .redline/reports/eval.md
 test -s .redline/reports/eval-comment.md
 test -s .redline/reports/eval.html
 test -s .redline/reports/eval.xml
+test -s .redline/reports/eval.slack.json
 test -s "$summary_path"
 
 printf '\n$ redline history .redline/reports/eval.json --label action-smoke --out .redline/history.jsonl --out-md .redline/history.md --github-summary --fail-on none\n'

@@ -503,6 +503,7 @@ class CliConfigTests(unittest.TestCase):
                                 "markdown": ".redline/reports/{command}.md",
                                 "html": ".redline/reports/{command}.html",
                                 "junit": ".redline/reports/{command}.xml",
+                                "slack": ".redline/reports/{command}.slack.json",
                             },
                         }
                     ),
@@ -526,9 +527,17 @@ class CliConfigTests(unittest.TestCase):
                 self.assertTrue((root / ".redline" / "reports" / "diff.md").exists())
                 self.assertTrue((root / ".redline" / "reports" / "diff.html").exists())
                 self.assertTrue((root / ".redline" / "reports" / "diff.xml").exists())
+                self.assertTrue((root / ".redline" / "reports" / "diff.slack.json").exists())
                 html = (root / ".redline" / "reports" / "diff.html").read_text(encoding="utf-8")
+                slack = json.loads(
+                    (root / ".redline" / "reports" / "diff.slack.json").read_text(encoding="utf-8")
+                )
+                report = json.loads((root / ".redline" / "reports" / "diff.json").read_text(encoding="utf-8"))
                 self.assertIn("<!doctype html>", html)
                 self.assertIn("candidate lost valid JSON format", html)
+                self.assertEqual(slack["blocks"][0]["type"], "header")
+                self.assertIn("candidate lost valid JSON format", json.dumps(slack))
+                self.assertEqual(report["artifacts"]["slack"], ".redline/reports/diff.slack.json")
             finally:
                 os.chdir(previous)
 

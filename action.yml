@@ -95,6 +95,7 @@ runs:
           --out-comment .redline/reports/eval-comment.md
           --out-html .redline/reports/eval.html
           --out-junit .redline/reports/eval.xml
+          --out-slack .redline/reports/eval.slack.json
         )
         if [ -n "${{ inputs.prompt-path }}" ]; then
           eval_args+=(--prompt "${{ inputs.prompt-path }}")

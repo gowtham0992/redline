@@ -306,10 +306,10 @@ checks every mapped suite with `redline prompts --check --check-suites`, runs a
 manifest-wide benchmark, then runs the manifest eval.
 
 The action writes JSON, full Markdown, concise PR-comment Markdown, HTML, JUnit,
-history, dashboard, and audit checkpoint artifacts under `.redline/`, appends
-benchmark, concise eval, and trend summaries to the GitHub step summary, and exits
-with the eval gate status. Set `benchmark-max-seconds` when a suite should fail
-CI if its worst-case runtime budget grows too far.
+Slack-ready JSON, history, dashboard, and audit checkpoint artifacts under
+`.redline/`, appends benchmark, concise eval, and trend summaries to the GitHub
+step summary, and exits with the eval gate status. Set `benchmark-max-seconds`
+when a suite should fail CI if its worst-case runtime budget grows too far.
 
 ## Reports
 
@@ -320,6 +320,7 @@ Every `diff` and `eval` run can write:
 - concise PR-comment Markdown for merge-review surfaces
 - self-contained HTML for side-by-side inspection, including feature and prompt eval tables
 - JUnit XML for CI test reporting
+- Slack Block Kit JSON for CI bots or webhook integrations you control
 - GitHub annotations for changed or blocking cases
 
 Example:
@@ -330,7 +331,8 @@ redline diff redline-suite.json logs/candidate.jsonl \
   --out-md .redline/reports/diff.md \
   --out-comment .redline/reports/diff-comment.md \
   --out-html .redline/reports/diff.html \
-  --out-junit .redline/reports/diff.xml
+  --out-junit .redline/reports/diff.xml \
+  --out-slack .redline/reports/diff.slack.json
 ```
 
 ## Optional Judges
@@ -372,7 +374,7 @@ autocomplete. Important keys:
 | `owners` | Optional pattern-to-owner rules so regressions show the responsible team. |
 | `approval` | Optional local guardrail; `require_approver` makes `accept` record an approver. |
 | `fail_on` | Statuses that fail `diff` or `eval`; use `"none"` for report-only setup. |
-| `reports` | JSON, Markdown, PR-comment Markdown, HTML, and JUnit output paths. |
+| `reports` | JSON, Markdown, PR-comment Markdown, HTML, JUnit, and Slack-ready JSON output paths. |
 | `logs` | Observed prompt-response log path and optional middleware skip diagnostics path. |
 | `audit` | Append-only JSONL audit log path for evals, judgments, requirements, and accepted baselines. New entries include operator/approver context plus a local hash chain that `redline audit --verify` can check; use expected hash/count checkpoints or `--out-checkpoint` evidence files to detect tail truncation. |
 | `judge` | Optional command for ambiguous `changed` cases. |

@@ -43,6 +43,7 @@ def default_config(
             "comment": ".redline/reports/{command}-comment.md",
             "html": ".redline/reports/{command}.html",
             "junit": ".redline/reports/{command}.xml",
+            "slack": ".redline/reports/{command}.slack.json",
         },
         "logs": {
             "observed": ".redline/logs/prompts.jsonl",

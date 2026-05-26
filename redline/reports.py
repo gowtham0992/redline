@@ -200,6 +200,114 @@ def format_pr_comment(result: dict[str, Any], *, title: str = "redline eval", ma
     return "\n".join(lines).rstrip() + "\n"
 
 
+def format_slack_report(
+    result: dict[str, Any],
+    *,
+    title: str = "redline eval",
+    max_cases: int = 6,
+) -> dict[str, Any]:
+    summary = result.get("summary")
+    if not isinstance(summary, dict):
+        summary = {}
+    decision = result.get("decision")
+    if not isinstance(decision, dict):
+        decision = {}
+
+    status_text = _plain_status_line(summary)
+    payload: dict[str, Any] = {
+        "text": f"{title}: {status_text}",
+        "blocks": [
+            {
+                "type": "header",
+                "text": {"type": "plain_text", "text": _slack_plain_text(title, 120)},
+            },
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": _slack_mrkdwn(f"*{status_text}*")},
+            },
+        ],
+    }
+
+    fields = []
+    action = str(decision.get("recommended_action") or "").strip()
+    confidence = str(decision.get("confidence") or "").strip().upper()
+    scope = str(decision.get("scope") or "").strip()
+    if action:
+        fields.append(
+            {"type": "mrkdwn", "text": _slack_mrkdwn(f"*Action*\n{_preview(action, 180)}")}
+        )
+    if confidence:
+        fields.append({"type": "mrkdwn", "text": _slack_mrkdwn(f"*Confidence*\n{confidence}")})
+    if scope:
+        fields.append({"type": "mrkdwn", "text": _slack_mrkdwn(f"*Scope*\n{_preview(scope, 180)}")})
+    if fields:
+        payload["blocks"].append({"type": "section", "fields": fields})
+
+    warnings = _result_warnings(result)
+    if warnings:
+        payload["blocks"].append(
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": _slack_mrkdwn(f"*Warnings:* {_preview('; '.join(warnings), 250)}"),
+                    }
+                ],
+            }
+        )
+
+    review_items = _pr_comment_items(result.get("diffs"), max_cases=max_cases)
+    if review_items:
+        payload["blocks"].append({"type": "divider"})
+        for item in review_items:
+            payload["blocks"].append(
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": _slack_case_text(item, result)},
+                }
+            )
+        hidden_count = _hidden_pr_comment_count(result.get("diffs"), max_cases=max_cases)
+        if hidden_count > 0:
+            payload["blocks"].append(
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": _slack_mrkdwn(
+                                f"{hidden_count} more changed or blocking case(s) in the full report."
+                            ),
+                        }
+                    ],
+                }
+            )
+    else:
+        payload["blocks"].append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": _slack_mrkdwn("No blocking or changed cases in the configured checks."),
+                },
+            }
+        )
+
+    artifact_rows = _artifact_rows(result.get("artifacts"))
+    if artifact_rows:
+        artifact_text = " · ".join(f"*{label}:* `{path}`" for label, path in artifact_rows[:6])
+        payload["blocks"].append(
+            {
+                "type": "context",
+                "elements": [
+                    {"type": "mrkdwn", "text": _slack_mrkdwn(_preview(artifact_text, 1800))}
+                ],
+            }
+        )
+
+    return payload
+
+
 def format_html_report(result: dict[str, Any], *, title: str = "redline diff") -> str:
     summary = result.get("summary", {})
     if not isinstance(summary, dict):
@@ -394,6 +502,7 @@ def _artifact_label(label: str) -> str:
         "json": "JSON",
         "html": "HTML",
         "junit": "JUnit",
+        "slack": "Slack",
         "markdown": "Markdown",
         "comment": "PR comment",
         "dashboard": "Dashboard",
@@ -450,6 +559,25 @@ def _status_line(summary: dict[str, Any]) -> str:
     if parts:
         return " · ".join(parts)
     return f"**Cases:** {_summary_count(summary, 'cases')}"
+
+
+def _plain_status_line(summary: dict[str, Any]) -> str:
+    parts = []
+    for label, key in (
+        ("Regression", "regression"),
+        ("Missing", "missing"),
+        ("Changed", "changed"),
+        ("Improved", "improved"),
+        ("Accepted", "accepted"),
+        ("Ignored", "ignored"),
+        ("Neutral", "neutral"),
+    ):
+        count = _summary_count(summary, key)
+        if count:
+            parts.append(f"{label}: {count}")
+    if parts:
+        return " | ".join(parts)
+    return f"Cases: {_summary_count(summary, 'cases')}"
 
 
 def _pr_comment_items(diffs: Any, *, max_cases: int) -> list[dict[str, Any]]:
@@ -534,6 +662,40 @@ def _pr_comment_review_command(item: dict[str, Any], result: dict[str, Any]) -> 
     if not suite_path or not case_id:
         return ""
     return f'redline mark {quote(suite_path)} {quote(case_id)} --status expected --note "intentional change"'
+
+
+def _slack_case_text(item: dict[str, Any], result: dict[str, Any]) -> str:
+    status = str(item.get("status") or "unknown").upper()
+    case_id = str(item.get("case_id") or "unknown")
+    reasons = item.get("reasons")
+    first_reason = reasons[0] if isinstance(reasons, list) and reasons else "review case"
+    owner = str(item.get("owner") or "").strip()
+    owner_text = f" owner {owner}" if owner else ""
+    confidence = str(item.get("confidence") or "").strip()
+    signal = str(item.get("signal") or "").strip()
+    trust = "/".join(value for value in (confidence, signal) if value)
+    trust_text = f" [{trust}]" if trust else ""
+    prompt = str(item.get("prompt") or "").strip()
+    lines = [
+        f"*{status}* `{case_id}`{owner_text}{trust_text}",
+        _preview(str(first_reason), 180),
+    ]
+    if prompt:
+        lines.append(f"_Prompt:_ {_preview(prompt, 180)}")
+    command = _pr_comment_review_command(item, result)
+    if command:
+        lines.append(f"_Review if intentional:_ `{command}`")
+    return _slack_mrkdwn("\n".join(lines))
+
+
+def _slack_mrkdwn(value: str, limit: int = 3000) -> str:
+    text = _preview(str(value), limit)
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _slack_plain_text(value: str, limit: int) -> str:
+    text = _preview(str(value), limit).replace("\n", " ").strip()
+    return text or "redline"
 
 
 def _owner_review_rows(diffs: Any) -> list[dict[str, int | str]]:

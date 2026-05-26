@@ -209,15 +209,18 @@ class McpServerTests(unittest.TestCase):
                     "candidate_path": str(candidate),
                     "compact": True,
                     "out_comment": "diff-comment.md",
+                    "out_slack": "diff.slack.json",
                 },
             )
             wrote_comment = (Path(directory) / "diff-comment.md").exists()
+            wrote_slack = (Path(directory) / "diff.slack.json").exists()
 
         self.assertFalse(diff_result["isError"])
         self.assertEqual(diff_result["structuredContent"]["exit_code"], 1)
         self.assertIn("regression=4", diff_result["content"][0]["text"])
         self.assertIn("candidate missing JSON keys", diff_result["content"][0]["text"])
         self.assertTrue(wrote_comment)
+        self.assertTrue(wrote_slack)
 
     def test_benchmark_tool_reports_ci_scale(self) -> None:
         repo = Path(__file__).resolve().parents[1]

@@ -10,6 +10,7 @@ from redline.reports import (
     format_junit_report,
     format_markdown_report,
     format_pr_comment,
+    format_slack_report,
 )
 
 
@@ -429,6 +430,69 @@ class ReportTests(unittest.TestCase):
         self.assertIn("redline mark suites/support.redline-suite.json case_001", comment)
         self.assertIn("PR comment: `.redline/reports/eval-comment.md`", comment)
         self.assertNotIn("case_003", comment)
+
+    def test_slack_report_is_block_kit_json_for_review_channels(self) -> None:
+        result = {
+            "suite": "redline-prompts.json",
+            "summary": {
+                "cases": 3,
+                "regression": 1,
+                "changed": 1,
+                "improved": 0,
+                "accepted": 0,
+                "ignored": 0,
+                "neutral": 1,
+                "missing": 0,
+            },
+            "decision": {
+                "confidence": "high",
+                "recommended_action": "fix blocking cases before shipping",
+                "scope": "structural checks only",
+            },
+            "artifacts": {
+                "html": ".redline/reports/eval.html",
+                "slack": ".redline/reports/eval.slack.json",
+            },
+            "diffs": [
+                {
+                    "case_id": "support/case_001",
+                    "suite_case_id": "case_001",
+                    "suite": "suites/support.redline-suite.json",
+                    "status": "regression",
+                    "owner": "@support-team",
+                    "confidence": "high",
+                    "signal": "structural",
+                    "prompt": "Return JSON with owner and priority.",
+                    "reasons": ["candidate lost valid JSON format"],
+                },
+                {
+                    "case_id": "billing/case_002",
+                    "status": "changed",
+                    "owner": "@billing-team",
+                    "prompt": "Write a refund reply.",
+                    "reasons": ["content changed substantially"],
+                },
+                {
+                    "case_id": "case_003",
+                    "status": "neutral",
+                    "prompt": "Hello",
+                    "reasons": ["no high-signal behavioral change detected"],
+                },
+            ],
+        }
+
+        payload = format_slack_report(result, title="redline eval", max_cases=1)
+        body = json.dumps(payload)
+
+        self.assertEqual(payload["text"], "redline eval: Regression: 1 | Changed: 1 | Neutral: 1")
+        self.assertEqual(payload["blocks"][0]["type"], "header")
+        self.assertIn("fix blocking cases before shipping", body)
+        self.assertIn("structural checks only", body)
+        self.assertIn("candidate lost valid JSON format", body)
+        self.assertIn("@support-team", body)
+        self.assertIn("1 more changed or blocking case", body)
+        self.assertIn(".redline/reports/eval.html", body)
+        self.assertNotIn("case_003", body)
 
 
 if __name__ == "__main__":

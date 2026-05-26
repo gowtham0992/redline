@@ -692,6 +692,7 @@ def _tools() -> list[ToolSpec]:
                     "out_comment": _string("Write concise PR-comment Markdown report."),
                     "out_html": _string("Write self-contained HTML report."),
                     "out_junit": _string("Write JUnit XML report."),
+                    "out_slack": _string("Write Slack Block Kit JSON report."),
                     "profile": _string("Diff profile: strict or review."),
                     "judge": _string("Optional judge command for ambiguous changed cases."),
                     "judge_timeout": _number("Per-case judge timeout in seconds."),
@@ -719,6 +720,7 @@ def _tools() -> list[ToolSpec]:
                     "out_comment": _string("Write concise PR-comment Markdown report."),
                     "out_html": _string("Write self-contained HTML report."),
                     "out_junit": _string("Write JUnit XML report."),
+                    "out_slack": _string("Write Slack Block Kit JSON report."),
                     "candidate_out": _string("Write replayed candidate rows."),
                     "run_metadata": _string("Write replay metadata JSON."),
                     "profile": _string("Diff profile: strict or review."),
@@ -1020,6 +1022,7 @@ def _add_common_report_args(args: list[str], arguments: dict[str, Any]) -> None:
     _add_option(args, "--out-comment", arguments.get("out_comment"))
     _add_option(args, "--out-html", arguments.get("out_html"))
     _add_option(args, "--out-junit", arguments.get("out_junit"))
+    _add_option(args, "--out-slack", arguments.get("out_slack"))
 
 
 def _add_common_review_args(args: list[str], arguments: dict[str, Any]) -> None:
