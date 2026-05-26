@@ -48,6 +48,8 @@ def build_sbom(*, timestamp: str | None = None) -> dict[str, Any]:
         "properties": [
             {"name": "redline:local_first", "value": "true"},
             {"name": "redline:telemetry", "value": "none"},
+            {"name": "redline:data_egress_default", "value": "none"},
+            {"name": "redline:judge_data_flow", "value": "user_supplied"},
             {"name": "redline:runtime_dependency_count", "value": str(len(dependencies))},
         ],
     }
@@ -70,6 +72,8 @@ def format_sbom_report(sbom: dict[str, Any]) -> str:
         f"Package:               {package} {version}",
         f"Runtime dependencies:  {len(dependencies)}",
         "Telemetry:             none",
+        "Default data egress:   none",
+        "Judge data flow:       user-supplied command only",
         "Local-first:           yes",
     ]
     if dependencies:

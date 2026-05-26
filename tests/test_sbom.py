@@ -26,6 +26,8 @@ class SbomTests(unittest.TestCase):
         }
         self.assertEqual(properties["redline:local_first"], "true")
         self.assertEqual(properties["redline:telemetry"], "none")
+        self.assertEqual(properties["redline:data_egress_default"], "none")
+        self.assertEqual(properties["redline:judge_data_flow"], "user_supplied")
 
     def test_format_sbom_report_is_release_review_friendly(self) -> None:
         output = format_sbom_report(build_sbom(timestamp="2026-05-25T00:00:00+00:00"))
@@ -34,6 +36,8 @@ class SbomTests(unittest.TestCase):
         self.assertIn("Format:                CycloneDX 1.6", output)
         self.assertIn(f"Package:               redline-ai {__version__}", output)
         self.assertIn("Telemetry:             none", output)
+        self.assertIn("Default data egress:   none", output)
+        self.assertIn("Judge data flow:       user-supplied command only", output)
         self.assertIn("Local-first:           yes", output)
 
     def test_sbom_cli_writes_json(self) -> None:
