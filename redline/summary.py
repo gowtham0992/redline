@@ -149,6 +149,7 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "medium_risk_clusters": len(medium_risk),
         "high_variance_clusters": len(high_variance),
         "failure_pattern_clusters": len(failure_patterns),
+        "non_ascii_records": int(summary.get("non_ascii_records", 0)),
         "judgments": dict(sorted(judgment_counts.items())),
         "requirements": requirements_count,
         "top_clusters": top_clusters,
@@ -341,6 +342,7 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
         f"Medium-risk clusters:   {summary['medium_risk_clusters']}",
         f"High-variance clusters: {summary['high_variance_clusters']}",
         f"Failure-pattern clusters: {summary['failure_pattern_clusters']:>2}",
+        f"Non-ASCII records:      {summary['non_ascii_records']}",
         f"Cases with requirements: {summary['requirements']:>2}",
         "",
     ]
@@ -467,6 +469,11 @@ def _summary_next_steps(summary: dict[str, Any], *, suite_path: str | None = Non
         steps.append("Record approvers for accepted baselines before team rollout.")
     if int(summary["cases"]) and int(summary.get("explicit_guard_cases") or 0) == 0:
         steps.append("Add requirements or recorded judgments for high-value semantic risks.")
+    if int(summary.get("non_ascii_records") or 0):
+        steps.append(
+            "Review non-English cases manually or with a domain judge; structural checks still work, "
+            "but entity/refusal heuristics are English-oriented."
+        )
     if int(summary["cases"]) and not summary["judgments"]:
         steps.append("After the first eval, mark expected or ignored changes to train the suite.")
     if int(summary["cases"]) == 0:

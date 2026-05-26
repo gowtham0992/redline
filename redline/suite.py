@@ -48,6 +48,7 @@ def build_suite(
         if all_cases
         else _select_representatives(grouped, max_cases, feature_cache, cluster_infos)
     )
+    non_ascii_records = sum(1 for record in unique_records if _has_non_ascii(record.prompt) or _has_non_ascii(record.response))
     cases = []
     for index, (record, selection_reason) in enumerate(selected, 1):
         signature = signatures[id(record)]
@@ -111,6 +112,7 @@ def build_suite(
             "high_variance_clusters": sum(1 for info in cluster_infos.values() if info["high_variance"]),
             "failure_pattern_clusters": sum(1 for info in cluster_infos.values() if info["failure_patterns"]),
             "prompt_diversity_cases": sum(1 for _, reason in selected if reason == "prompt_diversity_edge"),
+            "non_ascii_records": non_ascii_records,
             "owned_cases": _owned_case_count(cases),
         },
         "clusters": clusters,
@@ -247,6 +249,10 @@ def _unique_prompt_response_records(records: list[LogRecord]) -> list[LogRecord]
         seen.add(key)
         unique.append(record)
     return unique
+
+
+def _has_non_ascii(value: str) -> bool:
+    return any(ord(char) > 127 for char in value)
 
 
 def _duplicate_case_id(

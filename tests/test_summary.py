@@ -105,6 +105,22 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Top clusters:", output)
         self.assertIn("structured JSON prompt -> JSON response", output)
 
+    def test_suite_summary_surfaces_non_ascii_calibration(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Responde en español", "Incluye política de reembolso", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        summary = suite_summary(suite)
+        output = format_suite_summary(suite)
+
+        self.assertEqual(summary["non_ascii_records"], 1)
+        self.assertIn("Non-ASCII records:      1", output)
+        self.assertIn("entity/refusal heuristics are English-oriented", "\n".join(summary["next_steps"]))
+
     def test_suite_summary_counts_owners(self) -> None:
         suite = build_suite(
             [

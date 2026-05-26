@@ -64,6 +64,7 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("owner_rule", case_properties)
         self.assertIn("owned_cases", schema["properties"]["summary"]["properties"])
         self.assertIn("prompt_diversity_cases", schema["properties"]["summary"]["properties"])
+        self.assertIn("non_ascii_records", schema["properties"]["summary"]["properties"])
 
     def test_build_suite_assigns_case_owners_from_rules(self) -> None:
         suite = build_suite(
@@ -278,6 +279,21 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(suite["summary"]["cases"], 2)
         self.assertEqual(suite["summary"]["max_cases"], 2)
         self.assertEqual([case["source_line"] for case in suite["cases"]], [1, 3])
+
+    def test_build_suite_counts_non_ascii_records(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Responde en español", "Incluye política de reembolso", {}),
+                LogRecord(2, "Return JSON", '{"ok": true}', {}),
+            ],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+            all_cases=True,
+        )
+
+        self.assertEqual(suite["summary"]["non_ascii_records"], 1)
 
     def test_add_suite_case_pins_manual_case(self) -> None:
         suite = build_suite(
