@@ -45,6 +45,7 @@ class DashboardTests(unittest.TestCase):
                         "case_id": "case_001",
                         "status": "regression",
                         "owner": "@platform-team",
+                        "owner_rule": {"match": "support", "field": "prompt"},
                         "confidence": "high",
                         "signal": "structural",
                         "prompt": "Return JSON with owner and priority.",
@@ -129,8 +130,8 @@ class DashboardTests(unittest.TestCase):
             self.assertEqual(
                 dashboard["owners"],
                 [
-                    {"owner": "@platform-team", "blocking": 1, "changed": 0, "total": 1},
-                    {"owner": "@support-team", "blocking": 0, "changed": 1, "total": 1},
+                    {"owner": "@platform-team", "blocking": 1, "changed": 0, "provenance": 1, "total": 1},
+                    {"owner": "@support-team", "blocking": 0, "changed": 1, "provenance": 0, "total": 1},
                 ],
             )
             self.assertEqual(
@@ -225,6 +226,7 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("high 1", html)
             self.assertIn("structural 1", html)
             self.assertIn("<h2>Owner Review</h2>", html)
+            self.assertIn("Rule provenance", html)
             self.assertIn("@platform-team", html)
             self.assertIn("@support-team", html)
             self.assertIn("regression 1", html)

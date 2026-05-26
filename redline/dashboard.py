@@ -293,10 +293,13 @@ def _report_owner_review(diffs: Any) -> list[dict[str, int | str]]:
                 "owner": owner,
                 "blocking": 0,
                 "changed": 0,
+                "provenance": 0,
                 "total": 0,
             },
         )
         row["total"] = int(row["total"]) + 1
+        if isinstance(item.get("owner_rule"), dict):
+            row["provenance"] = int(row["provenance"]) + 1
         if status in {"regression", "missing"}:
             row["blocking"] = int(row["blocking"]) + 1
         elif status == "changed":
@@ -316,9 +319,13 @@ def _dashboard_owner_review(reports: list[dict[str, Any]]) -> list[dict[str, int
             owner = str(owner_row.get("owner") or "").strip()
             if not owner:
                 continue
-            row = rows.setdefault(owner, {"owner": owner, "blocking": 0, "changed": 0, "total": 0})
+            row = rows.setdefault(
+                owner,
+                {"owner": owner, "blocking": 0, "changed": 0, "provenance": 0, "total": 0},
+            )
             row["blocking"] = int(row["blocking"]) + int(owner_row.get("blocking") or 0)
             row["changed"] = int(row["changed"]) + int(owner_row.get("changed") or 0)
+            row["provenance"] = int(row["provenance"]) + int(owner_row.get("provenance") or 0)
             row["total"] = int(row["total"]) + int(owner_row.get("total") or 0)
     return _sort_owner_rows(rows.values())
 
@@ -713,6 +720,7 @@ def _owners_panel(owners: list[Any]) -> str:
             f"<td>{_h(str(item.get('owner') or '-'))}</td>"
             f"<td>{int(item.get('blocking') or 0)}</td>"
             f"<td>{int(item.get('changed') or 0)}</td>"
+            f"<td>{int(item.get('provenance') or 0)}</td>"
             f"<td>{int(item.get('total') or 0)}</td>"
             "</tr>"
         )
@@ -723,7 +731,7 @@ def _owners_panel(owners: list[Any]) -> str:
         "<h2>Owner Review</h2>"
         '<div class="table-wrap">'
         "<table>"
-        "<thead><tr><th>Owner</th><th>Blocking</th><th>Changed</th><th>Total</th></tr></thead>"
+        "<thead><tr><th>Owner</th><th>Blocking</th><th>Changed</th><th>Rule provenance</th><th>Total</th></tr></thead>"
         f"<tbody>{''.join(rows)}</tbody>"
         "</table>"
         "</div>"

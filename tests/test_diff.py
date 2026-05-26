@@ -369,12 +369,13 @@ class DiffTests(unittest.TestCase):
             input_field="prompt",
             output_field="response",
             max_cases=10,
-            owner="@platform-team",
+            owner_rules=[{"match": "JSON", "owner": "@platform-team", "field": "prompt"}],
         )
 
         result = compare_suite_to_candidate(suite, [])
 
         self.assertEqual(result["diffs"][0]["owner"], "@platform-team")
+        self.assertEqual(result["diffs"][0]["owner_rule"], {"match": "JSON", "field": "prompt"})
 
     def test_summarize_decision_recommends_review_for_changed_cases(self) -> None:
         decision = summarize_decision({"cases": 3, "changed": 1})

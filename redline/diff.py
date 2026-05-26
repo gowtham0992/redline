@@ -126,6 +126,7 @@ class CaseDiff:
     source_line: Any
     cluster: str
     owner: str
+    owner_rule: dict[str, Any] | None
     prompt: str
     baseline_response: str
     candidate_response: str | None
@@ -143,6 +144,7 @@ class CaseDiff:
             "source_line": self.source_line,
             "cluster": self.cluster,
             "owner": self.owner,
+            "owner_rule": self.owner_rule,
             "prompt": self.prompt,
             "baseline_response": self.baseline_response,
             "candidate_response": self.candidate_response,
@@ -177,6 +179,7 @@ def compare_suite_to_candidate(
         source = str(case.get("source") or suite_source)
         cluster = str(case.get("cluster", ""))
         owner = str(case.get("owner") or "")
+        owner_rule = case.get("owner_rule") if isinstance(case.get("owner_rule"), dict) else None
         candidate = _pop_candidate_by_case_id(candidate_case_index, case_id)
         if candidate is None:
             candidate = _pop_candidate(candidate_index, prompt)
@@ -195,6 +198,7 @@ def compare_suite_to_candidate(
                     source_line=source_line,
                     cluster=cluster,
                     owner=owner,
+                    owner_rule=owner_rule,
                     prompt=prompt,
                     baseline_response=baseline_response,
                     candidate_response=None,
@@ -233,6 +237,7 @@ def compare_suite_to_candidate(
                 source_line=source_line,
                 cluster=cluster,
                 owner=owner,
+                owner_rule=owner_rule,
                 prompt=prompt,
                 baseline_response=baseline_response,
                 candidate_response=candidate.response,
