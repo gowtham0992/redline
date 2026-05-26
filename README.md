@@ -476,7 +476,6 @@ bash scripts/release_check.sh
 - [docs/benchmarks.md](docs/benchmarks.md): performance contract and CI benchmark artifacts
 - [docs/repository.md](docs/repository.md): GitHub repository controls
 - [scripts/README.md](scripts/README.md): maintainer script index
-- [ROADMAP.md](ROADMAP.md): next public beta, ecosystem, and enterprise roadmap
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributor validation
 - [SECURITY.md](SECURITY.md): privacy and vulnerability reporting
 - [LICENSE](LICENSE): MIT open source license

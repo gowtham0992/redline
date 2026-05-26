@@ -269,16 +269,6 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline_product_vision*.docx", ignore)
         self.assertIn("ROADMAP.md", ignore)
 
-    def test_public_roadmap_tracks_next_work_not_shipped_iterations(self) -> None:
-        roadmap = Path("ROADMAP.md").read_text(encoding="utf-8")
-
-        self.assertIn("redline v0.1 already ships the core loop", roadmap)
-        self.assertIn("Public Beta", roadmap)
-        self.assertIn("Ecosystem", roadmap)
-        self.assertIn("Semantic Trust", roadmap)
-        self.assertNotIn("Status: started", roadmap)
-        self.assertNotIn("Iteration 0", roadmap)
-
     def test_troubleshooting_and_command_reference_are_public_docs(self) -> None:
         troubleshooting = Path("docs/troubleshooting.md").read_text(encoding="utf-8")
         commands = Path("docs/commands.md").read_text(encoding="utf-8")
@@ -507,7 +497,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("bash scripts/certify_release.sh /tmp/redline-certify-v0.1.0", guide)
         self.assertIn("docs/repository.md", readme)
         self.assertIn("scripts/README.md", readme)
-        self.assertIn("ROADMAP.md", readme)
+        self.assertNotIn("ROADMAP.md", readme)
 
     def test_security_policy_documents_local_privacy_boundary(self) -> None:
         policy = Path("SECURITY.md").read_text(encoding="utf-8")
