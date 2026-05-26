@@ -116,6 +116,9 @@ Expected result: long-form assistant differences show as `changed` review items
 instead of blocking regressions unless the candidate loses stronger signals such
 as JSON validity, required structure, URLs, refusals, or empty output.
 
+For the checked-in proof fixtures and current expected counts, see
+[case-studies.md](case-studies.md).
+
 ## Friction Log
 
 Record every issue in this format:

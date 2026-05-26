@@ -411,6 +411,8 @@ python -m redline diff /tmp/redline-public-suite.json examples/public_dogfood_ca
 For AI-assistant session dogfood, use
 [docs/ai-session-dogfood-prompts.jsonl](docs/ai-session-dogfood-prompts.jsonl)
 and normalize raw exports with `scripts/normalize_ai_session_logs.py`.
+Reproducible dogfood case studies live in
+[docs/case-studies.md](docs/case-studies.md).
 
 From a repo checkout, record the public demo:
 
@@ -439,6 +441,7 @@ bash scripts/release_check.sh
 - [docs/release.md](docs/release.md): package, tag, PyPI, and MCP Registry release flow
 - [docs/launch.md](docs/launch.md): public alpha launch plan
 - [docs/dogfood.md](docs/dogfood.md): first-user dogfood protocol
+- [docs/case-studies.md](docs/case-studies.md): reproducible dogfood case studies
 - [docs/runners.md](docs/runners.md): runner and log adapter setup
 - [docs/mcp.md](docs/mcp.md): MCP server setup
 - [docs/benchmarks.md](docs/benchmarks.md): performance contract and CI benchmark artifacts

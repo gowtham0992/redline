@@ -463,6 +463,7 @@ class PackagingTests(unittest.TestCase):
 
     def test_dogfood_protocol_exercises_first_run_loop(self) -> None:
         guide = Path("docs/dogfood.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
 
         self.assertIn("redline demo", guide)
         self.assertIn("redline demo --public --compact", guide)
@@ -473,7 +474,22 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("public_dogfood_sources.md", guide)
         self.assertIn("normalize_ai_session_logs.py", guide)
         self.assertIn("ai-session-dogfood-prompts.jsonl", guide)
+        self.assertIn("case-studies.md", guide)
+        self.assertIn("docs/case-studies.md", readme)
         self.assertIn("severity: blocker | confusing | polish", guide)
+
+    def test_case_studies_use_checked_in_dogfood_data(self) -> None:
+        guide = Path("docs/case-studies.md").read_text(encoding="utf-8")
+
+        self.assertIn("examples/public_dogfood_baseline.jsonl", guide)
+        self.assertIn("examples/public_dogfood_candidate.jsonl", guide)
+        self.assertIn("redline diff: cases=10 regression=10", guide)
+        self.assertIn("examples/dogfood_baseline.jsonl", guide)
+        self.assertIn("examples/dogfood_candidate.jsonl", guide)
+        self.assertIn("redline diff: cases=10 regression=9", guide)
+        self.assertIn("docs/ai-session-dogfood-prompts.jsonl", guide)
+        self.assertIn(".redline/private/", guide)
+        self.assertIn("External Case Studies Still Needed", guide)
 
     def test_public_dogfood_fixture_documents_source_inspiration(self) -> None:
         sources = Path("examples/public_dogfood_sources.md").read_text(encoding="utf-8")
