@@ -69,6 +69,16 @@ RUNNER_ADAPTERS: list[dict[str, str]] = [
         "kind": "log",
     },
     {
+        "name": "Braintrust suite export",
+        "id": "braintrust-export",
+        "need": "a redline suite JSON file to import into Braintrust",
+        "file": "runners/braintrust_suite_export.py",
+        "template": "braintrust_suite_export.py",
+        "replay": "python runners/braintrust_suite_export.py redline-suite.json --out braintrust-dataset.jsonl",
+        "setup": "Export committed redline suite cases as Braintrust dataset rows.",
+        "kind": "export",
+    },
+    {
         "name": "OpenAI SDK capture",
         "id": "openai-sdk",
         "need": "an app that already calls an OpenAI-compatible Python client",
@@ -218,4 +228,6 @@ def _next_step_for_adapter(adapter: dict[str, str], command: str) -> str:
             "Patch your app client, run real traffic, then build a suite: "
             "redline suite .redline/logs/prompts.jsonl --out redline-suite.json"
         )
+    if adapter.get("kind") == "export":
+        return "Import the generated JSONL into Braintrust, then keep redline-suite.json as the local baseline"
     return f"Configure replay: redline init --replay {shlex.quote(command)} --force"

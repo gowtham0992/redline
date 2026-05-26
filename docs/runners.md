@@ -222,6 +222,24 @@ metadata. Preset fields can still be overridden with `--input-field` or
 
 That's it.
 
+## Braintrust Suite Export
+
+What you need: a committed redline suite JSON file.
+
+Your export command:
+
+```bash
+python runners/braintrust_suite_export.py redline-suite.json \
+  --out braintrust-dataset.jsonl
+```
+
+What it does: writes one JSONL row per redline case with `input`, `expected`,
+and redline metadata such as case ID, cluster, owner, and source line. Import
+that JSONL into Braintrust when you want Braintrust to mirror the same dataset
+redline gates locally.
+
+That's it.
+
 ## OpenAI Or Anthropic SDK Patch
 
 What you need: Python code that already calls an OpenAI-compatible or

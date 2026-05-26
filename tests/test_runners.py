@@ -27,6 +27,7 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("python-chain", ids)
         self.assertIn("http", ids)
         self.assertIn("jsonl-logs", ids)
+        self.assertIn("braintrust-export", ids)
         self.assertIn("openai-sdk", ids)
         self.assertIn("anthropic-sdk", ids)
         self.assertIn("litellm", ids)
@@ -53,6 +54,8 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("python runners/http_runner.py", output)
         self.assertIn("Command: python runners/jsonl_log_adapter.py", output)
         self.assertIn("Presets: python runners/jsonl_log_adapter.py --list-presets", output)
+        self.assertIn("Braintrust suite export", output)
+        self.assertIn("python runners/braintrust_suite_export.py", output)
         self.assertIn("OpenAI SDK capture", output)
         self.assertIn("Capture: python runners/openai_watch_patch.py", output)
 
@@ -100,6 +103,17 @@ class RunnerTests(unittest.TestCase):
             self.assertIn("redline suite .redline/logs/prompts.jsonl", result["next"])
             self.assertTrue(output.exists())
             self.assertIn("patch_openai", output.read_text(encoding="utf-8"))
+
+    def test_copy_export_adapter_returns_import_next_step(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "braintrust_suite_export.py"
+
+            result = copy_runner_adapter("braintrust-export", output=str(output))
+
+            self.assertEqual(result["kind"], "export")
+            self.assertIn("Import the generated JSONL into Braintrust", result["next"])
+            self.assertTrue(output.exists())
+            self.assertIn("export_braintrust_rows", output.read_text(encoding="utf-8"))
 
     def test_copy_runner_adapter_refuses_existing_without_force(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -514,6 +528,52 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(braintrust_row["metadata"]["adapter_prompt_field"], "span.input")
             self.assertEqual(braintrust_row["metadata"]["adapter_response_field"], "span.output")
 
+    def test_braintrust_suite_export_writes_dataset_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            suite = root / "suite.json"
+            output = root / "braintrust.jsonl"
+            suite.write_text(
+                json.dumps(
+                    {
+                        "source": "baseline.jsonl",
+                        "cases": [
+                            {
+                                "id": "case_001",
+                                "prompt": "refund policy",
+                                "baseline_response": "30 days",
+                                "cluster": "question_answer|prose|short",
+                                "owner": "@support-team",
+                                "source_line": 7,
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/braintrust_suite_export.py",
+                    str(suite),
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["input"], "refund policy")
+            self.assertEqual(row["expected"], "30 days")
+            self.assertEqual(row["metadata"]["redline_case_id"], "case_001")
+            self.assertEqual(row["metadata"]["redline_owner"], "@support-team")
+            self.assertEqual(row["metadata"]["redline_source"], "baseline.jsonl")
+            self.assertEqual(row["metadata"]["redline_source_line"], 7)
+
     def test_runner_docs_include_app_logs_adapter(self) -> None:
         docs = Path("docs/runners.md").read_text(encoding="utf-8")
 
@@ -524,6 +584,8 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("--preset helicone", docs)
         self.assertIn("--preset langsmith", docs)
         self.assertIn("--preset braintrust", docs)
+        self.assertIn("## Braintrust Suite Export", docs)
+        self.assertIn("python runners/braintrust_suite_export.py redline-suite.json", docs)
 
     def test_runner_docs_include_sdk_capture_adapters(self) -> None:
         docs = Path("docs/runners.md").read_text(encoding="utf-8")

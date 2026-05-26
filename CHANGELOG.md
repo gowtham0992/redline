@@ -51,6 +51,7 @@
 - Extract actual model text from OpenAI-style `choices` response bodies in the JSONL log adapter.
 - Add `--list-presets` to the JSONL log adapter so exported-log integrations are discoverable.
 - Surface JSONL preset discovery directly in `redline runners`.
+- Add a Braintrust suite-export adapter for turning redline suites into dataset JSONL.
 - Validate judgment statuses, timestamps, and missing reasons before team rollout.
 - Print validation and promotion next steps after `redline mark`.
 - Add `redline benchmark --measure-local` to time deterministic local diff work without calling replay.
