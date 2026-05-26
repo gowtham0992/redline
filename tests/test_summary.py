@@ -203,7 +203,7 @@ class SummaryTests(unittest.TestCase):
             )
             add_case_requirement(first_suite, first_suite["cases"][0]["id"], include=["ok"])
             second_suite = build_suite(
-                [LogRecord(1, "Route refund", "Refunds go to Billing Ops", {})],
+                [LogRecord(1, "Route refund for José", "Envíalo a Billing Ops", {})],
                 source="logs/refunds.jsonl",
                 input_field="prompt",
                 output_field="response",
@@ -235,18 +235,21 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["owner_rule_cases"], 0)
         self.assertEqual(summary["unexplained_owner_cases"], 2)
         self.assertEqual(summary["requirements"], 1)
+        self.assertEqual(summary["non_ascii_records"], 1)
         self.assertEqual(summary["explicit_guard_cases"], 1)
         self.assertAlmostEqual(summary["explicit_guard_coverage"], 1 / 3)
         self.assertEqual(summary["owners"], {"@support-team": 2})
         self.assertIn("Prompt manifest:", output)
         self.assertIn("Suites ready:           2/3", output)
         self.assertIn("Explicit guard coverage: 1/3 (33.3%)", output)
+        self.assertIn("Non-ASCII records:      1", output)
         self.assertIn("Owner rule coverage:    0/2 (0.0%)", output)
         self.assertIn("Prompt suites:", output)
         self.assertIn("READY   support/triage", output)
         self.assertIn("guards=1", output)
         self.assertIn("MISSING missing", output)
         self.assertIn("Build missing suite:", output)
+        self.assertIn("Review non-English cases manually", output)
 
     def test_suite_summary_recommends_more_coverage_when_budget_is_tight(self) -> None:
         suite = build_suite(

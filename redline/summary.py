@@ -239,6 +239,7 @@ def prompt_manifest_summary(
             "medium_risk_clusters",
             "high_variance_clusters",
             "failure_pattern_clusters",
+            "non_ascii_records",
             "requirements",
         ):
             totals[key] += int(child_summary.get(key) or 0)
@@ -300,6 +301,7 @@ def prompt_manifest_summary(
         "medium_risk_clusters": totals["medium_risk_clusters"],
         "high_variance_clusters": totals["high_variance_clusters"],
         "failure_pattern_clusters": totals["failure_pattern_clusters"],
+        "non_ascii_records": totals["non_ascii_records"],
         "requirements": totals["requirements"],
         "prompts": prompt_rows,
         "missing_suites": missing_suites,
@@ -408,6 +410,7 @@ def format_prompt_manifest_summary(report: dict[str, Any]) -> str:
         f"Explicit guard coverage: {report['explicit_guard_cases']}/{report['cases']} ({_percent(report['explicit_guard_coverage'])})",
         f"High-risk clusters:     {report['high_risk_clusters']}",
         f"Medium-risk clusters:   {report['medium_risk_clusters']}",
+        f"Non-ASCII records:      {report['non_ascii_records']}",
         f"Cases with requirements: {report['requirements']:>2}",
         "",
     ]
@@ -516,6 +519,11 @@ def _manifest_summary_next_steps(summary: dict[str, Any]) -> list[str]:
         steps.append("Prefer redline.json owner rules so shared prompt manifests explain case routing.")
     if int(summary["cases"]) and int(summary.get("explicit_guard_cases") or 0) == 0:
         steps.append("Add requirements or recorded judgments to high-value cases so scale does not dilute trust.")
+    if int(summary.get("non_ascii_records") or 0):
+        steps.append(
+            "Review non-English cases manually or with a domain judge; structural checks still work, "
+            "but entity/refusal heuristics are English-oriented."
+        )
     if int(summary["suite_count"]) == int(summary["prompt_count"]) and int(summary["cases"]):
         manifest = str(summary["manifest"])
         steps.append(f"Check eval budget: redline budget {manifest}")

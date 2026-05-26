@@ -122,6 +122,25 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("audit: enabled at .redline/audit.jsonl", output)
         self.assertNotIn("Next:", output)
 
+    def test_doctor_surfaces_non_ascii_suite_calibration(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Resume el caso de José", "Envíalo a soporte", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        report = doctor_report(
+            config_path="redline.json",
+            config={"replay": f"{sys.executable} -c pass"},
+            suite=suite,
+        )
+        output = format_doctor_report(report)
+
+        self.assertIn("non-ASCII records=1", output)
+        self.assertIn("entity/refusal heuristics are English-oriented", output)
+
     def test_doctor_reports_prompt_manifest_readiness(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

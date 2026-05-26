@@ -232,6 +232,7 @@ def _coverage_check(
         explicit_guard_cases = _manifest_int(manifest_summary, "explicit_guard_cases")
         requirements_count = _manifest_int(manifest_summary, "requirements")
         high_risk_clusters = _manifest_int(manifest_summary, "high_risk_clusters")
+        non_ascii_records = _manifest_int(manifest_summary, "non_ascii_records")
         judge_configured = "judge" in config
         message += (
             f"; high-risk clusters={high_risk_clusters}; "
@@ -239,6 +240,11 @@ def _coverage_check(
             f"judge={'yes' if judge_configured else 'no'}; "
             f"explicit guards={explicit_guard_cases}/{cases_count}"
         )
+        if non_ascii_records:
+            message += (
+                f"; non-ASCII records={non_ascii_records}; "
+                "entity/refusal heuristics are English-oriented"
+            )
         if high_risk_clusters and not requirements_count and not judge_configured:
             message += "; add requirements or a judge before trusting semantic quality"
         elif cases_count and not explicit_guard_cases and not judge_configured:
@@ -252,6 +258,7 @@ def _coverage_check(
     explicit_guard_cases = int(summary_report.get("explicit_guard_cases") or 0)
     requirements_count = int(summary_report.get("requirements") or 0)
     high_risk_clusters = _high_risk_cluster_count(suite, summary)
+    non_ascii_records = int(summary_report.get("non_ascii_records") or 0)
     judge_configured = "judge" in config
     message += (
         f"; high-risk clusters={high_risk_clusters}; "
@@ -259,6 +266,11 @@ def _coverage_check(
         f"judge={'yes' if judge_configured else 'no'}; "
         f"explicit guards={explicit_guard_cases}/{cases_count}"
     )
+    if non_ascii_records:
+        message += (
+            f"; non-ASCII records={non_ascii_records}; "
+            "entity/refusal heuristics are English-oriented"
+        )
     if high_risk_clusters and not requirements_count and not judge_configured:
         message += "; add requirements or a judge before trusting semantic quality"
     elif cases_count and not explicit_guard_cases and not judge_configured:
