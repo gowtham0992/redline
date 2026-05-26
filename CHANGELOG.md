@@ -61,6 +61,7 @@
 - Surface benchmark artifacts and local timing evidence in the dashboard.
 - Show benchmark counts in the dashboard overview and CLI summary.
 - Warn in the dashboard when reports exist without benchmark evidence.
+- Surface cluster-level trend diagnosis in the local dashboard.
 - Show owner coverage and top owners in `redline summary`.
 - Show explicit guard coverage in `redline summary` for cases with requirements or recorded judgments.
 - Show explicit guard coverage in `redline doctor` before teams rely on structural checks in CI.

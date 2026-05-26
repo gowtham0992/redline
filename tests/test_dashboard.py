@@ -279,6 +279,34 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;.json", html)
         self.assertIn("&lt;b&gt;ship&lt;/b&gt;", html)
 
+    def test_dashboard_trend_shows_cluster_diagnosis(self) -> None:
+        dashboard = {
+            "reports": [],
+            "history": [],
+            "trend": {
+                "direction": "worse",
+                "summary": "blocking increased",
+                "recommendation": "investigate before accepting",
+                "clusters": [
+                    {
+                        "cluster": "structured_json|json|short",
+                        "label": "structured JSON prompt -> JSON response (short)",
+                        "blocking_delta": 1,
+                        "changed_delta": -1,
+                        "latest": {"blocking": 2},
+                    }
+                ],
+            },
+            "scope": "structural checks only",
+        }
+
+        html = format_dashboard_html(dashboard)
+
+        self.assertIn("<h3>Cluster diagnosis</h3>", html)
+        self.assertIn("structured JSON prompt -&gt; JSON response (short)", html)
+        self.assertIn("blocking +1", html)
+        self.assertIn("changed -1", html)
+
     def test_dashboard_skips_invalid_local_files_with_warning(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

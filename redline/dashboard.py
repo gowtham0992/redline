@@ -744,13 +744,40 @@ def _trend_panel(trend: dict[str, Any]) -> str:
     direction = str(trend.get("direction") or "unknown").replace("_", " ").title()
     summary = str(trend.get("summary") or "-")
     recommendation = str(trend.get("recommendation") or "-")
+    cluster_html = _trend_cluster_diagnosis(trend.get("clusters"))
     return (
         f'<section class="notice trend {_trend_class(direction)}">'
         "<h2>Trend</h2>"
         f"<p><strong>{_h(direction)}</strong>: {_h(summary)}</p>"
         f"<p>{_h(recommendation)}</p>"
+        f"{cluster_html}"
         "</section>"
     )
+
+
+def _trend_cluster_diagnosis(value: Any) -> str:
+    if not isinstance(value, list):
+        return ""
+    rows = []
+    for item in value[:5]:
+        if not isinstance(item, dict):
+            continue
+        latest = item.get("latest")
+        latest_counts = latest if isinstance(latest, dict) else {}
+        label = str(item.get("label") or item.get("cluster") or "unclustered")
+        blocking_delta = _safe_int(item.get("blocking_delta"))
+        changed_delta = _safe_int(item.get("changed_delta"))
+        latest_blocking = _safe_int(latest_counts.get("blocking"))
+        rows.append(
+            "<li>"
+            f"<strong>{_h(label)}</strong>: "
+            f"blocking {_h(_signed(blocking_delta))} "
+            f"(latest {latest_blocking}), changed {_h(_signed(changed_delta))}"
+            "</li>"
+        )
+    if not rows:
+        return ""
+    return "<h3>Cluster diagnosis</h3><ul>" + "".join(rows) + "</ul>"
 
 
 def _trend_class(direction: str) -> str:
@@ -758,6 +785,12 @@ def _trend_class(direction: str) -> str:
     if normalized in {"worse", "better", "flat", "baseline", "more-changed", "less-changed"}:
         return normalized
     return "unknown"
+
+
+def _signed(value: int) -> str:
+    if value > 0:
+        return f"+{value}"
+    return str(value)
 
 
 def _benchmark_panel(benchmarks: list[Any], *, output_path: str | Path | None) -> str:
