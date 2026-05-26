@@ -168,6 +168,13 @@ def format_pr_comment(result: dict[str, Any], *, title: str = "redline eval", ma
     if action or confidence or scope:
         lines.append("")
 
+    owner_lines = _pr_comment_owner_lines(result.get("diffs"))
+    if owner_lines:
+        lines.append("### Owners")
+        lines.append("")
+        lines.extend(owner_lines)
+        lines.append("")
+
     review_items = _pr_comment_items(result.get("diffs"), max_cases=max_cases)
     if review_items:
         lines.append("### Review")
@@ -471,6 +478,33 @@ def _hidden_pr_comment_count(diffs: Any, *, max_cases: int) -> int:
     return max(0, reviewable - max(0, max_cases))
 
 
+def _pr_comment_owner_lines(diffs: Any, *, max_owners: int = 6) -> list[str]:
+    rows = [
+        row
+        for row in _owner_review_rows(diffs)
+        if int(row["blocking"]) > 0 or int(row["changed"]) > 0
+    ]
+    if not rows:
+        return []
+    lines = []
+    for row in rows[: max(0, max_owners)]:
+        parts = []
+        blocking = int(row["blocking"])
+        changed = int(row["changed"])
+        total = int(row["total"])
+        if blocking:
+            parts.append(_plural_count(blocking, "blocking case"))
+        if changed:
+            parts.append(_plural_count(changed, "changed case"))
+        lines.append(
+            f"- {row['owner']}: {', '.join(parts)} ({_plural_count(total, 'owned case')})"
+        )
+    hidden = len(rows) - max(0, max_owners)
+    if hidden > 0:
+        lines.append(f"- ... {hidden} more owner(s) in the full report.")
+    return lines
+
+
 def _pr_comment_case_lines(item: dict[str, Any], result: dict[str, Any]) -> list[str]:
     status = str(item.get("status") or "unknown").upper()
     case_id = str(item.get("case_id") or "unknown")
@@ -545,6 +579,11 @@ def _owner_review_rows(diffs: Any) -> list[dict[str, int | str]]:
             str(row["owner"]).lower(),
         ),
     )
+
+
+def _plural_count(count: int, singular: str) -> str:
+    suffix = "" if count == 1 else "s"
+    return f"{count} {singular}{suffix}"
 
 
 def _prompt_eval_rows(value: Any) -> list[dict[str, Any]]:

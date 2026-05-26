@@ -402,6 +402,7 @@ class ReportTests(unittest.TestCase):
                     "suite_case_id": "case_002",
                     "suite": "suites/billing.redline-suite.json",
                     "status": "changed",
+                    "owner": "@billing-team",
                     "prompt": "Write a refund reply.",
                     "reasons": ["content changed substantially"],
                 },
@@ -420,7 +421,11 @@ class ReportTests(unittest.TestCase):
         self.assertIn("**Regression:** 1", comment)
         self.assertIn("**Changed:** 1", comment)
         self.assertIn("**Action:** fix blocking cases before shipping", comment)
+        self.assertIn("### Owners", comment)
+        self.assertIn("- @support-team: 1 blocking case (1 owned case)", comment)
+        self.assertIn("- @billing-team: 1 changed case (1 owned case)", comment)
         self.assertIn("**REGRESSION** `support/case_001` owner @support-team [high/structural]", comment)
+        self.assertIn("**CHANGED** `billing/case_002` owner @billing-team", comment)
         self.assertIn("redline mark suites/support.redline-suite.json case_001", comment)
         self.assertIn("PR comment: `.redline/reports/eval-comment.md`", comment)
         self.assertNotIn("case_003", comment)
