@@ -85,6 +85,7 @@ def suite_case_detail(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
         "behavior": behavior_label(str(case.get("cluster", ""))),
         "cluster_risk": str(case.get("cluster_risk", "")),
         "owner": str(case.get("owner", "")),
+        "owner_rule": case.get("owner_rule") if isinstance(case.get("owner_rule"), dict) else None,
         "selection_reason": str(case.get("selection_reason", "")),
         "prompt": str(case.get("prompt", "")),
         "baseline_response": str(case.get("baseline_response", "")),
@@ -111,6 +112,7 @@ def format_suite_case_detail(
         f"Behavior:    {detail['behavior']}",
         f"Risk:        {detail['cluster_risk'] or '<unknown>'}",
         f"Owner:       {detail['owner'] or '<unowned>'}",
+        f"Owner rule:  {_format_owner_rule(detail['owner_rule'])}",
         f"Selected:    {_format_selection_reason(detail['selection_reason']) or '<unknown>'}",
         f"Content hash: {detail['content_hash']}",
         "",
@@ -172,6 +174,21 @@ def _format_source(source: object, source_line: object) -> str:
     if line_text:
         return f"line {line_text}"
     return "<unknown>"
+
+
+def _format_owner_rule(value: object) -> str:
+    if not isinstance(value, dict):
+        return "<none>"
+    source = str(value.get("source") or "").strip()
+    field = str(value.get("field") or "").strip()
+    pattern = str(value.get("match") or "").strip()
+    if source and not pattern:
+        return source
+    if field and pattern:
+        return f"{field} matches {pattern}"
+    if pattern:
+        return f"matches {pattern}"
+    return "<none>"
 
 
 def _format_selection_reason(value: object) -> str:

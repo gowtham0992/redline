@@ -61,6 +61,7 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("selection_reason", case_properties)
         self.assertIn("cluster_risk", case_properties)
         self.assertIn("owner", case_properties)
+        self.assertIn("owner_rule", case_properties)
         self.assertIn("owned_cases", schema["properties"]["summary"]["properties"])
         self.assertIn("prompt_diversity_cases", schema["properties"]["summary"]["properties"])
 
@@ -82,8 +83,11 @@ class SuiteTests(unittest.TestCase):
         )
 
         owners = {case["prompt"]: case.get("owner") for case in suite["cases"]}
+        owner_rules = {case["prompt"]: case.get("owner_rule") for case in suite["cases"]}
         self.assertEqual(owners["Route billing refund"], "@billing-team")
         self.assertEqual(owners["Route security alert"], "@security-team")
+        self.assertEqual(owner_rules["Route billing refund"], {"match": "billing", "field": "prompt"})
+        self.assertEqual(owner_rules["Route security alert"], {"match": "security", "field": "any"})
         self.assertEqual(suite["summary"]["owned_cases"], 2)
 
     def test_build_suite_owner_flag_overrides_owner_rules(self) -> None:
@@ -97,6 +101,7 @@ class SuiteTests(unittest.TestCase):
         )
 
         self.assertEqual(suite["cases"][0]["owner"], "@ai-platform")
+        self.assertNotIn("owner_rule", suite["cases"][0])
         self.assertEqual(suite["summary"]["owned_cases"], 1)
 
     def test_clusters_include_failure_patterns(self) -> None:

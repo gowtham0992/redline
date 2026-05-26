@@ -89,6 +89,15 @@
           "source": {"type": "string"},
           "source_line": {"type": ["integer", "null"]},
           "owner": {"type": "string"},
+          "owner_rule": {
+            "type": "object",
+            "properties": {
+              "match": {"type": "string"},
+              "field": {"type": "string"},
+              "source": {"type": "string"}
+            },
+            "additionalProperties": false
+          },
           "cluster": {"type": "string"},
           "cluster_risk": {"type": "string", "enum": ["high", "medium", "low"]},
           "selection_reason": {

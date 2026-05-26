@@ -1281,6 +1281,7 @@ class CliConfigTests(unittest.TestCase):
 
                 suite = json.loads(Path("suite.json").read_text(encoding="utf-8"))
                 self.assertEqual(suite["cases"][0]["owner"], "@billing-team")
+                self.assertEqual(suite["cases"][0]["owner_rule"], {"match": "billing", "field": "any"})
                 self.assertEqual(suite["summary"]["owned_cases"], 1)
                 self.assertIn("@billing-team", output.getvalue())
             finally:

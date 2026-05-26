@@ -55,6 +55,7 @@ class CasesTests(unittest.TestCase):
         )
         self.assertEqual(detail["cluster_risk"], "low")
         self.assertEqual(detail["owner"], "")
+        self.assertIsNone(detail["owner_rule"])
         self.assertEqual(detail["selection_reason"], "cluster_representative")
         self.assertIn("Pinned:     no", text)
         self.assertEqual(detail["source"], "logs/baseline.jsonl")
@@ -62,6 +63,7 @@ class CasesTests(unittest.TestCase):
         self.assertIn("Behavior:    structured JSON prompt -> JSON response", text)
         self.assertIn("Risk:        low", text)
         self.assertIn("Owner:       <unowned>", text)
+        self.assertIn("Owner rule:  <none>", text)
         self.assertIn("Selected:    representative", text)
         self.assertIn("Content hash:", text)
 
@@ -72,7 +74,7 @@ class CasesTests(unittest.TestCase):
             input_field="prompt",
             output_field="response",
             max_cases=10,
-            owner="@support-team",
+            owner_rules=[{"match": "Ada", "owner": "@support-team", "field": "prompt"}],
         )
         case_id = suite["cases"][0]["id"]
 
@@ -83,7 +85,9 @@ class CasesTests(unittest.TestCase):
 
         self.assertEqual(rows[0]["owner"], "@support-team")
         self.assertEqual(detail["owner"], "@support-team")
+        self.assertEqual(detail["owner_rule"], {"match": "Ada", "field": "prompt"})
         self.assertIn("Owner:       @support-team", text)
+        self.assertIn("Owner rule:  prompt matches Ada", text)
         self.assertIn("OWNER", table)
         self.assertIn("@support-team", table)
 

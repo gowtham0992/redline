@@ -75,6 +75,7 @@
 - Roll up blocking and changed cases by owner in the local dashboard.
 - Show blocking and changed review counts in the dashboard reports table.
 - Add owner mention summaries to generated PR comments.
+- Store owner-rule provenance on generated suite cases and show it in case detail.
 - Group prompt manifest evals by feature in the local dashboard.
 - Summarize prompt manifests with readiness, owners, requirements, and missing suite rollups.
 - Validate prompt manifests and their mapped suites through `redline validate redline-prompts.json`.

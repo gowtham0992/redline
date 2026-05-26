@@ -64,15 +64,17 @@ def build_suite(
             "content_hash": prompt_response_hash(record.prompt, record.response),
             "features": features.to_dict(),
         }
-        case_owner = _case_owner(
+        owner_match = _case_owner_match(
             record,
             source=str(source),
             cluster=signature,
             explicit_owner=owner,
             owner_rules=owner_rules,
         )
-        if case_owner:
-            case["owner"] = case_owner
+        if owner_match.get("owner"):
+            case["owner"] = owner_match["owner"]
+        if owner_match.get("owner_rule"):
+            case["owner_rule"] = owner_match["owner_rule"]
         cases.append(case)
 
     clusters = []
@@ -468,18 +470,21 @@ def _case_id(record: LogRecord, index: int) -> str:
     return f"case_{index:03d}_{digest.hexdigest()[:10]}"
 
 
-def _case_owner(
+def _case_owner_match(
     record: LogRecord,
     *,
     source: str,
     cluster: str,
     explicit_owner: str | None,
     owner_rules: object,
-) -> str:
+) -> dict[str, Any]:
     if explicit_owner and explicit_owner.strip():
-        return explicit_owner.strip()
+        return {"owner": explicit_owner.strip()}
     if isinstance(owner_rules, str):
-        return owner_rules.strip()
+        owner = owner_rules.strip()
+        if owner:
+            return {"owner": owner, "owner_rule": {"source": "config"}}
+        return {}
     for rule in _owner_rule_items(owner_rules):
         owner = rule["owner"]
         pattern = rule["match"]
@@ -491,8 +496,14 @@ def _case_owner(
             "any": "\n".join([record.prompt, source, cluster]),
         }.get(field, "\n".join([record.prompt, source, cluster]))
         if _owner_pattern_matches(pattern, target):
-            return owner
-    return ""
+            return {
+                "owner": owner,
+                "owner_rule": {
+                    "match": pattern,
+                    "field": field,
+                },
+            }
+    return {}
 
 
 def _owner_rule_items(owner_rules: object) -> list[dict[str, str]]:
