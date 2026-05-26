@@ -18,6 +18,7 @@
 - Add `redline dashboard` for a self-contained local HTML index of reports and trend history.
 - Diagnose history trends as better, worse, or flat based on blocking regressions across recent runs.
 - Add HTML output for `redline compare` so trend comparisons are inspectable in CI artifacts.
+- Diagnose top cluster-level trend deltas in `redline history`.
 - Render and upload `.redline/dashboard.html` from the generated GitHub Actions workflow.
 - Add a composite GitHub Action entrypoint for running redline in external repos.
 - Preserve eval reports, trend history, and dashboard output from the composite GitHub Action before returning the eval status.

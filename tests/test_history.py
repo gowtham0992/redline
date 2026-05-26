@@ -9,6 +9,7 @@ from pathlib import Path
 from redline.cli import main
 from redline.history import (
     format_history,
+    format_history_trend,
     format_markdown_history,
     history_entry,
     history_trend,
@@ -20,7 +21,19 @@ from redline.history import (
 class HistoryTests(unittest.TestCase):
     def test_history_entry_keeps_report_summary(self) -> None:
         entry = history_entry(
-            {"summary": {"cases": 5, "regression": 2, "neutral": 3}},
+            {
+                "summary": {"cases": 5, "regression": 2, "neutral": 3},
+                "diffs": [
+                    {
+                        "cluster": "structured_json|json|short",
+                        "status": "regression",
+                    },
+                    {
+                        "cluster": "structured_json|json|short",
+                        "status": "neutral",
+                    },
+                ],
+            },
             report_path="eval.json",
             label="prompt-v2",
             timestamp="2026-05-23T12:00:00Z",
@@ -31,6 +44,8 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(entry["label"], "prompt-v2")
         self.assertEqual(entry["summary"]["cases"], 5)
         self.assertEqual(entry["summary"]["regression"], 2)
+        self.assertEqual(entry["clusters"]["structured_json|json|short"]["cases"], 2)
+        self.assertEqual(entry["clusters"]["structured_json|json|short"]["blocking"], 1)
 
     def test_format_history_prints_one_line_per_report(self) -> None:
         text = format_history(
@@ -72,6 +87,54 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(trend["delta"]["blocking"], 2)
         self.assertIn("investigate", trend["recommendation"])
 
+    def test_history_trend_reports_cluster_degradation(self) -> None:
+        trend = history_trend(
+            [
+                {
+                    "timestamp": "2026-05-23T12:00:00Z",
+                    "label": "prompt-v1",
+                    "report": "eval-v1.json",
+                    "summary": {"cases": 2, "regression": 0, "missing": 0, "changed": 0},
+                    "clusters": {
+                        "structured_json|json|short": {
+                            "cases": 1,
+                            "regression": 0,
+                            "missing": 0,
+                            "changed": 0,
+                            "blocking": 0,
+                        }
+                    },
+                },
+                {
+                    "timestamp": "2026-05-23T13:00:00Z",
+                    "label": "prompt-v2",
+                    "report": "eval-v2.json",
+                    "summary": {"cases": 2, "regression": 1, "missing": 0, "changed": 1},
+                    "clusters": {
+                        "structured_json|json|short": {
+                            "cases": 1,
+                            "regression": 1,
+                            "missing": 0,
+                            "changed": 0,
+                            "blocking": 1,
+                        },
+                        "generation|prose|medium": {
+                            "cases": 1,
+                            "regression": 0,
+                            "missing": 0,
+                            "changed": 1,
+                            "blocking": 0,
+                        },
+                    },
+                },
+            ]
+        )
+
+        self.assertEqual(trend["clusters"][0]["cluster"], "structured_json|json|short")
+        self.assertEqual(trend["clusters"][0]["blocking_delta"], 1)
+        self.assertIn("structured JSON prompt -> JSON response", format_history_trend(trend))
+        self.assertIn("blocking +1", format_history_trend(trend))
+
     def test_format_history_prints_trend_before_rows(self) -> None:
         text = format_history(
             [
@@ -111,6 +174,46 @@ class HistoryTests(unittest.TestCase):
         self.assertIn("| Timestamp | Label | Report | Summary |", text)
         self.assertIn("prompt-v2", text)
         self.assertIn("cases=5 regression=2 neutral=3", text)
+
+    def test_format_markdown_history_includes_cluster_diagnosis(self) -> None:
+        text = format_markdown_history(
+            [
+                {
+                    "timestamp": "2026-05-23T12:00:00Z",
+                    "label": "prompt-v1",
+                    "report": "eval-v1.json",
+                    "summary": {"cases": 1, "regression": 0, "missing": 0, "changed": 0},
+                    "clusters": {
+                        "structured_json|json|short": {
+                            "cases": 1,
+                            "regression": 0,
+                            "missing": 0,
+                            "changed": 0,
+                            "blocking": 0,
+                        }
+                    },
+                },
+                {
+                    "timestamp": "2026-05-23T13:00:00Z",
+                    "label": "prompt-v2",
+                    "report": "eval-v2.json",
+                    "summary": {"cases": 1, "regression": 1, "missing": 0, "changed": 0},
+                    "clusters": {
+                        "structured_json|json|short": {
+                            "cases": 1,
+                            "regression": 1,
+                            "missing": 0,
+                            "changed": 0,
+                            "blocking": 1,
+                        }
+                    },
+                },
+            ]
+        )
+
+        self.assertIn("## Cluster Diagnosis", text)
+        self.assertIn("structured JSON prompt -> JSON response (short)", text)
+        self.assertIn("| structured JSON prompt -> JSON response (short) | +1 | 1 | 0 |", text)
 
     def test_cli_appends_report_to_history(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
