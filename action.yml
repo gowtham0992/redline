@@ -151,6 +151,16 @@ runs:
           --verify \
           --out-checkpoint .redline/audit-checkpoint.json
 
+        if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f .redline/audit-checkpoint.json ]; then
+          {
+            echo ""
+            echo "### Audit evidence"
+            echo ""
+            echo '- Checkpoint: `.redline/audit-checkpoint.json`'
+            echo '- Verify locally: `redline audit --verify --checkpoint .redline/audit-checkpoint.json`'
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
         if [ "$REDLINE_ACTION_RENDER_DASHBOARD" = "true" ]; then
           python -m redline dashboard --out .redline/dashboard.html
         fi

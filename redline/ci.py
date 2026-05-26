@@ -107,7 +107,17 @@ jobs:
 
       - name: Write redline audit checkpoint
         if: always()
-        run: python -m redline audit --verify --out-checkpoint .redline/audit-checkpoint.json
+        run: |
+          python -m redline audit --verify --out-checkpoint .redline/audit-checkpoint.json
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f .redline/audit-checkpoint.json ]; then
+            {
+              echo ""
+              echo "### Audit evidence"
+              echo ""
+              echo '- Checkpoint: `.redline/audit-checkpoint.json`'
+              echo '- Verify locally: `redline audit --verify --checkpoint .redline/audit-checkpoint.json`'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Render redline dashboard
         if: always()
