@@ -19,6 +19,27 @@ class FeatureTests(unittest.TestCase):
         self.assertNotIn("Docs", features.entities)
         self.assertNotIn("Ticket", features.entities)
 
+    def test_extract_entities_ignores_weak_pronouns_from_public_logs(self) -> None:
+        features = extract_features(
+            "It is a brown eared pheasant. Its range includes mountain forests."
+        )
+
+        self.assertNotIn("It", features.entities)
+        self.assertNotIn("Its", features.entities)
+
+    def test_extract_entities_ignores_bullet_leading_adjectives(self) -> None:
+        features = extract_features(
+            "- Very good coffee\n"
+            "- High quality espresso machines\n"
+            "- Different coffee roast options\n"
+            "- Ample seating"
+        )
+
+        self.assertNotIn("Very", features.entities)
+        self.assertNotIn("High", features.entities)
+        self.assertNotIn("Different", features.entities)
+        self.assertNotIn("Ample", features.entities)
+
     def test_extract_entities_ignores_common_table_headers(self) -> None:
         features = extract_features(
             "| Impact | Status | Owner | Next update |\n"

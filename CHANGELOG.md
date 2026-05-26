@@ -84,6 +84,7 @@
 - Add a dashboard evidence-trail panel for latest reports, benchmark artifacts, history, and audit checkpoints.
 - Add reproducible dogfood case studies using the checked-in public and support-agent fixtures.
 - Add an internet dogfood source shortlist covering Dolly, OpenAssistant, WildChat, LMSYS, and Alpaca.
+- Reduce noisy entity-loss signals from pronouns and bullet-leading adjectives found during Dolly dogfood.
 - Group prompt manifest evals by feature in the local dashboard.
 - Summarize prompt manifests with readiness, owners, requirements, and missing suite rollups.
 - Validate prompt manifests and their mapped suites through `redline validate redline-prompts.json`.

@@ -58,6 +58,8 @@ _ENTITY_STOPWORDS = {
     "Fixed",
     "Improved",
     "Impact",
+    "It",
+    "Its",
     "Mitigated",
     "Next",
     "Owner",
@@ -353,7 +355,11 @@ def _is_acronym(value: str) -> bool:
 
 def _is_sentence_start(text: str, start: int) -> bool:
     prefix = text[:start].rstrip()
-    return not prefix or prefix[-1] in ".!?\n"
+    if not prefix or prefix[-1] in ".!?\n":
+        return True
+    line_start = text.rfind("\n", 0, start) + 1
+    line_prefix = text[line_start:start].strip()
+    return bool(re.fullmatch(r"(?:[-*+]|\d+[.)])", line_prefix))
 
 
 def _next_word(text: str, end: int) -> str:
