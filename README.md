@@ -190,10 +190,11 @@ optional judge for semantic risks that structural checks cannot prove.
 redline is built around the full prompt-regression loop:
 
 - `redline watch`: collect prompt-response observations from logs, Python
-  functions, OpenAI/Anthropic-compatible SDK calls, or ASGI apps, with common
-  secrets and PII redacted before write by default.
+  functions, OpenAI/Anthropic-compatible SDK calls, or ASGI apps, with
+  best-effort common secrets and PII redacted before write by default.
 - `RedlineMiddleware`: capture bounded JSON FastAPI or ASGI request/response pairs locally, with optional skip diagnostics.
 - `redline redact --check`: scan logs for common secrets and PII, then write a scrubbed copy when needed.
+  Redaction is best-effort pattern matching, not a privacy boundary; review sensitive logs before sharing.
 - `redline cluster`: inspect behavior groups before suite generation.
 - `redline suite`: generate a representative eval suite from baseline logs.
 - `redline prompts`: scan many prompt files and write or check a versionable prompt-to-suite manifest.

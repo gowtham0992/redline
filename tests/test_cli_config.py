@@ -757,6 +757,7 @@ class CliConfigTests(unittest.TestCase):
                 self.assertNotIn("ada@example.com", row["prompt"])
                 self.assertEqual(row["api_key"], "[REDACTED]")
                 self.assertIn("Redactions: 2", output.getvalue())
+                self.assertIn("best-effort common secret/PII patterns", output.getvalue())
                 audit = [
                     json.loads(line)
                     for line in (root / ".redline" / "audit.jsonl").read_text(encoding="utf-8").splitlines()

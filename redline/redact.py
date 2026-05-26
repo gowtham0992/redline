@@ -135,6 +135,7 @@ def format_redaction_report(report: dict[str, Any]) -> str:
         [
             f"Records:    {report['records']}",
             f"Redactions: {report['redactions']}",
+            "Boundary:   best-effort common secret/PII patterns; review sensitive logs before sharing",
         ]
     )
     patterns = report.get("patterns")
