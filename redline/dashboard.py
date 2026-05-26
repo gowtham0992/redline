@@ -97,6 +97,7 @@ def format_dashboard_html(
             '<p class="lede">Local prompt regression review center.</p>',
             "</header>",
             _overview(latest, len(reports), len(benchmarks), len(history)),
+            _evidence_panel(latest, benchmarks, history, checkpoint, output_path=output_path),
             _notices(notices),
             _ship_panel(latest),
             _trend_panel(trend),
@@ -593,6 +594,78 @@ def _overview(
         "</div>"
         f'<div class="cards">{cells}</div>'
         "</section>"
+    )
+
+
+def _evidence_panel(
+    latest: dict[str, Any],
+    benchmarks: list[Any],
+    history: list[Any],
+    checkpoint: dict[str, Any],
+    *,
+    output_path: str | Path | None,
+) -> str:
+    if not latest and not benchmarks and not history and not checkpoint:
+        return ""
+    report_links = _links(
+        [
+            ("HTML", str(latest.get("html_path") or "")),
+            ("Markdown", str(latest.get("markdown_path") or "")),
+            ("JSON", str(latest.get("path") or "")),
+        ],
+        output_path=output_path,
+    )
+    first_benchmark = next((item for item in benchmarks if isinstance(item, dict)), {})
+    benchmark_links = _links(
+        [
+            ("Markdown", str(first_benchmark.get("markdown_path") or "")),
+            ("JSON", str(first_benchmark.get("path") or "")),
+        ],
+        output_path=output_path,
+    )
+    latest_history = next((item for item in history if isinstance(item, dict)), {})
+    checkpoint_status = "Audit OK" if checkpoint.get("ok") else "No checkpoint"
+    if checkpoint and not checkpoint.get("ok"):
+        checkpoint_status = "Audit failed"
+    cells = [
+        _evidence_card(
+            "Latest report",
+            str(latest.get("name") or "none"),
+            report_links,
+        ),
+        _evidence_card(
+            "Runtime evidence",
+            str(first_benchmark.get("name") or "none"),
+            benchmark_links,
+        ),
+        _evidence_card(
+            "History",
+            f"{len(history)} entries",
+            _h(str(latest_history.get("label") or "no trend yet")),
+        ),
+        _evidence_card(
+            "Audit checkpoint",
+            checkpoint_status,
+            f"<code>{_h(str(checkpoint.get('path') or ''))}</code>" if checkpoint.get("path") else "",
+        ),
+    ]
+    return (
+        '<section class="panel evidence-trail">'
+        "<h2>Evidence Trail</h2>"
+        '<div class="cards compact">'
+        f"{''.join(cells)}"
+        "</div>"
+        "</section>"
+    )
+
+
+def _evidence_card(label: str, value: str, detail: str) -> str:
+    return (
+        '<div class="card evidence-card">'
+        f"<span>{_h(label)}</span>"
+        f"<strong>{_h(value or '-')}</strong>"
+        f"<p>{detail or '-'}</p>"
+        "</div>"
     )
 
 
@@ -1283,6 +1356,8 @@ h2 { font-size: 18px; margin-bottom: 12px; }
 }
 .card span, td span { display: block; color: var(--muted); font-size: 12px; }
 .card strong { display: block; font-size: 26px; margin-top: 4px; }
+.evidence-card strong { font-size: 16px; overflow-wrap: anywhere; }
+.evidence-card p { margin-top: 8px; color: var(--muted); overflow-wrap: anywhere; }
 .ship {
   border-left: 4px solid var(--accent);
 }

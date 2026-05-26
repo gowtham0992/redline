@@ -206,7 +206,10 @@ class DashboardTests(unittest.TestCase):
                 ],
             )
             self.assertIn("<title>redline dashboard</title>", html)
+            self.assertIn("<h2>Evidence Trail</h2>", html)
             self.assertIn("eval.json", html)
+            self.assertIn("Runtime evidence", html)
+            self.assertIn("Audit OK", html)
             self.assertIn("<span>Benchmarks</span><strong>1</strong>", html)
             self.assertIn("<h2>Ship Readiness</h2>", html)
             self.assertIn("Blocked", html)
