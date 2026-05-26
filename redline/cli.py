@@ -51,7 +51,7 @@ from .diff import (
     compare_suite_to_candidate,
     format_compact_report,
     format_report,
-    summarize_decision,
+    summarize_result_decision,
 )
 from .doctor import doctor_report, format_doctor_report
 from .history import (
@@ -1398,7 +1398,7 @@ def _cmd_eval_prompt_manifest(
         "manifest": str(manifest_path),
         "prompt_count": len(records),
         "summary": summary,
-        "decision": summarize_decision(summary),
+        "decision": summarize_result_decision(summary, diffs),
         "prompt_evals": prompt_evals,
         "diffs": diffs,
     }

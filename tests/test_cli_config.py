@@ -2161,6 +2161,10 @@ class CliConfigTests(unittest.TestCase):
                 candidate = (root / ".redline" / "runs" / "candidate.jsonl").read_text(encoding="utf-8")
                 metadata = json.loads((root / ".redline" / "runs" / "replay.json").read_text(encoding="utf-8"))
                 self.assertIn("redline eval: cases=2", text)
+                self.assertIn(
+                    "Diagnosis: Candidate lost required structure; fix blocking cases before shipping.",
+                    text,
+                )
                 self.assertIn("Prompt evals:", text)
                 self.assertIn("REGRESSION json [prompts/json.txt]", text)
                 self.assertIn("CLEAN      table [prompts/table.txt]", text)
@@ -2168,6 +2172,10 @@ class CliConfigTests(unittest.TestCase):
                 self.assertEqual(report["prompt_count"], 2)
                 self.assertEqual(report["summary"]["cases"], 2)
                 self.assertEqual(report["summary"]["regression"], 1)
+                self.assertEqual(
+                    report["decision"]["diagnosis"],
+                    "Candidate lost required structure; fix blocking cases before shipping.",
+                )
                 self.assertEqual(len(report["prompt_evals"]), 2)
                 self.assertTrue(
                     any(diff["case_id"].startswith("table/") for diff in report["diffs"]),
