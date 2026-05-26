@@ -15,6 +15,7 @@
 - Emit JSON, Markdown, JUnit, GitHub summary, and GitHub annotation reports.
 - Write self-contained HTML diff/eval reports for side-by-side inspection.
 - Write Slack Block Kit JSON diff/eval reports for CI bots or webhook integrations.
+- Surface configured Slack report artifacts in `redline doctor`.
 - Show the mark/accept review loop in the first-run demo so users can train the suite as prompts evolve.
 - Flag obvious allow/deny policy wording flips as changed cases instead of neutral drift.
 - Flag obvious dismissive or over-apologetic tone shifts as changed shallow-semantic cases.

@@ -89,6 +89,7 @@ class DoctorTests(unittest.TestCase):
                     "comment": ".redline/reports/doctor-comment.md",
                     "html": ".redline/reports/doctor.html",
                     "junit": ".redline/reports/doctor.xml",
+                    "slack": ".redline/reports/doctor.slack.json",
                 },
                 "runs": {
                     "candidate": ".redline/runs/candidate.jsonl",
@@ -113,6 +114,7 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("comment=.redline/reports/doctor-comment.md", output)
         self.assertIn("html=.redline/reports/doctor.html", output)
         self.assertIn("junit=.redline/reports/doctor.xml", output)
+        self.assertIn("slack=.redline/reports/doctor.slack.json", output)
         self.assertIn("runs: candidate=.redline/runs/candidate.jsonl", output)
         self.assertIn("audit: enabled at .redline/audit.jsonl", output)
         self.assertNotIn("Next:", output)
