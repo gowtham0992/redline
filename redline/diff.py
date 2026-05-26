@@ -67,6 +67,39 @@ _POLICY_TOKEN_STOPWORDS = {
     "with",
     "you",
 }
+_HEDGE_RE = re.compile(
+    r"\b(?:"
+    r"appear(?:s|ed)?|"
+    r"approximately|"
+    r"around|"
+    r"could|"
+    r"i\s+(?:believe|think)|"
+    r"likely|"
+    r"may|"
+    r"might|"
+    r"possibly|"
+    r"probably|"
+    r"roughly|"
+    r"seem(?:s|ed)?|"
+    r"suggest(?:s|ed)?|"
+    r"unlikely|"
+    r"not\s+sure"
+    r")\b",
+    re.IGNORECASE,
+)
+_DEFINITIVE_RE = re.compile(
+    r"\b(?:"
+    r"always|"
+    r"certainly|"
+    r"definitely|"
+    r"guarantee(?:d|s)?|"
+    r"must|"
+    r"never|"
+    r"require(?:d|s)?|"
+    r"will"
+    r")\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -297,6 +330,9 @@ def classify_change(
         polarity_reason = _policy_polarity_reason(baseline_text, candidate_text)
         if polarity_reason:
             reasons.append(polarity_reason)
+        confidence_reason = _confidence_drift_reason(baseline_text, candidate_text)
+        if confidence_reason:
+            reasons.append(confidence_reason)
         content_reason = _content_reason(baseline_text, candidate_text)
         if content_reason:
             reasons.append(content_reason)
@@ -346,6 +382,33 @@ def _diff_profile(value: str) -> str:
         joined = ", ".join(DIFF_PROFILES)
         raise ValueError(f"diff profile must be one of: {joined}")
     return value
+
+
+def _confidence_drift_reason(
+    baseline_text: str | None,
+    candidate_text: str | None,
+) -> str | None:
+    if not baseline_text or not candidate_text:
+        return None
+    baseline_hedges = _marker_count(_HEDGE_RE, baseline_text)
+    candidate_hedges = _marker_count(_HEDGE_RE, candidate_text)
+    baseline_definitive = _marker_count(_DEFINITIVE_RE, baseline_text)
+    candidate_definitive = _marker_count(_DEFINITIVE_RE, candidate_text)
+    if candidate_hedges >= baseline_hedges + 2 and baseline_definitive > candidate_definitive:
+        return (
+            "confidence wording changed: candidate hedges more "
+            f"({baseline_hedges} -> {candidate_hedges} hedge markers)"
+        )
+    if candidate_definitive >= baseline_definitive + 2 and baseline_hedges > candidate_hedges:
+        return (
+            "confidence wording changed: candidate is more definitive "
+            f"({baseline_definitive} -> {candidate_definitive} definitive markers)"
+        )
+    return None
+
+
+def _marker_count(pattern: re.Pattern[str], text: str) -> int:
+    return len(pattern.findall(text))
 
 
 def apply_judgment(

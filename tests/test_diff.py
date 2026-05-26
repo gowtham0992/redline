@@ -100,6 +100,44 @@ class DiffTests(unittest.TestCase):
 
         self.assertFalse(any("policy polarity changed" in reason for reason in reasons))
 
+    def test_classify_confidence_drift_to_more_hedged_as_changed(self) -> None:
+        baseline_text = "The refund will definitely be processed today after billing approval."
+        candidate_text = "The refund may possibly be processed today after billing approval."
+        baseline = extract_features(baseline_text).to_dict()
+        candidate = extract_features(candidate_text).to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text=baseline_text,
+            candidate_text=candidate_text,
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertIn(
+            "confidence wording changed: candidate hedges more (0 -> 2 hedge markers)",
+            reasons,
+        )
+
+    def test_classify_confidence_drift_to_more_definitive_as_changed(self) -> None:
+        baseline_text = "The refund may possibly be processed today after billing approval."
+        candidate_text = "The refund will definitely be processed today after billing approval."
+        baseline = extract_features(baseline_text).to_dict()
+        candidate = extract_features(candidate_text).to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text=baseline_text,
+            candidate_text=candidate_text,
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertIn(
+            "confidence wording changed: candidate is more definitive (0 -> 2 definitive markers)",
+            reasons,
+        )
+
     def test_classify_missing_entity_as_regression(self) -> None:
         baseline = extract_features("Route Ada Lovelace to ACME support.").to_dict()
         candidate = extract_features("Route the customer to support.").to_dict()

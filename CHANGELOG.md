@@ -11,6 +11,7 @@
 - Calibrate diff and eval decisions so neutral runs say "no structural blockers"
   instead of implying full semantic approval.
 - Add a `review` diff profile for long-form assistant logs where missing numbers and entities should be reviewed instead of blocking by default.
+- Flag clear hedging/definitive confidence drift as changed shallow-semantic cases.
 - Emit JSON, Markdown, JUnit, GitHub summary, and GitHub annotation reports.
 - Write self-contained HTML diff/eval reports for side-by-side inspection.
 - Show the mark/accept review loop in the first-run demo so users can train the suite as prompts evolve.
