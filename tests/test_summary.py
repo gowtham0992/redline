@@ -43,6 +43,9 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["pinned_cases"], 0)
         self.assertEqual(summary["owned_cases"], 0)
         self.assertEqual(summary["unowned_cases"], 2)
+        self.assertEqual(summary["owner_rule_cases"], 0)
+        self.assertEqual(summary["unexplained_owner_cases"], 0)
+        self.assertIsNone(summary["owner_rule_coverage"])
         self.assertEqual(summary["owners"], {})
         self.assertEqual(summary["accepted_baselines"], 0)
         self.assertEqual(summary["approved_baselines"], 0)
@@ -93,6 +96,7 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Case coverage:", output)
         self.assertIn("Pinned cases:", output)
         self.assertIn("Owned cases:", output)
+        self.assertIn("Owner rule coverage:", output)
         self.assertIn("Accepted baselines:", output)
         self.assertIn("Approved baselines:", output)
         self.assertIn("Explicit guard coverage:", output)
@@ -122,6 +126,9 @@ class SummaryTests(unittest.TestCase):
 
         self.assertEqual(summary["owned_cases"], 2)
         self.assertEqual(summary["unowned_cases"], 0)
+        self.assertEqual(summary["owner_rule_cases"], 2)
+        self.assertEqual(summary["unexplained_owner_cases"], 0)
+        self.assertEqual(summary["owner_rule_coverage"], 1.0)
         self.assertEqual(summary["owners"], {"@billing-team": 1, "@support-team": 1})
         self.assertEqual(
             summary["top_owners"],
@@ -131,6 +138,7 @@ class SummaryTests(unittest.TestCase):
             ],
         )
         self.assertIn("Owned cases:            2/2", output)
+        self.assertIn("Owner rule coverage:    2/2 (100.0%)", output)
         self.assertIn("Owners:", output)
         self.assertIn("@billing-team", output)
         self.assertIn("@support-team", output)
@@ -208,6 +216,8 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["cases"], 3)
         self.assertEqual(summary["owned_cases"], 2)
         self.assertEqual(summary["unowned_cases"], 1)
+        self.assertEqual(summary["owner_rule_cases"], 0)
+        self.assertEqual(summary["unexplained_owner_cases"], 2)
         self.assertEqual(summary["requirements"], 1)
         self.assertEqual(summary["explicit_guard_cases"], 1)
         self.assertAlmostEqual(summary["explicit_guard_coverage"], 1 / 3)
@@ -215,6 +225,7 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Prompt manifest:", output)
         self.assertIn("Suites ready:           2/3", output)
         self.assertIn("Explicit guard coverage: 1/3 (33.3%)", output)
+        self.assertIn("Owner rule coverage:    0/2 (0.0%)", output)
         self.assertIn("Prompt suites:", output)
         self.assertIn("READY   support/triage", output)
         self.assertIn("guards=1", output)

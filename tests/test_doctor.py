@@ -109,7 +109,10 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("coverage: structural checks only", output)
         self.assertIn("requirements=0; judge=yes", output)
         self.assertIn("explicit guards=0/1", output)
-        self.assertIn("team-workflow: owners=0/1; owner rules=0; approval required=no", output)
+        self.assertIn(
+            "team-workflow: owners=0/1; owner rules=0; owner rule provenance=0/0; approval required=no",
+            output,
+        )
         self.assertIn("reports: json=.redline/reports/doctor.json", output)
         self.assertIn("comment=.redline/reports/doctor-comment.md", output)
         self.assertIn("html=.redline/reports/doctor.html", output)
@@ -182,6 +185,7 @@ class DoctorTests(unittest.TestCase):
         )
         workflow = next(check for check in report["checks"] if check["name"] == "team-workflow")
         self.assertIn("owners=0/1", workflow["message"])
+        self.assertIn("owner rule provenance=0/0", workflow["message"])
 
     def test_doctor_reports_prompt_manifest_missing_suites(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -346,7 +350,7 @@ class DoctorTests(unittest.TestCase):
             input_field="prompt",
             output_field="response",
             max_cases=10,
-            owner="@billing-team",
+            owner_rules=[{"match": "billing", "owner": "@billing-team"}],
         )
 
         report = doctor_report(
@@ -363,7 +367,7 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(team["status"], "ok")
         self.assertEqual(
             team["message"],
-            "owners=1/1; owner rules=1; approval required=yes",
+            "owners=1/1; owner rules=1; owner rule provenance=1/1; approval required=yes",
         )
 
     def test_doctor_warns_when_middleware_only_records_skips(self) -> None:

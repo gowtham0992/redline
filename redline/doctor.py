@@ -289,14 +289,12 @@ def _team_workflow_check(
     if manifest_summary is not None:
         case_count = _manifest_int(manifest_summary, "cases")
         owned_cases = _manifest_int(manifest_summary, "owned_cases")
+        owner_rule_cases = _manifest_int(manifest_summary, "owner_rule_cases")
     else:
-        cases = suite.get("cases") if isinstance(suite, dict) else None
-        case_count = len(cases) if isinstance(cases, list) else 0
-        owned_cases = sum(
-            1
-            for case in cases or []
-            if isinstance(case, dict) and str(case.get("owner") or "").strip()
-        )
+        summary_report = suite_summary(suite) if isinstance(suite, dict) else {}
+        case_count = int(summary_report.get("cases") or 0)
+        owned_cases = int(summary_report.get("owned_cases") or 0)
+        owner_rule_cases = int(summary_report.get("owner_rule_cases") or 0)
     owner_rules = _owner_rule_count(config.get("owners"))
     approval = config.get("approval")
     require_approver = bool(approval.get("require_approver")) if isinstance(approval, dict) else False
@@ -306,6 +304,7 @@ def _team_workflow_check(
         "message": (
             f"owners={owned_cases}/{case_count}; "
             f"owner rules={owner_rules}; "
+            f"owner rule provenance={owner_rule_cases}/{owned_cases}; "
             f"approval required={'yes' if require_approver else 'no'}"
         ),
     }

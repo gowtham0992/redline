@@ -88,6 +88,7 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         for owner, count in sorted(owner_counts.items(), key=lambda item: (-item[1], item[0].lower()))[:5]
     ]
     owned_cases = sum(owner_counts.values())
+    owner_rule_cases = _owner_rule_case_count(cases)
     accepted_baselines = suite.get("accepted_baselines", [])
     if not isinstance(accepted_baselines, list):
         accepted_baselines = []
@@ -132,6 +133,9 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "pinned_cases": pinned_cases,
         "owned_cases": owned_cases,
         "unowned_cases": max(0, cases_count - owned_cases),
+        "owner_rule_cases": owner_rule_cases,
+        "unexplained_owner_cases": max(0, owned_cases - owner_rule_cases),
+        "owner_rule_coverage": _ratio(owner_rule_cases, owned_cases),
         "owners": dict(sorted(owner_counts.items())),
         "top_owners": top_owners,
         "accepted_baselines": accepted_baseline_count,
@@ -186,6 +190,7 @@ def prompt_manifest_summary(
             "clusters": 0,
             "records_seen": 0,
             "owned_cases": 0,
+            "owner_rule_cases": 0,
             "requirements": 0,
             "requirement_cases": 0,
             "judgment_cases": 0,
@@ -222,6 +227,7 @@ def prompt_manifest_summary(
             "cases",
             "pinned_cases",
             "owned_cases",
+            "owner_rule_cases",
             "accepted_baselines",
             "approved_baselines",
             "unapproved_baselines",
@@ -246,6 +252,7 @@ def prompt_manifest_summary(
                 "clusters": int(child_summary.get("clusters") or 0),
                 "records_seen": int(child_summary.get("records_seen") or 0),
                 "owned_cases": int(child_summary.get("owned_cases") or 0),
+                "owner_rule_cases": int(child_summary.get("owner_rule_cases") or 0),
                 "requirements": int(child_summary.get("requirements") or 0),
                 "requirement_cases": int(child_summary.get("requirement_cases") or 0),
                 "judgment_cases": int(child_summary.get("judgment_cases") or 0),
@@ -278,6 +285,8 @@ def prompt_manifest_summary(
         "pinned_cases": totals["pinned_cases"],
         "owned_cases": totals["owned_cases"],
         "unowned_cases": max(0, totals["cases"] - totals["owned_cases"]),
+        "owner_rule_cases": totals["owner_rule_cases"],
+        "unexplained_owner_cases": max(0, totals["owned_cases"] - totals["owner_rule_cases"]),
         "owners": dict(sorted(owner_counts.items())),
         "top_owners": top_owners,
         "accepted_baselines": totals["accepted_baselines"],
@@ -298,6 +307,7 @@ def prompt_manifest_summary(
     result["case_coverage"] = _ratio(totals["cases"], totals["unique_prompt_response_pairs"])
     result["cluster_coverage"] = _ratio(totals["covered_clusters"], totals["clusters"])
     result["explicit_guard_coverage"] = _ratio(totals["explicit_guard_cases"], totals["cases"])
+    result["owner_rule_coverage"] = _ratio(totals["owner_rule_cases"], totals["owned_cases"])
     result["status"] = _manifest_summary_status(result)
     result["next_steps"] = _manifest_summary_next_steps(result)
     return result
@@ -322,6 +332,7 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
         f"Case coverage:          {summary['cases']}/{summary['unique_prompt_response_pairs']} ({_percent(summary['case_coverage'])})",
         f"Pinned cases:           {summary['pinned_cases']}",
         f"Owned cases:            {summary['owned_cases']}/{summary['cases']}",
+        f"Owner rule coverage:    {summary['owner_rule_cases']}/{summary['owned_cases']} ({_percent(summary['owner_rule_coverage'])})",
         f"Accepted baselines:     {summary['accepted_baselines']}",
         f"Approved baselines:     {summary['approved_baselines']}/{summary['accepted_baselines']}",
         f"Explicit guard coverage: {summary['explicit_guard_cases']}/{summary['cases']} ({_percent(summary['explicit_guard_coverage'])})",
@@ -389,6 +400,7 @@ def format_prompt_manifest_summary(report: dict[str, Any]) -> str:
         f"Case coverage:          {report['cases']}/{report['unique_prompt_response_pairs']} ({_percent(report['case_coverage'])})",
         f"Pinned cases:           {report['pinned_cases']}",
         f"Owned cases:            {report['owned_cases']}/{report['cases']}",
+        f"Owner rule coverage:    {report['owner_rule_cases']}/{report['owned_cases']} ({_percent(report['owner_rule_coverage'])})",
         f"Accepted baselines:     {report['accepted_baselines']}",
         f"Approved baselines:     {report['approved_baselines']}/{report['accepted_baselines']}",
         f"Explicit guard coverage: {report['explicit_guard_cases']}/{report['cases']} ({_percent(report['explicit_guard_coverage'])})",
@@ -449,6 +461,8 @@ def _summary_next_steps(summary: dict[str, Any], *, suite_path: str | None = Non
         steps.append("Add owners with --owner or redline.json owner rules before team rollout.")
     elif int(summary["unowned_cases"]):
         steps.append("Assign owners to remaining unowned cases before team rollout.")
+    if int(summary.get("unexplained_owner_cases") or 0):
+        steps.append("Prefer redline.json owner rules so shared suites explain case routing.")
     if int(summary["unapproved_baselines"]):
         steps.append("Record approvers for accepted baselines before team rollout.")
     if int(summary["cases"]) and int(summary.get("explicit_guard_cases") or 0) == 0:
@@ -491,6 +505,8 @@ def _manifest_summary_next_steps(summary: dict[str, Any]) -> list[str]:
         steps.append(f"Fix invalid suite: redline validate {first_invalid.get('suite')} --strict")
     if int(summary["cases"]) and int(summary["unowned_cases"]):
         steps.append("Assign owners to remaining unowned cases before team rollout.")
+    if int(summary.get("unexplained_owner_cases") or 0):
+        steps.append("Prefer redline.json owner rules so shared prompt manifests explain case routing.")
     if int(summary["cases"]) and int(summary.get("explicit_guard_cases") or 0) == 0:
         steps.append("Add requirements or recorded judgments to high-value cases so scale does not dilute trust.")
     if int(summary["suite_count"]) == int(summary["prompt_count"]) and int(summary["cases"]):
@@ -506,6 +522,16 @@ def _ratio(part: int, total: int) -> float | None:
     if total <= 0:
         return None
     return part / total
+
+
+def _owner_rule_case_count(cases: list[Any]) -> int:
+    return sum(
+        1
+        for case in cases
+        if isinstance(case, dict)
+        and str(case.get("owner") or "").strip()
+        and isinstance(case.get("owner_rule"), dict)
+    )
 
 
 def _percent(value: Any) -> str:
