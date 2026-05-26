@@ -73,7 +73,8 @@ Available tools:
 - `redline_judges`
 - `redline_validate`
 - `redline_summary`
-- `redline_benchmark`
+- `redline_budget`
+- `redline_benchmark` compatibility alias
 - `redline_cases`
 - `redline_case`
 - `redline_mark` (guarded write: requires `allow_write: true` and `note`)

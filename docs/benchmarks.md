@@ -31,23 +31,23 @@ for every mapped suite because manifest evals replay each prompt suite in turn.
 ## Local preflight
 
 ```bash
-redline benchmark redline-suite.json --workers 8 --timeout 30
+redline budget redline-suite.json --workers 8 --timeout 30
 ```
 
 ```bash
-redline benchmark redline-prompts.json --workers 8 --timeout 30
+redline budget redline-prompts.json --workers 8 --timeout 30
 ```
 
 To include a measured local diff check:
 
 ```bash
-redline benchmark redline-suite.json --workers 8 --timeout 30 --measure-local
+redline budget redline-suite.json --workers 8 --timeout 30 --measure-local
 ```
 
 To make the preflight enforce a budget:
 
 ```bash
-redline benchmark redline-suite.json \
+redline budget redline-suite.json \
   --workers 8 \
   --timeout 30 \
   --max-seconds 300
@@ -61,7 +61,7 @@ possible.
 ## Publish benchmark artifacts
 
 ```bash
-redline benchmark redline-suite.json \
+redline budget redline-suite.json \
   --workers 8 \
   --timeout 30 \
   --out-json .redline/reports/benchmark.json \

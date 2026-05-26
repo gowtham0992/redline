@@ -279,7 +279,7 @@ class DashboardTests(unittest.TestCase):
             self.assertEqual(dashboard["notices"][0]["kind"], "benchmark_missing")
             self.assertIn("Missing benchmark evidence", html)
             self.assertIn("Reports exist, but no benchmark artifact was found.", html)
-            self.assertIn("redline benchmark redline-suite.json --measure-local", html)
+            self.assertIn("redline budget redline-suite.json --measure-local", html)
             self.assertIn("<span>Benchmarks</span><strong>0</strong>", html)
 
     def test_dashboard_escapes_report_fields(self) -> None:

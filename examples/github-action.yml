@@ -50,7 +50,7 @@ jobs:
 
       - name: Benchmark redline suite
         run: |
-          python -m redline benchmark "$REDLINE_SUITE_PATH" \
+          python -m redline budget "$REDLINE_SUITE_PATH" \
             --measure-local \
             --github-summary \
             --out-json .redline/reports/benchmark.json \

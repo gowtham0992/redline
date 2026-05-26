@@ -420,7 +420,7 @@ def _build_suite_from_logs_prompt(arguments: dict[str, Any]) -> str:
         "2. Call `redline_validate` on the generated suite.\n"
         "3. Call `redline_summary` so I can see coverage, clusters, pinned cases, and next steps.\n"
         "4. If coverage is low or cases look unclear, call `redline_cases` and `redline_case` to inspect representative cases before recommending pins.\n"
-        "5. Call `redline_benchmark` so I can see expected CI runtime before enabling a gate.\n"
+        "5. Call `redline_budget` so I can see expected CI runtime before enabling a gate.\n"
         "6. Explain what behavior redline can catch, what still needs human review, and the exact `redline suite add` command I can run for must-cover edge cases.\n"
     )
 
@@ -462,7 +462,7 @@ def _build_setup_redline_project_prompt(arguments: dict[str, Any]) -> str:
         "4. If prompt files are available, call `redline_prompts` to create or check a prompt-to-suite manifest.\n"
         "5. If logs are available, call `redline_suite`, then `redline_validate` and `redline_summary` so I can inspect coverage before trusting the suite.\n"
         "6. If summary reports coverage gaps, call `redline_cases` or `redline_case` and recommend a `redline suite add` command I can run; do not mutate the suite yourself.\n"
-        "7. Call `redline_benchmark` before recommending CI gating.\n"
+        "7. Call `redline_budget` before recommending CI gating.\n"
         "8. Call `redline_judges` only when structural checks cannot cover factual, tone, hallucination, or reasoning risk; copy a judge template only after naming why it is needed.\n"
         "9. Finish by re-running `redline_doctor` with strict setup when possible and list the exact next commands I should run.\n"
         "10. Do not call baseline mutation commands, do not upload private logs, and do not say green or neutral means semantically safe.\n"
@@ -627,7 +627,7 @@ def _tools() -> list[ToolSpec]:
         ),
         ToolSpec(
             "redline_benchmark",
-            "Estimate suite or prompt-manifest eval runtime, timeout budget, and CI scale before enabling a gate.",
+            "Compatibility alias for redline_budget. Estimate suite or prompt-manifest eval runtime before enabling a gate.",
             _schema(
                 {
                     "suite_path": _string("Suite JSON path. Defaults to config."),
@@ -642,6 +642,24 @@ def _tools() -> list[ToolSpec]:
                 }
             ),
             _build_benchmark,
+        ),
+        ToolSpec(
+            "redline_budget",
+            "Estimate suite or prompt-manifest eval runtime, timeout budget, and CI scale before enabling a gate. Does not replay prompts or call models.",
+            _schema(
+                {
+                    "suite_path": _string("Suite JSON path. Defaults to config."),
+                    "config": _string("Config path to read."),
+                    "timeout": _number("Per-case timeout in seconds."),
+                    "workers": _integer("Number of replay workers."),
+                    "max_seconds": _number("Exit 1 when worst-case eval budget exceeds this."),
+                    "out_json": _string("Write budget report JSON."),
+                    "out_md": _string("Write budget report Markdown."),
+                    "github_summary": _boolean("Append budget Markdown to GITHUB_STEP_SUMMARY."),
+                    "json": _boolean("Print machine-readable JSON."),
+                }
+            ),
+            _build_budget,
         ),
         ToolSpec(
             "redline_cases",
@@ -903,6 +921,15 @@ def _build_summary(arguments: dict[str, Any]) -> list[str]:
 
 def _build_benchmark(arguments: dict[str, Any]) -> list[str]:
     args = ["benchmark"]
+    return _build_budget_like(args, arguments)
+
+
+def _build_budget(arguments: dict[str, Any]) -> list[str]:
+    args = ["budget"]
+    return _build_budget_like(args, arguments)
+
+
+def _build_budget_like(args: list[str], arguments: dict[str, Any]) -> list[str]:
     _add_positional(args, arguments.get("suite_path"))
     _add_option(args, "--config", arguments.get("config"))
     _add_option(args, "--timeout", arguments.get("timeout"))

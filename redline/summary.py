@@ -518,7 +518,7 @@ def _manifest_summary_next_steps(summary: dict[str, Any]) -> list[str]:
         steps.append("Add requirements or recorded judgments to high-value cases so scale does not dilute trust.")
     if int(summary["suite_count"]) == int(summary["prompt_count"]) and int(summary["cases"]):
         manifest = str(summary["manifest"])
-        steps.append(f"Check eval budget: redline benchmark {manifest}")
+        steps.append(f"Check eval budget: redline budget {manifest}")
         steps.append(f"Run manifest eval: redline eval {manifest}")
     if int(summary["prompt_count"]) == 0:
         steps.append("Add prompt files, then rerun redline prompts.")

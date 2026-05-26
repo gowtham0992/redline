@@ -178,10 +178,10 @@ def benchmark_prompt_manifest(
     return result
 
 
-def format_benchmark_report(report: dict[str, Any]) -> str:
+def format_benchmark_report(report: dict[str, Any], *, command_name: str = "benchmark") -> str:
     suite_label = "Prompt manifest" if report.get("is_prompt_manifest") else "Suite"
     lines = [
-        "redline benchmark",
+        f"redline {command_name}",
         "",
         "Mode:                  static estimate; no replay commands are executed",
         f"{suite_label + ':':<22}{report['suite']}",
@@ -240,9 +240,9 @@ def format_benchmark_report(report: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def format_benchmark_markdown(report: dict[str, Any]) -> str:
+def format_benchmark_markdown(report: dict[str, Any], *, command_name: str = "benchmark") -> str:
     lines = [
-        "## redline benchmark",
+        f"## redline {command_name}",
         "",
         "_Static estimate; no replay commands are executed._",
         "",

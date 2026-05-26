@@ -36,6 +36,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_prompts", names)
         self.assertIn("redline_judges", names)
         self.assertIn("redline_runners", names)
+        self.assertIn("redline_budget", names)
         self.assertIn("redline_benchmark", names)
         self.assertIn("redline_eval", names)
         self.assertIn("redline_diff", names)
@@ -120,7 +121,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_cases", text)
         self.assertIn("redline_case", text)
         self.assertIn("redline suite add", text)
-        self.assertIn("redline_benchmark", text)
+        self.assertIn("redline_budget", text)
 
     def test_prompt_get_builds_first_time_setup_workflow(self) -> None:
         response = handle_jsonrpc_line(
@@ -153,7 +154,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_summary", text)
         self.assertIn("redline_cases", text)
         self.assertIn("redline_case", text)
-        self.assertIn("redline_benchmark", text)
+        self.assertIn("redline_budget", text)
         self.assertIn("redline_judges", text)
         self.assertIn("logs/baseline.jsonl", text)
         self.assertIn("prompts", text)
@@ -274,7 +275,7 @@ class McpServerTests(unittest.TestCase):
             self.assertFalse(suite_result["isError"])
 
             benchmark_result = call_tool(
-                "redline_benchmark",
+                "redline_budget",
                 {
                     "cwd": directory,
                     "suite_path": str(suite_path),
@@ -290,7 +291,7 @@ class McpServerTests(unittest.TestCase):
 
         self.assertFalse(benchmark_result["isError"])
         self.assertEqual(benchmark_result["structuredContent"]["exit_code"], 1)
-        self.assertIn("redline benchmark", benchmark_result["content"][0]["text"])
+        self.assertIn("redline budget", benchmark_result["content"][0]["text"])
         self.assertIn("Workers:               2", benchmark_result["content"][0]["text"])
         self.assertIn("Budget check:          FAIL", benchmark_result["content"][0]["text"])
         self.assertIn("Worst-case eval budget:", benchmark_result["content"][0]["text"])

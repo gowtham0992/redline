@@ -81,8 +81,8 @@ printf '\n$ redline validate redline-suite.json --strict\n'
 "$venv_dir/bin/redline" validate redline-suite.json --strict
 
 summary_path="$project_dir/github-summary.md"
-printf '\n$ redline benchmark redline-suite.json --measure-local --github-summary --out-json .redline/reports/benchmark.json --out-md .redline/reports/benchmark.md\n'
-GITHUB_STEP_SUMMARY="$summary_path" "$venv_dir/bin/redline" benchmark redline-suite.json \
+printf '\n$ redline budget redline-suite.json --measure-local --github-summary --out-json .redline/reports/benchmark.json --out-md .redline/reports/benchmark.md\n'
+GITHUB_STEP_SUMMARY="$summary_path" "$venv_dir/bin/redline" budget redline-suite.json \
   --measure-local \
   --github-summary \
   --out-json .redline/reports/benchmark.json \

@@ -1171,7 +1171,7 @@ class CliConfigTests(unittest.TestCase):
                 with contextlib.redirect_stdout(output):
                     self.assertEqual(main(["budget", "suite.json", "--workers", "2"]), 0)
 
-                self.assertIn("redline benchmark", output.getvalue())
+                self.assertIn("redline budget", output.getvalue())
                 self.assertIn("static estimate; no replay commands are executed", output.getvalue())
                 self.assertIn("Workers:               2", output.getvalue())
             finally:

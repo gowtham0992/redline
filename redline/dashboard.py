@@ -221,7 +221,7 @@ def _dashboard_notices(reports: list[dict[str, Any]], benchmarks: list[dict[str,
                 "before relying on the dashboard for runtime readiness."
             ),
             "command": (
-                "redline benchmark redline-suite.json --measure-local "
+                "redline budget redline-suite.json --measure-local "
                 "--out-json .redline/reports/benchmark.json "
                 "--out-md .redline/reports/benchmark.md"
             ),

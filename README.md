@@ -232,7 +232,7 @@ redline prompts prompts/ --suite-dir suites --out redline-prompts.json
 redline prompts prompts/ --suite-dir suites --out redline-prompts.json --check --check-suites
 redline summary redline-prompts.json
 redline validate redline-prompts.json --strict
-redline benchmark redline-prompts.json
+redline budget redline-prompts.json
 redline eval redline-prompts.json
 ```
 

@@ -100,7 +100,7 @@ runs:
         if [ -n "$REDLINE_ACTION_BENCHMARK_MAX_SECONDS" ]; then
           benchmark_args+=(--max-seconds "$REDLINE_ACTION_BENCHMARK_MAX_SECONDS")
         fi
-        python -m redline benchmark "${benchmark_args[@]}"
+        python -m redline budget "${benchmark_args[@]}"
 
         eval_args=(
           "$suite_path"
