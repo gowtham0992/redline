@@ -138,6 +138,46 @@ class DiffTests(unittest.TestCase):
             reasons,
         )
 
+    def test_classify_dismissive_tone_shift_as_changed(self) -> None:
+        baseline_text = "I can help with the refund request. The policy allows a refund within 30 days."
+        candidate_text = "Obviously, just read the refund policy. It allows a refund within 30 days."
+        baseline = extract_features(baseline_text).to_dict()
+        candidate = extract_features(candidate_text).to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text=baseline_text,
+            candidate_text=candidate_text,
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertIn(
+            "tone changed: candidate uses more dismissive wording (0 -> 2 markers)",
+            reasons,
+        )
+
+    def test_classify_over_apologetic_tone_shift_as_changed(self) -> None:
+        baseline_text = "we can help check the refund request. the request is eligible within 30 days."
+        candidate_text = (
+            "sorry, unfortunately we apologize. the refund request is eligible within 30 days."
+        )
+        baseline = extract_features(baseline_text).to_dict()
+        candidate = extract_features(candidate_text).to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text=baseline_text,
+            candidate_text=candidate_text,
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertIn(
+            "tone changed: candidate is more apologetic (0 -> 3 markers)",
+            reasons,
+        )
+
     def test_classify_missing_entity_as_regression(self) -> None:
         baseline = extract_features("Route Ada Lovelace to ACME support.").to_dict()
         candidate = extract_features("Route the customer to support.").to_dict()

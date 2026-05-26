@@ -100,6 +100,22 @@ _DEFINITIVE_RE = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+_APOLOGETIC_TONE_RE = re.compile(
+    r"\b(?:apolog(?:y|ize|ise|ies)|sorry|unfortunately|regret)\b",
+    re.IGNORECASE,
+)
+_DISMISSIVE_TONE_RE = re.compile(
+    r"\b(?:"
+    r"as\s+i\s+already\s+said|"
+    r"as\s+stated|"
+    r"clearly\s+you|"
+    r"just\s+read|"
+    r"not\s+(?:our|my)\s+problem|"
+    r"obviously|"
+    r"you\s+(?:failed|should\s+have)"
+    r")\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -333,6 +349,9 @@ def classify_change(
         confidence_reason = _confidence_drift_reason(baseline_text, candidate_text)
         if confidence_reason:
             reasons.append(confidence_reason)
+        tone_reason = _tone_shift_reason(baseline_text, candidate_text)
+        if tone_reason:
+            reasons.append(tone_reason)
         content_reason = _content_reason(baseline_text, candidate_text)
         if content_reason:
             reasons.append(content_reason)
@@ -403,6 +422,30 @@ def _confidence_drift_reason(
         return (
             "confidence wording changed: candidate is more definitive "
             f"({baseline_definitive} -> {candidate_definitive} definitive markers)"
+        )
+    return None
+
+
+def _tone_shift_reason(
+    baseline_text: str | None,
+    candidate_text: str | None,
+) -> str | None:
+    if not baseline_text or not candidate_text:
+        return None
+    baseline_dismissive = _marker_count(_DISMISSIVE_TONE_RE, baseline_text)
+    candidate_dismissive = _marker_count(_DISMISSIVE_TONE_RE, candidate_text)
+    if candidate_dismissive > baseline_dismissive:
+        return (
+            "tone changed: candidate uses more dismissive wording "
+            f"({baseline_dismissive} -> {candidate_dismissive} markers)"
+        )
+
+    baseline_apologetic = _marker_count(_APOLOGETIC_TONE_RE, baseline_text)
+    candidate_apologetic = _marker_count(_APOLOGETIC_TONE_RE, candidate_text)
+    if candidate_apologetic >= baseline_apologetic + 2:
+        return (
+            "tone changed: candidate is more apologetic "
+            f"({baseline_apologetic} -> {candidate_apologetic} markers)"
         )
     return None
 
