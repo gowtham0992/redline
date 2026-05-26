@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
@@ -105,7 +106,7 @@ class RedlineMiddleware:
             await send(message)
             if message.get("type") == "http.response.body" and not message.get("more_body", False):
                 if request_skip_reason is not None:
-                    self._record_skip(
+                    await self._record_skip(
                         scope,
                         request_skip_reason,
                         status_code=status_code,
@@ -115,7 +116,7 @@ class RedlineMiddleware:
                     )
                     return
                 if request_body.too_large:
-                    self._record_skip(
+                    await self._record_skip(
                         scope,
                         "request_body_too_large",
                         status_code=status_code,
@@ -125,7 +126,7 @@ class RedlineMiddleware:
                     )
                     return
                 if response_skip_reason is not None:
-                    self._record_skip(
+                    await self._record_skip(
                         scope,
                         response_skip_reason,
                         status_code=status_code,
@@ -135,7 +136,7 @@ class RedlineMiddleware:
                     )
                     return
                 if response_body.too_large:
-                    self._record_skip(
+                    await self._record_skip(
                         scope,
                         "response_body_too_large",
                         status_code=status_code,
@@ -145,9 +146,9 @@ class RedlineMiddleware:
                     )
                     return
                 if request_capture and response_capture and not response_streaming:
-                    reason = self._record_observation(scope, request_body.chunks, response_body.chunks, status_code)
+                    reason = await self._record_observation(scope, request_body.chunks, response_body.chunks, status_code)
                     if reason is not None:
-                        self._record_skip(
+                        await self._record_skip(
                             scope,
                             reason,
                             status_code=status_code,
@@ -158,7 +159,7 @@ class RedlineMiddleware:
 
         await self.app(scope, capture_receive, capture_send)
 
-    def _record_observation(
+    async def _record_observation(
         self,
         scope: Scope,
         request_chunks: list[bytes],
@@ -177,7 +178,8 @@ class RedlineMiddleware:
             return "prompt_field_missing"
         if response is _MISSING:
             return "response_field_missing"
-        record(
+        await asyncio.to_thread(
+            record,
             prompt,
             response,
             log=self.log,
@@ -192,7 +194,7 @@ class RedlineMiddleware:
         )
         return None
 
-    def _record_skip(
+    async def _record_skip(
         self,
         scope: Scope,
         reason: str,
@@ -219,7 +221,7 @@ class RedlineMiddleware:
             },
         }
         try:
-            append_jsonl(self.skip_log, [row])
+            await asyncio.to_thread(append_jsonl, self.skip_log, [row])
         except OSError:
             return
 

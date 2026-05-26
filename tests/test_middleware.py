@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from redline import RedlineMiddleware as ExportedRedlineMiddleware
 from redline.io import iter_jsonl, read_jsonl_records
@@ -33,6 +34,29 @@ class MiddlewareTests(unittest.TestCase):
             self.assertEqual(records[0].raw["metadata"]["status_code"], 200)
             self.assertEqual(messages[0]["type"], "http.response.start")
             self.assertEqual(messages[1]["type"], "http.response.body")
+
+    def test_asgi_middleware_offloads_local_capture_writes(self) -> None:
+        async def run_in_thread(func: Any, /, *args: Any, **kwargs: Any) -> Any:
+            return func(*args, **kwargs)
+
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            async def app(scope: dict[str, Any], receive: Any, send: Any) -> None:
+                message = await receive()
+                request = json.loads(message["body"].decode("utf-8"))
+                response = {"response": f"reply: {request['prompt']}"}
+                await send({"type": "http.response.start", "status": 200, "headers": _json_headers()})
+                await send({"type": "http.response.body", "body": json.dumps(response).encode("utf-8")})
+
+            middleware = RedlineMiddleware(app, log=str(log))
+
+            with patch("redline.middleware.asyncio.to_thread", side_effect=run_in_thread) as to_thread:
+                asyncio.run(_call_app(middleware, {"prompt": "refund policy"}))
+
+            self.assertTrue(to_thread.called)
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(records[0].response, "reply: refund policy")
 
     def test_asgi_middleware_supports_nested_fields_and_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
