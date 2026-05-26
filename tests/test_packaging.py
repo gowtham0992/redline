@@ -503,6 +503,27 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("examples/public_dogfood_baseline.jsonl", readme)
         self.assertIn("examples/public_dogfood_candidate.jsonl", readme)
 
+    def test_internet_dogfood_sources_rank_public_data(self) -> None:
+        guide = Path("docs/internet-dogfood-sources.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+        case_studies = Path("docs/case-studies.md").read_text(encoding="utf-8")
+
+        for name in (
+            "Databricks Dolly 15k",
+            "OpenAssistant OASST1",
+            "WildChat",
+            "LMSYS-Chat-1M",
+            "Stanford Alpaca",
+        ):
+            self.assertIn(name, guide)
+        self.assertIn("https://huggingface.co/datasets/databricks/databricks-dolly-15k", guide)
+        self.assertIn("jsonl_log_adapter.py --preset dolly", guide)
+        self.assertIn("jsonl_log_adapter.py --preset oasst1", guide)
+        self.assertIn(".redline/private/", guide)
+        self.assertIn("Do not publish raw third-party rows", guide)
+        self.assertIn("docs/internet-dogfood-sources.md", readme)
+        self.assertIn("internet-dogfood-sources.md", case_studies)
+
     def test_ai_session_prompt_set_has_ten_prompts(self) -> None:
         prompts = Path("docs/ai-session-dogfood-prompts.jsonl").read_text(encoding="utf-8").splitlines()
 

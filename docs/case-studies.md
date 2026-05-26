@@ -141,3 +141,8 @@ world-class proof is still external:
 - We anonymize the command, the signal, and the fix.
 - We add the sanitized story here only after confirming no private prompts,
   outputs, customer data, or API keys are included.
+
+For public internet dogfood, start with the ranked dataset shortlist in
+[internet-dogfood-sources.md](internet-dogfood-sources.md), keep raw samples
+under `.redline/private/`, and publish only sanitized or synthetic examples
+with source attribution.

@@ -83,6 +83,7 @@
 - Add first-review commands to PR-comment and dashboard owner summaries.
 - Add a dashboard evidence-trail panel for latest reports, benchmark artifacts, history, and audit checkpoints.
 - Add reproducible dogfood case studies using the checked-in public and support-agent fixtures.
+- Add an internet dogfood source shortlist covering Dolly, OpenAssistant, WildChat, LMSYS, and Alpaca.
 - Group prompt manifest evals by feature in the local dashboard.
 - Summarize prompt manifests with readiness, owners, requirements, and missing suite rollups.
 - Validate prompt manifests and their mapped suites through `redline validate redline-prompts.json`.
