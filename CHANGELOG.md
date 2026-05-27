@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1
+
+redline 0.2.1 is a packaging polish patch for PyPI rendering.
+
+### Fixed
+
+- Use absolute GitHub Pages asset URLs for README images so the PyPI project
+  page renders the logo and proof screenshots instead of broken relative image
+  paths.
+
 ## 0.2.0
 
 redline 0.2.0 makes the public alpha easier to adopt from real team logs and
