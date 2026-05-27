@@ -280,6 +280,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("GitHub Action cannot find the suite", troubleshooting)
         self.assertIn("Neutral does not mean safe", troubleshooting)
         self.assertIn("| `redline eval` |", commands)
+        self.assertIn("| `redline import` |", commands)
         self.assertIn("| `redline dashboard` |", commands)
         self.assertIn("| `redline-mcp` |", commands)
         self.assertIn("Default fail-on statuses", commands)
@@ -344,6 +345,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline-mcp", guide)
         self.assertIn("local Model Context Protocol server", guide)
         self.assertIn("redline_doctor", guide)
+        self.assertIn("redline_import", guide)
         self.assertIn("redline_eval", guide)
         self.assertIn("redline_diff", guide)
         self.assertIn("check_prompt_change", guide)
@@ -498,6 +500,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("bash scripts/certify_release.sh /tmp/redline-certify-v0.1.0", guide)
         self.assertIn("docs/repository.md", readme)
         self.assertIn("scripts/README.md", readme)
+        self.assertIn("redline import downloaded.jsonl", readme)
         self.assertNotIn("ROADMAP.md", readme)
 
     def test_security_policy_documents_local_privacy_boundary(self) -> None:

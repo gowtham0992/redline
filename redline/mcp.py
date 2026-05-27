@@ -525,6 +525,29 @@ def _tools() -> list[ToolSpec]:
             _build_redact,
         ),
         ToolSpec(
+            "redline_import",
+            "Normalize exported JSONL fields into redline prompt/response JSONL.",
+            _schema(
+                {
+                    "path": _string("Source JSONL file to normalize."),
+                    "out": _string("Redline JSONL output path."),
+                    "input_field": _string("Source field path containing prompt text."),
+                    "output_field": _string("Source field path containing response text."),
+                    "context_field": _string("Optional source field path appended to the prompt as Context."),
+                    "id_field": _string("Optional source field path copied to the redline id field."),
+                    "metadata_fields": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Source field paths copied into metadata.",
+                    },
+                    "limit": _integer("Maximum records to import."),
+                    "json": _boolean("Print machine-readable JSON."),
+                },
+                required=("path", "out"),
+            ),
+            _build_import,
+        ),
+        ToolSpec(
             "redline_watch_stats",
             "Summarize observed prompt-response captures, readiness, duplicates, and middleware skip diagnostics.",
             _schema(
@@ -853,6 +876,20 @@ def _build_redact(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--out", arguments.get("out"))
     _add_flag(args, "--check", arguments.get("check"))
     _add_option(args, "--placeholder", arguments.get("placeholder"))
+    _add_flag(args, "--json", arguments.get("json"))
+    return args
+
+
+def _build_import(arguments: dict[str, Any]) -> list[str]:
+    args = ["import"]
+    _add_positional(args, _required_string(arguments, "path"))
+    _add_option(args, "--out", _required_string(arguments, "out"))
+    _add_option(args, "--input-field", arguments.get("input_field"))
+    _add_option(args, "--output-field", arguments.get("output_field"))
+    _add_option(args, "--context-field", arguments.get("context_field"))
+    _add_option(args, "--id-field", arguments.get("id_field"))
+    _add_repeated_options(args, "--metadata-field", arguments.get("metadata_fields"))
+    _add_option(args, "--limit", arguments.get("limit"))
     _add_flag(args, "--json", arguments.get("json"))
     return args
 

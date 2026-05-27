@@ -108,6 +108,46 @@ class CliConfigTests(unittest.TestCase):
         self.assertIn("./runners/openai_runner.sh", text)
         self.assertIn("Capture: python runners/openai_watch_patch.py", text)
 
+    def test_import_command_normalizes_external_jsonl(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            imported = root / "baseline.jsonl"
+            source.write_text(
+                '{"instruction": "Summarize", "context": "Policy text", "response": "Summary", "category": "summarization"}\n',
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(
+                        [
+                            "import",
+                            str(source),
+                            "--input-field",
+                            "instruction",
+                            "--output-field",
+                            "response",
+                            "--context-field",
+                            "context",
+                            "--metadata-field",
+                            "category",
+                            "--out",
+                            str(imported),
+                        ]
+                    ),
+                    0,
+                )
+
+            text = output.getvalue()
+            self.assertIn("Imported 1 prompt-response pairs", text)
+            self.assertIn("Generate suite: redline suite", text)
+            row = json.loads(imported.read_text(encoding="utf-8"))
+            self.assertEqual(row["prompt"], "Summarize\n\nContext:\nPolicy text")
+            self.assertEqual(row["response"], "Summary")
+            self.assertEqual(row["metadata"], {"category": "summarization"})
+
     def test_runners_command_can_copy_adapter(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

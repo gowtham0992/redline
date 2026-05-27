@@ -63,6 +63,7 @@ from .history import (
     read_history,
     should_fail_history,
 )
+from .import_logs import import_jsonl_log
 from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judge import apply_judge
 from .judge_templates import (
@@ -148,6 +149,7 @@ Start here:
 
 Core loop:
   redline suite path/to/baseline.jsonl --out redline-suite.json
+  redline import downloaded.jsonl --input-field instruction --output-field response --out baseline.jsonl
   redline eval --prompt prompts/v2.txt
   redline diff redline-suite.json path/to/candidate.jsonl
 
@@ -234,6 +236,23 @@ def build_parser() -> argparse.ArgumentParser:
     runners_parser.add_argument("--force", action="store_true", help="overwrite existing output path for --copy")
     runners_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     runners_parser.set_defaults(func=cmd_runners)
+
+    import_parser = subparsers.add_parser("import", help="normalize exported JSONL logs into redline format")
+    import_parser.add_argument("path", help="source JSONL file to normalize")
+    import_parser.add_argument("--input-field", default="prompt", help="source field path containing prompt text")
+    import_parser.add_argument("--output-field", default="response", help="source field path containing response text")
+    import_parser.add_argument("--context-field", help="optional source field path appended to the prompt as Context")
+    import_parser.add_argument("--id-field", help="optional source field path copied to the redline id field")
+    import_parser.add_argument(
+        "--metadata-field",
+        action="append",
+        default=[],
+        help="source field path copied into metadata; repeat for multiple fields",
+    )
+    import_parser.add_argument("--limit", type=int, help="maximum records to import")
+    import_parser.add_argument("--out", required=True, help="redline JSONL output path")
+    import_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    import_parser.set_defaults(func=cmd_import)
 
     judges_parser = subparsers.add_parser("judges", help="list or copy optional judge templates")
     judges_parser.add_argument(
@@ -706,6 +725,36 @@ def cmd_judges(args: argparse.Namespace) -> int:
         print(json.dumps({"judges": templates}, indent=2, sort_keys=True))
     else:
         print(format_judge_templates(templates), end="")
+    return 0
+
+
+def cmd_import(args: argparse.Namespace) -> int:
+    report = import_jsonl_log(
+        args.path,
+        output=args.out,
+        input_field=args.input_field,
+        output_field=args.output_field,
+        context_field=args.context_field,
+        id_field=args.id_field,
+        metadata_fields=args.metadata_field,
+        limit=args.limit,
+    )
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        print(f"Imported {report['records']} prompt-response pairs from {Path(str(report['source']))}.")
+        print(f"Mapped prompt:   {report['input_field']}")
+        print(f"Mapped response: {report['output_field']}")
+        if report["context_field"]:
+            print(f"Appended context: {report['context_field']}")
+        if report["metadata_fields"]:
+            print(f"Copied metadata: {', '.join(report['metadata_fields'])}")
+        print(f"Wrote {Path(str(report['output']))}.")
+        print()
+        print("Next:")
+        print(f"- Generate suite: redline suite {Path(str(report['output']))} --out redline-suite.json")
+        print("- Inspect cases: redline cases redline-suite.json")
+        print("- Compare candidate outputs: redline diff redline-suite.json path/to/candidate.jsonl")
     return 0
 
 

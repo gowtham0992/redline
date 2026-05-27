@@ -31,6 +31,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_doctor", names)
         self.assertIn("redline_suite", names)
         self.assertIn("redline_redact", names)
+        self.assertIn("redline_import", names)
         self.assertIn("redline_watch_stats", names)
         self.assertIn("redline_watch_snippets", names)
         self.assertIn("redline_prompts", names)
@@ -47,6 +48,36 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_mark", names)
         self.assertNotIn("redline_accept", names)
         self.assertNotIn("redline_require", names)
+
+    def test_import_tool_normalizes_external_jsonl(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            output = root / "baseline.jsonl"
+            source.write_text(
+                '{"instruction": "Classify", "context": "Ticket text", "response": "billing", "category": "classification"}\n',
+                encoding="utf-8",
+            )
+
+            result = call_tool(
+                "redline_import",
+                {
+                    "cwd": directory,
+                    "path": str(source),
+                    "out": str(output),
+                    "input_field": "instruction",
+                    "output_field": "response",
+                    "context_field": "context",
+                    "metadata_fields": ["category"],
+                    "json": True,
+                },
+            )
+            wrote_output = output.exists()
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        self.assertEqual(result["structuredContent"]["json"]["records"], 1)
+        self.assertTrue(wrote_output)
 
     def test_eval_and_diff_tools_do_not_accept_dynamic_commands(self) -> None:
         response = handle_jsonrpc_line(

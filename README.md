@@ -110,6 +110,7 @@ from tools like Langfuse or Helicone, capture OpenAI/Anthropic SDK calls, or add
 bounded FastAPI/ASGI middleware.
 
 ```bash
+redline import downloaded.jsonl --input-field instruction --output-field response --out logs/baseline.jsonl
 redline suite logs/baseline.jsonl --out redline-suite.json
 redline cases redline-suite.json
 ```
