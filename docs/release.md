@@ -78,7 +78,7 @@ To run the package gate, external-project Action smoke, release build, and
 `twine check` as one certification pass:
 
 ```bash
-bash scripts/certify_release.sh /tmp/redline-certify-v0.2.0
+bash scripts/certify_release.sh /tmp/redline-certify-v0.2.1
 ```
 
 The certification summary records the git commit, branch, and clean/dirty worktree state.
@@ -89,8 +89,8 @@ Release evidence can be traced back to the exact code that was tested.
 After the release gate and public-alpha smoke both pass:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.1
+git push origin v0.2.1
 ```
 
 Use a new tag for every public release. Do not move an existing release tag
@@ -106,11 +106,11 @@ that was tagged. Do not upload an ignored local `dist/*`; it can contain stale
 dogfood artifacts from earlier builds.
 
 ```bash
-bash scripts/build_release.sh /tmp/redline-dist-v0.2.0
-python -m twine upload /tmp/redline-dist-v0.2.0/redline_ai-*.whl /tmp/redline-dist-v0.2.0/redline_ai-*.tar.gz
+bash scripts/build_release.sh /tmp/redline-dist-v0.2.1
+python -m twine upload /tmp/redline-dist-v0.2.1/redline_ai-*.whl /tmp/redline-dist-v0.2.1/redline_ai-*.tar.gz
 ```
 
-`build_release.sh` also writes `/tmp/redline-dist-v0.2.0/redline-sbom.json` as
+`build_release.sh` also writes `/tmp/redline-dist-v0.2.1/redline-sbom.json` as
 CycloneDX release evidence. Keep it with internal release records or attach it
 to GitHub release artifacts when needed.
 

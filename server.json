@@ -8,19 +8,19 @@
     "url": "https://github.com/gowtham0992/redline",
     "source": "github"
   },
-  "version": "0.2.0",
+  "version": "0.2.1",
   "packages": [
     {
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "redline-ai",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "runtimeHint": "uvx",
       "runtimeArguments": [
         {
           "type": "named",
           "name": "--from",
-          "value": "redline-ai==0.2.0",
+          "value": "redline-ai==0.2.1",
           "description": "Install the redline-ai package version that matches this registry entry."
         },
         {

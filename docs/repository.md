@@ -33,7 +33,7 @@ release needs a fix, cut a new patch tag.
 Before tagging, run:
 
 ```bash
-bash scripts/certify_release.sh /tmp/redline-certify-v0.2.0
+bash scripts/certify_release.sh /tmp/redline-certify-v0.2.1
 ```
 
 Build and upload PyPI artifacts from the exact tagged commit, using a fresh
@@ -65,7 +65,7 @@ Before posting publicly:
 
 ```bash
 git status --short --branch
-bash scripts/certify_release.sh /tmp/redline-certify-v0.2.0
+bash scripts/certify_release.sh /tmp/redline-certify-v0.2.1
 bash scripts/demo_gif.sh .redline/launch .redline/launch/redline-demo.gif
 ```
 
