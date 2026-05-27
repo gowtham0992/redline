@@ -46,7 +46,7 @@ class CliConfigTests(unittest.TestCase):
                 main(["--version"])
 
         self.assertEqual(raised.exception.code, 0)
-        self.assertIn("redline 0.1.0", output.getvalue())
+        self.assertIn("redline 0.2.0", output.getvalue())
 
     def test_init_help_lists_only_replay_runners(self) -> None:
         output = io.StringIO()

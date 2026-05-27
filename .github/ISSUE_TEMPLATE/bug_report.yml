@@ -13,7 +13,7 @@ body:
     attributes:
       label: redline version
       description: Run `redline --version`.
-      placeholder: redline 0.1.0
+      placeholder: redline 0.2.0
     validations:
       required: true
   - type: textarea

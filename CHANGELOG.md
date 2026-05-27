@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.2.0
+
+redline 0.2.0 makes the public alpha easier to adopt from real team logs and
+easier to evaluate from the README, GitHub Pages, MCP clients, and CI.
+
+Highlights:
+
+- Normalize arbitrary JSONL exports into redline's `prompt`/`response` shape
+  with `redline import`.
+- Expose the same import workflow through MCP as `redline_import`.
+- Add product proof screenshots from real generated dashboard and HTML report
+  artifacts.
+- Harden public-release readiness with troubleshooting docs, a command
+  reference, Python 3.10-3.13 CI coverage, pre-commit guidance, and isolated
+  release builds.
+
+### Added
+
+- Add `redline import` for converting public datasets, team logs, and exported
+  traces into redline JSONL using configurable input, output, context, id, and
+  metadata fields.
+- Add MCP `redline_import` so AI coding assistants can normalize exported logs
+  before generating suites.
+- Add dashboard and HTML report proof screenshots to the README and GitHub
+  Pages site.
+- Add `docs/troubleshooting.md` for first-run, dashboard, validation, Action,
+  and trust-boundary recovery paths.
+- Add `docs/commands.md` as a compact command reference.
+- Add `scripts/README.md` as a maintainer script index.
+- Add `.pre-commit-config.yaml` and contributor docs for local validation.
+- Add a contributor architecture map.
+- Add Python 3.10, 3.11, 3.12, and 3.13 CI matrix coverage.
+- Add pytest coverage output to CI.
+- Add direct tests for stable prompt-response content hashing.
+
+### Changed
+
+- Move README installation and first-run commands above the product narrative.
+- Call out zero runtime dependencies as a product and supply-chain advantage.
+- Add Docs navigation, project badges, and product proof imagery to GitHub
+  Pages.
+- Rewrite the changelog into grouped release sections.
+- Run release builds with isolated build dependencies instead of relying on the
+  ambient environment.
+- Document SemVer expectations before 1.0.
+- Document ASGI middleware and SDK watch snippet privacy boundaries.
+- Document `action.yml` `extra-args` spacing limitations.
+
+### Fixed
+
+- Fix Python 3.10 mypy compatibility for TOML parsing in packaging tests.
+- Remove public docs/tests that depended on ignored local `ROADMAP.md`.
+- Fix stale onboarding and release references surfaced during public-release
+  review.
+- Keep product proof assets small enough for README and Pages use.
+
 ## 0.1.0
 
 redline's first public release turns existing prompt-response logs into local

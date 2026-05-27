@@ -34,15 +34,15 @@ Generate launch artifacts from a clean release checkout:
 ```bash
 bash scripts/release_check.sh
 bash scripts/demo_gif.sh .redline/launch .redline/launch/redline-demo.gif
-bash scripts/build_release.sh /tmp/redline-dist-v0.1.0
+bash scripts/build_release.sh /tmp/redline-dist-v0.2.0
 ```
 
 Required artifacts:
 
 - `.redline/launch/redline-demo.gif` or `.redline/launch/redline-demo-transcript.txt`
 - `.redline/dashboard.html` from the demo path
-- `/tmp/redline-dist-v0.1.0/redline_ai-0.1.0-py3-none-any.whl`
-- `/tmp/redline-dist-v0.1.0/redline_ai-0.1.0.tar.gz`
+- `/tmp/redline-dist-v0.2.0/redline_ai-0.2.0-py3-none-any.whl`
+- `/tmp/redline-dist-v0.2.0/redline_ai-0.2.0.tar.gz`
 
 ## Website Checklist
 
@@ -79,17 +79,17 @@ should sell the loop, not the package manager.
 2. Tag the exact commit:
 
    ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v0.2.0
+   git push origin v0.2.0
    ```
 
 3. Upload the release distribution:
 
    ```bash
-   python -m twine upload /tmp/redline-dist-v0.1.0/*
+   python -m twine upload /tmp/redline-dist-v0.2.0/*
    ```
 
-4. Create the GitHub release from `v0.1.0`.
+4. Create the GitHub release from `v0.2.0`.
 5. Attach the demo GIF or link the public README asset:
    `https://gowtham0992.github.io/redline/assets/redline-product-demo.gif`.
 
