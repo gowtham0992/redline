@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .audit import DEFAULT_AUDIT_PATH
 from .policy import DEFAULT_FAIL_ON
 
 
@@ -31,20 +32,28 @@ def default_config(
         "timeout_seconds": timeout_seconds,
         "workers": 1,
         "diff_profile": "strict",
+        "owners": [],
+        "approval": {
+            "require_approver": False,
+        },
         "fail_on": list(DEFAULT_FAIL_ON),
         "reports": {
             "json": ".redline/reports/{command}.json",
             "markdown": ".redline/reports/{command}.md",
+            "comment": ".redline/reports/{command}-comment.md",
             "html": ".redline/reports/{command}.html",
             "junit": ".redline/reports/{command}.xml",
+            "slack": ".redline/reports/{command}.slack.json",
         },
         "logs": {
             "observed": ".redline/logs/prompts.jsonl",
+            "middleware_skips": ".redline/logs/middleware-skips.jsonl",
         },
         "runs": {
             "candidate": ".redline/runs/candidate.jsonl",
             "metadata": ".redline/runs/replay.json",
         },
+        "audit": DEFAULT_AUDIT_PATH,
     }
     if replay:
         config["replay"] = replay

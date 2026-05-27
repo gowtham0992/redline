@@ -142,6 +142,14 @@ def read_json(path: str | Path) -> dict[str, Any]:
             data = json.load(handle)
     except FileNotFoundError as exc:
         raise ValueError(f"{path} not found") from exc
+    except json.JSONDecodeError as exc:
+        if exc.msg == "Extra data":
+            raise ValueError(
+                f"{path} expected one JSON object, but found extra data. "
+                "If this is a JSONL prompt log, run "
+                f"`redline suite {path} --out redline-suite.json` first."
+            ) from exc
+        raise ValueError(f"{path} invalid JSON: {exc.msg}") from exc
     if not isinstance(data, dict):
         raise ValueError(f"{path} expected a JSON object")
     return data

@@ -29,16 +29,25 @@ class GitHubPagesSiteTests(unittest.TestCase):
 
         self.assertIn("<h1>redline</h1>", html)
         self.assertIn("redline demo --public --compact", html)
+        self.assertIn("redline dashboard --reports-dir .redline/demo/reports --open", html)
         self.assertIn("redline eval --prompt prompts/v2.txt", html)
         self.assertIn("No cloud", html)
         self.assertIn("Optional judges", html)
         self.assertIn("One command, ten regressions", html)
         self.assertIn("AI-agnostic first", html)
+        self.assertIn("AI assistant loop", html)
+        self.assertIn("MCP Registry", html)
+        self.assertIn("uvx --from redline-ai redline-mcp", html)
+        self.assertIn("redline_mark requires allow_write", html)
         self.assertIn("What redline does not pretend", html)
         self.assertIn("Release confidence", html)
         self.assertIn("A certified local product loop", html)
         self.assertIn("Open source surface", html)
         self.assertIn("Review the checks before you trust the gate", html)
+        self.assertIn('loading="lazy"', html)
+        self.assertIn("Generated redline product artifacts", html)
+        self.assertIn("Local dashboard with ship readiness", html)
+        self.assertIn("HTML report with concrete reasons", html)
         self.assertIn("bash scripts/release_check.sh", html)
         self.assertIn("bash scripts/action_smoke.sh", html)
         self.assertIn("redline history --fail-on worse", html)
@@ -71,7 +80,35 @@ class GitHubPagesSiteTests(unittest.TestCase):
             parser.links,
         )
         self.assertIn(
+            "https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline",
+            parser.links,
+        )
+        self.assertIn(
+            "https://github.com/gowtham0992/redline/blob/main/docs/mcp.md",
+            parser.links,
+        )
+        self.assertIn(
+            "https://github.com/gowtham0992/redline#project-docs",
+            parser.links,
+        )
+        self.assertIn(
+            "https://github.com/gowtham0992/redline/stargazers",
+            parser.links,
+        )
+        self.assertIn(
             ("assets/redline-preview.png", "redline terminal and dashboard preview showing four prompt regressions caught"),
+            parser.images,
+        )
+        self.assertIn(
+            ("assets/redline-dashboard-proof.png", "redline dashboard showing reports, benchmark evidence, history, and ship readiness"),
+            parser.images,
+        )
+        self.assertIn(
+            ("assets/redline-report-proof.png", "redline HTML report showing concrete regression reasons and side-by-side baseline and candidate outputs"),
+            parser.images,
+        )
+        self.assertIn(
+            ("https://img.shields.io/github/stars/gowtham0992/redline?style=social", "GitHub stars"),
             parser.images,
         )
         self.assertIn(("assets/redline-mark.svg", ""), parser.images)
@@ -87,11 +124,13 @@ class GitHubPagesSiteTests(unittest.TestCase):
                 self.assertIn("redline", text)
 
     def test_preview_image_is_committed_png_asset(self) -> None:
-        image = Path("site/assets/redline-preview.png")
+        for name in ("redline-preview.png", "redline-dashboard-proof.png", "redline-report-proof.png"):
+            with self.subTest(name=name):
+                image = Path("site/assets") / name
 
-        self.assertTrue(image.exists())
-        self.assertGreater(image.stat().st_size, 20_000)
-        self.assertEqual(image.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+                self.assertTrue(image.exists())
+                self.assertGreater(image.stat().st_size, 20_000)
+                self.assertEqual(image.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
 
     def test_site_css_uses_responsive_static_layout(self) -> None:
         css = Path("site/styles.css").read_text(encoding="utf-8")
@@ -99,6 +138,8 @@ class GitHubPagesSiteTests(unittest.TestCase):
         self.assertIn("@media (max-width: 760px)", css)
         self.assertIn("grid-template-columns", css)
         self.assertIn(".certification-grid", css)
+        self.assertIn(".assistant-grid", css)
+        self.assertIn(".artifact-proof", css)
         self.assertIn("border-radius: 8px", css)
         self.assertNotIn("letter-spacing: -", css)
         self.assertNotIn("font-size: clamp(", css)

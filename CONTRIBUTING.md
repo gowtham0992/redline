@@ -35,6 +35,50 @@ For release preparation, run the complete certification wrapper:
 bash scripts/certify_release.sh /tmp/redline-certify
 ```
 
+You can install the same checks as local git hooks:
+
+```bash
+python -m pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
+## Code layout
+
+```text
+redline/          CLI, diff engine, suite generation, reports, MCP, audit
+redline/runner_templates/  copyable runner and watch templates
+redline/judge_template_files/  copyable judge scripts and rubrics
+examples/         checked-in dogfood fixtures and GitHub Action example
+docs/             user guides, release process, command reference
+site/             static GitHub Pages website
+scripts/          release, smoke, demo, and certification helpers
+tests/            unit and integration tests for every product surface
+```
+
+## Architecture map
+
+```mermaid
+flowchart LR
+  Logs["Prompt-response logs"] --> Suite["redline suite"]
+  Suite --> Cases["Representative cases + requirements"]
+  Cases --> Eval["redline diff / eval"]
+  Replay["Local replay runner"] --> Eval
+  Eval --> Reports["JSON / Markdown / HTML / JUnit"]
+  Reports --> Dashboard["Local dashboard"]
+  Reports --> History["History + compare"]
+  Reports --> CI["GitHub Action"]
+  Suite --> MCP["redline-mcp"]
+  Eval --> MCP
+  Reports --> MCP
+  Requirements["Human mark / require / accept loop"] --> Suite
+```
+
+Good first issues are usually docs, runner examples, importer presets, report
+polish, or small false-positive reductions with a focused fixture. Start with
+`docs/troubleshooting.md`, `docs/commands.md`, and tests around the behavior you
+want to improve.
+
 ## Dogfood evidence
 
 User-facing changes need at least one dogfood note in the PR. Keep it short and

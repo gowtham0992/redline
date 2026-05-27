@@ -7,6 +7,8 @@ on:
       - "**/*.jsonl"
       - "redline.json"
       - "redline-suite.json"
+      - "redline-prompts.json"
+      - "suites/**"
       - "redline.schema.json"
       - "redline-suite.schema.json"
       - "redline-report.schema.json"
@@ -28,19 +30,46 @@ jobs:
       - name: Check redline setup
         run: python -m redline doctor --strict
 
-      - name: Validate redline suite
-        run: python -m redline validate --strict
+      - name: Prepare redline suite
+        run: |
+          suite_path="$(python -c 'import json, pathlib; config_path = pathlib.Path("redline.json"); config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.exists() else {}; print(config.get("suite") or ("redline-prompts.json" if pathlib.Path("redline-prompts.json").exists() else "redline-suite.json"))')"
+          suite_schema="$(python -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("schema", ""))' "$suite_path")"
+          echo "REDLINE_SUITE_PATH=$suite_path" >> "$GITHUB_ENV"
+          echo "REDLINE_SUITE_SCHEMA=$suite_schema" >> "$GITHUB_ENV"
+          if [ "$suite_schema" = "redline-prompt-manifest-v1" ]; then
+            manifest_root="$(python -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("root", "prompts"))' "$suite_path")"
+            manifest_suite_dir="$(python -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("suite_dir", "suites"))' "$suite_path")"
+            python -m redline prompts "$manifest_root" \
+              --suite-dir "$manifest_suite_dir" \
+              --out "$suite_path" \
+              --check \
+              --check-suites
+          else
+            python -m redline validate "$suite_path" --strict
+          fi
+
+      - name: Benchmark redline suite
+        run: |
+          python -m redline budget "$REDLINE_SUITE_PATH" \
+            --measure-local \
+            --github-summary \
+            --out-json .redline/reports/benchmark.json \
+            --out-md .redline/reports/benchmark.md
 
       - name: Run redline eval
         run: |
-          python -m redline eval \
+          python -m redline eval "$REDLINE_SUITE_PATH" \
             --compact \
-            --github-summary \
             --github-annotations \
             --out-json .redline/reports/eval.json \
             --out-md .redline/reports/eval.md \
+            --out-comment .redline/reports/eval-comment.md \
             --out-html .redline/reports/eval.html \
-            --out-junit .redline/reports/eval.xml
+            --out-junit .redline/reports/eval.xml \
+            --out-slack .redline/reports/eval.slack.json
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f .redline/reports/eval-comment.md ]; then
+            cat .redline/reports/eval-comment.md >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Compare redline trend
         if: always()
@@ -72,6 +101,20 @@ jobs:
             echo "No redline eval report found at .redline/reports/eval.json; skipping history."
           fi
 
+      - name: Write redline audit checkpoint
+        if: always()
+        run: |
+          python -m redline audit --verify --out-checkpoint .redline/audit-checkpoint.json
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f .redline/audit-checkpoint.json ]; then
+            {
+              echo ""
+              echo "### Audit evidence"
+              echo ""
+              echo '- Checkpoint: `.redline/audit-checkpoint.json`'
+              echo '- Verify locally: `redline audit --verify --checkpoint .redline/audit-checkpoint.json`'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Render redline dashboard
         if: always()
         run: python -m redline dashboard --out .redline/dashboard.html
@@ -86,3 +129,4 @@ jobs:
             .redline/history.jsonl
             .redline/history.md
             .redline/dashboard.html
+            .redline/audit-checkpoint.json

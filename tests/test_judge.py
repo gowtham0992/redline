@@ -43,6 +43,8 @@ class JudgeTests(unittest.TestCase):
             self.assertEqual(judged["decision"]["recommended_action"], "fix blocking cases before shipping")
             self.assertEqual(judged["judge"]["cases"], 1)
             self.assertEqual(judged["diffs"][0]["judge"]["status"], "regression")
+            self.assertEqual(judged["diffs"][0]["confidence"], "high")
+            self.assertEqual(judged["diffs"][0]["signal"], "judge")
             self.assertIn("judge regression", judged["diffs"][0]["reasons"][0])
 
     def test_apply_judge_skips_deterministic_regressions(self) -> None:

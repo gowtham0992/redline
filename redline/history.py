@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .io import iter_jsonl
+from .labels import behavior_label
 
 
 SUMMARY_KEYS = (
@@ -52,6 +53,7 @@ def history_entry(
         "label": label,
         "report": report_path,
         "summary": _summary_counts(summary),
+        "clusters": _cluster_counts(report.get("diffs")),
     }
 
 
@@ -88,6 +90,7 @@ def history_trend(entries: list[dict[str, Any]]) -> dict[str, Any]:
             "latest": latest,
             "previous": {},
             "delta": {},
+            "clusters": [],
         }
 
     previous = _entry_metrics(comparable[-2])
@@ -99,6 +102,7 @@ def history_trend(entries: list[dict[str, Any]]) -> dict[str, Any]:
         "blocking_rate": _rate_delta(latest.get("blocking_rate"), previous.get("blocking_rate")),
     }
     direction = _trend_direction(latest, previous, delta)
+    clusters = _cluster_deltas(comparable[-1], comparable[-2])
     return {
         "version": TREND_VERSION,
         "direction": direction,
@@ -107,6 +111,7 @@ def history_trend(entries: list[dict[str, Any]]) -> dict[str, Any]:
         "latest": latest,
         "previous": previous,
         "delta": delta,
+        "clusters": clusters,
     }
 
 
@@ -145,10 +150,29 @@ def format_markdown_history(entries: list[dict[str, Any]], *, limit: int | None 
             "",
             f"Recommendation: {trend.get('recommendation') or '-'}",
             "",
-            "## Runs",
-            "",
         ]
     )
+    cluster_rows = _cluster_trend_rows(trend.get("clusters"))
+    if cluster_rows:
+        lines.extend(
+            [
+                "## Cluster Diagnosis",
+                "",
+                "| Cluster | Blocking Delta | Latest Blocking | Changed Delta |",
+                "| --- | ---: | ---: | ---: |",
+            ]
+        )
+        for row in cluster_rows:
+            latest = row.get("latest")
+            latest_counts = latest if isinstance(latest, dict) else {}
+            lines.append(
+                f"| {_markdown_cell(row.get('label') or row.get('cluster') or 'unclustered')} | "
+                f"{_signed(int(row.get('blocking_delta') or 0))} | "
+                f"{_metric(latest_counts, 'blocking')} | "
+                f"{_signed(int(row.get('changed_delta') or 0))} |"
+            )
+        lines.append("")
+    lines.extend(["## Runs", ""])
     lines.extend(
         [
             "| Timestamp | Label | Report | Summary |",
@@ -172,7 +196,8 @@ def format_history_trend(trend: dict[str, Any]) -> str:
     direction = str(trend.get("direction") or "unknown").replace("_", " ").upper()
     summary = str(trend.get("summary") or "-")
     recommendation = str(trend.get("recommendation") or "-")
-    return f"Trend: {direction} - {summary}. {recommendation}."
+    cluster_text = _cluster_trend_text(trend.get("clusters"))
+    return f"Trend: {direction} - {summary}.{cluster_text} {recommendation}."
 
 
 def parse_history_fail_on(value: str | None) -> set[str]:
@@ -201,6 +226,37 @@ def _summary_counts(summary: dict[str, Any]) -> dict[str, int]:
         if key not in counts:
             counts[str(key)] = _int_count(value, str(key))
     return counts
+
+
+def _cluster_counts(diffs: Any) -> dict[str, dict[str, int]]:
+    if not isinstance(diffs, list):
+        return {}
+    clusters: dict[str, dict[str, int]] = {}
+    for item in diffs:
+        if not isinstance(item, dict):
+            continue
+        cluster = str(item.get("cluster") or "unclustered")
+        status = str(item.get("status") or "")
+        row = clusters.setdefault(
+            cluster,
+            {
+                "cases": 0,
+                "regression": 0,
+                "missing": 0,
+                "changed": 0,
+                "blocking": 0,
+            },
+        )
+        row["cases"] += 1
+        if status == "regression":
+            row["regression"] += 1
+            row["blocking"] += 1
+        elif status == "missing":
+            row["missing"] += 1
+            row["blocking"] += 1
+        elif status == "changed":
+            row["changed"] += 1
+    return clusters
 
 
 def _summary_text(summary: dict[str, Any]) -> str:
@@ -246,6 +302,94 @@ def _entry_metrics(entry: dict[str, Any]) -> dict[str, Any]:
         "blocking": blocking,
         "blocking_rate": (blocking / cases) if cases > 0 else None,
     }
+
+
+def _cluster_deltas(latest_entry: dict[str, Any], previous_entry: dict[str, Any]) -> list[dict[str, Any]]:
+    latest = _entry_clusters(latest_entry)
+    previous = _entry_clusters(previous_entry)
+    rows = []
+    for cluster in sorted(set(latest) | set(previous)):
+        latest_counts = latest.get(cluster, {})
+        previous_counts = previous.get(cluster, {})
+        row = {
+            "cluster": cluster,
+            "label": behavior_label(cluster),
+            "latest": latest_counts,
+            "previous": previous_counts,
+            "blocking_delta": _metric(latest_counts, "blocking") - _metric(previous_counts, "blocking"),
+            "changed_delta": _metric(latest_counts, "changed") - _metric(previous_counts, "changed"),
+        }
+        if (
+            row["blocking_delta"]
+            or row["changed_delta"]
+            or _metric(latest_counts, "blocking")
+            or _metric(latest_counts, "changed")
+        ):
+            rows.append(row)
+    return sorted(
+        rows,
+        key=lambda row: (
+            -int(row["blocking_delta"]),
+            -_metric(row["latest"], "blocking"),
+            -int(row["changed_delta"]),
+            str(row["label"]).lower(),
+        ),
+    )
+
+
+def _entry_clusters(entry: dict[str, Any]) -> dict[str, dict[str, int]]:
+    raw = entry.get("clusters")
+    if not isinstance(raw, dict):
+        return {}
+    clusters: dict[str, dict[str, int]] = {}
+    for name, counts in raw.items():
+        if not isinstance(counts, dict):
+            continue
+        clusters[str(name)] = {
+            "cases": _safe_int(counts.get("cases")),
+            "regression": _safe_int(counts.get("regression")),
+            "missing": _safe_int(counts.get("missing")),
+            "changed": _safe_int(counts.get("changed")),
+            "blocking": _safe_int(counts.get("blocking")),
+        }
+    return clusters
+
+
+def _cluster_trend_rows(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    rows = [row for row in value if isinstance(row, dict)]
+    return rows[:5]
+
+
+def _cluster_trend_text(value: Any) -> str:
+    rows = _cluster_trend_rows(value)
+    if not rows:
+        return ""
+    top = rows[0]
+    latest = top.get("latest")
+    latest_counts = latest if isinstance(latest, dict) else {}
+    label = str(top.get("label") or top.get("cluster") or "unclustered")
+    blocking_delta = int(top.get("blocking_delta") or 0)
+    changed_delta = int(top.get("changed_delta") or 0)
+    latest_blocking = _metric(latest_counts, "blocking")
+    return (
+        f" Cluster: {label} blocking {_signed(blocking_delta)} "
+        f"(latest {latest_blocking}), changed {_signed(changed_delta)}."
+    )
+
+
+def _metric(counts: Any, key: str) -> int:
+    if not isinstance(counts, dict):
+        return 0
+    return _safe_int(counts.get(key))
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _trend_direction(latest: dict[str, Any], previous: dict[str, Any], delta: dict[str, Any]) -> str:

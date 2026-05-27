@@ -63,9 +63,40 @@ RUNNER_ADAPTERS: list[dict[str, str]] = [
         "need": "exported production logs as JSONL",
         "file": "runners/jsonl_log_adapter.py",
         "template": "jsonl_log_adapter.py",
-        "replay": "python runners/jsonl_log_adapter.py logs/export.jsonl --input-field request.prompt --output-field response.text --out .redline/logs/prompts.jsonl",
-        "setup": "Export app logs as JSONL, then map prompt and response fields.",
+        "replay": "python runners/jsonl_log_adapter.py logs/export.jsonl --preset langfuse --out .redline/logs/prompts.jsonl",
+        "discover": "python runners/jsonl_log_adapter.py --list-presets",
+        "setup": "Export app logs as JSONL, then use a preset or map prompt and response fields.",
         "kind": "log",
+    },
+    {
+        "name": "Braintrust suite export",
+        "id": "braintrust-export",
+        "need": "a redline suite JSON file to import into Braintrust",
+        "file": "runners/braintrust_suite_export.py",
+        "template": "braintrust_suite_export.py",
+        "replay": "python runners/braintrust_suite_export.py redline-suite.json --out braintrust-dataset.jsonl",
+        "setup": "Export committed redline suite cases as Braintrust dataset rows.",
+        "kind": "export",
+    },
+    {
+        "name": "OpenAI SDK capture",
+        "id": "openai-sdk",
+        "need": "an app that already calls an OpenAI-compatible Python client",
+        "file": "runners/openai_watch_patch.py",
+        "template": "openai_watch_patch.py",
+        "replay": "python runners/openai_watch_patch.py",
+        "setup": "Patch your OpenAI client with redline.patch_openai during app startup.",
+        "kind": "capture",
+    },
+    {
+        "name": "Anthropic SDK capture",
+        "id": "anthropic-sdk",
+        "need": "an app that already calls an Anthropic-compatible Python client",
+        "file": "runners/anthropic_watch_patch.py",
+        "template": "anthropic_watch_patch.py",
+        "replay": "python runners/anthropic_watch_patch.py",
+        "setup": "Patch your Anthropic client with redline.patch_anthropic during app startup.",
+        "kind": "capture",
     },
     {
         "name": "LiteLLM or model proxy",
@@ -97,6 +128,7 @@ def format_runner_adapters(adapters: list[dict[str, Any]] | None = None) -> str:
         "",
     ]
     for adapter in items:
+        discovery_command = adapter.get("discover")
         lines.extend(
             [
                 str(adapter["name"]),
@@ -104,9 +136,11 @@ def format_runner_adapters(adapters: list[dict[str, Any]] | None = None) -> str:
                 f"  Setup:  {adapter['setup']}",
                 f"  File:   {adapter['file']}",
                 f"  {_command_label(adapter)}: {adapter['replay']}",
-                "",
             ]
         )
+        if discovery_command:
+            lines.append(f"  Presets: {discovery_command}")
+        lines.append("")
     lines.append("Docs: docs/runners.md")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -176,7 +210,11 @@ def _replay_for_target(adapter: dict[str, str], target: Path) -> str:
 
 
 def _command_label(adapter: dict[str, Any]) -> str:
-    return "Replay" if adapter.get("kind") == "replay" else "Command"
+    if adapter.get("kind") == "replay":
+        return "Replay"
+    if adapter.get("kind") == "capture":
+        return "Capture"
+    return "Command"
 
 
 def _next_step_for_adapter(adapter: dict[str, str], command: str) -> str:
@@ -185,4 +223,11 @@ def _next_step_for_adapter(adapter: dict[str, str], command: str) -> str:
             "Run adapter command, then build a suite: "
             "redline suite .redline/logs/prompts.jsonl --out redline-suite.json"
         )
+    if adapter.get("kind") == "capture":
+        return (
+            "Patch your app client, run real traffic, then build a suite: "
+            "redline suite .redline/logs/prompts.jsonl --out redline-suite.json"
+        )
+    if adapter.get("kind") == "export":
+        return "Import the generated JSONL into Braintrust, then keep redline-suite.json as the local baseline"
     return f"Configure replay: redline init --replay {shlex.quote(command)} --force"

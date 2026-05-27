@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .labels import behavior_label
+
 
 def suite_case_rows(suite: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -20,7 +22,9 @@ def suite_case_rows(suite: dict[str, Any]) -> list[dict[str, Any]]:
                 "content_hash": str(case.get("content_hash", "")),
                 "source_line": case.get("source_line"),
                 "cluster": str(case.get("cluster", "")),
+                "behavior": behavior_label(str(case.get("cluster", ""))),
                 "cluster_risk": str(case.get("cluster_risk", "")),
+                "owner": str(case.get("owner", "")),
                 "selection_reason": str(case.get("selection_reason", "")),
                 "prompt": str(case.get("prompt", "")),
                 "prompt_preview": _preview(str(case.get("prompt", ""))),
@@ -33,18 +37,18 @@ def suite_case_rows(suite: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
-def format_suite_cases(suite: dict[str, Any]) -> str:
+def format_suite_cases(suite: dict[str, Any], *, suite_path: str | None = None) -> str:
     rows = suite_case_rows(suite)
     lines = ["redline cases", ""]
     if not rows:
         return "redline cases\n\nNo cases found.\n"
 
     lines.append(
-        f"{'CASE':<24} {'LINE':>5} {'PIN':>3} {'RISK':<6} {'WHY':<12} "
+        f"{'CASE':<24} {'LINE':>5} {'PIN':>3} {'RISK':<6} {'OWNER':<16} {'WHY':<12} "
         f"{'RULES':>5} {'JUDGMENT':<10} PROMPT"
     )
     lines.append(
-        f"{'-' * 24} {'-' * 5} {'-' * 3} {'-' * 6} {'-' * 12} "
+        f"{'-' * 24} {'-' * 5} {'-' * 3} {'-' * 6} {'-' * 16} {'-' * 12} "
         f"{'-' * 5} {'-' * 10} {'-' * 60}"
     )
     for row in rows:
@@ -52,9 +56,13 @@ def format_suite_cases(suite: dict[str, Any]) -> str:
         pinned = "yes" if row["pinned"] else ""
         lines.append(
             f"{row['id']:<24} {source_line:>5} {pinned:>3} "
-            f"{row['cluster_risk']:<6} {_format_selection_reason(row['selection_reason']):<12} "
+            f"{row['cluster_risk']:<6} {_preview(row['owner'], 16):<16} "
+            f"{_format_selection_reason(row['selection_reason']):<12} "
             f"{row['requirements']:>5} {row['judgment']:<10} {row['prompt_preview']}"
         )
+    first_case = rows[0]["id"]
+    case_args = f"{suite_path} {first_case}" if suite_path else first_case
+    lines.extend(["", "Next:", f"- Inspect full case: redline case {case_args}"])
     return "\n".join(lines) + "\n"
 
 
@@ -74,7 +82,10 @@ def suite_case_detail(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
         "source": str(case.get("source") or suite.get("source") or ""),
         "source_line": case.get("source_line"),
         "cluster": str(case.get("cluster", "")),
+        "behavior": behavior_label(str(case.get("cluster", ""))),
         "cluster_risk": str(case.get("cluster_risk", "")),
+        "owner": str(case.get("owner", "")),
+        "owner_rule": case.get("owner_rule") if isinstance(case.get("owner_rule"), dict) else None,
         "selection_reason": str(case.get("selection_reason", "")),
         "prompt": str(case.get("prompt", "")),
         "baseline_response": str(case.get("baseline_response", "")),
@@ -85,7 +96,12 @@ def suite_case_detail(suite: dict[str, Any], case_id: str) -> dict[str, Any]:
     }
 
 
-def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
+def format_suite_case_detail(
+    suite: dict[str, Any],
+    case_id: str,
+    *,
+    suite_path: str | None = None,
+) -> str:
     detail = suite_case_detail(suite, case_id)
     lines = [
         f"redline case {detail['id']}",
@@ -93,7 +109,10 @@ def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
         f"Pinned:     {_format_bool(detail['pinned'])}",
         f"Source:      {_format_source(detail['source'], detail['source_line'])}",
         f"Cluster:     {detail['cluster']}",
+        f"Behavior:    {detail['behavior']}",
         f"Risk:        {detail['cluster_risk'] or '<unknown>'}",
+        f"Owner:       {detail['owner'] or '<unowned>'}",
+        f"Owner rule:  {_format_owner_rule(detail['owner_rule'])}",
         f"Selected:    {_format_selection_reason(detail['selection_reason']) or '<unknown>'}",
         f"Content hash: {detail['content_hash']}",
         "",
@@ -122,6 +141,22 @@ def format_suite_case_detail(suite: dict[str, Any], case_id: str) -> str:
         for key, value in detail["requirements"].items():
             lines.append(f"  {key}: {value}")
 
+    if suite_path and not detail["requirements"] and not detail["judgment"]:
+        lines.extend(
+            [
+                "",
+                "Next:",
+                (
+                    f'  Add explicit requirement: redline require {suite_path} {detail["id"]} '
+                    '--include "must keep text"'
+                ),
+                (
+                    f'  Or record reviewed behavior: redline mark {suite_path} {detail["id"]} '
+                    '--status expected --note "reviewed"'
+                ),
+            ]
+        )
+
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -141,12 +176,28 @@ def _format_source(source: object, source_line: object) -> str:
     return "<unknown>"
 
 
+def _format_owner_rule(value: object) -> str:
+    if not isinstance(value, dict):
+        return "<none>"
+    source = str(value.get("source") or "").strip()
+    field = str(value.get("field") or "").strip()
+    pattern = str(value.get("match") or "").strip()
+    if source and not pattern:
+        return source
+    if field and pattern:
+        return f"{field} matches {pattern}"
+    if pattern:
+        return f"matches {pattern}"
+    return "<none>"
+
+
 def _format_selection_reason(value: object) -> str:
     labels = {
         "cluster_representative": "representative",
         "high_variance_short_edge": "short-edge",
         "high_variance_long_edge": "long-edge",
         "high_variance_edge": "edge",
+        "prompt_diversity_edge": "prompt-edge",
         "all_cases": "all",
         "manual_pin": "manual",
     }

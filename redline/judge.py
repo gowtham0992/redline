@@ -7,7 +7,7 @@ import subprocess
 from collections import Counter
 from typing import Any
 
-from .diff import summarize_decision
+from .diff import summarize_result_decision
 
 
 JUDGE_STATUSES = {"regression", "changed", "improved", "neutral"}
@@ -32,9 +32,11 @@ def apply_judge(
         item["judge"] = judgment
         item["status"] = judgment["status"]
         item["reasons"] = _judged_reasons(item.get("reasons", []), judgment)
+        item["confidence"] = judgment["confidence"]
+        item["signal"] = "judge"
 
     result["summary"] = _summary_from_diffs(result.get("diffs", []))
-    result["decision"] = summarize_decision(result["summary"])
+    result["decision"] = summarize_result_decision(result["summary"], result.get("diffs", []))
     result["judge"] = {
         "command": command,
         "timeout_seconds": timeout_seconds,

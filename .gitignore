@@ -6,6 +6,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .venv/
+uv.lock
 .env
 .env.*
 !.env.example
@@ -18,3 +19,4 @@ htmlcov/
 .vscode/
 ROADMAP.md
 redline_product_vision*.docx
+redline_enterprise_vision*.docx

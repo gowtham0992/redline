@@ -20,13 +20,19 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config["timeout_seconds"], 30.0)
         self.assertEqual(config["workers"], 1)
         self.assertEqual(config["diff_profile"], "strict")
+        self.assertEqual(config["owners"], [])
+        self.assertEqual(config["approval"], {"require_approver": False})
         self.assertEqual(config["fail_on"], ["regression", "missing"])
         self.assertEqual(config["reports"]["json"], ".redline/reports/{command}.json")
+        self.assertEqual(config["reports"]["comment"], ".redline/reports/{command}-comment.md")
         self.assertEqual(config["reports"]["html"], ".redline/reports/{command}.html")
         self.assertEqual(config["reports"]["junit"], ".redline/reports/{command}.xml")
+        self.assertEqual(config["reports"]["slack"], ".redline/reports/{command}.slack.json")
         self.assertEqual(config["logs"]["observed"], ".redline/logs/prompts.jsonl")
+        self.assertEqual(config["logs"]["middleware_skips"], ".redline/logs/middleware-skips.jsonl")
         self.assertEqual(config["runs"]["candidate"], ".redline/runs/candidate.jsonl")
         self.assertEqual(config["runs"]["metadata"], ".redline/runs/replay.json")
+        self.assertEqual(config["audit"], ".redline/audit.jsonl")
 
     def test_create_config_refuses_existing_file_without_force(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

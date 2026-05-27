@@ -3,7 +3,7 @@ import unittest
 
 from redline.diff import compare_suite_to_candidate
 from redline.io import LogRecord
-from redline.replay import render_prompt_template, replay_suite
+from redline.replay import MAX_PROMPT_ARG_BYTES, render_prompt_template, replay_suite
 from redline.suite import build_suite
 
 
@@ -56,6 +56,41 @@ class ReplayTests(unittest.TestCase):
         )
 
         self.assertEqual(replay.records[0].response, "HELLO")
+
+    def test_replay_supports_prompt_file_placeholder(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "hello", "hello", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        replay = replay_suite(
+            suite,
+            (
+                f"{sys.executable} -c "
+                "\"import pathlib, sys; print(pathlib.Path(sys.argv[1]).read_text().upper())\" "
+                "{prompt_file}"
+            ),
+        )
+
+        self.assertEqual(replay.records[0].response, "HELLO")
+
+    def test_replay_rejects_large_prompt_placeholder_before_subprocess(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "x" * (MAX_PROMPT_ARG_BYTES + 1), "ok", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        with self.assertRaisesRegex(ValueError, "too large for safe command-line argument passing"):
+            replay_suite(
+                suite,
+                f"{sys.executable} -c \"import sys; print(sys.argv[1])\" {{prompt}}",
+            )
 
     def test_replay_supports_prompt_template(self) -> None:
         suite = build_suite(

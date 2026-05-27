@@ -27,6 +27,9 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("python-chain", ids)
         self.assertIn("http", ids)
         self.assertIn("jsonl-logs", ids)
+        self.assertIn("braintrust-export", ids)
+        self.assertIn("openai-sdk", ids)
+        self.assertIn("anthropic-sdk", ids)
         self.assertIn("litellm", ids)
 
     def test_replay_runner_adapters_exclude_log_importers(self) -> None:
@@ -35,6 +38,8 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("stdio", ids)
         self.assertIn("openai", ids)
         self.assertNotIn("jsonl-logs", ids)
+        self.assertNotIn("openai-sdk", ids)
+        self.assertNotIn("anthropic-sdk", ids)
 
     def test_format_runner_adapters_prints_replay_commands(self) -> None:
         output = format_runner_adapters()
@@ -48,6 +53,11 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("python runners/stdio_runner.py", output)
         self.assertIn("python runners/http_runner.py", output)
         self.assertIn("Command: python runners/jsonl_log_adapter.py", output)
+        self.assertIn("Presets: python runners/jsonl_log_adapter.py --list-presets", output)
+        self.assertIn("Braintrust suite export", output)
+        self.assertIn("python runners/braintrust_suite_export.py", output)
+        self.assertIn("OpenAI SDK capture", output)
+        self.assertIn("Capture: python runners/openai_watch_patch.py", output)
 
     def test_packaged_runner_templates_match_repo_runners(self) -> None:
         for adapter in runner_adapters():
@@ -81,6 +91,29 @@ class RunnerTests(unittest.TestCase):
 
             self.assertEqual(result["kind"], "log")
             self.assertIn("redline suite .redline/logs/prompts.jsonl", result["next"])
+
+    def test_copy_capture_adapter_returns_suite_next_step(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "openai_watch_patch.py"
+
+            result = copy_runner_adapter("openai-sdk", output=str(output))
+
+            self.assertEqual(result["kind"], "capture")
+            self.assertIn("Patch your app client", result["next"])
+            self.assertIn("redline suite .redline/logs/prompts.jsonl", result["next"])
+            self.assertTrue(output.exists())
+            self.assertIn("patch_openai", output.read_text(encoding="utf-8"))
+
+    def test_copy_export_adapter_returns_import_next_step(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "braintrust_suite_export.py"
+
+            result = copy_runner_adapter("braintrust-export", output=str(output))
+
+            self.assertEqual(result["kind"], "export")
+            self.assertIn("Import the generated JSONL into Braintrust", result["next"])
+            self.assertTrue(output.exists())
+            self.assertIn("export_braintrust_rows", output.read_text(encoding="utf-8"))
 
     def test_copy_runner_adapter_refuses_existing_without_force(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -255,11 +288,337 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(row["response"], "world")
             self.assertEqual(row["source_line"], 1)
 
+    def test_jsonl_log_adapter_supports_langfuse_preset(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "langfuse.jsonl"
+            output = root / "prompts.jsonl"
+            source.write_text(
+                '{"input": {"messages": ["hello"]}, "output": "world"}\n',
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(source),
+                    "--preset",
+                    "langfuse",
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["prompt"], '{"messages": ["hello"]}')
+            self.assertEqual(row["response"], "world")
+            self.assertEqual(row["metadata"]["adapter_preset"], "langfuse")
+            self.assertEqual(row["metadata"]["adapter_prompt_field"], "input")
+            self.assertEqual(row["metadata"]["adapter_response_field"], "output")
+
+    def test_jsonl_log_adapter_supports_helicone_preset(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "helicone.jsonl"
+            output = root / "prompts.jsonl"
+            source.write_text(
+                '{"prompt": "hello", "responseBody": {"choices": [{"text": "world"}]}}\n',
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(source),
+                    "--preset",
+                    "helicone",
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["prompt"], "hello")
+            self.assertEqual(row["response"], "world")
+            self.assertEqual(row["metadata"]["adapter_preset"], "helicone")
+            self.assertEqual(row["metadata"]["adapter_prompt_field"], "prompt")
+            self.assertEqual(row["metadata"]["adapter_response_field"], "responseBody")
+
+    def test_jsonl_log_adapter_unwraps_json_string_response_bodies(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "helicone.jsonl"
+            output = root / "prompts.jsonl"
+            source.write_text(
+                '{"prompt": "hello", "responseBody": "{\\"choices\\": '
+                '[{\\"message\\": {\\"content\\": \\"world\\"}}]}"}\n',
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(source),
+                    "--preset",
+                    "helicone",
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["prompt"], "hello")
+            self.assertEqual(row["response"], "world")
+
+    def test_jsonl_log_adapter_unwraps_content_parts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "response-parts.jsonl"
+            output = root / "prompts.jsonl"
+            source.write_text(
+                '{"prompt": "hello", "responseBody": {"choices": [{"message": {"content": '
+                '[{"type": "text", "text": "part one"}, {"type": "text", "text": "part two"}]}}]}}\n',
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(source),
+                    "--preset",
+                    "helicone",
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["response"], "part one\npart two")
+
+    def test_jsonl_log_adapter_preset_falls_back_to_nested_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "langfuse-nested.jsonl"
+            output = root / "prompts.jsonl"
+            source.write_text(
+                '{"request": {"input": "hello"}, "response": {"output": "world"}}\n',
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(source),
+                    "--preset",
+                    "langfuse",
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["prompt"], "hello")
+            self.assertEqual(row["response"], "world")
+            self.assertEqual(row["metadata"]["adapter_prompt_field"], "request.input")
+            self.assertEqual(row["metadata"]["adapter_response_field"], "response.output")
+
+    def test_jsonl_log_adapter_lists_presets(self) -> None:
+        completed = subprocess.run(
+            [
+                "python",
+                "runners/jsonl_log_adapter.py",
+                "--list-presets",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(completed.returncode, 0)
+        self.assertIn("redline JSONL log adapter presets", completed.stdout)
+        self.assertIn("langfuse", completed.stdout)
+        self.assertIn("helicone", completed.stdout)
+        self.assertIn("langsmith", completed.stdout)
+        self.assertIn("braintrust", completed.stdout)
+        self.assertIn("--preset langfuse", completed.stdout)
+        self.assertEqual(completed.stderr, "")
+
+    def test_jsonl_log_adapter_supports_langsmith_and_braintrust_presets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            langsmith = root / "langsmith.jsonl"
+            braintrust = root / "braintrust.jsonl"
+            langsmith_out = root / "langsmith-prompts.jsonl"
+            braintrust_out = root / "braintrust-prompts.jsonl"
+            langsmith.write_text(
+                '{"run": {"inputs": {"question": "hello"}, "outputs": {"answer": "world"}}}\n',
+                encoding="utf-8",
+            )
+            braintrust.write_text(
+                '{"span": {"input": "refund policy", "output": "30 days"}}\n',
+                encoding="utf-8",
+            )
+
+            langsmith_completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(langsmith),
+                    "--preset",
+                    "langsmith",
+                    "--out",
+                    str(langsmith_out),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            braintrust_completed = subprocess.run(
+                [
+                    "python",
+                    "runners/jsonl_log_adapter.py",
+                    str(braintrust),
+                    "--preset",
+                    "braintrust",
+                    "--out",
+                    str(braintrust_out),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(langsmith_completed.returncode, 0)
+            self.assertEqual(braintrust_completed.returncode, 0)
+            langsmith_row = json.loads(langsmith_out.read_text(encoding="utf-8"))
+            braintrust_row = json.loads(braintrust_out.read_text(encoding="utf-8"))
+            self.assertEqual(langsmith_row["prompt"], '{"question": "hello"}')
+            self.assertEqual(langsmith_row["response"], '{"answer": "world"}')
+            self.assertEqual(langsmith_row["metadata"]["adapter_preset"], "langsmith")
+            self.assertEqual(langsmith_row["metadata"]["adapter_prompt_field"], "run.inputs")
+            self.assertEqual(langsmith_row["metadata"]["adapter_response_field"], "run.outputs")
+            self.assertEqual(braintrust_row["prompt"], "refund policy")
+            self.assertEqual(braintrust_row["response"], "30 days")
+            self.assertEqual(braintrust_row["metadata"]["adapter_preset"], "braintrust")
+            self.assertEqual(braintrust_row["metadata"]["adapter_prompt_field"], "span.input")
+            self.assertEqual(braintrust_row["metadata"]["adapter_response_field"], "span.output")
+
+    def test_braintrust_suite_export_writes_dataset_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            suite = root / "suite.json"
+            output = root / "braintrust.jsonl"
+            suite.write_text(
+                json.dumps(
+                    {
+                        "source": "baseline.jsonl",
+                        "cases": [
+                            {
+                                "id": "case_001",
+                                "prompt": "refund policy",
+                                "baseline_response": "30 days",
+                                "cluster": "question_answer|prose|short",
+                                "owner": "@support-team",
+                                "source_line": 7,
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "python",
+                    "runners/braintrust_suite_export.py",
+                    str(suite),
+                    "--out",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0)
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["input"], "refund policy")
+            self.assertEqual(row["expected"], "30 days")
+            self.assertEqual(row["metadata"]["redline_case_id"], "case_001")
+            self.assertEqual(row["metadata"]["redline_owner"], "@support-team")
+            self.assertEqual(row["metadata"]["redline_source"], "baseline.jsonl")
+            self.assertEqual(row["metadata"]["redline_source_line"], 7)
+
     def test_runner_docs_include_app_logs_adapter(self) -> None:
         docs = Path("docs/runners.md").read_text(encoding="utf-8")
 
         self.assertIn("## App Logs To JSONL", docs)
         self.assertIn("python runners/jsonl_log_adapter.py logs/export.jsonl", docs)
+        self.assertIn("python runners/jsonl_log_adapter.py --list-presets", docs)
+        self.assertIn("--preset langfuse", docs)
+        self.assertIn("--preset helicone", docs)
+        self.assertIn("--preset langsmith", docs)
+        self.assertIn("--preset braintrust", docs)
+        self.assertIn("## Braintrust Suite Export", docs)
+        self.assertIn("python runners/braintrust_suite_export.py redline-suite.json", docs)
+
+    def test_runner_docs_include_sdk_capture_adapters(self) -> None:
+        docs = Path("docs/runners.md").read_text(encoding="utf-8")
+
+        self.assertIn("## OpenAI Or Anthropic SDK Patch", docs)
+        self.assertIn("redline runners --copy openai-sdk", docs)
+        self.assertIn("redline runners --copy anthropic-sdk", docs)
+
+    def test_openai_sdk_capture_fails_clearly_without_api_key(self) -> None:
+        completed = subprocess.run(
+            ["python", "runners/openai_watch_patch.py"],
+            input="hello",
+            text=True,
+            capture_output=True,
+            check=False,
+            env={"PATH": os.environ.get("PATH", "")},
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("OPENAI_API_KEY", completed.stderr)
+
+    def test_anthropic_sdk_capture_fails_clearly_without_api_key(self) -> None:
+        completed = subprocess.run(
+            ["python", "runners/anthropic_watch_patch.py"],
+            input="hello",
+            text=True,
+            capture_output=True,
+            check=False,
+            env={"PATH": os.environ.get("PATH", "")},
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("ANTHROPIC_API_KEY", completed.stderr)
 
     def test_litellm_runner_fails_clearly_without_api_key(self) -> None:
         runner = Path("runners/litellm_runner.sh")
@@ -336,6 +695,7 @@ class RunnerTests(unittest.TestCase):
             "## LangChain Or LlamaIndex",
             "## HTTP API",
             "## App Logs To JSONL",
+            "## OpenAI Or Anthropic SDK Patch",
             "## LiteLLM Or Model Proxy",
         ]
         positions = [docs.index(heading) for heading in headings]

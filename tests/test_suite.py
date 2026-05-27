@@ -32,6 +32,7 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(suite["summary"]["clusters"], 2)
         self.assertEqual(suite["summary"]["high_risk_clusters"], 0)
         self.assertEqual(suite["summary"]["medium_risk_clusters"], 0)
+        self.assertEqual(suite["summary"]["prompt_diversity_cases"], 0)
         self.assertTrue(all("baseline_response" in case for case in suite["cases"]))
         self.assertTrue(all(len(case["content_hash"]) == 64 for case in suite["cases"]))
         self.assertTrue(all(case["selection_reason"] == "cluster_representative" for case in suite["cases"]))
@@ -59,6 +60,50 @@ class SuiteTests(unittest.TestCase):
         case_properties = schema["properties"]["cases"]["items"]["properties"]
         self.assertIn("selection_reason", case_properties)
         self.assertIn("cluster_risk", case_properties)
+        self.assertIn("owner", case_properties)
+        self.assertIn("owner_rule", case_properties)
+        self.assertIn("owned_cases", schema["properties"]["summary"]["properties"])
+        self.assertIn("prompt_diversity_cases", schema["properties"]["summary"]["properties"])
+        self.assertIn("non_ascii_records", schema["properties"]["summary"]["properties"])
+
+    def test_build_suite_assigns_case_owners_from_rules(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Route billing refund", "Billing Ops handles refunds.", {}),
+                LogRecord(2, "Route security alert", "Security Ops handles alerts.", {}),
+            ],
+            source="logs/support.jsonl",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+            all_cases=True,
+            owner_rules=[
+                {"match": "billing", "owner": "@billing-team", "field": "prompt"},
+                {"match": "security", "owner": "@security-team"},
+            ],
+        )
+
+        owners = {case["prompt"]: case.get("owner") for case in suite["cases"]}
+        owner_rules = {case["prompt"]: case.get("owner_rule") for case in suite["cases"]}
+        self.assertEqual(owners["Route billing refund"], "@billing-team")
+        self.assertEqual(owners["Route security alert"], "@security-team")
+        self.assertEqual(owner_rules["Route billing refund"], {"match": "billing", "field": "prompt"})
+        self.assertEqual(owner_rules["Route security alert"], {"match": "security", "field": "any"})
+        self.assertEqual(suite["summary"]["owned_cases"], 2)
+
+    def test_build_suite_owner_flag_overrides_owner_rules(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Route billing refund", "Billing Ops handles refunds.", {})],
+            source="logs/support.jsonl",
+            input_field="prompt",
+            output_field="response",
+            owner="@ai-platform",
+            owner_rules={"billing": "@billing-team"},
+        )
+
+        self.assertEqual(suite["cases"][0]["owner"], "@ai-platform")
+        self.assertNotIn("owner_rule", suite["cases"][0])
+        self.assertEqual(suite["summary"]["owned_cases"], 1)
 
     def test_clusters_include_failure_patterns(self) -> None:
         suite = build_suite(
@@ -128,6 +173,57 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("high_variance_long_edge", reasons)
         self.assertEqual(suite["summary"]["medium_risk_clusters"], 1)
 
+    def test_build_suite_selects_prompt_diversity_edges_for_large_clusters(self) -> None:
+        records = [
+            LogRecord(index, f"Summarize support ticket {index} for account {index}", "same shape answer", {})
+            for index in range(1, 7)
+        ]
+
+        suite = build_suite(
+            records,
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=3,
+        )
+
+        reasons = [case["selection_reason"] for case in suite["cases"]]
+        self.assertEqual(suite["summary"]["clusters"], 1)
+        self.assertEqual(suite["summary"]["cases"], 3)
+        self.assertEqual(reasons.count("cluster_representative"), 1)
+        self.assertEqual(reasons.count("prompt_diversity_edge"), 2)
+        self.assertEqual(suite["summary"]["prompt_diversity_cases"], 2)
+
+    def test_build_suite_spreads_prompt_diversity_budget_across_large_clusters(self) -> None:
+        records = [
+            LogRecord(
+                index,
+                f"Summarize account {index} " + ("detail " * index),
+                "same shape answer",
+                {},
+            )
+            for index in range(1, 21)
+        ]
+
+        suite = build_suite(
+            records,
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=7,
+        )
+
+        diversity_lines = [
+            case["source_line"]
+            for case in suite["cases"]
+            if case["selection_reason"] == "prompt_diversity_edge"
+        ]
+        self.assertEqual(suite["summary"]["clusters"], 1)
+        self.assertEqual(suite["summary"]["cases"], 7)
+        self.assertEqual(suite["summary"]["prompt_diversity_cases"], 6)
+        self.assertEqual(len(set(diversity_lines)), 6)
+        self.assertTrue(any(1 < line < 20 for line in diversity_lines))
+
     def test_build_suite_extracts_features_once_per_record(self) -> None:
         records = [
             LogRecord(1, "Return JSON for Ada", '{"name":"Ada"}', {}),
@@ -184,6 +280,21 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(suite["summary"]["max_cases"], 2)
         self.assertEqual([case["source_line"] for case in suite["cases"]], [1, 3])
 
+    def test_build_suite_counts_non_ascii_records(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Responde en español", "Incluye política de reembolso", {}),
+                LogRecord(2, "Return JSON", '{"ok": true}', {}),
+            ],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+            all_cases=True,
+        )
+
+        self.assertEqual(suite["summary"]["non_ascii_records"], 1)
+
     def test_add_suite_case_pins_manual_case(self) -> None:
         suite = build_suite(
             [LogRecord(1, "Return JSON", '{"ok": true}', {})],
@@ -209,6 +320,25 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(case["note"], "critical policy edge case")
         self.assertEqual(len(case["content_hash"]), 64)
         self.assertIn("https://example.com/refunds", case["features"]["urls"])
+
+    def test_add_suite_case_can_assign_owner(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        case = add_suite_case(
+            suite,
+            prompt="Always mention the refund URL",
+            baseline_response="Refund policy: https://example.com/refunds",
+            owner="@billing-team",
+        )
+
+        self.assertEqual(case["owner"], "@billing-team")
+        self.assertEqual(suite["summary"]["owned_cases"], 1)
 
     def test_add_suite_case_refuses_duplicate_case_id(self) -> None:
         suite = build_suite(

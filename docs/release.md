@@ -7,6 +7,9 @@ alpha post, demo GIF, and first feedback loops. Use
 [docs/repository.md](repository.md) to verify GitHub branch protection, tag,
 security, and Pages settings before announcing.
 
+redline follows SemVer. Until `1.0`, minor versions may include breaking
+changes; patch versions are reserved for compatible fixes.
+
 ## Preflight
 
 - Work from a clean release branch that is pushed to origin.
@@ -22,7 +25,7 @@ bash scripts/release_check.sh
 The release gate runs the unit suite, bytecode compilation, whitespace checks, a
 Ruff lint, mypy type checking, a wheel build, clean virtualenv install,
 `redline demo --compact`, `redline-mcp` stdio smoke checks, runner listing,
-`redline init --runner stdio --copy-runner`, and `redline doctor`. Run it from an environment where
+`redline sbom`, `redline init --runner stdio --copy-runner`, and `redline doctor`. Run it from an environment where
 `python -m pip install -e ".[dev]"` has already completed.
 
 ## Demo GIF
@@ -75,7 +78,7 @@ To run the package gate, external-project Action smoke, release build, and
 `twine check` as one certification pass:
 
 ```bash
-bash scripts/certify_release.sh /tmp/redline-certify-v0.1.0
+bash scripts/certify_release.sh /tmp/redline-certify-v0.2.0
 ```
 
 The certification summary records the git commit, branch, and clean/dirty worktree state.
@@ -86,8 +89,8 @@ Release evidence can be traced back to the exact code that was tested.
 After the release gate and public-alpha smoke both pass:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 Use a new tag for every public release. Do not move an existing release tag
@@ -103,9 +106,13 @@ that was tagged. Do not upload an ignored local `dist/*`; it can contain stale
 dogfood artifacts from earlier builds.
 
 ```bash
-bash scripts/build_release.sh /tmp/redline-dist-v0.1.0
-python -m twine upload /tmp/redline-dist-v0.1.0/*
+bash scripts/build_release.sh /tmp/redline-dist-v0.2.0
+python -m twine upload /tmp/redline-dist-v0.2.0/redline_ai-*.whl /tmp/redline-dist-v0.2.0/redline_ai-*.tar.gz
 ```
+
+`build_release.sh` also writes `/tmp/redline-dist-v0.2.0/redline-sbom.json` as
+CycloneDX release evidence. Keep it with internal release records or attach it
+to GitHub release artifacts when needed.
 
 Then install in a fresh environment and run:
 

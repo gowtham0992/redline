@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import datetime, timezone
 from functools import wraps
 from inspect import iscoroutinefunction, signature
@@ -20,10 +20,69 @@ from .io import (
     read_jsonl_records_from_offset,
     write_jsonl,
 )
+from .redact import DEFAULT_PLACEHOLDER, redact_object
 
 DEFAULT_WATCH_LOG = ".redline/logs/prompts.jsonl"
+DEFAULT_MIDDLEWARE_SKIP_LOG = ".redline/logs/middleware-skips.jsonl"
 READY_RECORDS = 5
 READY_PATTERNS = 3
+
+WATCH_SNIPPETS = {
+    "decorator": {
+        "title": "Python function decorator",
+        "body": """
+from redline import watch
+
+@watch
+async def generate(prompt: str) -> str:
+    return await your_llm_call(prompt)
+""",
+    },
+    "openai": {
+        "title": "OpenAI-compatible client",
+        "body": """
+from openai import OpenAI
+from redline import patch_openai
+
+client = OpenAI()
+patch_openai(client)
+
+response = client.chat.completions.create(
+    model="your-model",
+    messages=[{"role": "user", "content": "Write a refund reply."}],
+)
+""",
+    },
+    "anthropic": {
+        "title": "Anthropic client",
+        "body": """
+from anthropic import Anthropic
+from redline import patch_anthropic
+
+client = Anthropic()
+patch_anthropic(client)
+
+response = client.messages.create(
+    model="your-model",
+    max_tokens=500,
+    messages=[{"role": "user", "content": "Write a refund reply."}],
+)
+""",
+    },
+    "fastapi": {
+        "title": "FastAPI or ASGI middleware",
+        "body": """
+from redline import RedlineMiddleware
+
+app.add_middleware(
+    RedlineMiddleware,
+    prompt_field="messages.0.content",
+    response_field="choices.0.message.content",
+    skip_log=".redline/logs/middleware-skips.jsonl",
+)
+""",
+    },
+}
 
 
 def watch(
@@ -34,6 +93,8 @@ def watch(
     response_extractor: Callable[[Any], Any] | None = None,
     metadata: dict[str, Any] | Callable[..., dict[str, Any]] | None = None,
     dedupe: bool = True,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
 ) -> Callable[..., Any]:
     """Record prompt-response pairs from a Python function.
 
@@ -63,6 +124,8 @@ def watch(
                     kwargs=kwargs,
                     latency_ms=latency_ms,
                     dedupe=dedupe,
+                    redact=redact,
+                    placeholder=placeholder,
                 )
                 return response
 
@@ -85,6 +148,8 @@ def watch(
                 kwargs=kwargs,
                 latency_ms=latency_ms,
                 dedupe=dedupe,
+                redact=redact,
+                placeholder=placeholder,
             )
             return response
 
@@ -93,6 +158,95 @@ def watch(
     if func is None:
         return decorate
     return decorate(func)
+
+
+def format_watch_snippets(kind: str = "all") -> str:
+    """Return copy-pasteable local capture snippets."""
+
+    keys = list(WATCH_SNIPPETS)
+    if kind != "all" and kind not in WATCH_SNIPPETS:
+        choices = ", ".join(["all", *keys])
+        raise ValueError(f"watch snippet must be one of: {choices}")
+    selected = keys if kind == "all" else [kind]
+    lines = ["redline watch snippets", ""]
+    for key in selected:
+        snippet = WATCH_SNIPPETS[key]
+        lines.append(f"## {snippet['title']}")
+        lines.append("")
+        lines.append("```python")
+        lines.append(str(snippet["body"]).strip())
+        lines.append("```")
+        lines.append("")
+    lines.extend(
+        [
+            "Next:",
+            "- Check captured rows: redline watch --stats",
+            "- Build a suite: redline suite .redline/logs/prompts.jsonl --out redline-suite.json",
+            "- Configure replay when ready: redline init --runner stdio --copy-runner",
+            "- Run a diff after changing a prompt: redline eval --prompt prompts/v2.txt",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def patch_openai(
+    client: Any | None = None,
+    *,
+    log: str | Path = DEFAULT_WATCH_LOG,
+    response_extractor: Callable[[Any], Any] | None = None,
+    dedupe: bool = True,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
+) -> dict[str, Any]:
+    """Patch an OpenAI-compatible module or client to record local observations.
+
+    Pass an OpenAI module or client instance, or omit ``client`` to import the
+    installed ``openai`` module. The patch is dependency-free from redline's
+    point of view and records only when it can infer a prompt from common
+    ``messages``, ``input``, or ``prompt`` arguments.
+    """
+
+    target = client if client is not None else _import_openai_module()
+    patched = []
+    for path in ("chat.completions.create", "responses.create", "ChatCompletion.create"):
+        if _patch_openai_path(
+            target,
+            path,
+            log=log,
+            response_extractor=response_extractor,
+            dedupe=dedupe,
+            redact=redact,
+            placeholder=placeholder,
+        ):
+            patched.append(path)
+    return {"provider": "openai", "log": str(log), "patched": patched}
+
+
+def patch_anthropic(
+    client: Any | None = None,
+    *,
+    log: str | Path = DEFAULT_WATCH_LOG,
+    response_extractor: Callable[[Any], Any] | None = None,
+    dedupe: bool = True,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
+) -> dict[str, Any]:
+    """Patch an Anthropic-compatible module or client to record observations."""
+
+    target = client if client is not None else _import_anthropic_module()
+    patched = []
+    if _patch_anthropic_path(
+        target,
+        "messages.create",
+        log=log,
+        response_extractor=response_extractor,
+        dedupe=dedupe,
+        redact=redact,
+        placeholder=placeholder,
+    ):
+        patched.append("messages.create")
+    return {"provider": "anthropic", "log": str(log), "patched": patched}
 
 
 def record(
@@ -104,12 +258,23 @@ def record(
     source_line: int | None = None,
     metadata: dict[str, Any] | None = None,
     dedupe: bool = True,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
 ) -> dict[str, Any]:
     """Append one prompt-response observation to a local JSONL log."""
 
     prompt_text = _stringify_value(prompt)
     response_text = _stringify_value(_response_value(response))
-    provider_metadata = _provider_metadata(response)
+    merged_metadata = {**_provider_metadata(response), **(metadata or {})}
+    redaction_counts: dict[str, int] = {}
+    if redact:
+        prompt_text = _redact_value(prompt_text, counts=redaction_counts, placeholder=placeholder)
+        response_text = _redact_value(response_text, counts=redaction_counts, placeholder=placeholder)
+        merged_metadata = redact_object(
+            merged_metadata,
+            counts=redaction_counts,
+            placeholder=placeholder,
+        )
     content_hash = prompt_response_hash(prompt_text, response_text)
     row = {
         "prompt": prompt_text,
@@ -117,9 +282,11 @@ def record(
         "source": source,
         "source_line": source_line,
         "observed_at": datetime.now(timezone.utc).isoformat(),
-        "metadata": {**provider_metadata, **(metadata or {})},
+        "metadata": merged_metadata,
         "content_hash": content_hash,
     }
+    if redaction_counts:
+        row["redactions"] = dict(sorted(redaction_counts.items()))
     if dedupe and content_hash in _existing_content_hashes(log):
         return {**row, "recorded": False}
     append_jsonl(log, [row])
@@ -134,6 +301,8 @@ def collect_log(
     output_field: str = "response",
     append: bool = True,
     dedupe: bool = True,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
 ) -> dict[str, Any]:
     records = read_jsonl_records(source, input_field, output_field)
     rows = [
@@ -142,6 +311,8 @@ def collect_log(
             source,
             input_field=input_field,
             output_field=output_field,
+            redact=redact,
+            placeholder=placeholder,
         )
         for record in records
     ]
@@ -165,6 +336,7 @@ def collect_log(
     else:
         write_jsonl(output, rows)
         mode = "wrote"
+    redaction_counts = _rows_redaction_counts(rows)
     return {
         "source": str(source),
         "output": str(output),
@@ -173,6 +345,8 @@ def collect_log(
         "skipped_duplicates": skipped_duplicates,
         "dedupe": dedupe,
         "mode": mode,
+        "redactions": sum(redaction_counts.values()),
+        "redaction_patterns": dict(sorted(redaction_counts.items())),
     }
 
 
@@ -181,8 +355,11 @@ def watch_stats(
     *,
     input_field: str = "prompt",
     output_field: str = "response",
+    skip_log: str | Path | None = None,
 ) -> dict[str, Any]:
-    records = read_jsonl_records(path, input_field, output_field)
+    skip_log_path = _resolve_skip_log(path, skip_log)
+    skip_stats = _skip_log_stats(skip_log_path)
+    records = _read_records_for_stats(path, input_field, output_field, allow_empty=bool(skip_stats["events"]))
     observed_at = sorted(
         str(record.raw["observed_at"])
         for record in records
@@ -211,7 +388,70 @@ def watch_stats(
         "first_observed_at": observed_at[0] if observed_at else None,
         "last_observed_at": observed_at[-1] if observed_at else None,
         "readiness": _readiness(unique_pairs, patterns_count, log=path),
+        "skips": skip_stats,
     }
+
+
+def _read_records_for_stats(
+    path: str | Path,
+    input_field: str,
+    output_field: str,
+    *,
+    allow_empty: bool,
+) -> list[LogRecord]:
+    target = Path(path)
+    if not target.exists():
+        if allow_empty:
+            return []
+        raise ValueError(f"{path} not found")
+    try:
+        return read_jsonl_records(target, input_field, output_field)
+    except ValueError as exc:
+        if allow_empty and "contains no JSONL records" in str(exc):
+            return []
+        raise
+
+
+def _resolve_skip_log(path: str | Path, explicit: str | Path | None) -> Path | None:
+    if explicit is not None:
+        return Path(explicit)
+    default = Path(DEFAULT_MIDDLEWARE_SKIP_LOG)
+    inferred = default if Path(path) == Path(DEFAULT_WATCH_LOG) else Path(path).with_name(default.name)
+    return inferred if inferred.exists() else None
+
+
+def _skip_log_stats(path: Path | None) -> dict[str, Any]:
+    stats: dict[str, Any] = {
+        "log": str(path) if path is not None else None,
+        "events": 0,
+        "reasons": {},
+        "sources": 0,
+        "first_observed_at": None,
+        "last_observed_at": None,
+    }
+    if path is None or not path.exists():
+        return stats
+    reasons: dict[str, int] = {}
+    sources: set[str] = set()
+    observed_at = []
+    for _, row in iter_jsonl(path):
+        if row.get("event") != "middleware_capture_skipped":
+            continue
+        stats["events"] += 1
+        reason = str(row.get("reason") or "unknown")
+        reasons[reason] = reasons.get(reason, 0) + 1
+        source = row.get("source")
+        if source:
+            sources.add(str(source))
+        timestamp = row.get("observed_at")
+        if isinstance(timestamp, str):
+            observed_at.append(timestamp)
+    observed_at.sort()
+    stats["reasons"] = dict(sorted(reasons.items()))
+    stats["sources"] = len(sources)
+    stats["first_observed_at"] = observed_at[0] if observed_at else None
+    stats["last_observed_at"] = observed_at[-1] if observed_at else None
+    return stats
 
 
 def format_watch_stats(stats: dict[str, Any]) -> str:
@@ -228,6 +468,16 @@ def format_watch_stats(stats: dict[str, Any]) -> str:
     if stats["first_observed_at"] or stats["last_observed_at"]:
         lines.append(f"First observed:    {stats['first_observed_at'] or '<unknown>'}")
         lines.append(f"Last observed:     {stats['last_observed_at'] or '<unknown>'}")
+    skips = stats.get("skips")
+    if isinstance(skips, dict) and skips.get("events"):
+        lines.append(f"Skipped captures:  {skips['events']}")
+        reasons = skips.get("reasons")
+        if isinstance(reasons, dict) and reasons:
+            reason_text = ", ".join(f"{reason}={count}" for reason, count in sorted(reasons.items()))
+            lines.append(f"Skip reasons:      {reason_text}")
+        skip_log = skips.get("log")
+        if skip_log:
+            lines.append(f"Skip log:          {skip_log}")
     readiness = stats.get("readiness")
     if isinstance(readiness, dict):
         lines.append(f"Readiness:         {readiness['message']}")
@@ -256,6 +506,8 @@ def follow_log(
     idle_timeout: float | None = None,
     dedupe: bool = True,
     replace: bool = False,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
     on_records: Callable[[list[dict[str, Any]]], None] | None = None,
 ) -> dict[str, Any]:
     if poll_interval < 0:
@@ -274,6 +526,7 @@ def follow_log(
     offset = 0
     next_line_number = 1
     existing_keys = _existing_keys(output) if append and dedupe else set()
+    redaction_counts: dict[str, int] = {}
     if replace:
         write_jsonl(output, [])
 
@@ -297,6 +550,8 @@ def follow_log(
                 source,
                 input_field=input_field,
                 output_field=output_field,
+                redact=redact,
+                placeholder=placeholder,
             )
             for record in records
         ]
@@ -313,6 +568,7 @@ def follow_log(
                 pending.append(row)
             rows = pending
         if rows:
+            _merge_counts(redaction_counts, _rows_redaction_counts(rows))
             append_jsonl(output, rows)
             if on_records is not None:
                 on_records(rows)
@@ -344,6 +600,8 @@ def follow_log(
         "dedupe": dedupe,
         "mode": "followed",
         "iterations": iterations,
+        "redactions": sum(redaction_counts.values()),
+        "redaction_patterns": dict(sorted(redaction_counts.items())),
     }
 
 
@@ -353,17 +611,27 @@ def _observed_row(
     *,
     input_field: str,
     output_field: str,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
 ) -> dict[str, Any]:
+    prompt = record.prompt
+    response = record.response
+    counts: dict[str, int] = {}
+    if redact:
+        prompt = _redact_value(prompt, counts=counts, placeholder=placeholder)
+        response = _redact_value(response, counts=counts, placeholder=placeholder)
     row = {
-        "prompt": record.prompt,
-        "response": record.response,
+        "prompt": prompt,
+        "response": response,
         "source": str(source),
         "source_line": record.line_number,
         "observed_at": datetime.now(timezone.utc).isoformat(),
-        "content_hash": prompt_response_hash(record.prompt, record.response),
+        "content_hash": prompt_response_hash(prompt, response),
     }
-    row.setdefault(input_field, record.prompt)
-    row.setdefault(output_field, record.response)
+    if redact and counts:
+        row["redactions"] = dict(sorted(counts.items()))
+    row.setdefault(input_field, prompt)
+    row.setdefault(output_field, response)
     return row
 
 
@@ -404,6 +672,8 @@ def _append_function_observation(
     kwargs: dict[str, Any],
     latency_ms: int,
     dedupe: bool,
+    redact: bool,
+    placeholder: str,
 ) -> None:
     response_value = response_extractor(response) if response_extractor else response
     observation_metadata = {
@@ -418,7 +688,481 @@ def _append_function_observation(
         source_line=_function_line(target),
         metadata=observation_metadata,
         dedupe=dedupe,
+        redact=redact,
+        placeholder=placeholder,
     )
+
+
+def _import_openai_module() -> Any:
+    try:
+        import openai  # type: ignore[import-not-found]
+    except ImportError as exc:  # pragma: no cover - depends on user environment.
+        raise ValueError("OpenAI package not installed; pass an OpenAI-compatible client to patch_openai") from exc
+    return openai
+
+
+def _import_anthropic_module() -> Any:
+    try:
+        import anthropic  # type: ignore[import-not-found]
+    except ImportError as exc:  # pragma: no cover - depends on user environment.
+        raise ValueError(
+            "Anthropic package not installed; pass an Anthropic-compatible client to patch_anthropic"
+        ) from exc
+    return anthropic
+
+
+def _patch_openai_path(
+    root: Any,
+    path: str,
+    *,
+    log: str | Path,
+    response_extractor: Callable[[Any], Any] | None,
+    dedupe: bool,
+    redact: bool,
+    placeholder: str,
+) -> bool:
+    parent = _resolve_parent(root, path)
+    if parent is None:
+        return False
+    name = path.rsplit(".", 1)[-1]
+    original = getattr(parent, name, None)
+    if not callable(original) or getattr(original, "__redline_patched__", False):
+        return False
+
+    if iscoroutinefunction(original):
+
+        @wraps(original)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            prompt = _openai_prompt_from_call(args, kwargs)
+            started = monotonic()
+            response = await original(*args, **kwargs)
+            return _record_openai_observation(
+                path,
+                prompt,
+                response,
+                kwargs,
+                log=log,
+                response_extractor=response_extractor,
+                latency_ms=_elapsed_ms(started),
+                dedupe=dedupe,
+                redact=redact,
+                placeholder=placeholder,
+            )
+
+        wrapper: Callable[..., Any] = async_wrapper
+    else:
+
+        @wraps(original)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            prompt = _openai_prompt_from_call(args, kwargs)
+            started = monotonic()
+            response = original(*args, **kwargs)
+            return _record_openai_observation(
+                path,
+                prompt,
+                response,
+                kwargs,
+                log=log,
+                response_extractor=response_extractor,
+                latency_ms=_elapsed_ms(started),
+                dedupe=dedupe,
+                redact=redact,
+                placeholder=placeholder,
+            )
+
+        wrapper = sync_wrapper
+
+    setattr(wrapper, "__redline_patched__", True)
+    setattr(wrapper, "__redline_original__", original)
+    setattr(parent, name, wrapper)
+    return True
+
+
+def _patch_anthropic_path(
+    root: Any,
+    path: str,
+    *,
+    log: str | Path,
+    response_extractor: Callable[[Any], Any] | None,
+    dedupe: bool,
+    redact: bool,
+    placeholder: str,
+) -> bool:
+    parent = _resolve_parent(root, path)
+    if parent is None:
+        return False
+    name = path.rsplit(".", 1)[-1]
+    original = getattr(parent, name, None)
+    if not callable(original) or getattr(original, "__redline_patched__", False):
+        return False
+
+    if iscoroutinefunction(original):
+
+        @wraps(original)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            prompt = _anthropic_prompt_from_call(args, kwargs)
+            started = monotonic()
+            response = await original(*args, **kwargs)
+            return _record_provider_observation(
+                provider="anthropic",
+                operation=path,
+                prompt=prompt,
+                response=response,
+                request_kwargs=kwargs,
+                log=log,
+                response_extractor=response_extractor,
+                latency_ms=_elapsed_ms(started),
+                dedupe=dedupe,
+                redact=redact,
+                placeholder=placeholder,
+            )
+
+        wrapper: Callable[..., Any] = async_wrapper
+    else:
+
+        @wraps(original)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            prompt = _anthropic_prompt_from_call(args, kwargs)
+            started = monotonic()
+            response = original(*args, **kwargs)
+            return _record_provider_observation(
+                provider="anthropic",
+                operation=path,
+                prompt=prompt,
+                response=response,
+                request_kwargs=kwargs,
+                log=log,
+                response_extractor=response_extractor,
+                latency_ms=_elapsed_ms(started),
+                dedupe=dedupe,
+                redact=redact,
+                placeholder=placeholder,
+            )
+
+        wrapper = sync_wrapper
+
+    setattr(wrapper, "__redline_patched__", True)
+    setattr(wrapper, "__redline_original__", original)
+    setattr(parent, name, wrapper)
+    return True
+
+
+def _resolve_parent(root: Any, path: str) -> Any | None:
+    current = root
+    parts = path.split(".")
+    for part in parts[:-1]:
+        current = _field(current, part)
+        if current is None:
+            return None
+    return current
+
+
+def _record_openai_observation(
+    operation: str,
+    prompt: Any,
+    response: Any,
+    request_kwargs: dict[str, Any],
+    *,
+    log: str | Path,
+    response_extractor: Callable[[Any], Any] | None,
+    latency_ms: int,
+    dedupe: bool,
+    redact: bool,
+    placeholder: str,
+) -> Any:
+    return _record_provider_observation(
+        provider="openai",
+        operation=operation,
+        prompt=prompt,
+        response=response,
+        request_kwargs=request_kwargs,
+        log=log,
+        response_extractor=response_extractor,
+        latency_ms=latency_ms,
+        dedupe=dedupe,
+        redact=redact,
+        placeholder=placeholder,
+    )
+
+
+def _record_provider_observation(
+    *,
+    provider: str,
+    operation: str,
+    prompt: Any,
+    response: Any,
+    request_kwargs: dict[str, Any],
+    log: str | Path,
+    response_extractor: Callable[[Any], Any] | None,
+    latency_ms: int,
+    dedupe: bool,
+    redact: bool,
+    placeholder: str,
+) -> Any:
+    if prompt is None:
+        return response
+    stream = _wrap_provider_stream(
+        provider=provider,
+        operation=operation,
+        prompt=prompt,
+        response=response,
+        request_kwargs=request_kwargs,
+        log=log,
+        response_extractor=response_extractor,
+        latency_ms=latency_ms,
+        dedupe=dedupe,
+        redact=redact,
+        placeholder=placeholder,
+    )
+    if stream is not None:
+        return stream
+    response_value = response_extractor(response) if response_extractor else response
+    metadata = {
+        "provider": provider,
+        "operation": operation,
+        "latency_ms": latency_ms,
+    }
+    model = request_kwargs.get("model")
+    if isinstance(model, str) and model:
+        metadata["request_model"] = model
+    record(
+        prompt,
+        response_value,
+        log=log,
+        source=f"python:{provider}.{operation}",
+        metadata=metadata,
+        dedupe=dedupe,
+        redact=redact,
+        placeholder=placeholder,
+    )
+    return response
+
+
+def _wrap_provider_stream(
+    *,
+    provider: str,
+    operation: str,
+    prompt: Any,
+    response: Any,
+    request_kwargs: dict[str, Any],
+    log: str | Path,
+    response_extractor: Callable[[Any], Any] | None,
+    latency_ms: int,
+    dedupe: bool,
+    redact: bool,
+    placeholder: str,
+) -> Any | None:
+    if request_kwargs.get("stream") is not True:
+        return None
+    recorder = _StreamRecorder(
+        provider=provider,
+        operation=operation,
+        prompt=prompt,
+        request_kwargs=request_kwargs,
+        log=log,
+        response_extractor=response_extractor,
+        latency_ms=latency_ms,
+        dedupe=dedupe,
+        redact=redact,
+        placeholder=placeholder,
+    )
+    if hasattr(response, "__aiter__"):
+        return _AsyncObservedStream(response, recorder)
+    if hasattr(response, "__iter__") and not isinstance(response, str | bytes | bytearray | dict | list | tuple):
+        return _ObservedStream(response, recorder)
+    return None
+
+
+class _StreamRecorder:
+    def __init__(
+        self,
+        *,
+        provider: str,
+        operation: str,
+        prompt: Any,
+        request_kwargs: dict[str, Any],
+        log: str | Path,
+        response_extractor: Callable[[Any], Any] | None,
+        latency_ms: int,
+        dedupe: bool,
+        redact: bool,
+        placeholder: str,
+    ) -> None:
+        self.provider = provider
+        self.operation = operation
+        self.prompt = prompt
+        self.request_kwargs = request_kwargs
+        self.log = log
+        self.response_extractor = response_extractor
+        self.latency_ms = latency_ms
+        self.dedupe = dedupe
+        self.redact = redact
+        self.placeholder = placeholder
+        self.chunks: list[Any] = []
+        self.recorded = False
+
+    def add(self, chunk: Any) -> None:
+        self.chunks.append(chunk)
+
+    def record(self) -> None:
+        if self.recorded:
+            return
+        self.recorded = True
+        response_value = (
+            self.response_extractor(self.chunks)
+            if self.response_extractor
+            else _stream_chunks_text(self.chunks)
+        )
+        metadata = {
+            "provider": self.provider,
+            "operation": self.operation,
+            "latency_ms": self.latency_ms,
+            "stream": True,
+        }
+        model = self.request_kwargs.get("model")
+        if isinstance(model, str) and model:
+            metadata["request_model"] = model
+        for chunk in self.chunks:
+            metadata.update(_provider_metadata(chunk))
+        record(
+            self.prompt,
+            response_value,
+            log=self.log,
+            source=f"python:{self.provider}.{self.operation}",
+            metadata=metadata,
+            dedupe=self.dedupe,
+            redact=self.redact,
+            placeholder=self.placeholder,
+        )
+
+
+class _ObservedStream:
+    def __init__(self, stream: Any, recorder: _StreamRecorder) -> None:
+        self._stream = stream
+        self._recorder = recorder
+
+    def __iter__(self) -> Iterator[Any]:
+        for chunk in self._stream:
+            self._recorder.add(chunk)
+            yield chunk
+        self._recorder.record()
+
+    def __enter__(self) -> _ObservedStream:
+        enter = getattr(self._stream, "__enter__", None)
+        if callable(enter):
+            enter()
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> Any:
+        exit_ = getattr(self._stream, "__exit__", None)
+        if callable(exit_):
+            return exit_(exc_type, exc, traceback)
+        return None
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._stream, name)
+
+
+class _AsyncObservedStream:
+    def __init__(self, stream: Any, recorder: _StreamRecorder) -> None:
+        self._stream = stream
+        self._recorder = recorder
+
+    async def __aiter__(self) -> AsyncIterator[Any]:
+        async for chunk in self._stream:
+            self._recorder.add(chunk)
+            yield chunk
+        self._recorder.record()
+
+    async def __aenter__(self) -> _AsyncObservedStream:
+        enter = getattr(self._stream, "__aenter__", None)
+        if callable(enter):
+            await enter()
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc: Any, traceback: Any) -> Any:
+        exit_ = getattr(self._stream, "__aexit__", None)
+        if callable(exit_):
+            return await exit_(exc_type, exc, traceback)
+        return None
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._stream, name)
+
+
+def _openai_prompt_from_call(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+    for key in ("messages", "input", "prompt"):
+        if key in kwargs:
+            return _openai_prompt_value(kwargs[key])
+    for value in args:
+        prompt = _openai_prompt_value(value)
+        if prompt is not None:
+            return prompt
+    return None
+
+
+def _anthropic_prompt_from_call(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str | None:
+    rows = []
+    system = kwargs.get("system")
+    system_text = _anthropic_content_text(system)
+    if system_text:
+        rows.append(f"system: {system_text}")
+    messages = kwargs.get("messages")
+    if isinstance(messages, list):
+        message_text = _openai_messages_text(messages)
+        if message_text:
+            rows.append(message_text)
+    if rows:
+        return "\n".join(rows)
+    for value in args:
+        if isinstance(value, list):
+            message_text = _openai_messages_text(value)
+            if message_text:
+                return message_text
+    return None
+
+
+def _anthropic_content_text(content: Any) -> str | None:
+    if isinstance(content, str):
+        return content
+    return _openai_content_text(content)
+
+
+def _openai_prompt_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        messages = _openai_messages_text(value)
+        return messages if messages is not None else value
+    return value
+
+
+def _openai_messages_text(messages: list[Any]) -> str | None:
+    rows = []
+    for message in messages:
+        role = _field(message, "role")
+        content = _field(message, "content")
+        text = _openai_content_text(content)
+        if not text:
+            continue
+        if isinstance(role, str) and role:
+            rows.append(f"{role}: {text}")
+        else:
+            rows.append(text)
+    return "\n".join(rows) if rows else None
+
+
+def _openai_content_text(content: Any) -> str | None:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            text = _field(item, "text")
+            if isinstance(text, str) and text:
+                parts.append(text)
+        return "\n".join(parts) if parts else None
+    return None
 
 
 def _prompt_from_call(
@@ -488,6 +1232,27 @@ def _stringify_value(value: Any) -> str:
         return str(value)
 
 
+def _redact_value(value: str, *, counts: dict[str, int], placeholder: str) -> str:
+    redacted = redact_object(value, counts=counts, placeholder=placeholder)
+    return redacted if isinstance(redacted, str) else _stringify_value(redacted)
+
+
+def _merge_counts(target: dict[str, int], source: dict[str, int]) -> None:
+    for key, value in source.items():
+        target[key] = target.get(key, 0) + value
+
+
+def _rows_redaction_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        redactions = row.get("redactions")
+        if isinstance(redactions, dict):
+            for key, value in redactions.items():
+                if isinstance(key, str) and isinstance(value, int):
+                    counts[key] = counts.get(key, 0) + value
+    return counts
+
+
 def _elapsed_ms(started: float) -> int:
     return max(0, round((monotonic() - started) * 1000))
 
@@ -495,6 +1260,61 @@ def _elapsed_ms(started: float) -> int:
 def _response_value(value: Any) -> Any:
     provider_text = _provider_response_text(value)
     return provider_text if provider_text is not None else value
+
+
+def _stream_chunks_text(chunks: list[Any]) -> str:
+    parts = []
+    for chunk in chunks:
+        text = _stream_chunk_text(chunk)
+        if text:
+            parts.append(text)
+    return "".join(parts)
+
+
+def _stream_chunk_text(chunk: Any) -> str | None:
+    delta = _field(chunk, "delta")
+    if isinstance(delta, str):
+        return delta
+    text = _field(delta, "text")
+    if isinstance(text, str):
+        return text
+    content = _field(delta, "content")
+    if isinstance(content, str):
+        return content
+    nested = _blocks_text(content)
+    if nested:
+        return nested
+
+    choices = _field(chunk, "choices")
+    if isinstance(choices, list) and choices:
+        parts = []
+        for choice in choices:
+            choice_delta = _field(choice, "delta")
+            content = _field(choice_delta, "content")
+            if isinstance(content, str):
+                parts.append(content)
+                continue
+            text = _field(choice_delta, "text")
+            if isinstance(text, str):
+                parts.append(text)
+                continue
+            text = _field(choice, "text")
+            if isinstance(text, str):
+                parts.append(text)
+        if parts:
+            return "".join(parts)
+
+    for field in ("output_text", "text", "content"):
+        value = _field(chunk, field)
+        if isinstance(value, str):
+            return value
+        text = _blocks_text(value)
+        if text:
+            return text
+
+    content_block = _field(chunk, "content_block")
+    text = _field(content_block, "text")
+    return text if isinstance(text, str) else None
 
 
 def _provider_response_text(value: Any) -> str | None:

@@ -19,6 +19,27 @@ class FeatureTests(unittest.TestCase):
         self.assertNotIn("Docs", features.entities)
         self.assertNotIn("Ticket", features.entities)
 
+    def test_extract_entities_ignores_weak_pronouns_from_public_logs(self) -> None:
+        features = extract_features(
+            "It is a brown eared pheasant. Its range includes mountain forests."
+        )
+
+        self.assertNotIn("It", features.entities)
+        self.assertNotIn("Its", features.entities)
+
+    def test_extract_entities_ignores_bullet_leading_adjectives(self) -> None:
+        features = extract_features(
+            "- Very good coffee\n"
+            "- High quality espresso machines\n"
+            "- Different coffee roast options\n"
+            "- Ample seating"
+        )
+
+        self.assertNotIn("Very", features.entities)
+        self.assertNotIn("High", features.entities)
+        self.assertNotIn("Different", features.entities)
+        self.assertNotIn("Ample", features.entities)
+
     def test_extract_entities_ignores_common_table_headers(self) -> None:
         features = extract_features(
             "| Impact | Status | Owner | Next update |\n"
@@ -74,6 +95,22 @@ class FeatureTests(unittest.TestCase):
         features = extract_features("I don't have enough context to answer confidently.")
 
         self.assertFalse(features.refusal)
+
+    def test_refusal_detection_handles_common_non_english_ai_refusals(self) -> None:
+        samples = [
+            "Lo siento, pero no puedo ayudar con eso.",
+            "Désolé, mais je ne peux pas répondre à cette demande.",
+            "Não posso fornecer essas informações.",
+            "Es tut mir leid, aber ich kann dabei nicht helfen.",
+            "抱歉，我无法提供这些信息。",
+            "申し訳ありません、回答できません。",
+        ]
+
+        for sample in samples:
+            with self.subTest(sample=sample):
+                features = extract_features(sample)
+                self.assertTrue(features.refusal)
+                self.assertEqual(features.shape, "refusal")
 
 
 if __name__ == "__main__":

@@ -5,10 +5,13 @@ candidate response text out; use the provider-specific runners only when they
 save you setup time.
 
 Replay contract: redline sends the rendered prompt to `stdin`; your runner
-prints only the candidate response to `stdout`. Logs belong on `stderr`.
+prints only the candidate response to `stdout`. Logs belong on `stderr`. Prefer
+stdin for large prompts; `{prompt}` is supported for small legacy runners, and
+`{prompt_file}` passes a temporary file path when a runner needs file input.
 
 redline also sets `REDLINE_CASE_ID`, `REDLINE_SOURCE_LINE`, `REDLINE_CLUSTER`,
-and `REDLINE_PROMPT_PATH` for each replay.
+and `REDLINE_PROMPT_PATH` for each replay. When `{prompt_file}` is used, it also
+sets `REDLINE_RENDERED_PROMPT_PATH`.
 
 To set replay config and copy a built-in runner in one step:
 
@@ -22,8 +25,29 @@ To copy every built-in adapter for exploration:
 redline runners --copy all
 ```
 
+To copy one SDK capture starter:
+
+```bash
+redline runners --copy openai-sdk
+```
+
 Replay runners are for `redline eval`. Log adapters, such as `jsonl-logs`, are
 for converting exported app logs into redline JSONL before `redline suite`.
+SDK capture adapters, such as `openai-sdk` and `anthropic-sdk`, are for
+recording real app calls into `.redline/logs/prompts.jsonl`.
+
+For zero-runner onboarding, ask the CLI for copy-paste capture snippets:
+
+```bash
+redline watch --snippet decorator
+redline watch --snippet openai
+redline watch --snippet anthropic
+redline watch --snippet fastapi
+```
+
+Those snippets all write local prompt-response rows to
+`.redline/logs/prompts.jsonl`. Check readiness with `redline watch --stats`,
+then build the first suite with `redline suite .redline/logs/prompts.jsonl`.
 
 ## Custom Stdio Command
 
@@ -166,14 +190,17 @@ What you need: exported production logs as JSONL.
 Your adapter command:
 
 ```bash
+python runners/jsonl_log_adapter.py --list-presets
+
 python runners/jsonl_log_adapter.py logs/export.jsonl \
-  --input-field request.prompt \
-  --output-field response.text \
+  --preset langfuse \
   --out .redline/logs/prompts.jsonl
 ```
 
 What it does: reads your exported log rows, copies the configured prompt and
 response fields into redline's JSONL shape, writes `prompt` and `response`.
+When a response field contains an OpenAI-style `choices` body or JSON string,
+the adapter extracts the actual model text instead of preserving the wrapper.
 
 Wire it in:
 
@@ -184,14 +211,139 @@ redline suite .redline/logs/prompts.jsonl
 Common field mappings:
 
 ```bash
-# Langfuse-style exports
---input-field input --output-field output
+# Langfuse enriched observations / trace or observation JSONL exports
+--preset langfuse
 
-# Helicone-style request/response rows
---input-field request.prompt --output-field response.text
+# Helicone exports with request/response bodies included
+--preset helicone
+
+# LangSmith dataset, run, or trace exports with input/output objects
+--preset langsmith
+
+# Braintrust experiment or dataset rows with input/output fields
+--preset braintrust
 
 # Your app's own JSONL logs
+--input-field request.prompt --output-field response.text
+
 --input-field messages.user --output-field result.answer
+```
+
+Presets try several common field paths and record the matched paths in row
+metadata. Preset fields can still be overridden with `--input-field` or
+`--output-field` if your export shape differs.
+
+That's it.
+
+## Braintrust Suite Export
+
+What you need: a committed redline suite JSON file.
+
+Your export command:
+
+```bash
+python runners/braintrust_suite_export.py redline-suite.json \
+  --out braintrust-dataset.jsonl
+```
+
+What it does: writes one JSONL row per redline case with `input`, `expected`,
+and redline metadata such as case ID, cluster, owner, and source line. Import
+that JSONL into Braintrust when you want Braintrust to mirror the same dataset
+redline gates locally.
+
+That's it.
+
+## OpenAI Or Anthropic SDK Patch
+
+What you need: Python code that already calls an OpenAI-compatible or
+Anthropic-compatible client.
+
+Copy runnable starters:
+
+```bash
+redline runners --copy openai-sdk
+redline runners --copy anthropic-sdk
+```
+
+Patch the client once during app startup:
+
+```python
+from openai import OpenAI
+from anthropic import Anthropic
+from redline import patch_anthropic, patch_openai
+
+openai_client = OpenAI()
+patch_openai(openai_client)
+
+anthropic_client = Anthropic()
+patch_anthropic(anthropic_client)
+```
+
+Calls like `client.chat.completions.create(...)` and
+`client.responses.create(...)`, or `client.messages.create(...)` for Anthropic,
+now append prompt-response observations to `.redline/logs/prompts.jsonl`.
+redline infers prompts from `system`, `messages`, `input`, or `prompt`,
+extracts common provider response text and token metadata, and redacts common
+secrets and PII before write by default.
+
+For `stream=True` calls, redline passes chunks through unchanged and records the
+assembled text after your app consumes the stream. If a stream is never consumed,
+no observation is written.
+
+Wire it in:
+
+```bash
+redline watch --stats
+redline suite .redline/logs/prompts.jsonl --out redline-suite.json
+```
+
+That's it.
+
+## FastAPI Or ASGI Middleware
+
+What you need: a Python ASGI app that receives JSON and returns JSON.
+
+Add middleware:
+
+```python
+from redline import RedlineMiddleware
+
+app.add_middleware(
+    RedlineMiddleware,
+    prompt_field="prompt",
+    response_field="answer",
+)
+```
+
+For nested chat-style payloads:
+
+```python
+app.add_middleware(
+    RedlineMiddleware,
+    prompt_field="messages.0.content",
+    response_field="choices.0.message.content",
+    skip_log=".redline/logs/middleware-skips.jsonl",
+)
+```
+
+What it does: records each JSON request/response pair to
+`.redline/logs/prompts.jsonl`, redacting common secrets and PII before write by
+default. Nothing leaves disk. By default, the middleware only captures
+JSON-compatible content types and skips request or response bodies larger than
+1 MB; pass `max_body_bytes=` if your prompt payloads need a different cap. It
+also skips streaming responses by default so long-lived streams or binary
+downloads are never buffered; pass `capture_streaming_responses=True` only for
+bounded JSON responses that are intentionally sent in chunks. To debug why a
+request was not recorded, pass `skip_log=`. Skip rows include reason codes and
+metadata such as route, status, content type, content length, and bytes seen;
+they never include request or response body text.
+
+Wire it in:
+
+```bash
+redline watch --stats
+redline watch --stats --skip-log .redline/logs/middleware-skips.jsonl
+redline suite .redline/logs/prompts.jsonl --out redline-suite.json
 ```
 
 That's it.

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import tempfile
 import unittest
@@ -7,10 +8,23 @@ from threading import Thread
 from time import sleep
 from typing import Any
 
+from redline import patch_anthropic as exported_patch_anthropic
+from redline import patch_openai as exported_patch_openai
 from redline import record as exported_record
 from redline import watch as exported_watch
 from redline.io import read_jsonl_records
-from redline.watch import collect_log, follow_log, format_follow_records, format_watch_stats, record, watch, watch_stats
+from redline.watch import (
+    collect_log,
+    follow_log,
+    format_follow_records,
+    format_watch_snippets,
+    format_watch_stats,
+    patch_anthropic,
+    patch_openai,
+    record,
+    watch,
+    watch_stats,
+)
 
 
 class WatchTests(unittest.TestCase):
@@ -71,6 +85,36 @@ class WatchTests(unittest.TestCase):
             self.assertTrue(second["recorded"])
             self.assertEqual(len(records), 2)
             self.assertEqual(records[1].response, "friend")
+
+    def test_record_redacts_sensitive_values_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            row = record(
+                "Email ada@example.com with key sk-abcdefghijklmnopqrstuvwxyz",
+                "Use token ghp_abcdefghijklmnopqrstuvwxyz",
+                log=log,
+                metadata={"api_key": "secret", "note": "owner bob@example.com"},
+            )
+
+            raw = json.loads(log.read_text(encoding="utf-8"))
+            self.assertNotIn("ada@example.com", raw["prompt"])
+            self.assertNotIn("sk-abcdefghijklmnopqrstuvwxyz", raw["prompt"])
+            self.assertNotIn("ghp_abcdefghijklmnopqrstuvwxyz", raw["response"])
+            self.assertNotIn("bob@example.com", raw["metadata"]["note"])
+            self.assertEqual(raw["metadata"]["api_key"], "[REDACTED]")
+            self.assertEqual(row["redactions"]["email"], 2)
+            self.assertEqual(row["redactions"]["sensitive_field"], 1)
+
+    def test_record_can_write_raw_values_when_redaction_is_disabled(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+
+            record("Email ada@example.com", "ok", log=log, redact=False)
+
+            raw = json.loads(log.read_text(encoding="utf-8"))
+            self.assertEqual(raw["prompt"], "Email ada@example.com")
+            self.assertNotIn("redactions", raw)
 
     def test_record_extracts_openai_chat_response_text_and_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -152,6 +196,20 @@ class WatchTests(unittest.TestCase):
                 "WatchTests.test_watch_decorator_records_sync_function_calls.<locals>.generate_response",
             )
             self.assertIsInstance(records[0].raw["metadata"]["latency_ms"], int)
+
+    def test_format_watch_snippets_prints_copy_paste_capture_paths(self) -> None:
+        snippets = format_watch_snippets("all")
+
+        self.assertIn("redline watch snippets", snippets)
+        self.assertIn("from redline import watch", snippets)
+        self.assertIn("patch_openai(client)", snippets)
+        self.assertIn("patch_anthropic(client)", snippets)
+        self.assertIn("RedlineMiddleware", snippets)
+        self.assertIn("redline suite .redline/logs/prompts.jsonl", snippets)
+
+    def test_format_watch_snippets_rejects_unknown_kind(self) -> None:
+        with self.assertRaisesRegex(ValueError, "watch snippet must be one of"):
+            format_watch_snippets("unknown")
 
     def test_watch_decorator_supports_custom_response_extractor(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -275,6 +333,138 @@ class WatchTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "could not infer prompt"):
             generate_response()
 
+    def test_patch_openai_records_chat_completion_calls(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            client = _FakeOpenAIClient()
+
+            result = patch_openai(client, log=log)
+            response = client.chat.completions.create(
+                model="gpt-test",
+                messages=[
+                    {"role": "system", "content": "Be concise."},
+                    {"role": "user", "content": "What is the refund window?"},
+                ],
+            )
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(result["patched"], ["chat.completions.create", "responses.create"])
+            self.assertEqual(response["choices"][0]["message"]["content"], "30 days")
+            self.assertEqual(records[0].prompt, "system: Be concise.\nuser: What is the refund window?")
+            self.assertEqual(records[0].response, "30 days")
+            self.assertEqual(records[0].raw["source"], "python:openai.chat.completions.create")
+            metadata = records[0].raw["metadata"]
+            self.assertEqual(metadata["provider"], "openai")
+            self.assertEqual(metadata["operation"], "chat.completions.create")
+            self.assertEqual(metadata["request_model"], "gpt-test")
+            self.assertEqual(metadata["model"], "gpt-test")
+            self.assertIsInstance(metadata["latency_ms"], int)
+
+    def test_patch_openai_records_responses_api_input(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            client = _FakeOpenAIClient()
+
+            exported_patch_openai(client, log=log)
+            client.responses.create(model="gpt-test", input="Summarize status")
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(records[0].prompt, "Summarize status")
+            self.assertEqual(records[0].response, "Status is green")
+            self.assertEqual(records[0].raw["source"], "python:openai.responses.create")
+
+    def test_patch_openai_records_stream_after_chunks_are_consumed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            client = _FakeOpenAIClient()
+
+            patch_openai(client, log=log)
+            stream = client.chat.completions.create(
+                model="gpt-test",
+                stream=True,
+                messages=[{"role": "user", "content": "What is the refund window?"}],
+            )
+
+            self.assertFalse(log.exists())
+            chunks = list(stream)
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(len(chunks), 2)
+            self.assertEqual(records[0].prompt, "user: What is the refund window?")
+            self.assertEqual(records[0].response, "30 days")
+            self.assertNotIn("_FakeOpenAIStream", records[0].response)
+            self.assertTrue(records[0].raw["metadata"]["stream"])
+
+    def test_patch_openai_does_not_double_wrap_same_client(self) -> None:
+        client = _FakeOpenAIClient()
+
+        first = patch_openai(client)
+        second = patch_openai(client)
+
+        self.assertEqual(first["patched"], ["chat.completions.create", "responses.create"])
+        self.assertEqual(second["patched"], [])
+
+    def test_patch_anthropic_records_messages_create_calls(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            client = _FakeAnthropicClient()
+
+            result = patch_anthropic(client, log=log)
+            response = client.messages.create(
+                model="claude-test",
+                system="Be concise.",
+                messages=[{"role": "user", "content": "What is the refund window?"}],
+            )
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(result["patched"], ["messages.create"])
+            self.assertEqual(response["content"][0]["text"], "30 days")
+            self.assertEqual(records[0].prompt, "system: Be concise.\nuser: What is the refund window?")
+            self.assertEqual(records[0].response, "30 days")
+            self.assertEqual(records[0].raw["source"], "python:anthropic.messages.create")
+            metadata = records[0].raw["metadata"]
+            self.assertEqual(metadata["provider"], "anthropic")
+            self.assertEqual(metadata["operation"], "messages.create")
+            self.assertEqual(metadata["request_model"], "claude-test")
+            self.assertEqual(metadata["model"], "claude-test")
+
+    def test_patch_anthropic_records_stream_after_chunks_are_consumed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            client = _FakeAnthropicClient()
+
+            patch_anthropic(client, log=log)
+            stream = client.messages.create(
+                model="claude-test",
+                stream=True,
+                messages=[{"role": "user", "content": "What is the refund window?"}],
+            )
+
+            self.assertFalse(log.exists())
+            chunks = list(stream)
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(len(chunks), 2)
+            self.assertEqual(records[0].prompt, "user: What is the refund window?")
+            self.assertEqual(records[0].response, "30 days")
+            self.assertNotIn("_FakeAnthropicStream", records[0].response)
+            self.assertTrue(records[0].raw["metadata"]["stream"])
+
+    def test_patch_anthropic_exports_from_package_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "observed.jsonl"
+            client = _FakeAnthropicClient()
+
+            exported_patch_anthropic(client, log=log)
+            client.messages.create(
+                model="claude-test",
+                messages=[{"role": "user", "content": [{"type": "text", "text": "Summarize status"}]}],
+            )
+
+            records = read_jsonl_records(log, "prompt", "response")
+            self.assertEqual(records[0].prompt, "user: Summarize status")
+            self.assertEqual(records[0].response, "30 days")
+
     def test_collect_log_writes_normalized_observed_records(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -305,6 +495,24 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(records[0].raw["source"], str(source))
             self.assertEqual(records[0].raw["source_line"], 1)
             self.assertIn("observed_at", records[0].raw)
+
+    def test_collect_log_redacts_extracted_fields_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.jsonl"
+            output = root / "observed.jsonl"
+            source.write_text(
+                '{"prompt": "Email ada@example.com", "response": "token ghp_abcdefghijklmnopqrstuvwxyz"}\n',
+                encoding="utf-8",
+            )
+
+            result = collect_log(source, output=output, append=False)
+
+            raw = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(result["redactions"], 2)
+            self.assertEqual(result["redaction_patterns"], {"email": 1, "github_token": 1})
+            self.assertEqual(raw["prompt"], "Email [REDACTED]")
+            self.assertEqual(raw["response"], "token [REDACTED]")
 
     def test_collect_log_skips_duplicate_source_lines_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -408,6 +616,50 @@ class WatchTests(unittest.TestCase):
             )
             self.assertIn("Readiness:         ready to generate suite", text)
             self.assertIn(f"Next:              redline suite {output} --out redline-suite.json", text)
+
+    def test_watch_stats_includes_middleware_skip_reasons(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "prompts.jsonl"
+            skip_log = root / "middleware-skips.jsonl"
+
+            record("hello", "world", log=output)
+            skip_log.write_text(
+                '{"event":"middleware_capture_skipped","reason":"response_streaming","observed_at":"2026-05-25T00:00:00+00:00","source":"asgi:POST /chat","metadata":{"request":{"bytes_seen":10}}}\n'
+                '{"event":"middleware_capture_skipped","reason":"response_streaming","observed_at":"2026-05-25T00:00:01+00:00","source":"asgi:POST /chat","metadata":{"request":{"bytes_seen":12}}}\n'
+                '{"event":"middleware_capture_skipped","reason":"prompt_field_missing","observed_at":"2026-05-25T00:00:02+00:00","source":"asgi:POST /route","metadata":{"request":{"bytes_seen":8}}}\n',
+                encoding="utf-8",
+            )
+
+            stats = watch_stats(output)
+            text = format_watch_stats(stats)
+
+            self.assertEqual(stats["skips"]["events"], 3)
+            self.assertEqual(stats["skips"]["sources"], 2)
+            self.assertEqual(stats["skips"]["reasons"]["response_streaming"], 2)
+            self.assertEqual(stats["skips"]["reasons"]["prompt_field_missing"], 1)
+            self.assertIn("Skipped captures:  3", text)
+            self.assertIn("response_streaming=2", text)
+            self.assertIn("prompt_field_missing=1", text)
+
+    def test_watch_stats_can_summarize_skip_log_without_observed_records(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "prompts.jsonl"
+            skip_log = root / "skips.jsonl"
+            skip_log.write_text(
+                '{"event":"middleware_capture_skipped","reason":"request_content_length","observed_at":"2026-05-25T00:00:00+00:00","source":"asgi:POST /chat","metadata":{}}\n',
+                encoding="utf-8",
+            )
+
+            stats = watch_stats(output, skip_log=skip_log)
+            text = format_watch_stats(stats)
+
+            self.assertEqual(stats["records"], 0)
+            self.assertEqual(stats["skips"]["events"], 1)
+            self.assertEqual(stats["skips"]["reasons"], {"request_content_length": 1})
+            self.assertIn("Records:           0", text)
+            self.assertIn("Skipped captures:  1", text)
 
     def test_follow_log_collects_until_max_records(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -535,6 +787,79 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(result["records"], 2)
             self.assertEqual([record.prompt for record in records], ["one", "two"])
             self.assertEqual(records[1].raw["source_line"], 2)
+
+
+class _FakeResponses:
+    def create(self, **kwargs: Any) -> dict[str, Any]:
+        return {
+            "id": "resp_test",
+            "model": kwargs.get("model", "gpt-test"),
+            "output_text": "Status is green",
+            "usage": {"input_tokens": 3, "output_tokens": 4, "total_tokens": 7},
+        }
+
+
+class _FakeCompletions:
+    def create(self, **kwargs: Any) -> Any:
+        if kwargs.get("stream"):
+            return _FakeOpenAIStream(["30 ", "days"])
+        return {
+            "id": "chatcmpl_test",
+            "model": kwargs.get("model", "gpt-test"),
+            "choices": [
+                {
+                    "message": {"content": "30 days"},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 8, "completion_tokens": 2, "total_tokens": 10},
+        }
+
+
+class _FakeChat:
+    def __init__(self) -> None:
+        self.completions = _FakeCompletions()
+
+
+class _FakeOpenAIClient:
+    def __init__(self) -> None:
+        self.chat = _FakeChat()
+        self.responses = _FakeResponses()
+
+
+class _FakeAnthropicMessages:
+    def create(self, **kwargs: Any) -> Any:
+        if kwargs.get("stream"):
+            return _FakeAnthropicStream(["30 ", "days"])
+        return {
+            "id": "msg_test",
+            "model": kwargs.get("model", "claude-test"),
+            "content": [{"type": "text", "text": "30 days"}],
+            "usage": {"input_tokens": 6, "output_tokens": 2},
+        }
+
+
+class _FakeAnthropicClient:
+    def __init__(self) -> None:
+        self.messages = _FakeAnthropicMessages()
+
+
+class _FakeOpenAIStream:
+    def __init__(self, deltas: list[str]) -> None:
+        self._deltas = deltas
+
+    def __iter__(self) -> Any:
+        for delta in self._deltas:
+            yield {"choices": [{"delta": {"content": delta}}]}
+
+
+class _FakeAnthropicStream:
+    def __init__(self, deltas: list[str]) -> None:
+        self._deltas = deltas
+
+    def __iter__(self) -> Any:
+        for delta in self._deltas:
+            yield {"type": "content_block_delta", "delta": {"type": "text_delta", "text": delta}}
 
 
 if __name__ == "__main__":

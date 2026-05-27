@@ -43,10 +43,13 @@
         "max_cases": {"type": "integer", "minimum": 0},
         "selection": {"type": "string", "enum": ["representative", "all"]},
         "pinned_cases": {"type": "integer", "minimum": 0},
+        "owned_cases": {"type": "integer", "minimum": 0},
         "high_risk_clusters": {"type": "integer", "minimum": 0},
         "medium_risk_clusters": {"type": "integer", "minimum": 0},
         "high_variance_clusters": {"type": "integer", "minimum": 0},
-        "failure_pattern_clusters": {"type": "integer", "minimum": 0}
+        "failure_pattern_clusters": {"type": "integer", "minimum": 0},
+        "prompt_diversity_cases": {"type": "integer", "minimum": 0},
+        "non_ascii_records": {"type": "integer", "minimum": 0}
       },
       "additionalProperties": true
     },
@@ -86,6 +89,16 @@
           "id": {"type": "string"},
           "source": {"type": "string"},
           "source_line": {"type": ["integer", "null"]},
+          "owner": {"type": "string"},
+          "owner_rule": {
+            "type": "object",
+            "properties": {
+              "match": {"type": "string"},
+              "field": {"type": "string"},
+              "source": {"type": "string"}
+            },
+            "additionalProperties": false
+          },
           "cluster": {"type": "string"},
           "cluster_risk": {"type": "string", "enum": ["high", "medium", "low"]},
           "selection_reason": {
@@ -95,6 +108,7 @@
               "high_variance_short_edge",
               "high_variance_long_edge",
               "high_variance_edge",
+              "prompt_diversity_edge",
               "all_cases",
               "manual_pin"
             ]
@@ -121,6 +135,21 @@
     "judgments": {
       "type": "object",
       "additionalProperties": true
+    },
+    "accepted_baselines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "case_id": {"type": "string"},
+          "accepted_at": {"type": "string", "format": "date-time"},
+          "candidate_line": {"type": "integer", "minimum": 1},
+          "note": {"type": "string"},
+          "approver": {"type": "string"},
+          "previous_response": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
     }
   },
   "additionalProperties": true

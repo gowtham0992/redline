@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from fnmatch import fnmatchcase
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,7 @@ from .io import LogRecord
 FeatureCache = dict[int, TextFeatures]
 ClusterInfo = dict[str, Any]
 SUITE_SCHEMA_URL = "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-suite.schema.json"
+PROMPT_DIVERSITY_EDGE_TARGET = 8
 
 
 def build_suite(
@@ -24,6 +26,8 @@ def build_suite(
     output_field: str,
     max_cases: int = 42,
     all_cases: bool = False,
+    owner: str | None = None,
+    owner_rules: object = None,
 ) -> dict[str, Any]:
     if max_cases < 1:
         raise ValueError("max_cases must be at least 1")
@@ -44,24 +48,35 @@ def build_suite(
         if all_cases
         else _select_representatives(grouped, max_cases, feature_cache, cluster_infos)
     )
+    non_ascii_records = sum(1 for record in unique_records if _has_non_ascii(record.prompt) or _has_non_ascii(record.response))
     cases = []
     for index, (record, selection_reason) in enumerate(selected, 1):
         signature = signatures[id(record)]
         cluster_info = cluster_infos[signature]
         features = _record_features(record, feature_cache)
-        cases.append(
-            {
-                "id": _case_id(record, index),
-                "source_line": record.line_number,
-                "cluster": signature,
-                "cluster_risk": cluster_info["risk"],
-                "selection_reason": selection_reason,
-                "prompt": record.prompt,
-                "baseline_response": record.response,
-                "content_hash": prompt_response_hash(record.prompt, record.response),
-                "features": features.to_dict(),
-            }
+        case = {
+            "id": _case_id(record, index),
+            "source_line": record.line_number,
+            "cluster": signature,
+            "cluster_risk": cluster_info["risk"],
+            "selection_reason": selection_reason,
+            "prompt": record.prompt,
+            "baseline_response": record.response,
+            "content_hash": prompt_response_hash(record.prompt, record.response),
+            "features": features.to_dict(),
+        }
+        owner_match = _case_owner_match(
+            record,
+            source=str(source),
+            cluster=signature,
+            explicit_owner=owner,
+            owner_rules=owner_rules,
         )
+        if owner_match.get("owner"):
+            case["owner"] = owner_match["owner"]
+        if owner_match.get("owner_rule"):
+            case["owner_rule"] = owner_match["owner_rule"]
+        cases.append(case)
 
     clusters = []
     for signature, info in sorted(cluster_infos.items(), key=_cluster_info_rank):
@@ -96,6 +111,9 @@ def build_suite(
             "medium_risk_clusters": _risk_count(cluster_infos, "medium"),
             "high_variance_clusters": sum(1 for info in cluster_infos.values() if info["high_variance"]),
             "failure_pattern_clusters": sum(1 for info in cluster_infos.values() if info["failure_patterns"]),
+            "prompt_diversity_cases": sum(1 for _, reason in selected if reason == "prompt_diversity_edge"),
+            "non_ascii_records": non_ascii_records,
+            "owned_cases": _owned_case_count(cases),
         },
         "clusters": clusters,
         "cases": cases,
@@ -112,6 +130,7 @@ def add_suite_case(
     case_id: str | None = None,
     note: str = "",
     allow_duplicate: bool = False,
+    owner: str | None = None,
 ) -> dict[str, Any]:
     prompt = prompt.strip()
     if not prompt:
@@ -162,6 +181,8 @@ def add_suite_case(
     }
     if note.strip():
         case["note"] = note.strip()
+    if owner and owner.strip():
+        case["owner"] = owner.strip()
     cases.append(case)
     _upsert_manual_cluster(suite, signature, baseline_response)
     _refresh_summary(suite, len(cases))
@@ -200,6 +221,21 @@ def _select_representatives(
             if len(selected) >= max_cases:
                 break
 
+    # Large same-shape clusters can still hide prompt-specific edge cases.
+    # Add prompt-diverse representatives after structural/risk coverage.
+    for signature, group in groups:
+        if len(selected) >= max_cases:
+            break
+        if len(group) < 5:
+            continue
+        for record, reason in _prompt_diversity_records(group):
+            if id(record) in selected_ids:
+                continue
+            selected.append((record, reason))
+            selected_ids.add(id(record))
+            if len(selected) >= max_cases:
+                break
+
     return selected
 
 
@@ -213,6 +249,10 @@ def _unique_prompt_response_records(records: list[LogRecord]) -> list[LogRecord]
         seen.add(key)
         unique.append(record)
     return unique
+
+
+def _has_non_ascii(value: str) -> bool:
+    return any(ord(char) > 127 for char in value)
 
 
 def _duplicate_case_id(
@@ -287,6 +327,25 @@ def _edge_records(group: list[LogRecord]) -> list[tuple[LogRecord, str]]:
         (ranked[0], "high_variance_short_edge"),
         (ranked[-1], "high_variance_long_edge"),
     ]
+
+
+def _prompt_diversity_records(group: list[LogRecord]) -> list[tuple[LogRecord, str]]:
+    ranked = sorted(group, key=lambda record: (len(record.prompt), record.prompt, record.line_number))
+    if len(ranked) <= 1:
+        return [(ranked[0], "prompt_diversity_edge")]
+    limit = min(PROMPT_DIVERSITY_EDGE_TARGET, len(ranked))
+    return [(ranked[index], "prompt_diversity_edge") for index in _spread_indexes(len(ranked), limit)]
+
+
+def _spread_indexes(size: int, count: int) -> list[int]:
+    if size <= 0 or count <= 0:
+        return []
+    if count == 1:
+        return [size // 2]
+    indexes = []
+    for step in range(count):
+        indexes.append(round(step * (size - 1) / (count - 1)))
+    return list(dict.fromkeys(indexes))
 
 
 def _is_high_variance(lengths: list[int]) -> bool:
@@ -406,6 +465,7 @@ def _refresh_summary(suite: dict[str, Any], case_count: int) -> None:
             for case in cases
             if isinstance(case, dict) and bool(case.get("pinned"))
         )
+        summary["owned_cases"] = _owned_case_count(cases)
 
 
 def _case_id(record: LogRecord, index: int) -> str:
@@ -414,3 +474,77 @@ def _case_id(record: LogRecord, index: int) -> str:
     digest.update(b"\0")
     digest.update(record.response.encode("utf-8"))
     return f"case_{index:03d}_{digest.hexdigest()[:10]}"
+
+
+def _case_owner_match(
+    record: LogRecord,
+    *,
+    source: str,
+    cluster: str,
+    explicit_owner: str | None,
+    owner_rules: object,
+) -> dict[str, Any]:
+    if explicit_owner and explicit_owner.strip():
+        return {"owner": explicit_owner.strip()}
+    if isinstance(owner_rules, str):
+        owner = owner_rules.strip()
+        if owner:
+            return {"owner": owner, "owner_rule": {"source": "config"}}
+        return {}
+    for rule in _owner_rule_items(owner_rules):
+        owner = rule["owner"]
+        pattern = rule["match"]
+        field = rule["field"]
+        target = {
+            "prompt": record.prompt,
+            "source": source,
+            "cluster": cluster,
+            "any": "\n".join([record.prompt, source, cluster]),
+        }.get(field, "\n".join([record.prompt, source, cluster]))
+        if _owner_pattern_matches(pattern, target):
+            return {
+                "owner": owner,
+                "owner_rule": {
+                    "match": pattern,
+                    "field": field,
+                },
+            }
+    return {}
+
+
+def _owner_rule_items(owner_rules: object) -> list[dict[str, str]]:
+    if isinstance(owner_rules, dict):
+        return [
+            {"match": str(pattern), "owner": str(owner), "field": "any"}
+            for pattern, owner in owner_rules.items()
+            if str(pattern).strip() and str(owner).strip()
+        ]
+    if not isinstance(owner_rules, list):
+        return []
+    rows = []
+    for item in owner_rules:
+        if not isinstance(item, dict):
+            continue
+        pattern = str(item.get("match") or "").strip()
+        owner = str(item.get("owner") or "").strip()
+        field = str(item.get("field") or "any").strip().lower()
+        if pattern and owner:
+            rows.append({"match": pattern, "owner": owner, "field": field})
+    return rows
+
+
+def _owner_pattern_matches(pattern: str, target: str) -> bool:
+    normalized_pattern = pattern.lower()
+    normalized_target = target.lower()
+    return (
+        fnmatchcase(normalized_target, normalized_pattern)
+        or normalized_pattern in normalized_target
+    )
+
+
+def _owned_case_count(cases: list[Any]) -> int:
+    return sum(
+        1
+        for case in cases
+        if isinstance(case, dict) and str(case.get("owner") or "").strip()
+    )

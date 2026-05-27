@@ -23,7 +23,12 @@ class DiffTests(unittest.TestCase):
         self.assertIn("Machine-readable prompt regression report", schema["description"])
         self.assertIn("summary", schema["properties"])
         self.assertIn("decision", schema["properties"])
+        self.assertIn("diagnosis", schema["properties"]["decision"]["properties"])
+        self.assertIn("suite", schema["properties"])
+        self.assertIn("candidate", schema["properties"])
         self.assertIn("diffs", schema["properties"])
+        diff_properties = schema["properties"]["diffs"]["items"]["properties"]
+        self.assertIn("owner_rule", diff_properties)
 
     def test_classify_json_regression(self) -> None:
         baseline = extract_features('{"name":"Ada","status":"active"}').to_dict()
@@ -97,6 +102,84 @@ class DiffTests(unittest.TestCase):
         )
 
         self.assertFalse(any("policy polarity changed" in reason for reason in reasons))
+
+    def test_classify_confidence_drift_to_more_hedged_as_changed(self) -> None:
+        baseline_text = "The refund will definitely be processed today after billing approval."
+        candidate_text = "The refund may possibly be processed today after billing approval."
+        baseline = extract_features(baseline_text).to_dict()
+        candidate = extract_features(candidate_text).to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text=baseline_text,
+            candidate_text=candidate_text,
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertIn(
+            "confidence wording changed: candidate hedges more (0 -> 2 hedge markers)",
+            reasons,
+        )
+
+    def test_classify_confidence_drift_to_more_definitive_as_changed(self) -> None:
+        baseline_text = "The refund may possibly be processed today after billing approval."
+        candidate_text = "The refund will definitely be processed today after billing approval."
+        baseline = extract_features(baseline_text).to_dict()
+        candidate = extract_features(candidate_text).to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text=baseline_text,
+            candidate_text=candidate_text,
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertIn(
+            "confidence wording changed: candidate is more definitive (0 -> 2 definitive markers)",
+            reasons,
+        )
+
+    def test_classify_dismissive_tone_shift_as_changed(self) -> None:
+        baseline_text = "I can help with the refund request. The policy allows a refund within 30 days."
+        candidate_text = "Obviously, just read the refund policy. It allows a refund within 30 days."
+        baseline = extract_features(baseline_text).to_dict()
+        candidate = extract_features(candidate_text).to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text=baseline_text,
+            candidate_text=candidate_text,
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertIn(
+            "tone changed: candidate uses more dismissive wording (0 -> 2 markers)",
+            reasons,
+        )
+
+    def test_classify_over_apologetic_tone_shift_as_changed(self) -> None:
+        baseline_text = "we can help check the refund request. the request is eligible within 30 days."
+        candidate_text = (
+            "sorry, unfortunately we apologize. the refund request is eligible within 30 days."
+        )
+        baseline = extract_features(baseline_text).to_dict()
+        candidate = extract_features(candidate_text).to_dict()
+
+        status, reasons = classify_change(
+            baseline,
+            candidate,
+            baseline_text=baseline_text,
+            candidate_text=candidate_text,
+        )
+
+        self.assertEqual(status, "changed")
+        self.assertIn(
+            "tone changed: candidate is more apologetic (0 -> 3 markers)",
+            reasons,
+        )
 
     def test_classify_missing_entity_as_regression(self) -> None:
         baseline = extract_features("Route Ada Lovelace to ACME support.").to_dict()
@@ -212,12 +295,61 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(result["summary"]["missing"], 1)
         self.assertEqual(result["decision"]["confidence"], "high")
         self.assertEqual(result["decision"]["recommended_action"], "fix blocking cases before shipping")
+        self.assertIn("missed candidate outputs", result["decision"]["diagnosis"])
         self.assertEqual(result["diffs"][0]["status"], "missing")
         self.assertEqual(result["diffs"][0]["baseline_response"], "30 days")
         self.assertIsNone(result["diffs"][0]["candidate_response"])
         self.assertEqual(result["diffs"][0]["source"], "memory")
         self.assertEqual(result["diffs"][0]["source_line"], 1)
         self.assertIn("cluster", result["diffs"][0])
+        self.assertEqual(result["diffs"][0]["confidence"], "high")
+        self.assertEqual(result["diffs"][0]["signal"], "structural")
+
+    def test_compare_summarizes_plain_english_diagnosis(self) -> None:
+        prompt = "Return a numbered rollout checklist with owner, URL, and 30 day deadline."
+        suite = build_suite(
+            [
+                LogRecord(
+                    1,
+                    prompt,
+                    "1. Owner Platform ML must review https://example.com/runbook within 30 days.\n"
+                    "2. Notify Security Operations after rollout.",
+                    {},
+                )
+            ],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        candidate = [LogRecord(1, prompt, "Looks good.", {})]
+
+        result = compare_suite_to_candidate(suite, candidate)
+
+        self.assertEqual(result["summary"]["regression"], 1)
+        self.assertEqual(
+            result["decision"]["diagnosis"],
+            "Candidate got shorter, lost required structure, and dropped concrete details; "
+            "fix blocking cases before shipping.",
+        )
+
+    def test_compare_labels_changed_cases_with_calibrated_signal(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Route ticket", "Route the ticket to billing support.", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        result = compare_suite_to_candidate(
+            suite,
+            [LogRecord(1, "Route ticket", "Route the ticket to security review.", {})],
+        )
+
+        self.assertEqual(result["diffs"][0]["status"], "changed")
+        self.assertEqual(result["diffs"][0]["confidence"], "medium")
+        self.assertEqual(result["diffs"][0]["signal"], "shallow_semantic")
 
     def test_compare_matches_candidate_by_case_id_before_prompt(self) -> None:
         suite = build_suite(
@@ -262,6 +394,21 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(result["diffs"][0]["source"], "manual")
         self.assertIsNone(result["diffs"][0]["source_line"])
 
+    def test_compare_carries_case_owner_into_report(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+            owner_rules=[{"match": "JSON", "owner": "@platform-team", "field": "prompt"}],
+        )
+
+        result = compare_suite_to_candidate(suite, [])
+
+        self.assertEqual(result["diffs"][0]["owner"], "@platform-team")
+        self.assertEqual(result["diffs"][0]["owner_rule"], {"match": "JSON", "field": "prompt"})
+
     def test_summarize_decision_recommends_review_for_changed_cases(self) -> None:
         decision = summarize_decision({"cases": 3, "changed": 1})
 
@@ -296,6 +443,7 @@ class DiffTests(unittest.TestCase):
                 "confidence": "medium",
                 "recommended_action": "no structural blockers detected; review semantic risks before shipping",
                 "scope": "structural checks only; review semantic risks separately",
+                "diagnosis": "No structural blockers were detected; still review semantic risks.",
             },
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "diffs": [],
@@ -306,6 +454,7 @@ class DiffTests(unittest.TestCase):
         self.assertIn("Confidence: MEDIUM", report)
         self.assertIn("Recommended action: no structural blockers detected; review semantic risks before shipping", report)
         self.assertIn("Scope: structural checks only", report)
+        self.assertIn("Diagnosis: No structural blockers were detected", report)
         self.assertIn("Warnings:", report)
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
 
@@ -325,7 +474,22 @@ class DiffTests(unittest.TestCase):
                 "confidence": "high",
                 "recommended_action": "fix blocking cases before shipping",
                 "scope": "structural checks only; review semantic risks separately",
+                "diagnosis": "Candidate lost required structure; fix blocking cases before shipping.",
             },
+            "prompt_evals": [
+                {
+                    "id": "support/triage",
+                    "prompt": "prompts/support/triage.txt",
+                    "summary": {"cases": 1, "regression": 1, "changed": 0, "missing": 0, "neutral": 0},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                },
+                {
+                    "id": "billing/refund",
+                    "prompt": "prompts/billing/refund.txt",
+                    "summary": {"cases": 1, "regression": 0, "changed": 0, "missing": 0, "neutral": 1},
+                    "decision": {"recommended_action": "ship candidate; no blocking changes detected"},
+                },
+            ],
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "diffs": [
                 {
@@ -333,12 +497,17 @@ class DiffTests(unittest.TestCase):
                     "status": "regression",
                     "source": "baseline.jsonl",
                     "source_line": 12,
+                    "owner": "@platform-team",
+                    "confidence": "high",
+                    "signal": "structural",
                     "prompt": "Return JSON",
                     "reasons": ["candidate lost valid JSON format"],
                 },
                 {
                     "case_id": "case_002",
                     "status": "changed",
+                    "confidence": "medium",
+                    "signal": "shallow_semantic",
                     "prompt": "Route this ticket",
                     "reasons": ["short answer changed"],
                 },
@@ -350,9 +519,22 @@ class DiffTests(unittest.TestCase):
         self.assertIn("redline eval: cases=2 regression=1 changed=1", report)
         self.assertIn("Confidence: HIGH | fix blocking cases before shipping", report)
         self.assertIn("Scope: structural checks only", report)
+        self.assertIn("Diagnosis: Candidate lost required structure; fix blocking cases before shipping.", report)
         self.assertIn("Warning: prompt file prompts/v2.txt is newer than suite", report)
-        self.assertIn("REGRESSION case_001 [baseline.jsonl:12]: candidate lost valid JSON format", report)
-        self.assertIn("CHANGED    case_002: short answer changed", report)
+        self.assertIn("Prompt evals:", report)
+        self.assertIn(
+            "REGRESSION support/triage [prompts/support/triage.txt]: cases=1 regression=1 changed=0 missing=0 neutral=0",
+            report,
+        )
+        self.assertIn(
+            "CLEAN      billing/refund [prompts/billing/refund.txt]: cases=1 regression=0 changed=0 missing=0 neutral=1",
+            report,
+        )
+        self.assertIn(
+            "REGRESSION case_001 [baseline.jsonl:12] owner=@platform-team [high/structural]: candidate lost valid JSON format",
+            report,
+        )
+        self.assertIn("CHANGED    case_002 [medium/shallow_semantic]: short answer changed", report)
 
 
 if __name__ == "__main__":

@@ -46,6 +46,52 @@
       "enum": ["strict", "review"],
       "description": "Diff signal profile. strict treats missing numbers/entities as regressions; review downgrades them to changed signals for long-form assistant logs."
     },
+    "owners": {
+      "description": "Optional case ownership rules. First match wins. Use this to route regressions to teams in reports and GitHub annotations.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["match", "owner"],
+            "properties": {
+              "match": {
+                "type": "string",
+                "description": "Substring or glob pattern to match."
+              },
+              "owner": {
+                "type": "string",
+                "description": "Owner handle or team, for example @billing-team."
+              },
+              "field": {
+                "type": "string",
+                "enum": ["any", "prompt", "source", "cluster"],
+                "description": "Field to match. Defaults to any."
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "description": "Shortcut mapping of pattern to owner.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional local approval guardrails for team baseline promotion.",
+      "properties": {
+        "require_approver": {
+          "type": "boolean",
+          "description": "When true, redline accept requires --approver and records it in the suite and audit log."
+        }
+      }
+    },
     "fail_on": {
       "description": "Statuses that produce a non-zero diff/eval exit. Use \"none\" for report-only mode.",
       "oneOf": [
@@ -75,6 +121,10 @@
           "type": "string",
           "description": "Markdown report path. {command} expands to diff or eval."
         },
+        "comment": {
+          "type": "string",
+          "description": "Concise PR-comment Markdown path. {command} expands to diff or eval."
+        },
         "html": {
           "type": "string",
           "description": "Self-contained HTML report path. {command} expands to diff or eval."
@@ -82,6 +132,10 @@
         "junit": {
           "type": "string",
           "description": "JUnit XML report path. {command} expands to diff or eval."
+        },
+        "slack": {
+          "type": "string",
+          "description": "Slack Block Kit JSON report path. {command} expands to diff or eval. redline only writes the local artifact; posting it is up to your CI or webhook integration."
         }
       }
     },
@@ -92,6 +146,10 @@
         "observed": {
           "type": "string",
           "description": "Local JSONL file where redline watch stores observed prompt-response rows."
+        },
+        "middleware_skips": {
+          "type": "string",
+          "description": "Optional JSONL file where RedlineMiddleware writes capture skip diagnostics without request or response body text."
         }
       }
     },
@@ -108,6 +166,18 @@
           "description": "Path where redline eval writes replay metadata."
         }
       }
+    },
+    "audit": {
+      "description": "Append-only JSONL audit log path for suite generation, eval/diff runs, judgments, requirements, and accepted baselines. Use false or \"none\" to disable.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "boolean",
+          "const": false
+        }
+      ]
     },
     "replay": {
       "type": "string",

@@ -41,6 +41,7 @@
         "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
         "recommended_action": {"type": "string"},
         "scope": {"type": "string"},
+        "diagnosis": {"type": "string"},
         "rationale": {"type": "array", "items": {"type": "string"}}
       },
       "additionalProperties": true
@@ -48,6 +49,14 @@
     "warnings": {
       "type": "array",
       "items": {"type": "string"}
+    },
+    "suite": {
+      "type": "string",
+      "description": "Suite path used to generate this report, when emitted by the CLI."
+    },
+    "candidate": {
+      "type": "string",
+      "description": "Candidate JSONL path used to generate this report, when available."
     },
     "diffs": {
       "type": "array",
@@ -70,10 +79,25 @@
           "source": {"type": "string"},
           "source_line": {"type": ["integer", "string", "null"]},
           "cluster": {"type": "string"},
+          "owner": {"type": "string"},
+          "owner_rule": {
+            "type": ["object", "null"],
+            "properties": {
+              "match": {"type": "string"},
+              "field": {"type": "string"},
+              "source": {"type": "string"}
+            },
+            "additionalProperties": false
+          },
           "prompt": {"type": "string"},
           "baseline_response": {"type": "string"},
           "candidate_response": {"type": ["string", "null"]},
           "reasons": {"type": "array", "items": {"type": "string"}},
+          "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+          "signal": {
+            "type": "string",
+            "description": "Primary trust signal for this case, such as structural, shallow_semantic, judge, requirement, human_judgment, or none."
+          },
           "baseline_features": {"type": "object", "additionalProperties": true},
           "candidate_features": {"type": ["object", "null"], "additionalProperties": true},
           "judge": {"type": "object", "additionalProperties": true}

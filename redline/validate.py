@@ -6,6 +6,8 @@ from typing import Any
 
 from .features import extract_features
 from .hashes import prompt_response_hash
+from .io import read_json
+from .judgments import JUDGMENT_STATUSES
 
 
 _FEATURE_KEYS = (
@@ -85,7 +87,7 @@ def validate_suite(suite: dict[str, Any], *, suite_path: str = "") -> dict[str, 
 
     _validate_summary(items, suite, len(cases))
     _validate_references(items, suite.get("requirements"), case_ids, "requirements")
-    _validate_references(items, suite.get("judgments"), case_ids, "judgments")
+    _validate_judgments(items, suite.get("judgments"), case_ids)
     _validate_source_staleness(items, suite)
 
     error_count = _count(items, "error")
@@ -105,13 +107,92 @@ def validate_suite(suite: dict[str, Any], *, suite_path: str = "") -> dict[str, 
     }
 
 
+def validate_prompt_manifest(
+    manifest: dict[str, Any],
+    *,
+    manifest_path: str = "redline-prompts.json",
+) -> dict[str, Any]:
+    items: list[dict[str, str]] = []
+    prompts = manifest.get("prompts")
+    if not isinstance(prompts, list):
+        _add(items, "error", "prompts", "expected a list of prompt manifest entries")
+        prompts = []
+    elif not prompts:
+        _add(items, "warning", "prompts", "manifest has no prompt entries")
+
+    prompt_ids: set[str] = set()
+    suite_paths: set[str] = set()
+    suite_count = 0
+    for index, prompt in enumerate(prompts):
+        path = f"prompts[{index}]"
+        if not isinstance(prompt, dict):
+            _add(items, "error", path, "expected prompt manifest entry object")
+            continue
+
+        prompt_id = str(prompt.get("id") or "").strip()
+        prompt_path = str(prompt.get("path") or "").strip()
+        suite_path = str(prompt.get("suite") or "").strip()
+        if not prompt_id:
+            _add(items, "error", f"{path}.id", "expected non-empty string")
+        elif prompt_id in prompt_ids:
+            _add(items, "error", f"{path}.id", f"duplicate prompt id: {prompt_id}")
+        else:
+            prompt_ids.add(prompt_id)
+        if not prompt_path:
+            _add(items, "error", f"{path}.path", "expected non-empty prompt path")
+        elif not Path(prompt_path).is_file():
+            _add(items, "warning", f"{path}.path", f"prompt file not found: {prompt_path}")
+        if not suite_path:
+            _add(items, "error", f"{path}.suite", "expected non-empty suite path")
+            continue
+        if suite_path in suite_paths:
+            _add(items, "warning", f"{path}.suite", f"duplicate mapped suite path: {suite_path}")
+        else:
+            suite_paths.add(suite_path)
+        if not Path(suite_path).is_file():
+            _add(items, "error", f"{path}.suite", f"mapped suite not found: {suite_path}")
+            continue
+        suite_count += 1
+        try:
+            suite_report = validate_suite(read_json(suite_path), suite_path=suite_path)
+        except ValueError as exc:
+            _add(items, "error", f"{path}.suite", f"mapped suite is not valid JSON: {exc}")
+            continue
+        for child in suite_report.get("items", []):
+            if not isinstance(child, dict):
+                continue
+            level = str(child.get("level") or "warning")
+            child_path = str(child.get("path") or "suite")
+            message = str(child.get("message") or "check mapped suite")
+            _add(items, level, f"{path}.suite::{child_path}", message)
+
+    error_count = _count(items, "error")
+    warning_count = _count(items, "warning")
+    return {
+        "version": "0.1",
+        "manifest": manifest_path,
+        "valid": error_count == 0,
+        "errors": error_count,
+        "warnings": warning_count,
+        "prompt_count": len(prompts),
+        "suite_count": suite_count,
+        "items": items,
+        "next_steps": _manifest_next_steps(items, manifest_path=manifest_path),
+    }
+
+
 def format_validation_report(report: dict[str, Any]) -> str:
     lines = [
         "redline validate",
         "",
     ]
+    manifest = str(report.get("manifest") or "")
     suite = str(report.get("suite") or "")
-    if suite:
+    if manifest:
+        lines.append(f"Prompt manifest: {manifest}")
+        lines.append(f"Prompts:  {int(report.get('prompt_count', 0))}")
+        lines.append(f"Suites:   {int(report.get('suite_count', 0))}/{int(report.get('prompt_count', 0))}")
+    elif suite:
         lines.append(f"Suite:    {suite}")
     status = "valid" if report.get("valid") else "invalid"
     lines.extend(
@@ -144,6 +225,25 @@ def format_validation_report(report: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _manifest_next_steps(items: list[dict[str, str]], *, manifest_path: str) -> list[str]:
+    steps: list[str] = []
+    for item in items:
+        if (
+            item["level"] == "error"
+            and item["path"].endswith(".suite")
+            and "mapped suite not found" in item["message"]
+        ):
+            suite_path = item["message"].split("mapped suite not found: ", 1)[-1]
+            steps.append(f"Build missing suite: redline suite path/to/baseline.jsonl --out {suite_path}")
+        if item["level"] == "error" and ".suite::" in item["path"]:
+            steps.append(f"Fix invalid mapped suites, then rerun: redline validate {manifest_path} --strict")
+        if item["level"] == "warning" and item["path"].endswith(".path"):
+            steps.append("Restore missing prompt files or regenerate the manifest with redline prompts.")
+    if items and not steps:
+        steps.append(f"Fix manifest findings, then rerun: redline validate {manifest_path} --strict")
+    return _dedupe(steps)
+
+
 def _next_steps(items: list[dict[str, str]], *, suite_path: str, source: object) -> list[str]:
     suite_arg = suite_path or "redline-suite.json"
     source_arg = _source_arg(source)
@@ -174,6 +274,11 @@ def _next_steps(items: list[dict[str, str]], *, suite_path: str, source: object)
         steps.append(
             f"Update requirement or judgment case IDs, then rerun: redline validate {suite_arg}"
         )
+    if any(
+        item["level"] == "error" and item["path"].startswith("judgments.") and "unknown status" in item["message"]
+        for item in items
+    ):
+        steps.append(f"Use a supported judgment status, then rerun: redline validate {suite_arg}")
     if any(item["level"] == "error" and item["path"] == "cases" for item in items):
         steps.append(f"Fix suite JSON shape, then rerun: redline validate {suite_arg}")
 
@@ -201,6 +306,11 @@ def _next_steps(items: list[dict[str, str]], *, suite_path: str, source: object)
         for item in items
     ):
         steps.append(f"Regenerate suite from newer source log: redline suite {source_arg} --out {suite_arg}")
+    if any(
+        item["level"] == "warning" and item["path"].startswith("judgments.") and item["path"].endswith(".note")
+        for item in items
+    ):
+        steps.append(f"Add judgment notes before team rollout, then rerun: redline validate {suite_arg}")
 
     if items and not steps:
         steps.append(f"Fix findings, then rerun: redline validate {suite_arg}")
@@ -297,6 +407,31 @@ def _validate_references(
     for case_id in value:
         if str(case_id) not in case_ids:
             _add(items, "error", f"{path}.{case_id}", "references unknown case id")
+
+
+def _validate_judgments(
+    items: list[dict[str, str]],
+    value: object,
+    case_ids: set[str],
+) -> None:
+    _validate_references(items, value, case_ids, "judgments")
+    if value is None or not isinstance(value, dict):
+        return
+    for case_id, judgment in value.items():
+        path = f"judgments.{case_id}"
+        if not isinstance(judgment, dict):
+            _add(items, "error", path, "expected judgment object")
+            continue
+        status = str(judgment.get("status") or "").strip()
+        if status not in JUDGMENT_STATUSES:
+            allowed = ", ".join(JUDGMENT_STATUSES)
+            _add(items, "error", f"{path}.status", f"unknown status {status or '<empty>'}; expected one of: {allowed}")
+        note = str(judgment.get("note") or "").strip()
+        if status in {"expected", "ignored"} and not note:
+            _add(items, "warning", f"{path}.note", "expected or ignored judgments should include a reason")
+        updated_at = judgment.get("updated_at")
+        if not isinstance(updated_at, str) or _parse_created_at(updated_at) is None:
+            _add(items, "warning", f"{path}.updated_at", "missing or invalid judgment timestamp")
 
 
 def _add(items: list[dict[str, str]], level: str, path: str, message: str) -> None:

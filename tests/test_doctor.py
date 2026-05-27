@@ -1,9 +1,11 @@
+import json
 import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from redline.audit import append_audit_event
 from redline.doctor import doctor_report, format_doctor_report
 from redline.io import LogRecord
 from redline.suite import build_suite
@@ -11,11 +13,17 @@ from redline.suite import build_suite
 
 class DoctorTests(unittest.TestCase):
     def test_doctor_report_warns_for_missing_config_and_suite(self) -> None:
-        report = doctor_report(
-            config_path="missing.json",
-            config={},
-            suite=None,
-        )
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(directory)
+            try:
+                report = doctor_report(
+                    config_path="missing.json",
+                    config={},
+                    suite=None,
+                )
+            finally:
+                os.chdir(previous)
 
         self.assertTrue(report["ok"])
         self.assertEqual(report["errors"], 0)
@@ -78,8 +86,10 @@ class DoctorTests(unittest.TestCase):
                 "judge": f"{sys.executable} -c pass",
                 "reports": {
                     "json": ".redline/reports/doctor.json",
+                    "comment": ".redline/reports/doctor-comment.md",
                     "html": ".redline/reports/doctor.html",
                     "junit": ".redline/reports/doctor.xml",
+                    "slack": ".redline/reports/doctor.slack.json",
                 },
                 "runs": {
                     "candidate": ".redline/runs/candidate.jsonl",
@@ -98,11 +108,232 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("judge: configured", output)
         self.assertIn("coverage: structural checks only", output)
         self.assertIn("requirements=0; judge=yes", output)
+        self.assertIn("explicit guards=0/1", output)
+        self.assertIn(
+            "team-workflow: owners=0/1; owner rules=0; owner rule provenance=0/0; approval required=no",
+            output,
+        )
         self.assertIn("reports: json=.redline/reports/doctor.json", output)
+        self.assertIn("comment=.redline/reports/doctor-comment.md", output)
         self.assertIn("html=.redline/reports/doctor.html", output)
         self.assertIn("junit=.redline/reports/doctor.xml", output)
+        self.assertIn("slack=.redline/reports/doctor.slack.json", output)
         self.assertIn("runs: candidate=.redline/runs/candidate.jsonl", output)
+        self.assertIn("audit: enabled at .redline/audit.jsonl", output)
         self.assertNotIn("Next:", output)
+
+    def test_doctor_surfaces_non_ascii_suite_calibration(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Resume el caso de José", "Envíalo a soporte", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        report = doctor_report(
+            config_path="redline.json",
+            config={"replay": f"{sys.executable} -c pass"},
+            suite=suite,
+        )
+        output = format_doctor_report(report)
+
+        self.assertIn("non-ASCII records=1", output)
+        self.assertIn("entity/refusal heuristics are English-oriented", output)
+
+    def test_doctor_reports_prompt_manifest_readiness(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text("{}", encoding="utf-8")
+                prompt_path = Path("prompts") / "support.txt"
+                prompt_path.parent.mkdir()
+                prompt_path.write_text("Support prompt", encoding="utf-8")
+                suite_path = Path("suites") / "support.redline-suite.json"
+                suite_path.parent.mkdir()
+                suite = build_suite(
+                    [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+                    source="logs/support.jsonl",
+                    input_field="prompt",
+                    output_field="response",
+                    max_cases=10,
+                )
+                suite_path.write_text(json.dumps(suite), encoding="utf-8")
+                manifest = {
+                    "schema": "redline-prompt-manifest-v1",
+                    "root": "prompts",
+                    "suite_dir": "suites",
+                    "prompts": [
+                        {
+                            "id": "support",
+                            "path": str(prompt_path),
+                            "suite": str(suite_path),
+                        }
+                    ],
+                }
+
+                report = doctor_report(
+                    config_path="redline.json",
+                    config={
+                        "suite": "redline-prompts.json",
+                        "replay": f"{sys.executable} -c pass",
+                    },
+                    suite=manifest,
+                )
+            finally:
+                os.chdir(previous)
+
+        self.assertTrue(report["ok"])
+        suite_check = next(check for check in report["checks"] if check["name"] == "suite")
+        self.assertEqual(suite_check["status"], "ok")
+        self.assertIn(
+            "found prompt manifest redline-prompts.json with 1 prompts and 1/1 mapped suites ready",
+            suite_check["message"],
+        )
+        validation = next(check for check in report["checks"] if check["name"] == "suite-validation")
+        self.assertEqual(validation["status"], "ok")
+        coverage = next(check for check in report["checks"] if check["name"] == "coverage")
+        self.assertIn("requirements=0; judge=no", coverage["message"])
+        self.assertIn("explicit guards=0/1", coverage["message"])
+        self.assertIn("no explicit requirements or recorded judgments yet", coverage["message"])
+        self.assertIn(
+            "Inspect explicit guard gaps: redline summary redline-prompts.json",
+            report["next_steps"],
+        )
+        workflow = next(check for check in report["checks"] if check["name"] == "team-workflow")
+        self.assertIn("owners=0/1", workflow["message"])
+        self.assertIn("owner rule provenance=0/0", workflow["message"])
+
+    def test_doctor_reports_prompt_manifest_missing_suites(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("redline.json").write_text("{}", encoding="utf-8")
+                prompt_path = Path("prompts") / "support.txt"
+                prompt_path.parent.mkdir()
+                prompt_path.write_text("Support prompt", encoding="utf-8")
+                manifest = {
+                    "schema": "redline-prompt-manifest-v1",
+                    "root": "prompts",
+                    "suite_dir": "suites",
+                    "prompts": [
+                        {
+                            "id": "support",
+                            "path": str(prompt_path),
+                            "suite": "suites/support.redline-suite.json",
+                        }
+                    ],
+                }
+
+                report = doctor_report(
+                    config_path="redline.json",
+                    config={
+                        "suite": "redline-prompts.json",
+                        "replay": f"{sys.executable} -c pass",
+                    },
+                    suite=manifest,
+                )
+            finally:
+                os.chdir(previous)
+
+        self.assertFalse(report["ok"])
+        suite_check = next(check for check in report["checks"] if check["name"] == "suite")
+        self.assertIn("missing=1; invalid=0", suite_check["message"])
+        validation = next(check for check in report["checks"] if check["name"] == "suite-validation")
+        self.assertEqual(validation["status"], "error")
+        self.assertIn("Review suite health: redline validate redline-prompts.json", report["next_steps"])
+
+    def test_doctor_warns_when_audit_is_disabled(self) -> None:
+        report = doctor_report(
+            config_path="pyproject.toml",
+            config={
+                "replay": f"{sys.executable} -c pass",
+                "audit": False,
+            },
+            suite={"cases": []},
+        )
+
+        audit = next(check for check in report["checks"] if check["name"] == "audit")
+        self.assertEqual(audit["status"], "warn")
+        self.assertIn("disabled", audit["message"])
+
+    def test_doctor_verifies_signed_audit_log(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            audit_path = Path(directory) / "audit.jsonl"
+            append_audit_event(audit_path, {"event": "suite_generated"})
+
+            report = doctor_report(
+                config_path="pyproject.toml",
+                config={
+                    "replay": f"{sys.executable} -c pass",
+                    "audit": str(audit_path),
+                },
+                suite={"cases": []},
+            )
+
+        audit = next(check for check in report["checks"] if check["name"] == "audit")
+        self.assertEqual(audit["status"], "ok")
+        self.assertIn("hash chain ok", audit["message"])
+        self.assertIn("signed events=1", audit["message"])
+
+    def test_doctor_errors_when_audit_hash_chain_is_broken(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            audit_path = Path(directory) / "audit.jsonl"
+            append_audit_event(audit_path, {"event": "case_marked", "case_id": "case_001"})
+            row = json.loads(audit_path.read_text(encoding="utf-8"))
+            row["case_id"] = "case_999"
+            audit_path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+
+            report = doctor_report(
+                config_path="pyproject.toml",
+                config={
+                    "replay": f"{sys.executable} -c pass",
+                    "audit": str(audit_path),
+                },
+                suite={"cases": []},
+            )
+
+        audit = next(check for check in report["checks"] if check["name"] == "audit")
+        self.assertEqual(audit["status"], "error")
+        self.assertIn("hash chain failed", audit["message"])
+        self.assertIn("Inspect audit integrity: redline audit --verify", report["next_steps"])
+
+    def test_doctor_warns_for_legacy_unsigned_audit_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            audit_path = Path(directory) / "audit.jsonl"
+            audit_path.write_text('{"event": "legacy"}\n', encoding="utf-8")
+
+            report = doctor_report(
+                config_path="pyproject.toml",
+                config={
+                    "replay": f"{sys.executable} -c pass",
+                    "audit": str(audit_path),
+                },
+                suite={"cases": []},
+            )
+
+        audit = next(check for check in report["checks"] if check["name"] == "audit")
+        self.assertEqual(audit["status"], "warn")
+        self.assertIn("unsigned legacy event", audit["message"])
+
+    def test_doctor_errors_when_audit_path_is_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            report = doctor_report(
+                config_path="pyproject.toml",
+                config={
+                    "replay": f"{sys.executable} -c pass",
+                    "audit": directory,
+                },
+                suite={"cases": []},
+            )
+
+        audit = next(check for check in report["checks"] if check["name"] == "audit")
+        self.assertEqual(audit["status"], "error")
+        self.assertIn("is a directory", audit["message"])
 
     def test_doctor_calibrates_coverage_for_high_risk_suite_without_semantic_checks(self) -> None:
         suite = build_suite(
@@ -123,7 +354,107 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(coverage["status"], "ok")
         self.assertIn("high-risk clusters=1", coverage["message"])
         self.assertIn("requirements=0; judge=no", coverage["message"])
+        self.assertIn("explicit guards=0/1", coverage["message"])
         self.assertIn("add requirements or a judge", coverage["message"])
+        guard_step = (
+            "Add explicit guards: redline cases redline-suite.json, then "
+            'redline require redline-suite.json <case_id> --include "must keep text"'
+        )
+        self.assertIn(guard_step, report["next_steps"])
+
+    def test_doctor_surfaces_team_workflow_posture(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Route billing", "Billing Ops handles it.", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+            owner_rules=[{"match": "billing", "owner": "@billing-team"}],
+        )
+
+        report = doctor_report(
+            config_path="pyproject.toml",
+            config={
+                "replay": f"{sys.executable} -c pass",
+                "owners": [{"match": "billing", "owner": "@billing-team"}],
+                "approval": {"require_approver": True},
+            },
+            suite=suite,
+        )
+
+        team = next(check for check in report["checks"] if check["name"] == "team-workflow")
+        self.assertEqual(team["status"], "ok")
+        self.assertEqual(
+            team["message"],
+            "owners=1/1; owner rules=1; owner rule provenance=1/1; approval required=yes",
+        )
+
+    def test_doctor_warns_when_middleware_only_records_skips(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                skip_log = root / ".redline" / "logs" / "middleware-skips.jsonl"
+                skip_log.parent.mkdir(parents=True)
+                skip_log.write_text(
+                    '{"event":"middleware_capture_skipped","reason":"response_streaming","observed_at":"2026-05-25T00:00:00+00:00","source":"asgi:POST /chat","metadata":{}}\n',
+                    encoding="utf-8",
+                )
+
+                report = doctor_report(
+                    config_path="redline.json",
+                    config={
+                        "logs": {
+                            "observed": ".redline/logs/prompts.jsonl",
+                            "middleware_skips": ".redline/logs/middleware-skips.jsonl",
+                        },
+                    },
+                    suite={"cases": []},
+                )
+
+                capture = next(check for check in report["checks"] if check["name"] == "capture")
+                self.assertEqual(capture["status"], "warn")
+                self.assertIn("observed rows=0", capture["message"])
+                self.assertIn("middleware skips=1", capture["message"])
+                self.assertIn("response_streaming=1", capture["message"])
+                self.assertIn(
+                    "Inspect capture skips: redline watch --stats --skip-log .redline/logs/middleware-skips.jsonl",
+                    report["next_steps"],
+                )
+            finally:
+                os.chdir(previous)
+
+    def test_doctor_reports_capture_skips_as_ok_when_observations_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                logs = root / ".redline" / "logs"
+                logs.mkdir(parents=True)
+                (logs / "prompts.jsonl").write_text(
+                    '{"prompt":"hello","response":"world","observed_at":"2026-05-25T00:00:00+00:00","source":"asgi:POST /chat","content_hash":"abc"}\n',
+                    encoding="utf-8",
+                )
+                (logs / "middleware-skips.jsonl").write_text(
+                    '{"event":"middleware_capture_skipped","reason":"prompt_field_missing","observed_at":"2026-05-25T00:00:01+00:00","source":"asgi:POST /chat","metadata":{}}\n',
+                    encoding="utf-8",
+                )
+
+                report = doctor_report(
+                    config_path="redline.json",
+                    config={"logs": {"observed": ".redline/logs/prompts.jsonl"}},
+                    suite={"cases": []},
+                )
+
+                capture = next(check for check in report["checks"] if check["name"] == "capture")
+                self.assertEqual(capture["status"], "ok")
+                self.assertIn("observed rows=1", capture["message"])
+                self.assertIn("middleware skips=1", capture["message"])
+                self.assertNotIn("Inspect capture skips", report["next_steps"])
+            finally:
+                os.chdir(previous)
 
     def test_format_doctor_report_prints_next_steps(self) -> None:
         report = doctor_report(
@@ -138,11 +469,12 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("redline init --runner stdio --copy-runner", output)
 
     def test_doctor_warns_for_empty_artifact_sections(self) -> None:
-        report = doctor_report(
-            config_path="pyproject.toml",
-            config={"reports": {}, "runs": {}},
-            suite={"cases": []},
-        )
+        with tempfile.TemporaryDirectory() as directory:
+            report = doctor_report(
+                config_path="pyproject.toml",
+                config={"reports": {}, "runs": {}, "audit": str(Path(directory) / "audit.jsonl")},
+                suite={"cases": []},
+            )
 
         self.assertEqual(report["warnings"], 4)
         self.assertTrue(any(check["name"] == "reports" for check in report["checks"]))
@@ -156,15 +488,17 @@ class DoctorTests(unittest.TestCase):
             output_field="response",
             max_cases=10,
         )
-        report = doctor_report(
-            config_path="pyproject.toml",
-            config={
-                "suite": ".redline/suite.json",
-                "replay": f"{sys.executable} -c pass",
-            },
-            suite=suite,
-            suite_git_ignored=True,
-        )
+        with tempfile.TemporaryDirectory() as directory:
+            report = doctor_report(
+                config_path="pyproject.toml",
+                config={
+                    "suite": ".redline/suite.json",
+                    "replay": f"{sys.executable} -c pass",
+                    "audit": str(Path(directory) / "audit.jsonl"),
+                },
+                suite=suite,
+                suite_git_ignored=True,
+            )
 
         self.assertEqual(report["warnings"], 1)
         self.assertTrue(any(check["name"] == "suite-git" for check in report["checks"]))

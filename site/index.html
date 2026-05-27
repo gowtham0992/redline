@@ -26,7 +26,9 @@
         <a href="#workflow">Workflow</a>
         <a href="#trust">Trust</a>
         <a href="#adapters">Adapters</a>
+        <a href="#mcp">MCP</a>
         <a href="#certification">Certify</a>
+        <a href="https://github.com/gowtham0992/redline#project-docs">Docs</a>
         <a href="https://github.com/gowtham0992/redline">GitHub</a>
       </nav>
     </header>
@@ -51,8 +53,14 @@
             <span>$</span>
             <code>python -m pip install redline-ai<br>redline demo --public --compact</code>
           </div>
+          <div class="badges" aria-label="Project status badges">
+            <a href="https://github.com/gowtham0992/redline/actions/workflows/ci.yml"><img src="https://github.com/gowtham0992/redline/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+            <a href="https://pypi.org/project/redline-ai/"><img src="https://img.shields.io/pypi/v/redline-ai.svg" alt="PyPI version"></a>
+            <a href="https://github.com/gowtham0992/redline/stargazers"><img src="https://img.shields.io/github/stars/gowtham0992/redline?style=social" alt="GitHub stars"></a>
+          </div>
           <div class="actions" aria-label="Primary actions">
             <a class="button primary" href="https://github.com/gowtham0992/redline#start-here">Start in 5 minutes</a>
+            <a class="button secondary" href="https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline">MCP Registry</a>
             <a class="button secondary" href="https://github.com/gowtham0992/redline">View source</a>
           </div>
         </div>
@@ -62,6 +70,7 @@
             alt="redline terminal and dashboard preview showing four prompt regressions caught"
             width="1600"
             height="1050"
+            loading="lazy"
           >
         </figure>
       </section>
@@ -94,6 +103,28 @@ REGRESSION case_006: candidate newly refuses
 REGRESSION case_010: candidate lost bullet list structure
 
 Next: inspect the HTML report, mark intentional changes, accept reviewed outputs.</code></pre>
+        </div>
+        <div class="artifact-proof" aria-label="Generated redline product artifacts">
+          <figure>
+            <img
+              src="assets/redline-dashboard-proof.png"
+              alt="redline dashboard showing reports, benchmark evidence, history, and ship readiness"
+              width="1440"
+              height="1050"
+              loading="lazy"
+            >
+            <figcaption>Local dashboard with ship readiness, history, benchmark evidence, and report links.</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="assets/redline-report-proof.png"
+              alt="redline HTML report showing concrete regression reasons and side-by-side baseline and candidate outputs"
+              width="1440"
+              height="1050"
+              loading="lazy"
+            >
+            <figcaption>HTML report with concrete reasons and side-by-side baseline versus candidate output.</figcaption>
+          </figure>
         </div>
       </section>
 
@@ -220,8 +251,41 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
           <div>
             <h3>Local dashboard</h3>
             <p>Publish self-contained HTML reports as CI artifacts or browse them locally.</p>
-            <code>redline dashboard --open</code>
+            <code>redline dashboard --reports-dir .redline/demo/reports --open</code>
           </div>
+        </div>
+      </section>
+
+      <section class="assistant band" id="mcp">
+        <div class="section-heading">
+          <p class="eyebrow">AI assistant loop</p>
+          <h2>Run redline where prompt work happens.</h2>
+          <p>
+            The MCP server lets Claude, Codex, Cursor, Kiro, and other MCP
+            clients inspect redline setup, run evals, summarize suites, render
+            dashboards, and list cases without switching context.
+          </p>
+        </div>
+        <div class="assistant-grid">
+          <article>
+            <strong>Install from the registry</strong>
+            <p>Use the published MCP entry backed by the PyPI package.</p>
+            <code>uvx --from redline-ai redline-mcp</code>
+          </article>
+          <article>
+            <strong>Ask the natural question</strong>
+            <p>Your assistant can run the local check and explain the behavioral diff inline.</p>
+            <code>Did my prompt change introduce regressions?</code>
+          </article>
+          <article>
+            <strong>Keep writes guarded</strong>
+            <p>Read-only tools are the default; marking cases requires explicit write approval.</p>
+            <code>redline_mark requires allow_write</code>
+          </article>
+        </div>
+        <div class="assistant-links">
+          <a href="https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline">View MCP Registry listing</a>
+          <a href="https://github.com/gowtham0992/redline/blob/main/docs/mcp.md">Read MCP docs</a>
         </div>
       </section>
 

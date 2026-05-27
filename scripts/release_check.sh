@@ -16,8 +16,8 @@ export PIP_DISABLE_PIP_VERSION_CHECK=1
 
 printf 'release check work dir: %s\n\n' "$work_dir"
 
-printf '$ %s -m unittest discover\n' "$python_bin"
-"$python_bin" -m unittest discover
+printf '$ %s -m pytest -q\n' "$python_bin"
+"$python_bin" -m pytest -q
 
 printf '\n$ %s -m compileall redline tests examples scripts\n' "$python_bin"
 "$python_bin" -m compileall redline tests examples scripts
@@ -38,6 +38,12 @@ printf '\n$ %s -m redline suite examples/public_dogfood_baseline.jsonl --out %s 
 printf '\n$ %s -m redline diff %s examples/public_dogfood_candidate.jsonl --compact --fail-on none\n' "$python_bin" "$public_suite"
 "$python_bin" -m redline diff "$public_suite" examples/public_dogfood_candidate.jsonl --compact --fail-on none
 
+printf '\n$ %s -m pip --version\n' "$python_bin"
+if ! "$python_bin" -m pip --version; then
+  printf '\n$ %s -m ensurepip --upgrade\n' "$python_bin"
+  "$python_bin" -m ensurepip --upgrade
+fi
+
 printf '\n$ %s -m pip wheel . --no-deps --no-build-isolation -w %s\n' "$python_bin" "$wheel_dir"
 "$python_bin" -m pip wheel . --no-deps --no-build-isolation -w "$wheel_dir"
 wheel_files=("$wheel_dir"/*.whl)
@@ -50,8 +56,8 @@ fi
 printf '\n$ %s -m venv %s\n' "$python_bin" "$venv_dir"
 "$python_bin" -m venv "$venv_dir"
 
-printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_path"
-"$venv_dir/bin/python" -m pip install --no-deps "$wheel_path"
+printf '\n$ %s -m pip install --no-deps --force-reinstall %s\n' "$venv_dir/bin/python" "$wheel_path"
+"$venv_dir/bin/python" -m pip install --no-deps --force-reinstall "$wheel_path"
 
 (
   cd "$smoke_dir"
@@ -125,6 +131,56 @@ printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_pat
   printf '\n$ redline suite .redline/demo/baseline.jsonl --out all-suite.json --all-cases\n'
   "$venv_dir/bin/redline" suite .redline/demo/baseline.jsonl --out all-suite.json --all-cases
 
+  printf '\n$ redline suite .redline/demo/baseline.jsonl --out manifest-suites/v2.redline-suite.json --all-cases\n'
+  "$venv_dir/bin/redline" suite \
+    .redline/demo/baseline.jsonl \
+    --out manifest-suites/v2.redline-suite.json \
+    --all-cases
+
+  printf '\n$ redline prompts .redline/demo/prompts/v2.txt --suite-dir manifest-suites --out redline-prompts.json\n'
+  "$venv_dir/bin/redline" prompts \
+    .redline/demo/prompts/v2.txt \
+    --suite-dir manifest-suites \
+    --out redline-prompts.json
+
+  printf '\n$ redline prompts .redline/demo/prompts/v2.txt --suite-dir manifest-suites --out redline-prompts.json --check --check-suites\n'
+  "$venv_dir/bin/redline" prompts \
+    .redline/demo/prompts/v2.txt \
+    --suite-dir manifest-suites \
+    --out redline-prompts.json \
+    --check \
+    --check-suites
+
+  printf '\n$ redline summary redline-prompts.json\n'
+  "$venv_dir/bin/redline" summary redline-prompts.json
+
+  printf '\n$ redline validate redline-prompts.json --strict\n'
+  "$venv_dir/bin/redline" validate redline-prompts.json --strict
+
+  printf '\n$ redline budget redline-prompts.json --out-json manifest-benchmark.json --out-md manifest-benchmark.md\n'
+  "$venv_dir/bin/redline" budget redline-prompts.json \
+    --out-json manifest-benchmark.json \
+    --out-md manifest-benchmark.md
+  test -s manifest-benchmark.json
+  test -s manifest-benchmark.md
+
+  manifest_replay="$venv_dir/bin/python -c 'import sys; print(sys.stdin.read())'"
+  printf '\n$ redline eval redline-prompts.json --replay "%s" --compact --out-json manifest-eval.json --out-comment manifest-eval-comment.md --out-html manifest-eval.html --candidate-out manifest-candidate.jsonl --run-metadata manifest-replay.json --fail-on none\n' "$manifest_replay"
+  "$venv_dir/bin/redline" eval redline-prompts.json \
+    --replay "$manifest_replay" \
+    --compact \
+    --out-json manifest-eval.json \
+    --out-comment manifest-eval-comment.md \
+    --out-html manifest-eval.html \
+    --candidate-out manifest-candidate.jsonl \
+    --run-metadata manifest-replay.json \
+    --fail-on none
+  test -s manifest-eval.json
+  test -s manifest-eval-comment.md
+  test -s manifest-eval.html
+  test -s manifest-candidate.jsonl
+  test -s manifest-replay.json
+
   printf '\n$ redline suite add all-suite.json --prompt "Pinned refund URL" --response "Refund policy: https://example.com/refunds" --include "https://example.com/refunds" --out pinned-suite.json\n'
   "$venv_dir/bin/redline" suite add all-suite.json \
     --prompt "Pinned refund URL" \
@@ -135,16 +191,25 @@ printf '\n$ %s -m pip install --no-deps %s\n' "$venv_dir/bin/python" "$wheel_pat
   printf '\n$ redline validate pinned-suite.json\n'
   "$venv_dir/bin/redline" validate pinned-suite.json
 
-  printf '\n$ redline diff all-suite.json .redline/demo/candidate.jsonl --profile review --compact --out-html diff.html --fail-on none\n'
+  printf '\n$ redline diff all-suite.json .redline/demo/candidate.jsonl --profile review --compact --out-comment diff-comment.md --out-html diff.html --fail-on none\n'
   "$venv_dir/bin/redline" diff all-suite.json .redline/demo/candidate.jsonl \
     --profile review \
     --compact \
+    --out-comment diff-comment.md \
     --out-html diff.html \
     --fail-on none
+  test -s diff-comment.md
   test -s diff.html
 
   printf '\n$ redline runners\n'
   "$venv_dir/bin/redline" runners
+
+  printf '\n$ redline judges\n'
+  "$venv_dir/bin/redline" judges
+
+  printf '\n$ redline sbom --out redline-sbom.json\n'
+  "$venv_dir/bin/redline" sbom --out redline-sbom.json
+  test -s redline-sbom.json
 
   printf '\n$ redline init --runner stdio --copy-runner\n'
   "$venv_dir/bin/redline" init --runner stdio --copy-runner
