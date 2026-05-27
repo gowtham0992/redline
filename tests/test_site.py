@@ -45,6 +45,9 @@ class GitHubPagesSiteTests(unittest.TestCase):
         self.assertIn("Open source surface", html)
         self.assertIn("Review the checks before you trust the gate", html)
         self.assertIn('loading="lazy"', html)
+        self.assertIn("Generated redline product artifacts", html)
+        self.assertIn("Local dashboard with ship readiness", html)
+        self.assertIn("HTML report with concrete reasons", html)
         self.assertIn("bash scripts/release_check.sh", html)
         self.assertIn("bash scripts/action_smoke.sh", html)
         self.assertIn("redline history --fail-on worse", html)
@@ -97,6 +100,14 @@ class GitHubPagesSiteTests(unittest.TestCase):
             parser.images,
         )
         self.assertIn(
+            ("assets/redline-dashboard-proof.png", "redline dashboard showing reports, benchmark evidence, history, and ship readiness"),
+            parser.images,
+        )
+        self.assertIn(
+            ("assets/redline-report-proof.png", "redline HTML report showing concrete regression reasons and side-by-side baseline and candidate outputs"),
+            parser.images,
+        )
+        self.assertIn(
             ("https://img.shields.io/github/stars/gowtham0992/redline?style=social", "GitHub stars"),
             parser.images,
         )
@@ -113,11 +124,13 @@ class GitHubPagesSiteTests(unittest.TestCase):
                 self.assertIn("redline", text)
 
     def test_preview_image_is_committed_png_asset(self) -> None:
-        image = Path("site/assets/redline-preview.png")
+        for name in ("redline-preview.png", "redline-dashboard-proof.png", "redline-report-proof.png"):
+            with self.subTest(name=name):
+                image = Path("site/assets") / name
 
-        self.assertTrue(image.exists())
-        self.assertGreater(image.stat().st_size, 20_000)
-        self.assertEqual(image.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+                self.assertTrue(image.exists())
+                self.assertGreater(image.stat().st_size, 20_000)
+                self.assertEqual(image.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
 
     def test_site_css_uses_responsive_static_layout(self) -> None:
         css = Path("site/styles.css").read_text(encoding="utf-8")
@@ -126,6 +139,7 @@ class GitHubPagesSiteTests(unittest.TestCase):
         self.assertIn("grid-template-columns", css)
         self.assertIn(".certification-grid", css)
         self.assertIn(".assistant-grid", css)
+        self.assertIn(".artifact-proof", css)
         self.assertIn("border-radius: 8px", css)
         self.assertNotIn("letter-spacing: -", css)
         self.assertNotIn("font-size: clamp(", css)

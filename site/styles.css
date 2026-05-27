@@ -325,6 +325,36 @@ code {
   white-space: pre-wrap;
 }
 
+.artifact-proof {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  max-width: 1180px;
+  margin-top: 28px;
+}
+
+.artifact-proof figure {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgb(16 24 32 / 10%);
+}
+
+.artifact-proof img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-bottom: 1px solid var(--line);
+}
+
+.artifact-proof figcaption {
+  padding: 14px 16px 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .proof-grid,
 .trust-layout,
 .certification-grid,
@@ -602,6 +632,7 @@ code {
   .hero,
   .steps,
   .proof-grid,
+  .artifact-proof,
   .trust-layout,
   .assistant-grid,
   .certification-grid {
