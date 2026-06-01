@@ -119,6 +119,7 @@ bounded FastAPI/ASGI middleware.
 
 ```bash
 redline import downloaded.jsonl --input-field instruction --output-field response --out logs/baseline.jsonl
+redline import langfuse-export.jsonl --preset langfuse --out logs/baseline.jsonl
 redline suite logs/baseline.jsonl --out redline-suite.json
 redline cases redline-suite.json
 ```

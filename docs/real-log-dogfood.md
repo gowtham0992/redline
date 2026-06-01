@@ -29,6 +29,15 @@ contains the model or agent response. Common examples:
 | Langfuse/Helicone-style export | `input` | `output` |
 | Support traces | `ticket.text` | `assistant.reply` |
 
+For common exports, start with a preset and override fields only when your file
+differs:
+
+```bash
+redline import raw-export.jsonl --preset langfuse --out .redline/dogfood/baseline.jsonl
+redline import raw-export.jsonl --preset helicone --out .redline/dogfood/baseline.jsonl
+redline import raw-export.jsonl --preset openai-chat --out .redline/dogfood/baseline.jsonl
+```
+
 ## 2. Import With Redaction On
 
 `redline import` redacts common secrets and PII by default before writing the

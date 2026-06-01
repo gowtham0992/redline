@@ -10,6 +10,43 @@ from .redact import DEFAULT_PLACEHOLDER, redact_object
 
 _MISSING = object()
 
+IMPORT_PRESETS: dict[str, dict[str, object]] = {
+    "datadog": {
+        "input_field": "attributes.input",
+        "output_field": "attributes.output",
+        "metadata_fields": ["service", "trace_id", "attributes.model"],
+    },
+    "dolly": {
+        "input_field": "instruction",
+        "output_field": "response",
+        "context_field": "context",
+        "metadata_fields": ["category"],
+    },
+    "helicone": {
+        "input_field": "request.prompt",
+        "output_field": "response.text",
+        "metadata_fields": ["request.model", "response.model", "user_id"],
+    },
+    "langfuse": {
+        "input_field": "input",
+        "output_field": "output",
+        "metadata_fields": ["name", "traceId", "userId"],
+    },
+    "openai-chat": {
+        "input_field": "request.messages",
+        "output_field": "response.choices.0.message.content",
+        "metadata_fields": ["request.model", "response.model"],
+    },
+}
+
+
+def import_preset(name: str) -> dict[str, object]:
+    try:
+        return dict(IMPORT_PRESETS[name])
+    except KeyError as exc:
+        choices = ", ".join(sorted(IMPORT_PRESETS))
+        raise ValueError(f"unknown import preset: {name}; choose one of: {choices}") from exc
+
 
 def import_jsonl_log(
     path: str | Path,
@@ -115,6 +152,12 @@ def _get_field(row: dict[str, Any], path: str) -> Any:
         return row[path]
     current: Any = row
     for part in path.split("."):
+        if isinstance(current, list) and part.isdigit():
+            index = int(part)
+            if index >= len(current):
+                return _MISSING
+            current = current[index]
+            continue
         if not isinstance(current, dict) or part not in current:
             return _MISSING
         current = current[part]

@@ -2131,6 +2131,39 @@ class CliConfigTests(unittest.TestCase):
                         0,
                     )
                 self.assertIn("ada@example.com", Path("raw.jsonl").read_text(encoding="utf-8"))
+
+                Path("langfuse.jsonl").write_text(
+                    json.dumps(
+                        {
+                            "input": "Summarize refund policy",
+                            "output": "Refunds are available for 30 days.",
+                            "traceId": "trace-123",
+                        }
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "import",
+                                "langfuse.jsonl",
+                                "--preset",
+                                "langfuse",
+                                "--out",
+                                "langfuse-baseline.jsonl",
+                            ]
+                        ),
+                        0,
+                    )
+                text = output.getvalue()
+                self.assertIn("Preset:          langfuse", text)
+                self.assertIn("Mapped prompt:   input", text)
+                imported_row = json.loads(Path("langfuse-baseline.jsonl").read_text(encoding="utf-8"))
+                self.assertEqual(imported_row["prompt"], "Summarize refund policy")
+                self.assertEqual(imported_row["metadata"], {"traceId": "trace-123"})
             finally:
                 os.chdir(previous)
 

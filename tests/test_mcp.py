@@ -65,6 +65,7 @@ class McpServerTests(unittest.TestCase):
                     "cwd": directory,
                     "path": str(source),
                     "out": str(output),
+                    "preset": "dolly",
                     "input_field": "instruction",
                     "output_field": "response",
                     "context_field": "context",
@@ -77,6 +78,7 @@ class McpServerTests(unittest.TestCase):
         self.assertFalse(result["isError"])
         self.assertEqual(result["structuredContent"]["exit_code"], 0)
         self.assertEqual(result["structuredContent"]["json"]["records"], 1)
+        self.assertEqual(result["structuredContent"]["json"]["preset"], "dolly")
         self.assertTrue(result["structuredContent"]["json"]["redacted"])
         self.assertTrue(wrote_output)
 

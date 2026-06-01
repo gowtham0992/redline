@@ -68,6 +68,46 @@ class ImportLogTests(unittest.TestCase):
             self.assertEqual(report["records"], 1)
             self.assertEqual(len(read_jsonl_records(output, "prompt", "response")), 1)
 
+    def test_import_jsonl_log_reads_nested_list_paths_for_chat_exports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "openai.jsonl"
+            output = root / "baseline.jsonl"
+            source.write_text(
+                json.dumps(
+                    {
+                        "request": {
+                            "messages": [
+                                {"role": "system", "content": "Use JSON."},
+                                {"role": "user", "content": "Classify ticket INV-1042."},
+                            ],
+                            "model": "gpt-4o-mini",
+                        },
+                        "response": {
+                            "choices": [
+                                {"message": {"content": '{"owner": "billing"}'}},
+                            ]
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            report = import_jsonl_log(
+                source,
+                output=output,
+                input_field="request.messages",
+                output_field="response.choices.0.message.content",
+                metadata_fields=["request.model"],
+            )
+
+            self.assertEqual(report["records"], 1)
+            records = read_jsonl_records(output, "prompt", "response")
+            self.assertIn("Classify ticket INV-1042", records[0].prompt)
+            self.assertEqual(records[0].response, '{"owner": "billing"}')
+            self.assertEqual(records[0].raw["metadata"], {"request.model": "gpt-4o-mini"})
+
     def test_import_jsonl_log_redacts_common_secrets_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

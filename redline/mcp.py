@@ -531,6 +531,7 @@ def _tools() -> list[ToolSpec]:
                 {
                     "path": _string("Source JSONL file to normalize."),
                     "out": _string("Redline JSONL output path."),
+                    "preset": _string("Optional import preset such as langfuse, helicone, datadog, dolly, or openai-chat."),
                     "input_field": _string("Source field path containing prompt text."),
                     "output_field": _string("Source field path containing response text."),
                     "context_field": _string("Optional source field path appended to the prompt as Context."),
@@ -886,6 +887,7 @@ def _build_import(arguments: dict[str, Any]) -> list[str]:
     args = ["import"]
     _add_positional(args, _required_string(arguments, "path"))
     _add_option(args, "--out", _required_string(arguments, "out"))
+    _add_option(args, "--preset", arguments.get("preset"))
     _add_option(args, "--input-field", arguments.get("input_field"))
     _add_option(args, "--output-field", arguments.get("output_field"))
     _add_option(args, "--context-field", arguments.get("context_field"))

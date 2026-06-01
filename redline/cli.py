@@ -63,7 +63,7 @@ from .history import (
     read_history,
     should_fail_history,
 )
-from .import_logs import import_jsonl_log
+from .import_logs import IMPORT_PRESETS, import_jsonl_log, import_preset
 from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judge import apply_judge
 from .judge_templates import (
@@ -239,8 +239,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     import_parser = subparsers.add_parser("import", help="normalize exported JSONL logs into redline format")
     import_parser.add_argument("path", help="source JSONL file to normalize")
-    import_parser.add_argument("--input-field", default="prompt", help="source field path containing prompt text")
-    import_parser.add_argument("--output-field", default="response", help="source field path containing response text")
+    import_parser.add_argument("--preset", choices=sorted(IMPORT_PRESETS), help="field mapping preset for common log exports")
+    import_parser.add_argument("--input-field", help="source field path containing prompt text")
+    import_parser.add_argument("--output-field", help="source field path containing response text")
     import_parser.add_argument("--context-field", help="optional source field path appended to the prompt as Context")
     import_parser.add_argument("--id-field", help="optional source field path copied to the redline id field")
     import_parser.add_argument(
@@ -731,22 +732,32 @@ def cmd_judges(args: argparse.Namespace) -> int:
 
 
 def cmd_import(args: argparse.Namespace) -> int:
+    preset = import_preset(args.preset) if args.preset else {}
+    input_field = args.input_field or str(preset.get("input_field") or "prompt")
+    output_field = args.output_field or str(preset.get("output_field") or "response")
+    context_field = args.context_field if args.context_field is not None else _optional_preset_string(preset, "context_field")
+    id_field = args.id_field if args.id_field is not None else _optional_preset_string(preset, "id_field")
+    metadata_fields = _preset_string_list(preset, "metadata_fields")
+    metadata_fields.extend(args.metadata_field)
     report = import_jsonl_log(
         args.path,
         output=args.out,
-        input_field=args.input_field,
-        output_field=args.output_field,
-        context_field=args.context_field,
-        id_field=args.id_field,
-        metadata_fields=args.metadata_field,
+        input_field=input_field,
+        output_field=output_field,
+        context_field=context_field,
+        id_field=id_field,
+        metadata_fields=metadata_fields,
         limit=args.limit,
         redact=not args.no_redact,
         placeholder=args.redaction_placeholder,
     )
+    report["preset"] = args.preset or ""
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
         print(f"Imported {report['records']} prompt-response pairs from {Path(str(report['source']))}.")
+        if report["preset"]:
+            print(f"Preset:          {report['preset']}")
         print(f"Mapped prompt:   {report['input_field']}")
         print(f"Mapped response: {report['output_field']}")
         if report["context_field"]:
@@ -770,6 +781,21 @@ def cmd_import(args: argparse.Namespace) -> int:
         print("- Inspect cases: redline cases redline-suite.json")
         print("- Compare candidate outputs: redline diff redline-suite.json path/to/candidate.jsonl")
     return 0
+
+
+def _optional_preset_string(preset: Mapping[str, object], key: str) -> str | None:
+    value = preset.get(key)
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _preset_string_list(preset: Mapping[str, object], key: str) -> list[str]:
+    value = preset.get(key)
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item).strip()]
 
 
 def cmd_watch(args: argparse.Namespace) -> int:
