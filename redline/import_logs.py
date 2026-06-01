@@ -155,7 +155,12 @@ def _required_field(
 ) -> Any:
     value = _get_field(row, path)
     if value is _MISSING:
-        raise ValueError(f"{source}:{line_number} missing {label} field: {path}")
+        fields = ", ".join(sorted(str(key) for key in row)[:8]) or "<none>"
+        raise ValueError(
+            f"{source}:{line_number} missing {label} field: {path}. "
+            f"Available top-level fields: {fields}. "
+            "Run `redline import --list-presets` or override the field path."
+        )
     return value
 
 

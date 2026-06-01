@@ -180,5 +180,5 @@ class ImportLogTests(unittest.TestCase):
             source = root / "downloaded.jsonl"
             source.write_text('{"instruction": "missing response"}\n', encoding="utf-8")
 
-            with self.assertRaisesRegex(ValueError, "missing output field: response"):
+            with self.assertRaisesRegex(ValueError, "redline import --list-presets"):
                 import_jsonl_log(source, output=root / "baseline.jsonl", input_field="instruction")

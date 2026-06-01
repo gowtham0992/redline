@@ -22,6 +22,14 @@ class IoTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not found"):
             read_jsonl_records("missing.jsonl", "prompt", "response")
 
+    def test_missing_jsonl_fields_suggest_import_presets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "provider.jsonl"
+            path.write_text('{"instruction": "Summarize", "completion": "Done"}\n', encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "redline import --list-presets"):
+                read_jsonl_records(path, "prompt", "response")
+
     def test_read_json_gives_jsonl_next_step_for_extra_data(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "baseline.jsonl"
