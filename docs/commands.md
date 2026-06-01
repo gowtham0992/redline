@@ -10,7 +10,7 @@ output and examples after installing.
 | `redline init` | Write `redline.json`, runner files, and optional CI workflow. | `--runner`, `--copy-runner`, `--github-action`, `--force` |
 | `redline doctor` | Check config, suite, replay, reports, audit, and team workflow. | `--strict`, `--json` |
 | `redline watch` | Collect prompt-response observations or print snippets. | `--log`, `--stats`, `--snippet`, `--follow` |
-| `redline import` | Normalize exported JSONL fields into redline `prompt`/`response` logs. | `--input-field`, `--output-field`, `--context-field`, `--metadata-field`, `--limit`, `--out` |
+| `redline import` | Normalize exported JSONL fields into redline `prompt`/`response` logs, with best-effort redaction on by default. | `--input-field`, `--output-field`, `--context-field`, `--metadata-field`, `--limit`, `--out`, `--no-redact` |
 | `redline redact` | Check or write best-effort redacted logs. | `--check`, `--out`, `--json` |
 | `redline cluster` | Inspect behavior groups before suite generation. | `--max-cases`, `--json` |
 | `redline suite` | Generate a suite from baseline JSONL logs. | `--out`, `--max-cases`, `--all-cases`, `--owner` |

@@ -2081,6 +2081,59 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_import_reports_default_redaction_and_supports_raw_opt_out(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("downloaded.jsonl").write_text(
+                    '{"instruction": "Email ada@example.com", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "import",
+                                "downloaded.jsonl",
+                                "--input-field",
+                                "instruction",
+                                "--output-field",
+                                "response",
+                                "--out",
+                                "baseline.jsonl",
+                            ]
+                        ),
+                        0,
+                    )
+
+                self.assertIn("1 value(s) redacted", output.getvalue())
+                self.assertNotIn("ada@example.com", Path("baseline.jsonl").read_text(encoding="utf-8"))
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(
+                        main(
+                            [
+                                "import",
+                                "downloaded.jsonl",
+                                "--input-field",
+                                "instruction",
+                                "--output-field",
+                                "response",
+                                "--out",
+                                "raw.jsonl",
+                                "--no-redact",
+                            ]
+                        ),
+                        0,
+                    )
+                self.assertIn("ada@example.com", Path("raw.jsonl").read_text(encoding="utf-8"))
+            finally:
+                os.chdir(previous)
+
     def test_eval_uses_configured_replay_command(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

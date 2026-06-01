@@ -224,6 +224,9 @@ redline is built around the full prompt-regression loop:
 - `redline watch`: collect prompt-response observations from logs, Python
   functions, OpenAI/Anthropic-compatible SDK calls, or ASGI apps, with
   best-effort common secrets and PII redacted before write by default.
+- `redline import`: normalize exported team logs into redline JSONL, with the
+  same best-effort redaction enabled by default. Use `--no-redact` only for
+  reviewed local-only logs.
 - `RedlineMiddleware`: capture bounded JSON FastAPI or ASGI request/response pairs locally, with optional skip diagnostics.
 - `redline redact --check`: scan logs for common secrets and PII, then write a scrubbed copy when needed.
   Redaction is best-effort pattern matching, not a privacy boundary; review sensitive logs before sharing.
@@ -477,6 +480,7 @@ bash scripts/release_check.sh
 - [docs/launch.md](docs/launch.md): public alpha launch plan
 - [docs/troubleshooting.md](docs/troubleshooting.md): first-run and CI failure recovery
 - [docs/commands.md](docs/commands.md): compact CLI command reference
+- [docs/real-log-dogfood.md](docs/real-log-dogfood.md): redaction-first real-log test protocol
 - [docs/dogfood.md](docs/dogfood.md): first-user dogfood protocol
 - [docs/case-studies.md](docs/case-studies.md): reproducible dogfood case studies
 - [docs/internet-dogfood-sources.md](docs/internet-dogfood-sources.md): public prompt-response datasets for dogfood sourcing

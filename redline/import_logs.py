@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .io import iter_jsonl, write_jsonl
+from .redact import DEFAULT_PLACEHOLDER, redact_object
 
 
 _MISSING = object()
@@ -20,15 +21,20 @@ def import_jsonl_log(
     id_field: str | None = None,
     metadata_fields: list[str] | None = None,
     limit: int | None = None,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
 ) -> dict[str, Any]:
     if limit is not None and limit < 1:
         raise ValueError("--limit must be 1 or greater")
     metadata_paths = metadata_fields or []
     rows: list[dict[str, Any]] = []
+    redaction_counts: dict[str, int] = {}
     source = Path(path)
     for line_number, row in iter_jsonl(source):
         if limit is not None and len(rows) >= limit:
             break
+        if redact:
+            row = redact_object(row, placeholder=placeholder, counts=redaction_counts)
         prompt = _required_field(source, line_number, row, input_field, "input")
         response = _required_field(source, line_number, row, output_field, "output")
         imported: dict[str, Any] = {
@@ -50,6 +56,7 @@ def import_jsonl_log(
     if not rows:
         raise ValueError(f"{path} contains no JSONL records")
     write_jsonl(output, rows)
+    redactions = sum(redaction_counts.values())
     return {
         "source": str(path),
         "output": str(output),
@@ -59,6 +66,9 @@ def import_jsonl_log(
         "context_field": context_field or "",
         "id_field": id_field or "",
         "metadata_fields": metadata_paths,
+        "redacted": redact,
+        "redactions": redactions,
+        "redaction_patterns": dict(sorted(redaction_counts.items())),
     }
 
 

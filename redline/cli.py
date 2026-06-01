@@ -251,6 +251,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     import_parser.add_argument("--limit", type=int, help="maximum records to import")
     import_parser.add_argument("--out", required=True, help="redline JSONL output path")
+    import_parser.add_argument("--no-redact", action="store_true", help="write raw values without import redaction")
+    import_parser.add_argument("--redaction-placeholder", default=DEFAULT_PLACEHOLDER, help="replacement text for import redaction")
     import_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     import_parser.set_defaults(func=cmd_import)
 
@@ -738,6 +740,8 @@ def cmd_import(args: argparse.Namespace) -> int:
         id_field=args.id_field,
         metadata_fields=args.metadata_field,
         limit=args.limit,
+        redact=not args.no_redact,
+        placeholder=args.redaction_placeholder,
     )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
@@ -749,6 +753,16 @@ def cmd_import(args: argparse.Namespace) -> int:
             print(f"Appended context: {report['context_field']}")
         if report["metadata_fields"]:
             print(f"Copied metadata: {', '.join(report['metadata_fields'])}")
+        if report["redacted"]:
+            print(
+                "Redaction:       "
+                f"best-effort common secrets/PII scanned; {report['redactions']} value(s) redacted"
+            )
+            patterns = report.get("redaction_patterns")
+            if isinstance(patterns, dict) and patterns:
+                print(f"Redaction hits:  {', '.join(f'{key}={value}' for key, value in patterns.items())}")
+        else:
+            print("Redaction:       disabled; review sensitive logs before sharing or committing")
         print(f"Wrote {Path(str(report['output']))}.")
         print()
         print("Next:")

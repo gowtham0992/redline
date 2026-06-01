@@ -541,6 +541,8 @@ def _tools() -> list[ToolSpec]:
                         "description": "Source field paths copied into metadata.",
                     },
                     "limit": _integer("Maximum records to import."),
+                    "no_redact": _boolean("Write raw values without import redaction."),
+                    "redaction_placeholder": _string("Replacement text for import redaction."),
                     "json": _boolean("Print machine-readable JSON."),
                 },
                 required=("path", "out"),
@@ -890,6 +892,8 @@ def _build_import(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--id-field", arguments.get("id_field"))
     _add_repeated_options(args, "--metadata-field", arguments.get("metadata_fields"))
     _add_option(args, "--limit", arguments.get("limit"))
+    _add_flag(args, "--no-redact", arguments.get("no_redact"))
+    _add_option(args, "--redaction-placeholder", arguments.get("redaction_placeholder"))
     _add_flag(args, "--json", arguments.get("json"))
     return args
 
