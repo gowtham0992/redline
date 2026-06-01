@@ -446,11 +446,14 @@ class DiffTests(unittest.TestCase):
                 "diagnosis": "No structural blockers were detected; still review semantic risks.",
             },
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
+            "profile": "review",
             "diffs": [],
         }
 
         report = format_report(result)
 
+        self.assertIn("Profile: review", report)
+        self.assertIn("detail/entity loss becomes reviewable changed signal", report)
         self.assertIn("Confidence: MEDIUM", report)
         self.assertIn("Recommended action: no structural blockers detected; review semantic risks before shipping", report)
         self.assertIn("Scope: structural checks only", report)
@@ -476,6 +479,7 @@ class DiffTests(unittest.TestCase):
                 "scope": "structural checks only; review semantic risks separately",
                 "diagnosis": "Candidate lost required structure; fix blocking cases before shipping.",
             },
+            "profile": "strict",
             "prompt_evals": [
                 {
                     "id": "support/triage",
@@ -517,6 +521,8 @@ class DiffTests(unittest.TestCase):
         report = format_compact_report(result, title="redline eval")
 
         self.assertIn("redline eval: cases=2 regression=1 changed=1", report)
+        self.assertIn("Profile: strict", report)
+        self.assertIn("detail/entity loss is blocking", report)
         self.assertIn("Confidence: HIGH | fix blocking cases before shipping", report)
         self.assertIn("Scope: structural checks only", report)
         self.assertIn("Diagnosis: Candidate lost required structure; fix blocking cases before shipping.", report)

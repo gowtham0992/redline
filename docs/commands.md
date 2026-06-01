@@ -51,3 +51,12 @@ output and examples after installing.
 Structural checks are deterministic and local. Green or neutral does not prove
 semantic equivalence. Use `redline require`, `redline mark`, and optional judge
 templates for factual, tone, hallucination, policy, or reasoning risks.
+
+## Diff profiles
+
+- `--profile strict` is the default CI-oriented mode. Missing concrete details
+  such as numbers and likely entities are blocking regressions.
+- `--profile review` is a softer calibration mode for noisy exploratory logs.
+  Missing numbers and likely entities become reviewable `changed` cases while
+  hard structural losses, such as invalid JSON, missing JSON keys, empty
+  outputs, refusals, tables, lists, code blocks, and URLs, stay blocking.

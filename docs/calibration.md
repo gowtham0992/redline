@@ -38,3 +38,11 @@ The fixture demonstrates the intended operating model:
 For semantic risks, add requirements or configure an optional judge. Keep the
 default deterministic checks as the fast local gate, and use judges where the
 product risk is not visible from structure or concrete detail loss.
+
+For exploratory data with noisy entity extraction, compare strict and review
+profiles:
+
+```bash
+redline diff /tmp/redline-calibration-suite.json examples/calibration_candidate.jsonl --profile strict --fail-on none
+redline diff /tmp/redline-calibration-suite.json examples/calibration_candidate.jsonl --profile review --fail-on none
+```

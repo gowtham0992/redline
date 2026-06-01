@@ -544,6 +544,10 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
         f"  MISSING    {summary['missing']:>3}",
         "",
     ]
+    profile = str(result.get("profile") or "")
+    if profile:
+        lines.append(f"Profile: {profile} ({_profile_description(profile)})")
+        lines.append("")
     decision = result.get("decision")
     if isinstance(decision, dict):
         confidence = str(decision.get("confidence") or "").upper()
@@ -596,6 +600,9 @@ def format_compact_report(result: dict[str, Any], *, title: str = "redline diff"
             f"neutral={summary['neutral']}"
         )
     ]
+    profile = str(result.get("profile") or "")
+    if profile:
+        lines.append(f"Profile: {profile} ({_profile_description(profile)})")
     decision = result.get("decision")
     if isinstance(decision, dict):
         confidence = str(decision.get("confidence") or "").upper()
@@ -669,6 +676,14 @@ def _prompt_eval_lines(value: Any) -> list[str]:
             f"{_summary_inline(summary)}{action_context}"
         )
     return rows
+
+
+def _profile_description(profile: str) -> str:
+    if profile == "review":
+        return "detail/entity loss becomes reviewable changed signal"
+    if profile == "strict":
+        return "detail/entity loss is blocking"
+    return "custom"
 
 
 def _prompt_eval_status(summary: dict[str, Any]) -> str:
