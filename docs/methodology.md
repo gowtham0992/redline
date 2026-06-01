@@ -51,6 +51,9 @@ case-selection method and version, currently `behavior-signature-v1`, so
 reports can be audited against the algorithm that selected the suite. Diff
 and eval reports copy that block into JSON, Markdown, HTML, and dashboard
 surfaces so reviewers can see the trust method beside the result.
+The generated suite summary also carries `case_coverage` and
+`cluster_coverage` so downstream tools can display basic suite-health context
+without recomputing it.
 
 ## Regression Signals
 

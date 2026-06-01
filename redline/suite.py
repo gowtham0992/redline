@@ -30,6 +30,12 @@ SELECTION_METHODOLOGY = {
 }
 
 
+def _ratio(part: int, total: int) -> float | None:
+    if total <= 0:
+        return None
+    return part / total
+
+
 def build_suite(
     records: list[LogRecord],
     *,
@@ -60,6 +66,7 @@ def build_suite(
         if all_cases
         else _select_representatives(grouped, max_cases, feature_cache, cluster_infos)
     )
+    selected_clusters = {signatures[id(record)] for record, _ in selected}
     non_ascii_records = sum(1 for record in unique_records if _has_non_ascii(record.prompt) or _has_non_ascii(record.response))
     cases = []
     for index, (record, selection_reason) in enumerate(selected, 1):
@@ -118,6 +125,8 @@ def build_suite(
             "duplicate_prompt_response_pairs": len(records) - len(unique_records),
             "clusters": len(grouped),
             "cases": len(cases),
+            "case_coverage": _ratio(len(cases), len(unique_records)),
+            "cluster_coverage": _ratio(len(selected_clusters), len(grouped)),
             "max_cases": len(unique_records) if all_cases else max_cases,
             "selection": "all" if all_cases else "representative",
             "high_risk_clusters": _risk_count(cluster_infos, "high"),

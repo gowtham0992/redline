@@ -33,6 +33,8 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(suite["summary"]["duplicate_prompt_response_pairs"], 0)
         self.assertEqual(suite["summary"]["cases"], 2)
         self.assertEqual(suite["summary"]["clusters"], 2)
+        self.assertEqual(suite["summary"]["case_coverage"], 2 / 3)
+        self.assertEqual(suite["summary"]["cluster_coverage"], 1.0)
         self.assertEqual(suite["summary"]["high_risk_clusters"], 0)
         self.assertEqual(suite["summary"]["medium_risk_clusters"], 0)
         self.assertEqual(suite["summary"]["prompt_diversity_cases"], 0)
@@ -67,6 +69,8 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("owner", case_properties)
         self.assertIn("owner_rule", case_properties)
         self.assertIn("owned_cases", schema["properties"]["summary"]["properties"])
+        self.assertIn("case_coverage", schema["properties"]["summary"]["properties"])
+        self.assertIn("cluster_coverage", schema["properties"]["summary"]["properties"])
         self.assertIn("prompt_diversity_cases", schema["properties"]["summary"]["properties"])
         self.assertIn("non_ascii_records", schema["properties"]["summary"]["properties"])
 
