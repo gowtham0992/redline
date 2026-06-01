@@ -614,6 +614,12 @@ def _tools() -> list[ToolSpec]:
             _build_judges,
         ),
         ToolSpec(
+            "redline_import_presets",
+            "List built-in log import presets and their field mappings.",
+            _schema({"json": _boolean("Print machine-readable JSON.")}),
+            _build_import_presets,
+        ),
+        ToolSpec(
             "redline_runners",
             "List or copy runner adapters for replay commands, log import, and SDK capture.",
             _schema(
@@ -932,6 +938,12 @@ def _build_judges(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--copy", arguments.get("copy"))
     _add_option(args, "--out", arguments.get("out"))
     _add_flag(args, "--force", arguments.get("force"))
+    _add_flag(args, "--json", arguments.get("json"))
+    return args
+
+
+def _build_import_presets(arguments: dict[str, Any]) -> list[str]:
+    args = ["import", "--list-presets"]
     _add_flag(args, "--json", arguments.get("json"))
     return args
 

@@ -67,6 +67,7 @@ Available tools:
 - `redline_suite`
 - `redline_redact`
 - `redline_import`
+- `redline_import_presets`
 - `redline_watch_stats`
 - `redline_watch_snippets`
 - `redline_prompts`

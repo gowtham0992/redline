@@ -63,7 +63,13 @@ from .history import (
     read_history,
     should_fail_history,
 )
-from .import_logs import IMPORT_PRESETS, import_jsonl_log, import_preset
+from .import_logs import (
+    IMPORT_PRESETS,
+    format_import_presets,
+    import_jsonl_log,
+    import_preset,
+    import_preset_rows,
+)
 from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judge import apply_judge
 from .judge_templates import (
@@ -238,7 +244,8 @@ def build_parser() -> argparse.ArgumentParser:
     runners_parser.set_defaults(func=cmd_runners)
 
     import_parser = subparsers.add_parser("import", help="normalize exported JSONL logs into redline format")
-    import_parser.add_argument("path", help="source JSONL file to normalize")
+    import_parser.add_argument("path", nargs="?", help="source JSONL file to normalize")
+    import_parser.add_argument("--list-presets", action="store_true", help="list built-in import presets")
     import_parser.add_argument("--preset", choices=sorted(IMPORT_PRESETS), help="field mapping preset for common log exports")
     import_parser.add_argument("--input-field", help="source field path containing prompt text")
     import_parser.add_argument("--output-field", help="source field path containing response text")
@@ -251,7 +258,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="source field path copied into metadata; repeat for multiple fields",
     )
     import_parser.add_argument("--limit", type=int, help="maximum records to import")
-    import_parser.add_argument("--out", required=True, help="redline JSONL output path")
+    import_parser.add_argument("--out", help="redline JSONL output path")
     import_parser.add_argument("--no-redact", action="store_true", help="write raw values without import redaction")
     import_parser.add_argument("--redaction-placeholder", default=DEFAULT_PLACEHOLDER, help="replacement text for import redaction")
     import_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
@@ -732,6 +739,16 @@ def cmd_judges(args: argparse.Namespace) -> int:
 
 
 def cmd_import(args: argparse.Namespace) -> int:
+    if args.list_presets:
+        if args.json:
+            print(json.dumps({"presets": import_preset_rows()}, indent=2, sort_keys=True))
+        else:
+            print(format_import_presets(), end="")
+        return 0
+    if not args.path:
+        raise ValueError("import path is required unless --list-presets is used")
+    if not args.out:
+        raise ValueError("--out is required unless --list-presets is used")
     preset = import_preset(args.preset) if args.preset else {}
     input_field = args.input_field or str(preset.get("input_field") or "prompt")
     output_field = args.output_field or str(preset.get("output_field") or "response")

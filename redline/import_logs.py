@@ -48,6 +48,43 @@ def import_preset(name: str) -> dict[str, object]:
         raise ValueError(f"unknown import preset: {name}; choose one of: {choices}") from exc
 
 
+def import_preset_rows() -> list[dict[str, Any]]:
+    rows = []
+    for name, preset in sorted(IMPORT_PRESETS.items()):
+        rows.append(
+            {
+                "id": name,
+                "input_field": str(preset.get("input_field") or ""),
+                "output_field": str(preset.get("output_field") or ""),
+                "context_field": str(preset.get("context_field") or ""),
+                "metadata_fields": [str(value) for value in _preset_list(preset.get("metadata_fields"))],
+            }
+        )
+    return rows
+
+
+def format_import_presets() -> str:
+    lines = [
+        "redline import presets",
+        "",
+        f"{'PRESET':<12} {'PROMPT FIELD':<28} {'RESPONSE FIELD':<38} METADATA",
+        f"{'-' * 12} {'-' * 28} {'-' * 38} {'-' * 24}",
+    ]
+    for row in import_preset_rows():
+        metadata = ", ".join(row["metadata_fields"])
+        lines.append(
+            f"{row['id']:<12} {row['input_field']:<28} {row['output_field']:<38} {metadata}"
+        )
+    lines.extend(
+        [
+            "",
+            "Use: redline import raw.jsonl --preset langfuse --out .redline/logs/prompts.jsonl",
+            "Override any preset field with --input-field, --output-field, --context-field, or --metadata-field.",
+        ]
+    )
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def import_jsonl_log(
     path: str | Path,
     *,
@@ -174,3 +211,9 @@ def _stringify_response(value: Any) -> str:
     if isinstance(value, str):
         return value.strip()
     return _stringify(value)
+
+
+def _preset_list(value: object) -> list[object]:
+    if not isinstance(value, list):
+        return []
+    return value

@@ -220,6 +220,23 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_import_command_lists_presets(self) -> None:
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(["import", "--list-presets"]), 0)
+
+        text = output.getvalue()
+        self.assertIn("redline import presets", text)
+        self.assertIn("langfuse", text)
+        self.assertIn("openai-chat", text)
+
+        json_output = io.StringIO()
+        with contextlib.redirect_stdout(json_output):
+            self.assertEqual(main(["import", "--list-presets", "--json"]), 0)
+        payload = json.loads(json_output.getvalue())
+        self.assertTrue(any(row["id"] == "helicone" for row in payload["presets"]))
+
     def test_judges_command_lists_templates(self) -> None:
         output = io.StringIO()
 

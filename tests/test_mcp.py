@@ -32,6 +32,7 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_suite", names)
         self.assertIn("redline_redact", names)
         self.assertIn("redline_import", names)
+        self.assertIn("redline_import_presets", names)
         self.assertIn("redline_watch_stats", names)
         self.assertIn("redline_watch_snippets", names)
         self.assertIn("redline_prompts", names)
@@ -81,6 +82,15 @@ class McpServerTests(unittest.TestCase):
         self.assertEqual(result["structuredContent"]["json"]["preset"], "dolly")
         self.assertTrue(result["structuredContent"]["json"]["redacted"])
         self.assertTrue(wrote_output)
+
+    def test_import_presets_tool_lists_mappings(self) -> None:
+        result = call_tool("redline_import_presets", {"json": True})
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        presets = result["structuredContent"]["json"]["presets"]
+        self.assertTrue(any(row["id"] == "langfuse" for row in presets))
+        self.assertTrue(any(row["id"] == "openai-chat" for row in presets))
 
     def test_eval_and_diff_tools_do_not_accept_dynamic_commands(self) -> None:
         response = handle_jsonrpc_line(

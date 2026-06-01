@@ -5,11 +5,22 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.import_logs import import_jsonl_log
+from redline.import_logs import format_import_presets, import_jsonl_log, import_preset_rows
 from redline.io import read_jsonl_records
 
 
 class ImportLogTests(unittest.TestCase):
+    def test_import_preset_rows_are_human_discoverable(self) -> None:
+        rows = import_preset_rows()
+        output = format_import_presets()
+
+        self.assertTrue(any(row["id"] == "langfuse" for row in rows))
+        self.assertTrue(any(row["id"] == "openai-chat" for row in rows))
+        self.assertIn("redline import presets", output)
+        self.assertIn("langfuse", output)
+        self.assertIn("openai-chat", output)
+        self.assertIn("redline import raw.jsonl --preset langfuse", output)
+
     def test_import_jsonl_log_maps_external_fields_and_context(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

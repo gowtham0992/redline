@@ -33,6 +33,7 @@ For common exports, start with a preset and override fields only when your file
 differs:
 
 ```bash
+redline import --list-presets
 redline import raw-export.jsonl --preset langfuse --out .redline/dogfood/baseline.jsonl
 redline import raw-export.jsonl --preset helicone --out .redline/dogfood/baseline.jsonl
 redline import raw-export.jsonl --preset openai-chat --out .redline/dogfood/baseline.jsonl
