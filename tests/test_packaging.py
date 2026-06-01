@@ -113,6 +113,17 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("not a model-quality score", text)
         self.assertIn("docs/methodology.md", readme)
 
+    def test_calibration_doc_links_runnable_fixture(self) -> None:
+        text = Path("docs/calibration.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn("examples/calibration_baseline.jsonl", text)
+        self.assertIn("examples/calibration_candidate.jsonl", text)
+        self.assertIn("Two regressions", text)
+        self.assertIn("One changed case", text)
+        self.assertIn("One neutral case", text)
+        self.assertIn("docs/calibration.md", readme)
+
     def test_release_check_builds_and_smokes_installed_wheel(self) -> None:
         script = Path("scripts/release_check.sh").read_text(encoding="utf-8")
 

@@ -102,3 +102,5 @@ Use redline as a safety loop:
 
 The strongest evidence for redline is not a score. It is a concrete report that
 says which production behavior changed and why it matters.
+
+For a tiny runnable boundary check, see [docs/calibration.md](calibration.md).
