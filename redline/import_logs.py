@@ -259,8 +259,13 @@ def _detect_suggestions(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         output_field = str(preset.get("output_field") or "")
         if input_field and output_field:
             _score_mapping(rows, candidates, input_field, output_field, preset_name)
-    for input_field in _PROMPT_FIELD_CANDIDATES:
-        for output_field in _RESPONSE_FIELD_CANDIDATES:
+    discovered_paths = _discovered_field_paths(rows)
+    input_candidates = sorted(set(_PROMPT_FIELD_CANDIDATES) | {path for path in discovered_paths if _looks_like_prompt_path(path)})
+    output_candidates = sorted(
+        set(_RESPONSE_FIELD_CANDIDATES) | {path for path in discovered_paths if _looks_like_response_path(path)}
+    )
+    for input_field in input_candidates[:80]:
+        for output_field in output_candidates[:80]:
             _score_mapping(rows, candidates, input_field, output_field, "")
     return sorted(
         candidates.values(),
@@ -296,6 +301,45 @@ def _score_mapping(
         "records_scanned": len(rows),
         "score": score,
     }
+
+
+def _discovered_field_paths(rows: list[dict[str, Any]]) -> set[str]:
+    paths: set[str] = set()
+    for row in rows[:5]:
+        _collect_field_paths(row, "", paths, depth=0)
+    return paths
+
+
+def _collect_field_paths(value: Any, prefix: str, paths: set[str], *, depth: int) -> None:
+    if depth >= 4:
+        return
+    if isinstance(value, dict):
+        for key, child in value.items():
+            field = str(key)
+            path = f"{prefix}.{field}" if prefix else field
+            paths.add(path)
+            _collect_field_paths(child, path, paths, depth=depth + 1)
+        return
+    if isinstance(value, list) and value:
+        path = f"{prefix}.0" if prefix else "0"
+        paths.add(path)
+        _collect_field_paths(value[0], path, paths, depth=depth + 1)
+
+
+def _looks_like_prompt_path(path: str) -> bool:
+    normalized = path.lower().replace("_", ".").replace("-", ".")
+    return any(
+        token in normalized.split(".") or token in normalized
+        for token in ("prompt", "input", "instruction", "question", "query", "messages", "user")
+    )
+
+
+def _looks_like_response_path(path: str) -> bool:
+    normalized = path.lower().replace("_", ".").replace("-", ".")
+    return any(
+        token in normalized.split(".") or token in normalized
+        for token in ("response", "output", "completion", "answer", "reply", "assistant", "content")
+    )
 
 
 def _collect_import_rows(

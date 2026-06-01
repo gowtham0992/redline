@@ -48,6 +48,26 @@ class ImportLogTests(unittest.TestCase):
             self.assertIn("redline import detection", text)
             self.assertIn("--input-field input --output-field output --preview 3", text)
 
+    def test_detect_import_fields_discovers_custom_nested_mapping(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "custom.jsonl"
+            source.write_text(
+                json.dumps(
+                    {
+                        "payload": {"user_question": "What is refund policy?"},
+                        "result": {"assistant_answer": "Refunds are available within 30 days."},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = detect_import_fields(source)
+            fields = {(row["input_field"], row["output_field"]) for row in result["suggestions"]}
+
+            self.assertIn(("payload.user_question", "result.assistant_answer"), fields)
+
     def test_import_jsonl_log_maps_external_fields_and_context(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
