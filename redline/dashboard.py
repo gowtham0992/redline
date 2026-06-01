@@ -153,6 +153,7 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
                 "summary": _summary_counts(summary),
                 "decision": report.get("decision") if isinstance(report.get("decision"), dict) else {},
                 "methodology": report.get("methodology") if isinstance(report.get("methodology"), dict) else {},
+                "suite_summary": report.get("suite_summary") if isinstance(report.get("suite_summary"), dict) else {},
                 "owners": _report_owner_review(report.get("diffs"), suite_path=str(report.get("suite") or "")),
                 "trust": _report_trust_summary(report.get("diffs")),
                 "review": _report_review_summary(report.get("diffs")),
@@ -525,6 +526,7 @@ def _dashboard_trust_summary(reports: list[dict[str, Any]]) -> dict[str, Any]:
     confidence: dict[str, int] = {}
     signal: dict[str, int] = {}
     methodology: dict[str, int] = {}
+    suite_coverage: dict[str, int] = {}
     for report in reports:
         trust = report.get("trust")
         if not isinstance(trust, dict):
@@ -537,11 +539,17 @@ def _dashboard_trust_summary(reports: list[dict[str, Any]]) -> dict[str, Any]:
             label = _methodology_label(method)
             if label:
                 methodology[label] = methodology.get(label, 0) + 1
+        suite_summary = report.get("suite_summary")
+        if isinstance(suite_summary, dict):
+            label = _suite_coverage_label(suite_summary)
+            if label:
+                suite_coverage[label] = suite_coverage.get(label, 0) + 1
     return {
         "cases": cases,
         "confidence": dict(sorted(confidence.items())),
         "signal": dict(sorted(signal.items())),
         "methodology": dict(sorted(methodology.items())),
+        "suite_coverage": dict(sorted(suite_coverage.items())),
     }
 
 
@@ -756,11 +764,13 @@ def _trust_panel(trust: dict[str, Any]) -> str:
     confidence = trust.get("confidence")
     signal = trust.get("signal")
     methodology = trust.get("methodology")
+    suite_coverage = trust.get("suite_coverage")
     if cases <= 0 or not isinstance(confidence, dict) or not isinstance(signal, dict):
         return ""
     confidence_pills = _count_pills(confidence)
     signal_pills = _count_pills(signal)
     methodology_pills = _count_pills(methodology) if isinstance(methodology, dict) else ""
+    coverage_pills = _count_pills(suite_coverage) if isinstance(suite_coverage, dict) else ""
     if not confidence_pills and not signal_pills:
         return ""
     return (
@@ -770,6 +780,7 @@ def _trust_panel(trust: dict[str, Any]) -> str:
         f'<div><span>Confidence</span><p>{confidence_pills or "-"}</p></div>'
         f'<div><span>Signal</span><p>{signal_pills or "-"}</p></div>'
         f'<div><span>Methodology</span><p>{methodology_pills or "-"}</p></div>'
+        f'<div><span>Suite coverage</span><p>{coverage_pills or "-"}</p></div>'
         "</div>"
         "</section>"
     )
@@ -815,6 +826,27 @@ def _methodology_label(value: dict[str, Any]) -> str:
     if name and version:
         return f"{name} ({version})"
     return version or name
+
+
+def _suite_coverage_label(value: dict[str, Any]) -> str:
+    case_coverage = _percent_value(value.get("case_coverage"))
+    cluster_coverage = _percent_value(value.get("cluster_coverage"))
+    cases = value.get("cases")
+    pairs = value.get("unique_prompt_response_pairs")
+    clusters = value.get("clusters")
+    parts = []
+    if cases is not None and pairs is not None and case_coverage:
+        parts.append(f"cases {cases}/{pairs} ({case_coverage})")
+    if isinstance(clusters, int) and isinstance(value.get("cluster_coverage"), int | float) and cluster_coverage:
+        covered_clusters = round(clusters * float(value["cluster_coverage"]))
+        parts.append(f"groups {covered_clusters}/{clusters} ({cluster_coverage})")
+    return "; ".join(parts)
+
+
+def _percent_value(value: object) -> str:
+    if not isinstance(value, int | float):
+        return ""
+    return f"{value * 100:.1f}%"
 
 
 def _owners_panel(owners: list[Any]) -> str:

@@ -28,6 +28,13 @@ class DashboardTests(unittest.TestCase):
                     "name": "deterministic behavior-signature grouping",
                     "version": "behavior-signature-v1",
                 },
+                "suite_summary": {
+                    "cases": 5,
+                    "unique_prompt_response_pairs": 10,
+                    "clusters": 4,
+                    "case_coverage": 0.5,
+                    "cluster_coverage": 0.75,
+                },
                 "prompt_evals": [
                     {
                         "id": "support/triage",
@@ -164,6 +171,7 @@ class DashboardTests(unittest.TestCase):
                         "deterministic behavior-signature grouping (behavior-signature-v1)": 1,
                     },
                     "signal": {"judge": 1, "structural": 1},
+                    "suite_coverage": {"cases 5/10 (50.0%); groups 3/4 (75.0%)": 1},
                 },
             )
             self.assertEqual(
@@ -248,6 +256,8 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("<h2>Trust Signals</h2>", html)
             self.assertIn("Methodology", html)
             self.assertIn("deterministic behavior-signature grouping (behavior-signature-v1)", html)
+            self.assertIn("Suite coverage", html)
+            self.assertIn("cases 5/10 (50.0%); groups 3/4 (75.0%)", html)
             self.assertIn("1000 cases/sec", html)
             self.assertIn("<h2>Trust Signals</h2>", html)
             self.assertIn("<h2>Audit Checkpoint</h2>", html)
