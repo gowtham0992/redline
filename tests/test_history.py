@@ -211,7 +211,7 @@ class HistoryTests(unittest.TestCase):
             ]
         )
 
-        self.assertIn("## Cluster Diagnosis", text)
+        self.assertIn("## Behavior Group Diagnosis", text)
         self.assertIn("structured JSON prompt -> JSON response (short)", text)
         self.assertIn("| structured JSON prompt -> JSON response (short) | +1 | 1 | 0 |", text)
 

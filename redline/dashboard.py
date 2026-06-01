@@ -882,7 +882,7 @@ def _trend_cluster_diagnosis(value: Any) -> str:
         )
     if not rows:
         return ""
-    return "<h3>Cluster diagnosis</h3><ul>" + "".join(rows) + "</ul>"
+    return "<h3>Behavior group diagnosis</h3><ul>" + "".join(rows) + "</ul>"
 
 
 def _trend_class(direction: str) -> str:

@@ -200,10 +200,11 @@ redline is deterministic and local-first by default. Optional judge commands are
 available for ambiguous `changed` cases, but redline does not call a cloud model
 unless you explicitly configure that command.
 
-Suite generation groups logs by deterministic behavior signatures, not opaque
-embedding clusters. It picks one representative per group first, then adds
-high-variance edges and evenly spread prompt-diverse samples from large clusters
-when the case budget allows.
+Suite generation does not run statistical or embedding clustering by default.
+It groups logs by deterministic behavior signatures, such as prompt intent,
+response shape, length bucket, and JSON schema. It picks one representative per
+group first, then adds high-variance edges and evenly spread prompt-diverse
+samples from large groups when the case budget allows.
 
 ## Trust Boundary
 
@@ -230,7 +231,7 @@ redline is built around the full prompt-regression loop:
 - `RedlineMiddleware`: capture bounded JSON FastAPI or ASGI request/response pairs locally, with optional skip diagnostics.
 - `redline redact --check`: scan logs for common secrets and PII, then write a scrubbed copy when needed.
   Redaction is best-effort pattern matching, not a privacy boundary; review sensitive logs before sharing.
-- `redline cluster`: inspect behavior groups before suite generation.
+- `redline cluster`: inspect deterministic behavior-signature groups before suite generation.
 - `redline suite`: generate a representative eval suite from baseline logs.
 - `redline prompts`: scan many prompt files and write or check a versionable prompt-to-suite manifest.
   Add `--check-suites` in CI when every prompt should already have a built and valid suite.
@@ -427,7 +428,7 @@ redline summary redline-suite.json
 
 `doctor` shows whether the suite has explicit requirements or recorded
 judgments before you rely on structural checks in CI.
-`summary` reports cluster/case coverage, owner coverage, accepted baseline
+`summary` reports behavior-group/case coverage, owner coverage, accepted baseline
 history, approver coverage, and explicit guard coverage for cases with
 requirements or recorded judgments so teams can review suite readiness before CI.
 `dashboard` also shows audit checkpoint evidence when `.redline/audit-checkpoint.json`

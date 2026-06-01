@@ -101,7 +101,7 @@ Short post:
 I built redline, a local-first tool that turns prompt-response logs into eval
 suites automatically.
 
-You point it at existing JSONL logs, it clusters behavior, picks representative
+You point it at existing JSONL logs, groups behavior by deterministic signatures, picks representative
 cases, and catches regressions when a prompt change drops structure, numbers,
 URLs, entities, refusals, tables, code blocks, or required fields.
 
@@ -123,7 +123,7 @@ Longer post:
 Most eval tools start with "write test cases." redline starts from the logs you
 already have.
 
-It watches or imports prompt-response JSONL, clusters observed behavior, builds
+It watches or imports prompt-response JSONL, groups observed behavior by deterministic signatures, builds
 a representative suite, and compares new prompt runs against the accepted
 baseline. The default checks are deterministic and local: JSON validity, missing
 keys, empty outputs, refusals, URLs, numbers, entities, code blocks, tables,

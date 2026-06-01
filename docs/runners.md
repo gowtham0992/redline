@@ -247,7 +247,7 @@ python runners/braintrust_suite_export.py redline-suite.json \
 ```
 
 What it does: writes one JSONL row per redline case with `input`, `expected`,
-and redline metadata such as case ID, cluster, owner, and source line. Import
+and redline metadata such as case ID, behavior signature, owner, and source line. Import
 that JSONL into Braintrust when you want Braintrust to mirror the same dataset
 redline gates locally.
 

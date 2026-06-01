@@ -322,7 +322,7 @@ def build_parser() -> argparse.ArgumentParser:
     audit_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     audit_parser.set_defaults(func=cmd_audit)
 
-    cluster_parser = subparsers.add_parser("cluster", help="analyze behavioral clusters in a log")
+    cluster_parser = subparsers.add_parser("cluster", help="inspect deterministic behavior-signature groups in a log")
     cluster_parser.add_argument("log", nargs="?", help="JSONL prompt-response log; defaults to watched log")
     cluster_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     cluster_parser.add_argument("--input-field", help="JSONL input field")
@@ -1026,7 +1026,7 @@ def cmd_suite(args: argparse.Namespace) -> int:
     print(f"Generated {summary['cases']} cases from {summary['records_seen']} records.")
     if summary.get("duplicate_prompt_response_pairs"):
         print(f"Skipped {summary['duplicate_prompt_response_pairs']} duplicate prompt-response pairs.")
-    print(f"Detected {summary['clusters']} behavioral clusters.")
+    print(f"Detected {summary['clusters']} behavior-signature groups.")
     if summary.get("selection") != "all":
         unique_pairs = int(summary.get("unique_prompt_response_pairs", summary["records_seen"]))
         cases = int(summary["cases"])

@@ -12,7 +12,7 @@ output and examples after installing.
 | `redline watch` | Collect prompt-response observations or print snippets. | `--log`, `--stats`, `--snippet`, `--follow` |
 | `redline import` | Normalize exported JSONL fields into redline `prompt`/`response` logs, with best-effort redaction on by default. | `--input-field`, `--output-field`, `--context-field`, `--metadata-field`, `--limit`, `--out`, `--no-redact` |
 | `redline redact` | Check or write best-effort redacted logs. | `--check`, `--out`, `--json` |
-| `redline cluster` | Inspect behavior groups before suite generation. | `--max-cases`, `--json` |
+| `redline cluster` | Inspect deterministic behavior-signature groups before suite generation. | `--max-cases`, `--json` |
 | `redline suite` | Generate a suite from baseline JSONL logs. | `--out`, `--max-cases`, `--all-cases`, `--owner` |
 | `redline suite add` | Pin a hand-picked edge case. | `--prompt`, `--response`, `--include`, `--exclude`, `--owner` |
 | `redline cases` | List generated suite case IDs and coverage. | `--json` |

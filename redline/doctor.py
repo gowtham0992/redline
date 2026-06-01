@@ -235,7 +235,7 @@ def _coverage_check(
         non_ascii_records = _manifest_int(manifest_summary, "non_ascii_records")
         judge_configured = "judge" in config
         message += (
-            f"; high-risk clusters={high_risk_clusters}; "
+            f"; high-risk groups={high_risk_clusters}; "
             f"requirements={requirements_count}; "
             f"judge={'yes' if judge_configured else 'no'}; "
             f"explicit guards={explicit_guard_cases}/{cases_count}"
@@ -261,7 +261,7 @@ def _coverage_check(
     non_ascii_records = int(summary_report.get("non_ascii_records") or 0)
     judge_configured = "judge" in config
     message += (
-        f"; high-risk clusters={high_risk_clusters}; "
+        f"; high-risk groups={high_risk_clusters}; "
         f"requirements={requirements_count}; "
         f"judge={'yes' if judge_configured else 'no'}; "
         f"explicit guards={explicit_guard_cases}/{cases_count}"

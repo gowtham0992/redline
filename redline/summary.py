@@ -329,8 +329,8 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
         f"Records seen:           {summary['records_seen']}",
         f"Unique pairs:           {summary['unique_prompt_response_pairs']}",
         f"Duplicate pairs:        {summary['duplicate_prompt_response_pairs']}",
-        f"Behavioral clusters:    {summary['clusters']}",
-        f"Cluster coverage:       {summary['covered_clusters']}/{summary['clusters']} ({_percent(summary['cluster_coverage'])})",
+        f"Behavior groups:        {summary['clusters']}",
+        f"Group coverage:         {summary['covered_clusters']}/{summary['clusters']} ({_percent(summary['cluster_coverage'])})",
         f"Representative cases:   {summary['cases']}",
         f"Case coverage:          {summary['cases']}/{summary['unique_prompt_response_pairs']} ({_percent(summary['case_coverage'])})",
         f"Pinned cases:           {summary['pinned_cases']}",
@@ -340,10 +340,10 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
         f"Approved baselines:     {summary['approved_baselines']}/{summary['accepted_baselines']}",
         f"Explicit guard coverage: {summary['explicit_guard_cases']}/{summary['cases']} ({_percent(summary['explicit_guard_coverage'])})",
         f"Max cases:              {summary['max_cases']}",
-        f"High-risk clusters:     {summary['high_risk_clusters']}",
-        f"Medium-risk clusters:   {summary['medium_risk_clusters']}",
-        f"High-variance clusters: {summary['high_variance_clusters']}",
-        f"Failure-pattern clusters: {summary['failure_pattern_clusters']:>2}",
+        f"High-risk groups:       {summary['high_risk_clusters']}",
+        f"Medium-risk groups:     {summary['medium_risk_clusters']}",
+        f"High-variance groups:   {summary['high_variance_clusters']}",
+        f"Failure-pattern groups: {summary['failure_pattern_clusters']:>2}",
         f"Non-ASCII records:      {summary['non_ascii_records']}",
         f"Cases with requirements: {summary['requirements']:>2}",
         "",
@@ -365,7 +365,7 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
 
     top_clusters = summary["top_clusters"]
     if top_clusters:
-        lines.append("Top clusters:")
+        lines.append("Top groups:")
         for cluster in top_clusters:
             marker = " high-variance" if cluster["high_variance"] else ""
             flags = cluster["failure_patterns"]
@@ -398,8 +398,8 @@ def format_prompt_manifest_summary(report: dict[str, Any]) -> str:
         f"Invalid suites:         {report['invalid_suite_count']}",
         f"Records seen:           {report['records_seen']}",
         f"Unique pairs:           {report['unique_prompt_response_pairs']}",
-        f"Behavioral clusters:    {report['clusters']}",
-        f"Cluster coverage:       {report['covered_clusters']}/{report['clusters']} ({_percent(report['cluster_coverage'])})",
+        f"Behavior groups:        {report['clusters']}",
+        f"Group coverage:         {report['covered_clusters']}/{report['clusters']} ({_percent(report['cluster_coverage'])})",
         f"Representative cases:   {report['cases']}",
         f"Case coverage:          {report['cases']}/{report['unique_prompt_response_pairs']} ({_percent(report['case_coverage'])})",
         f"Pinned cases:           {report['pinned_cases']}",
@@ -408,8 +408,8 @@ def format_prompt_manifest_summary(report: dict[str, Any]) -> str:
         f"Accepted baselines:     {report['accepted_baselines']}",
         f"Approved baselines:     {report['approved_baselines']}/{report['accepted_baselines']}",
         f"Explicit guard coverage: {report['explicit_guard_cases']}/{report['cases']} ({_percent(report['explicit_guard_coverage'])})",
-        f"High-risk clusters:     {report['high_risk_clusters']}",
-        f"Medium-risk clusters:   {report['medium_risk_clusters']}",
+        f"High-risk groups:       {report['high_risk_clusters']}",
+        f"Medium-risk groups:     {report['medium_risk_clusters']}",
         f"Non-ASCII records:      {report['non_ascii_records']}",
         f"Cases with requirements: {report['requirements']:>2}",
         "",

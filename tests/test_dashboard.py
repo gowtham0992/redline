@@ -326,7 +326,7 @@ class DashboardTests(unittest.TestCase):
 
         html = format_dashboard_html(dashboard)
 
-        self.assertIn("<h3>Cluster diagnosis</h3>", html)
+        self.assertIn("<h3>Behavior group diagnosis</h3>", html)
         self.assertIn("structured JSON prompt -&gt; JSON response (short)", html)
         self.assertIn("blocking +1", html)
         self.assertIn("changed -1", html)

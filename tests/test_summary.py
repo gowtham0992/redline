@@ -92,7 +92,7 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Records seen:", output)
         self.assertIn("Unique pairs:", output)
         self.assertIn("Duplicate pairs:", output)
-        self.assertIn("Cluster coverage:", output)
+        self.assertIn("Group coverage:", output)
         self.assertIn("Case coverage:", output)
         self.assertIn("Pinned cases:", output)
         self.assertIn("Owned cases:", output)
@@ -100,9 +100,9 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Accepted baselines:", output)
         self.assertIn("Approved baselines:", output)
         self.assertIn("Explicit guard coverage:", output)
-        self.assertIn("High-risk clusters:", output)
-        self.assertIn("Failure-pattern clusters:", output)
-        self.assertIn("Top clusters:", output)
+        self.assertIn("High-risk groups:", output)
+        self.assertIn("Failure-pattern groups:", output)
+        self.assertIn("Top groups:", output)
         self.assertIn("structured JSON prompt -> JSON response", output)
 
     def test_suite_summary_surfaces_non_ascii_calibration(self) -> None:
@@ -273,7 +273,7 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["cluster_coverage"], 0.5)
         self.assertIn("Increase --max-cases", summary["next_steps"][0])
         self.assertIn("redline suite add redline-suite.json --prompt-file", output)
-        self.assertIn("Cluster coverage:       1/2 (50.0%)", output)
+        self.assertIn("Group coverage:         1/2 (50.0%)", output)
         self.assertIn("Next:", output)
 
 

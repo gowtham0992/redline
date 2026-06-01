@@ -352,7 +352,7 @@ class DoctorTests(unittest.TestCase):
 
         coverage = next(check for check in report["checks"] if check["name"] == "coverage")
         self.assertEqual(coverage["status"], "ok")
-        self.assertIn("high-risk clusters=1", coverage["message"])
+        self.assertIn("high-risk groups=1", coverage["message"])
         self.assertIn("requirements=0; judge=no", coverage["message"])
         self.assertIn("explicit guards=0/1", coverage["message"])
         self.assertIn("add requirements or a judge", coverage["message"])

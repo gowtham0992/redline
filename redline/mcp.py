@@ -418,7 +418,7 @@ def _build_suite_from_logs_prompt(arguments: dict[str, Any]) -> str:
         "Use this workflow:\n"
         "1. Call `redline_suite` for the baseline log and write the suite output.\n"
         "2. Call `redline_validate` on the generated suite.\n"
-        "3. Call `redline_summary` so I can see coverage, clusters, pinned cases, and next steps.\n"
+        "3. Call `redline_summary` so I can see coverage, behavior groups, pinned cases, and next steps.\n"
         "4. If coverage is low or cases look unclear, call `redline_cases` and `redline_case` to inspect representative cases before recommending pins.\n"
         "5. Call `redline_budget` so I can see expected CI runtime before enabling a gate.\n"
         "6. Explain what behavior redline can catch, what still needs human review, and the exact `redline suite add` command I can run for must-cover edge cases.\n"
@@ -640,7 +640,7 @@ def _tools() -> list[ToolSpec]:
         ),
         ToolSpec(
             "redline_summary",
-            "Summarize suite or prompt-manifest provenance, coverage, clusters, owners, requirements, and next steps.",
+            "Summarize suite or prompt-manifest provenance, coverage, behavior groups, owners, requirements, and next steps.",
             _schema(
                 {
                     "suite_path": _string("Suite or prompt manifest JSON path. Defaults to config."),
