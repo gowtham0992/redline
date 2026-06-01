@@ -48,7 +48,9 @@ perfect coverage of every product risk. If a scenario matters, pin it.
 
 Generated suites include a `methodology` block with the deterministic
 case-selection method and version, currently `behavior-signature-v1`, so
-reports can be audited against the algorithm that selected the suite.
+reports can be audited against the algorithm that selected the suite. Diff
+and eval reports copy that block into JSON, Markdown, HTML, and dashboard
+surfaces so reviewers can see the trust method beside the result.
 
 ## Regression Signals
 

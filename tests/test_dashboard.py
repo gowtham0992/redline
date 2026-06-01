@@ -24,6 +24,10 @@ class DashboardTests(unittest.TestCase):
                     "neutral": 3,
                 },
                 "decision": {"recommended_action": "review changed cases before shipping"},
+                "methodology": {
+                    "name": "deterministic behavior-signature grouping",
+                    "version": "behavior-signature-v1",
+                },
                 "prompt_evals": [
                     {
                         "id": "support/triage",
@@ -156,6 +160,9 @@ class DashboardTests(unittest.TestCase):
                 {
                     "cases": 2,
                     "confidence": {"high": 1, "medium": 1},
+                    "methodology": {
+                        "deterministic behavior-signature grouping (behavior-signature-v1)": 1,
+                    },
                     "signal": {"judge": 1, "structural": 1},
                 },
             )
@@ -238,6 +245,9 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("redline-suite.json", html)
             self.assertIn("1m 30s", html)
             self.assertIn("5ms for 5 cases", html)
+            self.assertIn("<h2>Trust Signals</h2>", html)
+            self.assertIn("Methodology", html)
+            self.assertIn("deterministic behavior-signature grouping (behavior-signature-v1)", html)
             self.assertIn("1000 cases/sec", html)
             self.assertIn("<h2>Trust Signals</h2>", html)
             self.assertIn("<h2>Audit Checkpoint</h2>", html)

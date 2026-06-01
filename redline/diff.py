@@ -265,6 +265,7 @@ def compare_suite_to_candidate(
         "$schema": REPORT_SCHEMA_URL,
         "version": "0.1",
         "profile": profile,
+        "methodology": _report_methodology(suite),
         "summary": summary,
         "decision": decision,
         "diffs": [diff.to_dict() for diff in diffs],
@@ -407,6 +408,17 @@ def _diff_profile(value: str) -> str:
         joined = ", ".join(DIFF_PROFILES)
         raise ValueError(f"diff profile must be one of: {joined}")
     return value
+
+
+def _report_methodology(suite: dict[str, Any]) -> dict[str, Any]:
+    methodology = suite.get("methodology")
+    if not isinstance(methodology, dict):
+        return {}
+    return {
+        "name": str(methodology.get("name") or ""),
+        "version": str(methodology.get("version") or ""),
+        "trust_scope": str(methodology.get("trust_scope") or ""),
+    }
 
 
 def _confidence_drift_reason(

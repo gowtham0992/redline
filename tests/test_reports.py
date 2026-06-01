@@ -33,6 +33,10 @@ class ReportTests(unittest.TestCase):
             },
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "suite": "redline-suite.json",
+            "methodology": {
+                "name": "deterministic behavior-signature grouping",
+                "version": "behavior-signature-v1",
+            },
             "candidate": ".redline/runs/candidate.jsonl",
             "artifacts": {
                 "json": ".redline/reports/eval.json",
@@ -83,6 +87,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("**Recommended action:** fix blocking cases before shipping", report)
         self.assertIn("**Scope:** structural checks only", report)
         self.assertIn("**Diagnosis:** Candidate lost required structure; fix blocking cases before shipping.", report)
+        self.assertIn("**Methodology:** deterministic behavior-signature grouping (behavior-signature-v1)", report)
         self.assertIn("## Warnings", report)
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn("## Artifacts", report)
@@ -180,6 +185,10 @@ class ReportTests(unittest.TestCase):
             },
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "suite": "redline-suite.json",
+            "methodology": {
+                "name": "deterministic behavior-signature grouping",
+                "version": "behavior-signature-v1",
+            },
             "candidate": ".redline/runs/candidate.jsonl",
             "artifacts": {
                 "json": ".redline/reports/eval.json",
@@ -235,6 +244,8 @@ class ReportTests(unittest.TestCase):
         self.assertIn("fix blocking cases before shipping", report)
         self.assertIn("structural checks only", report)
         self.assertIn("Candidate lost required structure; fix blocking cases before shipping.", report)
+        self.assertIn("<h2>Methodology</h2>", report)
+        self.assertIn("deterministic behavior-signature grouping (behavior-signature-v1)", report)
         self.assertIn("<h2>Warnings</h2>", report)
         self.assertIn("<h2>Artifacts</h2>", report)
         self.assertIn("<td>HTML</td><td>.redline/reports/eval.html</td>", report)

@@ -41,6 +41,10 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
             if diagnosis:
                 lines.append(f"**Diagnosis:** {diagnosis}")
                 lines.append("")
+    methodology = _methodology_label(result.get("methodology"))
+    if methodology:
+        lines.append(f"**Methodology:** {methodology}")
+        lines.append("")
 
     warnings = _result_warnings(result)
     if warnings:
@@ -356,6 +360,7 @@ def format_html_report(result: dict[str, Any], *, title: str = "redline diff") -
             "</header>",
             _html_summary(summary),
             _html_decision(decision),
+            _html_methodology(result.get("methodology")),
             _html_warnings(result),
             _html_artifacts(result),
             _html_owner_review(diffs),
@@ -484,6 +489,16 @@ def _metadata_lines(item: dict[str, Any]) -> list[str]:
     if signal:
         lines.append(f"Signal: {_inline_code(signal)}")
     return lines
+
+
+def _methodology_label(value: object) -> str:
+    if not isinstance(value, dict):
+        return ""
+    name = str(value.get("name") or "").strip()
+    version = str(value.get("version") or "").strip()
+    if name and version:
+        return f"{name} ({version})"
+    return version or name
 
 
 def _why_this_matters(item: dict[str, Any]) -> str:
@@ -1172,6 +1187,18 @@ def _html_decision(decision: dict[str, Any]) -> str:
         lines.append("</ul>")
     lines.append("</section>")
     return "".join(lines)
+
+
+def _html_methodology(value: object) -> str:
+    label = _methodology_label(value)
+    if not label:
+        return ""
+    return (
+        '<section class="panel">'
+        "<h2>Methodology</h2>"
+        f"<p>{_h(label)}</p>"
+        "</section>"
+    )
 
 
 def _html_warnings(result: dict[str, Any]) -> str:

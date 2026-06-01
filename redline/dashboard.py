@@ -152,6 +152,7 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
                 "kind": _report_kind(report, path),
                 "summary": _summary_counts(summary),
                 "decision": report.get("decision") if isinstance(report.get("decision"), dict) else {},
+                "methodology": report.get("methodology") if isinstance(report.get("methodology"), dict) else {},
                 "owners": _report_owner_review(report.get("diffs"), suite_path=str(report.get("suite") or "")),
                 "trust": _report_trust_summary(report.get("diffs")),
                 "review": _report_review_summary(report.get("diffs")),
@@ -523,6 +524,7 @@ def _dashboard_trust_summary(reports: list[dict[str, Any]]) -> dict[str, Any]:
     cases = 0
     confidence: dict[str, int] = {}
     signal: dict[str, int] = {}
+    methodology: dict[str, int] = {}
     for report in reports:
         trust = report.get("trust")
         if not isinstance(trust, dict):
@@ -530,10 +532,16 @@ def _dashboard_trust_summary(reports: list[dict[str, Any]]) -> dict[str, Any]:
         cases += int(trust.get("cases") or 0)
         _merge_counts(confidence, trust.get("confidence"))
         _merge_counts(signal, trust.get("signal"))
+        method = report.get("methodology")
+        if isinstance(method, dict):
+            label = _methodology_label(method)
+            if label:
+                methodology[label] = methodology.get(label, 0) + 1
     return {
         "cases": cases,
         "confidence": dict(sorted(confidence.items())),
         "signal": dict(sorted(signal.items())),
+        "methodology": dict(sorted(methodology.items())),
     }
 
 
@@ -747,10 +755,12 @@ def _trust_panel(trust: dict[str, Any]) -> str:
     cases = int(trust.get("cases") or 0)
     confidence = trust.get("confidence")
     signal = trust.get("signal")
+    methodology = trust.get("methodology")
     if cases <= 0 or not isinstance(confidence, dict) or not isinstance(signal, dict):
         return ""
     confidence_pills = _count_pills(confidence)
     signal_pills = _count_pills(signal)
+    methodology_pills = _count_pills(methodology) if isinstance(methodology, dict) else ""
     if not confidence_pills and not signal_pills:
         return ""
     return (
@@ -759,6 +769,7 @@ def _trust_panel(trust: dict[str, Any]) -> str:
         '<div class="trust-grid">'
         f'<div><span>Confidence</span><p>{confidence_pills or "-"}</p></div>'
         f'<div><span>Signal</span><p>{signal_pills or "-"}</p></div>'
+        f'<div><span>Methodology</span><p>{methodology_pills or "-"}</p></div>'
         "</div>"
         "</section>"
     )
@@ -796,6 +807,14 @@ def _count_pills(counts: dict[Any, Any]) -> str:
             f'<span class="pill">{_h(str(key).replace("_", " "))} {int(value or 0)}</span>'
         )
     return "".join(rows)
+
+
+def _methodology_label(value: dict[str, Any]) -> str:
+    name = str(value.get("name") or "").strip()
+    version = str(value.get("version") or "").strip()
+    if name and version:
+        return f"{name} ({version})"
+    return version or name
 
 
 def _owners_panel(owners: list[Any]) -> str:

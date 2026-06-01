@@ -19,6 +19,16 @@
       "enum": ["strict", "review"],
       "description": "Diff profile used to classify missing numbers and entities."
     },
+    "methodology": {
+      "type": "object",
+      "description": "Suite selection methodology copied from the suite, when available.",
+      "properties": {
+        "name": {"type": "string"},
+        "version": {"type": "string"},
+        "trust_scope": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
     "summary": {
       "type": "object",
       "required": ["cases", "regression", "changed", "improved", "accepted", "ignored", "neutral", "missing"],

@@ -24,11 +24,27 @@ class DiffTests(unittest.TestCase):
         self.assertIn("summary", schema["properties"])
         self.assertIn("decision", schema["properties"])
         self.assertIn("diagnosis", schema["properties"]["decision"]["properties"])
+        self.assertIn("methodology", schema["properties"])
         self.assertIn("suite", schema["properties"])
         self.assertIn("candidate", schema["properties"])
         self.assertIn("diffs", schema["properties"])
         diff_properties = schema["properties"]["diffs"]["items"]["properties"]
         self.assertIn("owner_rule", diff_properties)
+
+    def test_report_carries_suite_methodology(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        candidate = [LogRecord(1, "Return JSON", '{"ok": true}', {})]
+
+        result = compare_suite_to_candidate(suite, candidate)
+
+        self.assertEqual(result["methodology"]["version"], "behavior-signature-v1")
+        self.assertIn("behavior-signature", result["methodology"]["name"])
 
     def test_classify_json_regression(self) -> None:
         baseline = extract_features('{"name":"Ada","status":"active"}').to_dict()
