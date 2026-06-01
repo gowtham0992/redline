@@ -5,7 +5,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.import_logs import format_import_presets, import_jsonl_log, import_preset_rows, preview_jsonl_import
+from redline.import_logs import (
+    detect_import_fields,
+    format_import_detection,
+    format_import_presets,
+    import_jsonl_log,
+    import_preset_rows,
+    preview_jsonl_import,
+)
 from redline.io import read_jsonl_records
 
 
@@ -20,6 +27,26 @@ class ImportLogTests(unittest.TestCase):
         self.assertIn("langfuse", output)
         self.assertIn("openai-chat", output)
         self.assertIn("redline import raw.jsonl --preset langfuse", output)
+
+    def test_detect_import_fields_suggests_known_mapping(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "langfuse.jsonl"
+            source.write_text(
+                '{"input": "Classify ticket", "output": "billing", "traceId": "trace-1"}\n'
+                '{"input": "Summarize ticket", "output": "short summary", "traceId": "trace-2"}\n',
+                encoding="utf-8",
+            )
+
+            result = detect_import_fields(source)
+            text = format_import_detection(result)
+
+            self.assertEqual(result["records_scanned"], 2)
+            self.assertEqual(result["suggestions"][0]["input_field"], "input")
+            self.assertEqual(result["suggestions"][0]["output_field"], "output")
+            self.assertEqual(result["suggestions"][0]["score"], 100)
+            self.assertIn("redline import detection", text)
+            self.assertIn("--input-field input --output-field output --preview 3", text)
 
     def test_import_jsonl_log_maps_external_fields_and_context(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

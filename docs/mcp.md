@@ -66,7 +66,7 @@ Available tools:
 - `redline_doctor`
 - `redline_suite`
 - `redline_redact`
-- `redline_import` (supports `preview` for mapped-row inspection before writing)
+- `redline_import` (supports `detect` and `preview` before writing)
 - `redline_import_presets`
 - `redline_watch_stats`
 - `redline_watch_snippets`

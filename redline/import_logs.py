@@ -39,6 +39,29 @@ IMPORT_PRESETS: dict[str, dict[str, object]] = {
     },
 }
 
+_PROMPT_FIELD_CANDIDATES = (
+    "prompt",
+    "input",
+    "instruction",
+    "request.prompt",
+    "request.input",
+    "request.messages",
+    "messages",
+    "ticket.text",
+    "attributes.input",
+)
+
+_RESPONSE_FIELD_CANDIDATES = (
+    "response",
+    "output",
+    "completion",
+    "response.text",
+    "response.output_text",
+    "response.choices.0.message.content",
+    "assistant.reply",
+    "attributes.output",
+)
+
 
 def import_preset(name: str) -> dict[str, object]:
     try:
@@ -80,6 +103,66 @@ def format_import_presets() -> str:
             "",
             "Use: redline import raw.jsonl --preset langfuse --out .redline/logs/prompts.jsonl",
             "Override any preset field with --input-field, --output-field, --context-field, or --metadata-field.",
+        ]
+    )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def detect_import_fields(path: str | Path, *, limit: int = 20) -> dict[str, Any]:
+    if limit < 1:
+        raise ValueError("--limit must be 1 or greater")
+    source = Path(path)
+    rows = [row for _, row in iter_jsonl(source)][:limit]
+    if not rows:
+        raise ValueError(f"{path} contains no JSONL records")
+    suggestions = _detect_suggestions(rows)
+    return {
+        "source": str(path),
+        "records_scanned": len(rows),
+        "suggestions": suggestions,
+        "top_level_fields": sorted({str(key) for row in rows for key in row})[:20],
+    }
+
+
+def format_import_detection(result: dict[str, Any]) -> str:
+    suggestions = result.get("suggestions")
+    rows = suggestions if isinstance(suggestions, list) else []
+    lines = [
+        "redline import detection",
+        "",
+        f"Source:          {result.get('source')}",
+        f"Records scanned: {result.get('records_scanned')}",
+        f"Top fields:      {', '.join(str(value) for value in result.get('top_level_fields', []))}",
+        "",
+    ]
+    if not rows:
+        lines.extend(
+            [
+                "No confident prompt/response mapping found.",
+                "Next: run `redline import --list-presets` or pass --input-field and --output-field manually.",
+            ]
+        )
+        return "\n".join(lines).rstrip() + "\n"
+    lines.append(f"{'SCORE':<7} {'PRESET':<12} {'PROMPT FIELD':<28} RESPONSE FIELD")
+    lines.append(f"{'-' * 7} {'-' * 12} {'-' * 28} {'-' * 28}")
+    for row in rows[:8]:
+        lines.append(
+            f"{str(row.get('score', '')):<7} "
+            f"{str(row.get('preset', '')):<12} "
+            f"{str(row.get('input_field', '')):<28} "
+            f"{str(row.get('output_field', ''))}"
+        )
+    best = rows[0]
+    lines.extend(
+        [
+            "",
+            "Preview the best mapping:",
+            (
+                f"redline import {result.get('source')} "
+                f"--input-field {best.get('input_field')} "
+                f"--output-field {best.get('output_field')} "
+                "--preview 3"
+            ),
         ]
     )
     return "\n".join(lines).rstrip() + "\n"
@@ -166,6 +249,52 @@ def preview_jsonl_import(
         "redactions": redactions,
         "redaction_patterns": dict(sorted(redaction_counts.items())),
         "rows": rows,
+    }
+
+
+def _detect_suggestions(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    candidates: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for preset_name, preset in IMPORT_PRESETS.items():
+        input_field = str(preset.get("input_field") or "")
+        output_field = str(preset.get("output_field") or "")
+        if input_field and output_field:
+            _score_mapping(rows, candidates, input_field, output_field, preset_name)
+    for input_field in _PROMPT_FIELD_CANDIDATES:
+        for output_field in _RESPONSE_FIELD_CANDIDATES:
+            _score_mapping(rows, candidates, input_field, output_field, "")
+    return sorted(
+        candidates.values(),
+        key=lambda row: (-int(row["score"]), str(row["preset"] or "zzzz"), str(row["input_field"])),
+    )
+
+
+def _score_mapping(
+    rows: list[dict[str, Any]],
+    candidates: dict[tuple[str, str, str], dict[str, Any]],
+    input_field: str,
+    output_field: str,
+    preset: str,
+) -> None:
+    matches = 0
+    for row in rows:
+        prompt = _get_field(row, input_field)
+        response = _get_field(row, output_field)
+        if prompt is _MISSING or response is _MISSING:
+            continue
+        if not _stringify(prompt).strip() or not _stringify_response(response).strip():
+            continue
+        matches += 1
+    if not matches:
+        return
+    score = round(100 * matches / len(rows))
+    key = (input_field, output_field, preset)
+    candidates[key] = {
+        "input_field": input_field,
+        "output_field": output_field,
+        "preset": preset,
+        "matches": matches,
+        "records_scanned": len(rows),
+        "score": score,
     }
 
 

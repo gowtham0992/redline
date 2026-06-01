@@ -65,6 +65,8 @@ from .history import (
 )
 from .import_logs import (
     IMPORT_PRESETS,
+    detect_import_fields,
+    format_import_detection,
     format_import_presets,
     import_jsonl_log,
     import_preset,
@@ -247,6 +249,7 @@ def build_parser() -> argparse.ArgumentParser:
     import_parser = subparsers.add_parser("import", help="normalize exported JSONL logs into redline format")
     import_parser.add_argument("path", nargs="?", help="source JSONL file to normalize")
     import_parser.add_argument("--list-presets", action="store_true", help="list built-in import presets")
+    import_parser.add_argument("--detect", action="store_true", help="suggest prompt and response field mappings")
     import_parser.add_argument("--preset", choices=sorted(IMPORT_PRESETS), help="field mapping preset for common log exports")
     import_parser.add_argument("--input-field", help="source field path containing prompt text")
     import_parser.add_argument("--output-field", help="source field path containing response text")
@@ -749,6 +752,13 @@ def cmd_import(args: argparse.Namespace) -> int:
         return 0
     if not args.path:
         raise ValueError("import path is required unless --list-presets is used")
+    if args.detect:
+        result = detect_import_fields(args.path, limit=args.limit or 20)
+        if args.json:
+            print(json.dumps(result, indent=2, sort_keys=True))
+        else:
+            print(format_import_detection(result), end="")
+        return 0
     preset = import_preset(args.preset) if args.preset else {}
     input_field = args.input_field or str(preset.get("input_field") or "prompt")
     output_field = args.output_field or str(preset.get("output_field") or "response")

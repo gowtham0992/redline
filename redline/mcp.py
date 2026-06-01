@@ -531,6 +531,7 @@ def _tools() -> list[ToolSpec]:
                 {
                     "path": _string("Source JSONL file to normalize."),
                     "out": _string("Redline JSONL output path."),
+                    "detect": _boolean("Suggest prompt and response field mappings without writing output."),
                     "preset": _string("Optional import preset such as langfuse, helicone, datadog, dolly, or openai-chat."),
                     "input_field": _string("Source field path containing prompt text."),
                     "output_field": _string("Source field path containing response text."),
@@ -893,10 +894,11 @@ def _build_redact(arguments: dict[str, Any]) -> list[str]:
 def _build_import(arguments: dict[str, Any]) -> list[str]:
     args = ["import"]
     _add_positional(args, _required_string(arguments, "path"))
-    if arguments.get("preview") is None:
+    if arguments.get("preview") is None and not arguments.get("detect"):
         _add_option(args, "--out", _required_string(arguments, "out"))
     else:
         _add_option(args, "--out", arguments.get("out"))
+    _add_flag(args, "--detect", arguments.get("detect"))
     _add_option(args, "--preset", arguments.get("preset"))
     _add_option(args, "--input-field", arguments.get("input_field"))
     _add_option(args, "--output-field", arguments.get("output_field"))

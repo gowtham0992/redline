@@ -186,6 +186,25 @@ class CliConfigTests(unittest.TestCase):
             self.assertIn('"category": "summarization"', text)
             self.assertFalse(imported.exists())
 
+    def test_import_command_detects_external_jsonl_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "export.jsonl"
+            source.write_text(
+                '{"input": "Classify", "output": "billing"}\n',
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["import", str(source), "--detect"]), 0)
+
+            text = output.getvalue()
+            self.assertIn("redline import detection", text)
+            self.assertIn("input", text)
+            self.assertIn("output", text)
+            self.assertIn("--preview 3", text)
+
     def test_runners_command_can_copy_adapter(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
