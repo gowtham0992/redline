@@ -25,6 +25,7 @@ class DiffTests(unittest.TestCase):
         self.assertIn("decision", schema["properties"])
         self.assertIn("diagnosis", schema["properties"]["decision"]["properties"])
         self.assertIn("methodology", schema["properties"])
+        self.assertIn("suite_summary", schema["properties"])
         self.assertIn("suite", schema["properties"])
         self.assertIn("candidate", schema["properties"])
         self.assertIn("diffs", schema["properties"])
@@ -45,6 +46,9 @@ class DiffTests(unittest.TestCase):
 
         self.assertEqual(result["methodology"]["version"], "behavior-signature-v1")
         self.assertIn("behavior-signature", result["methodology"]["name"])
+        self.assertEqual(result["suite_summary"]["cases"], 1)
+        self.assertEqual(result["suite_summary"]["case_coverage"], 1.0)
+        self.assertEqual(result["suite_summary"]["cluster_coverage"], 1.0)
 
     def test_classify_json_regression(self) -> None:
         baseline = extract_features('{"name":"Ada","status":"active"}').to_dict()

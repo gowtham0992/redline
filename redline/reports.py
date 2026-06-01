@@ -45,6 +45,10 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
     if methodology:
         lines.append(f"**Methodology:** {methodology}")
         lines.append("")
+    suite_coverage = _suite_coverage_label(result.get("suite_summary"))
+    if suite_coverage:
+        lines.append(f"**Suite coverage:** {suite_coverage}")
+        lines.append("")
 
     warnings = _result_warnings(result)
     if warnings:
@@ -361,6 +365,7 @@ def format_html_report(result: dict[str, Any], *, title: str = "redline diff") -
             _html_summary(summary),
             _html_decision(decision),
             _html_methodology(result.get("methodology")),
+            _html_suite_coverage(result.get("suite_summary")),
             _html_warnings(result),
             _html_artifacts(result),
             _html_owner_review(diffs),
@@ -499,6 +504,29 @@ def _methodology_label(value: object) -> str:
     if name and version:
         return f"{name} ({version})"
     return version or name
+
+
+def _suite_coverage_label(value: object) -> str:
+    if not isinstance(value, dict):
+        return ""
+    case_coverage = _percent_value(value.get("case_coverage"))
+    cluster_coverage = _percent_value(value.get("cluster_coverage"))
+    cases = value.get("cases")
+    pairs = value.get("unique_prompt_response_pairs")
+    clusters = value.get("clusters")
+    parts = []
+    if cases is not None and pairs is not None and case_coverage:
+        parts.append(f"cases {cases}/{pairs} ({case_coverage})")
+    if isinstance(clusters, int) and isinstance(value.get("cluster_coverage"), int | float) and cluster_coverage:
+        covered_clusters = round(clusters * float(value["cluster_coverage"]))
+        parts.append(f"behavior groups {covered_clusters}/{clusters} ({cluster_coverage})")
+    return "; ".join(parts)
+
+
+def _percent_value(value: object) -> str:
+    if not isinstance(value, int | float):
+        return ""
+    return f"{value * 100:.1f}%"
 
 
 def _why_this_matters(item: dict[str, Any]) -> str:
@@ -1196,6 +1224,18 @@ def _html_methodology(value: object) -> str:
     return (
         '<section class="panel">'
         "<h2>Methodology</h2>"
+        f"<p>{_h(label)}</p>"
+        "</section>"
+    )
+
+
+def _html_suite_coverage(value: object) -> str:
+    label = _suite_coverage_label(value)
+    if not label:
+        return ""
+    return (
+        '<section class="panel">'
+        "<h2>Suite coverage</h2>"
         f"<p>{_h(label)}</p>"
         "</section>"
     )

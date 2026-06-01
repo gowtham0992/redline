@@ -37,6 +37,13 @@ class ReportTests(unittest.TestCase):
                 "name": "deterministic behavior-signature grouping",
                 "version": "behavior-signature-v1",
             },
+            "suite_summary": {
+                "cases": 1,
+                "unique_prompt_response_pairs": 2,
+                "clusters": 1,
+                "case_coverage": 0.5,
+                "cluster_coverage": 1.0,
+            },
             "candidate": ".redline/runs/candidate.jsonl",
             "artifacts": {
                 "json": ".redline/reports/eval.json",
@@ -88,6 +95,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("**Scope:** structural checks only", report)
         self.assertIn("**Diagnosis:** Candidate lost required structure; fix blocking cases before shipping.", report)
         self.assertIn("**Methodology:** deterministic behavior-signature grouping (behavior-signature-v1)", report)
+        self.assertIn("**Suite coverage:** cases 1/2 (50.0%); behavior groups 1/1 (100.0%)", report)
         self.assertIn("## Warnings", report)
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn("## Artifacts", report)
@@ -189,6 +197,13 @@ class ReportTests(unittest.TestCase):
                 "name": "deterministic behavior-signature grouping",
                 "version": "behavior-signature-v1",
             },
+            "suite_summary": {
+                "cases": 1,
+                "unique_prompt_response_pairs": 2,
+                "clusters": 1,
+                "case_coverage": 0.5,
+                "cluster_coverage": 1.0,
+            },
             "candidate": ".redline/runs/candidate.jsonl",
             "artifacts": {
                 "json": ".redline/reports/eval.json",
@@ -246,6 +261,8 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Candidate lost required structure; fix blocking cases before shipping.", report)
         self.assertIn("<h2>Methodology</h2>", report)
         self.assertIn("deterministic behavior-signature grouping (behavior-signature-v1)", report)
+        self.assertIn("<h2>Suite coverage</h2>", report)
+        self.assertIn("cases 1/2 (50.0%); behavior groups 1/1 (100.0%)", report)
         self.assertIn("<h2>Warnings</h2>", report)
         self.assertIn("<h2>Artifacts</h2>", report)
         self.assertIn("<td>HTML</td><td>.redline/reports/eval.html</td>", report)

@@ -29,6 +29,20 @@
       },
       "additionalProperties": true
     },
+    "suite_summary": {
+      "type": "object",
+      "description": "Suite-health metadata copied from the suite used to generate this report.",
+      "properties": {
+        "records_seen": {"type": "integer", "minimum": 0},
+        "unique_prompt_response_pairs": {"type": "integer", "minimum": 0},
+        "clusters": {"type": "integer", "minimum": 0},
+        "cases": {"type": "integer", "minimum": 0},
+        "case_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "cluster_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "selection": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
     "summary": {
       "type": "object",
       "required": ["cases", "regression", "changed", "improved", "accepted", "ignored", "neutral", "missing"],

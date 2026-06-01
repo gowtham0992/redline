@@ -266,6 +266,7 @@ def compare_suite_to_candidate(
         "version": "0.1",
         "profile": profile,
         "methodology": _report_methodology(suite),
+        "suite_summary": _report_suite_summary(suite),
         "summary": summary,
         "decision": decision,
         "diffs": [diff.to_dict() for diff in diffs],
@@ -419,6 +420,26 @@ def _report_methodology(suite: dict[str, Any]) -> dict[str, Any]:
         "version": str(methodology.get("version") or ""),
         "trust_scope": str(methodology.get("trust_scope") or ""),
     }
+
+
+def _report_suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
+    summary = suite.get("summary")
+    if not isinstance(summary, dict):
+        return {}
+    keys = (
+        "records_seen",
+        "unique_prompt_response_pairs",
+        "clusters",
+        "cases",
+        "max_cases",
+        "case_coverage",
+        "cluster_coverage",
+        "selection",
+        "high_risk_clusters",
+        "medium_risk_clusters",
+        "non_ascii_records",
+    )
+    return {key: summary[key] for key in keys if key in summary}
 
 
 def _confidence_drift_reason(
