@@ -132,6 +132,10 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
             if metadata:
                 lines.extend(metadata)
                 lines.append("")
+            impact = _why_this_matters(item)
+            if impact:
+                lines.append(f"Why this matters: {impact}")
+                lines.append("")
             for reason in item["reasons"]:
                 lines.append(f"- {reason}")
             lines.append("")
@@ -480,6 +484,35 @@ def _metadata_lines(item: dict[str, Any]) -> list[str]:
     if signal:
         lines.append(f"Signal: {_inline_code(signal)}")
     return lines
+
+
+def _why_this_matters(item: dict[str, Any]) -> str:
+    status = str(item.get("status") or "").lower()
+    reasons = item.get("reasons")
+    text = " ".join(str(reason).lower() for reason in reasons) if isinstance(reasons, list) else ""
+    if status == "missing":
+        return "Replay did not produce a candidate output, so this baseline behavior is untested."
+    if "valid json" in text or "json keys" in text:
+        return "Downstream code may fail if consumers expect parseable JSON or required fields."
+    if "markdown table" in text or "table structure" in text:
+        return "A consumer expecting rows and columns may receive unstructured prose instead."
+    if "code block" in text:
+        return "A developer or tool expecting copyable code may lose the executable structure."
+    if "bullet list" in text or "numbered list" in text:
+        return "A workflow expecting ordered or scannable steps may become harder to review."
+    if "missing numbers" in text or "missing urls" in text or "missing entities" in text:
+        return "Concrete details used for decisions, routing, or compliance may have been dropped."
+    if "newly refuses" in text or "refusal" in text:
+        return "A previously supported safe workflow may now be blocked."
+    if "became empty" in text:
+        return "The user may receive no usable answer."
+    if "content changed substantially" in text or "much shorter" in text:
+        return "Meaning may have changed enough to require human review before acceptance."
+    if status == "regression":
+        return "This case changed in a way redline treats as blocking before shipping."
+    if status == "changed":
+        return "Review whether this behavioral change is intentional before accepting it."
+    return ""
 
 
 def _result_warnings(result: dict[str, Any]) -> list[str]:
@@ -1054,7 +1087,12 @@ h3 { margin: 0; font-size: 16px; letter-spacing: 0; }
 .changed { background: var(--changed); }
 .improved { background: var(--improved); }
 .accepted, .ignored, .neutral { background: var(--neutral); }
-.meta, .prompt { color: var(--muted); font-size: 13px; }
+.meta, .prompt, .impact { color: var(--muted); font-size: 13px; }
+.impact {
+  border-left: 3px solid var(--changed);
+  margin: 10px 0;
+  padding-left: 10px;
+}
 .reasons { margin: 10px 0 14px 20px; padding: 0; }
 .responses {
   display: grid;
@@ -1344,6 +1382,9 @@ def _html_case(item: dict[str, Any]) -> str:
         lines.append(f'<div class="meta">{_h(metadata)}</div>')
     if prompt:
         lines.append(f'<p class="prompt"><strong>Prompt:</strong> {_h(prompt)}</p>')
+    impact = _why_this_matters(item)
+    if impact:
+        lines.append(f'<p class="impact"><strong>Why this matters:</strong> {_h(impact)}</p>')
     if isinstance(reasons, list) and reasons:
         lines.append('<ul class="reasons">')
         for reason in reasons:

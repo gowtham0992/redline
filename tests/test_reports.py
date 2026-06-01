@@ -112,6 +112,10 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Owner: `@platform-team`", report)
         self.assertIn("Confidence: `high`", report)
         self.assertIn("Signal: `structural`", report)
+        self.assertIn(
+            "Why this matters: Downstream code may fail if consumers expect parseable JSON or required fields.",
+            report,
+        )
         self.assertIn("Baseline:", report)
         self.assertIn('{"ok": true}', report)
         self.assertIn("Candidate:", report)
@@ -226,6 +230,8 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Owner: @platform-team", report)
         self.assertIn("Behavior: structured JSON prompt -&gt; JSON response (short)", report)
         self.assertIn("Confidence: high | Signal: structural", report)
+        self.assertIn("Why this matters:", report)
+        self.assertIn("Downstream code may fail if consumers expect parseable JSON or required fields.", report)
         self.assertIn("fix blocking cases before shipping", report)
         self.assertIn("structural checks only", report)
         self.assertIn("Candidate lost required structure; fix blocking cases before shipping.", report)
