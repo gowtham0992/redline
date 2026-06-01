@@ -118,11 +118,15 @@ from tools like Langfuse or Helicone, capture OpenAI/Anthropic SDK calls, or add
 bounded FastAPI/ASGI middleware.
 
 ```bash
+redline import downloaded.jsonl --input-field instruction --output-field response --preview 3
 redline import downloaded.jsonl --input-field instruction --output-field response --out logs/baseline.jsonl
 redline import langfuse-export.jsonl --preset langfuse --out logs/baseline.jsonl
 redline suite logs/baseline.jsonl --out redline-suite.json
 redline cases redline-suite.json
 ```
+
+Use `--preview` first when the export is new to you. It shows mapped,
+redacted sample rows without writing a baseline file.
 
 ### 2. Suite
 

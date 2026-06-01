@@ -69,6 +69,7 @@ from .import_logs import (
     import_jsonl_log,
     import_preset,
     import_preset_rows,
+    preview_jsonl_import,
 )
 from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judge import apply_judge
@@ -258,6 +259,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="source field path copied into metadata; repeat for multiple fields",
     )
     import_parser.add_argument("--limit", type=int, help="maximum records to import")
+    import_parser.add_argument("--preview", type=int, metavar="N", help="preview N mapped rows without writing output")
     import_parser.add_argument("--out", help="redline JSONL output path")
     import_parser.add_argument("--no-redact", action="store_true", help="write raw values without import redaction")
     import_parser.add_argument("--redaction-placeholder", default=DEFAULT_PLACEHOLDER, help="replacement text for import redaction")
@@ -747,8 +749,6 @@ def cmd_import(args: argparse.Namespace) -> int:
         return 0
     if not args.path:
         raise ValueError("import path is required unless --list-presets is used")
-    if not args.out:
-        raise ValueError("--out is required unless --list-presets is used")
     preset = import_preset(args.preset) if args.preset else {}
     input_field = args.input_field or str(preset.get("input_field") or "prompt")
     output_field = args.output_field or str(preset.get("output_field") or "response")
@@ -756,6 +756,26 @@ def cmd_import(args: argparse.Namespace) -> int:
     id_field = args.id_field if args.id_field is not None else _optional_preset_string(preset, "id_field")
     metadata_fields = _preset_string_list(preset, "metadata_fields")
     metadata_fields.extend(args.metadata_field)
+    if args.preview is not None:
+        report = preview_jsonl_import(
+            args.path,
+            input_field=input_field,
+            output_field=output_field,
+            context_field=context_field,
+            id_field=id_field,
+            metadata_fields=metadata_fields,
+            limit=args.preview,
+            redact=not args.no_redact,
+            placeholder=args.redaction_placeholder,
+        )
+        report["preset"] = args.preset or ""
+        if args.json:
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            _print_import_preview(report)
+        return 0
+    if not args.out:
+        raise ValueError("--out is required unless --list-presets or --preview is used")
     report = import_jsonl_log(
         args.path,
         output=args.out,
@@ -798,6 +818,51 @@ def cmd_import(args: argparse.Namespace) -> int:
         print("- Inspect cases: redline cases redline-suite.json")
         print("- Compare candidate outputs: redline diff redline-suite.json path/to/candidate.jsonl")
     return 0
+
+
+def _print_import_preview(report: Mapping[str, object]) -> None:
+    print(f"Previewed {report['previewed']} prompt-response pairs from {Path(str(report['source']))}.")
+    if report.get("preset"):
+        print(f"Preset:          {report['preset']}")
+    print(f"Mapped prompt:   {report['input_field']}")
+    print(f"Mapped response: {report['output_field']}")
+    if report["context_field"]:
+        print(f"Appended context: {report['context_field']}")
+    metadata_fields = report.get("metadata_fields")
+    if isinstance(metadata_fields, list) and metadata_fields:
+        print(f"Copied metadata: {', '.join(str(value) for value in metadata_fields)}")
+    if report["redacted"]:
+        print(
+            "Redaction:       "
+            f"best-effort common secrets/PII scanned; {report['redactions']} value(s) redacted"
+        )
+    else:
+        print("Redaction:       disabled; review sensitive logs before sharing or committing")
+    print()
+    print("Preview:")
+    rows = report.get("rows")
+    if isinstance(rows, list):
+        for index, row in enumerate(rows, start=1):
+            if not isinstance(row, Mapping):
+                continue
+            prompt = _truncate_preview(str(row.get("prompt") or ""))
+            response = _truncate_preview(str(row.get("response") or ""))
+            print(f"{index}. prompt:   {prompt}")
+            print(f"   response: {response}")
+            metadata = row.get("metadata")
+            if isinstance(metadata, Mapping) and metadata:
+                print(f"   metadata: {json.dumps(metadata, sort_keys=True)}")
+    print()
+    print("No file written.")
+    print("Next:")
+    print(f"- Import when ready: redline import {Path(str(report['source']))} --out baseline.jsonl")
+
+
+def _truncate_preview(value: str, *, limit: int = 120) -> str:
+    compact = " ".join(value.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 3].rstrip() + "..."
 
 
 def _optional_preset_string(preset: Mapping[str, object], key: str) -> str | None:

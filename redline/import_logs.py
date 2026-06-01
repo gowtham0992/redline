@@ -98,6 +98,89 @@ def import_jsonl_log(
     redact: bool = True,
     placeholder: str = DEFAULT_PLACEHOLDER,
 ) -> dict[str, Any]:
+    rows, redaction_counts = _collect_import_rows(
+        path,
+        input_field=input_field,
+        output_field=output_field,
+        context_field=context_field,
+        id_field=id_field,
+        metadata_fields=metadata_fields,
+        limit=limit,
+        redact=redact,
+        placeholder=placeholder,
+    )
+    if not rows:
+        raise ValueError(f"{path} contains no JSONL records")
+    write_jsonl(output, rows)
+    redactions = sum(redaction_counts.values())
+    return {
+        "source": str(path),
+        "output": str(output),
+        "records": len(rows),
+        "input_field": input_field,
+        "output_field": output_field,
+        "context_field": context_field or "",
+        "id_field": id_field or "",
+        "metadata_fields": metadata_fields or [],
+        "redacted": redact,
+        "redactions": redactions,
+        "redaction_patterns": dict(sorted(redaction_counts.items())),
+    }
+
+
+def preview_jsonl_import(
+    path: str | Path,
+    *,
+    input_field: str = "prompt",
+    output_field: str = "response",
+    context_field: str | None = None,
+    id_field: str | None = None,
+    metadata_fields: list[str] | None = None,
+    limit: int = 3,
+    redact: bool = True,
+    placeholder: str = DEFAULT_PLACEHOLDER,
+) -> dict[str, Any]:
+    rows, redaction_counts = _collect_import_rows(
+        path,
+        input_field=input_field,
+        output_field=output_field,
+        context_field=context_field,
+        id_field=id_field,
+        metadata_fields=metadata_fields,
+        limit=limit,
+        redact=redact,
+        placeholder=placeholder,
+    )
+    if not rows:
+        raise ValueError(f"{path} contains no JSONL records")
+    redactions = sum(redaction_counts.values())
+    return {
+        "source": str(path),
+        "previewed": len(rows),
+        "input_field": input_field,
+        "output_field": output_field,
+        "context_field": context_field or "",
+        "id_field": id_field or "",
+        "metadata_fields": metadata_fields or [],
+        "redacted": redact,
+        "redactions": redactions,
+        "redaction_patterns": dict(sorted(redaction_counts.items())),
+        "rows": rows,
+    }
+
+
+def _collect_import_rows(
+    path: str | Path,
+    *,
+    input_field: str,
+    output_field: str,
+    context_field: str | None,
+    id_field: str | None,
+    metadata_fields: list[str] | None,
+    limit: int | None,
+    redact: bool,
+    placeholder: str,
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
     if limit is not None and limit < 1:
         raise ValueError("--limit must be 1 or greater")
     metadata_paths = metadata_fields or []
@@ -127,23 +210,7 @@ def import_jsonl_log(
         if metadata:
             imported["metadata"] = metadata
         rows.append(imported)
-    if not rows:
-        raise ValueError(f"{path} contains no JSONL records")
-    write_jsonl(output, rows)
-    redactions = sum(redaction_counts.values())
-    return {
-        "source": str(path),
-        "output": str(output),
-        "records": len(rows),
-        "input_field": input_field,
-        "output_field": output_field,
-        "context_field": context_field or "",
-        "id_field": id_field or "",
-        "metadata_fields": metadata_paths,
-        "redacted": redact,
-        "redactions": redactions,
-        "redaction_patterns": dict(sorted(redaction_counts.items())),
-    }
+    return rows, redaction_counts
 
 
 def _required_field(

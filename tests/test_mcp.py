@@ -83,6 +83,35 @@ class McpServerTests(unittest.TestCase):
         self.assertTrue(result["structuredContent"]["json"]["redacted"])
         self.assertTrue(wrote_output)
 
+    def test_import_tool_previews_external_jsonl_without_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            output = root / "baseline.jsonl"
+            source.write_text(
+                '{"instruction": "Classify", "response": "billing"}\n',
+                encoding="utf-8",
+            )
+
+            result = call_tool(
+                "redline_import",
+                {
+                    "cwd": directory,
+                    "path": str(source),
+                    "input_field": "instruction",
+                    "output_field": "response",
+                    "preview": 1,
+                    "json": True,
+                },
+            )
+            wrote_output = output.exists()
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        self.assertEqual(result["structuredContent"]["json"]["previewed"], 1)
+        self.assertEqual(result["structuredContent"]["json"]["rows"][0]["prompt"], "Classify")
+        self.assertFalse(wrote_output)
+
     def test_import_presets_tool_lists_mappings(self) -> None:
         result = call_tool("redline_import_presets", {"json": True})
 

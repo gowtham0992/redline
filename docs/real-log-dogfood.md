@@ -34,6 +34,7 @@ differs:
 
 ```bash
 redline import --list-presets
+redline import raw-export.jsonl --preset langfuse --preview 3
 redline import raw-export.jsonl --preset langfuse --out .redline/dogfood/baseline.jsonl
 redline import raw-export.jsonl --preset helicone --out .redline/dogfood/baseline.jsonl
 redline import raw-export.jsonl --preset openai-chat --out .redline/dogfood/baseline.jsonl
@@ -49,11 +50,19 @@ redline import raw-export.jsonl \
   --input-field instruction \
   --output-field response \
   --metadata-field category \
+  --preview 3
+
+redline import raw-export.jsonl \
+  --input-field instruction \
+  --output-field response \
+  --metadata-field category \
   --out .redline/dogfood/baseline.jsonl
 ```
 
-The command prints how many values were redacted. If the count is non-zero,
-inspect the normalized output before generating a suite.
+Use `--preview` first when the export shape is unfamiliar. It prints mapped,
+redacted sample prompt-response rows without writing a file. The import command
+prints how many values were redacted. If the count is non-zero, inspect the
+normalized output before generating a suite.
 
 Use `--no-redact` only for local-only test fixtures that have already been
 reviewed.

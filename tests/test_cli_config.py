@@ -148,6 +148,44 @@ class CliConfigTests(unittest.TestCase):
             self.assertEqual(row["response"], "Summary")
             self.assertEqual(row["metadata"], {"category": "summarization"})
 
+    def test_import_command_previews_external_jsonl_without_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            imported = root / "baseline.jsonl"
+            source.write_text(
+                '{"instruction": "Summarize", "response": "Summary", "category": "summarization"}\n',
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(
+                        [
+                            "import",
+                            str(source),
+                            "--input-field",
+                            "instruction",
+                            "--output-field",
+                            "response",
+                            "--metadata-field",
+                            "category",
+                            "--preview",
+                            "1",
+                        ]
+                    ),
+                    0,
+                )
+
+            text = output.getvalue()
+            self.assertIn("Previewed 1 prompt-response pairs", text)
+            self.assertIn("No file written.", text)
+            self.assertIn("prompt:   Summarize", text)
+            self.assertIn("response: Summary", text)
+            self.assertIn('"category": "summarization"', text)
+            self.assertFalse(imported.exists())
+
     def test_runners_command_can_copy_adapter(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

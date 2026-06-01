@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.import_logs import format_import_presets, import_jsonl_log, import_preset_rows
+from redline.import_logs import format_import_presets, import_jsonl_log, import_preset_rows, preview_jsonl_import
 from redline.io import read_jsonl_records
 
 
@@ -78,6 +78,30 @@ class ImportLogTests(unittest.TestCase):
 
             self.assertEqual(report["records"], 1)
             self.assertEqual(len(read_jsonl_records(output, "prompt", "response")), 1)
+
+    def test_preview_jsonl_import_maps_rows_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            output = root / "baseline.jsonl"
+            source.write_text(
+                '{"instruction": "Email ada@example.com", "response": "ok", "category": "support"}\n',
+                encoding="utf-8",
+            )
+
+            report = preview_jsonl_import(
+                source,
+                input_field="instruction",
+                output_field="response",
+                metadata_fields=["category"],
+                limit=1,
+            )
+
+            self.assertEqual(report["previewed"], 1)
+            self.assertFalse(output.exists())
+            self.assertNotIn("ada@example.com", report["rows"][0]["prompt"])
+            self.assertEqual(report["rows"][0]["response"], "ok")
+            self.assertEqual(report["rows"][0]["metadata"], {"category": "support"})
 
     def test_import_jsonl_log_reads_nested_list_paths_for_chat_exports(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
