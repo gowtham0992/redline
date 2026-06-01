@@ -428,9 +428,10 @@ redline summary redline-suite.json
 
 `doctor` shows whether the suite has explicit requirements or recorded
 judgments before you rely on structural checks in CI.
-`summary` reports behavior-group/case coverage, owner coverage, accepted baseline
-history, approver coverage, and explicit guard coverage for cases with
-requirements or recorded judgments so teams can review suite readiness before CI.
+`summary` reports a suite readiness score, behavior-group/case coverage, owner
+coverage, accepted baseline history, approver coverage, and explicit guard
+coverage for cases with requirements or recorded judgments so teams can review
+suite readiness before CI.
 `dashboard` also shows audit checkpoint evidence when `.redline/audit-checkpoint.json`
 is present.
 

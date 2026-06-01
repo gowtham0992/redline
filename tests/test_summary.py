@@ -54,6 +54,12 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["judgment_cases"], 1)
         self.assertEqual(summary["explicit_guard_cases"], 1)
         self.assertEqual(summary["explicit_guard_coverage"], 0.5)
+        self.assertEqual(summary["suite_readiness"]["score"], 80)
+        self.assertEqual(summary["suite_readiness"]["label"], "strong")
+        self.assertIn(
+            "many cases have requirements or recorded judgments",
+            summary["suite_readiness"]["reasons"],
+        )
         self.assertEqual(summary["judgments"], {"expected": 1})
         self.assertEqual(summary["requirements"], 1)
         self.assertEqual(summary["failure_pattern_clusters"], 0)
@@ -94,6 +100,7 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Duplicate pairs:", output)
         self.assertIn("Group coverage:", output)
         self.assertIn("Case coverage:", output)
+        self.assertIn("Suite readiness:", output)
         self.assertIn("Pinned cases:", output)
         self.assertIn("Owned cases:", output)
         self.assertIn("Owner rule coverage:", output)
@@ -103,6 +110,7 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("High-risk groups:", output)
         self.assertIn("Failure-pattern groups:", output)
         self.assertIn("Top groups:", output)
+        self.assertIn("Readiness signals:", output)
         self.assertIn("structured JSON prompt -> JSON response", output)
 
     def test_suite_summary_surfaces_non_ascii_calibration(self) -> None:
@@ -271,6 +279,7 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["clusters"], 2)
         self.assertEqual(summary["case_coverage"], 0.5)
         self.assertEqual(summary["cluster_coverage"], 0.5)
+        self.assertEqual(summary["suite_readiness"]["label"], "needs_work")
         self.assertIn("Increase --max-cases", summary["next_steps"][0])
         self.assertIn("redline suite add redline-suite.json --prompt-file", output)
         self.assertIn("Group coverage:         1/2 (50.0%)", output)

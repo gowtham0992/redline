@@ -154,6 +154,7 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "requirements": requirements_count,
         "top_clusters": top_clusters,
     }
+    result["suite_readiness"] = _suite_readiness(result)
     result["next_steps"] = _summary_next_steps(result)
     return result
 
@@ -333,6 +334,7 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
         f"Group coverage:         {summary['covered_clusters']}/{summary['clusters']} ({_percent(summary['cluster_coverage'])})",
         f"Representative cases:   {summary['cases']}",
         f"Case coverage:          {summary['cases']}/{summary['unique_prompt_response_pairs']} ({_percent(summary['case_coverage'])})",
+        f"Suite readiness:        {_format_readiness(summary['suite_readiness'])}",
         f"Pinned cases:           {summary['pinned_cases']}",
         f"Owned cases:            {summary['owned_cases']}/{summary['cases']}",
         f"Owner rule coverage:    {summary['owner_rule_cases']}/{summary['owned_cases']} ({_percent(summary['owner_rule_coverage'])})",
@@ -373,6 +375,15 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
                 marker = f"{marker} flags={','.join(str(flag) for flag in flags)}"
             lines.append(f"  {cluster['size']:>4}  {cluster['behavior']}{marker}")
         lines.append("")
+
+    readiness = summary.get("suite_readiness")
+    if isinstance(readiness, dict):
+        reasons = readiness.get("reasons")
+        if isinstance(reasons, list) and reasons:
+            lines.append("Readiness signals:")
+            for reason in reasons:
+                lines.append(f"- {reason}")
+            lines.append("")
 
     next_steps = summary["next_steps"]
     if next_steps:
@@ -482,6 +493,87 @@ def _summary_next_steps(summary: dict[str, Any], *, suite_path: str | None = Non
     if int(summary["cases"]) == 0:
         steps.append("Generate or add at least one suite case before running eval.")
     return steps
+
+
+def _suite_readiness(summary: dict[str, Any]) -> dict[str, Any]:
+    cases = int(summary.get("cases") or 0)
+    if cases == 0:
+        return {
+            "score": 0,
+            "label": "empty",
+            "reasons": ["no suite cases are available yet"],
+        }
+
+    score = 0.0
+    score += 35.0 * float(summary.get("cluster_coverage") or 0.0)
+    score += 20.0 * float(summary.get("case_coverage") or 0.0)
+    score += 20.0 * float(summary.get("explicit_guard_coverage") or 0.0)
+    owner_coverage = _ratio(int(summary.get("owned_cases") or 0), cases) or 0.0
+    score += 10.0 * owner_coverage
+    if int(summary.get("high_risk_clusters") or 0) == 0 or int(summary.get("requirements") or 0):
+        score += 10.0
+    if int(summary.get("non_ascii_records") or 0) == 0:
+        score += 5.0
+
+    rounded = int(round(min(100.0, max(0.0, score))))
+    if rounded >= 80:
+        label = "strong"
+    elif rounded >= 55:
+        label = "usable"
+    else:
+        label = "needs_work"
+
+    return {
+        "score": rounded,
+        "label": label,
+        "reasons": _readiness_reasons(summary, owner_coverage=owner_coverage),
+    }
+
+
+def _readiness_reasons(summary: dict[str, Any], *, owner_coverage: float) -> list[str]:
+    reasons = []
+    cluster_coverage = float(summary.get("cluster_coverage") or 0.0)
+    case_coverage = float(summary.get("case_coverage") or 0.0)
+    explicit_guard_coverage = float(summary.get("explicit_guard_coverage") or 0.0)
+
+    if cluster_coverage >= 1.0:
+        reasons.append("all detected behavior-signature groups have at least one selected case")
+    else:
+        reasons.append("some behavior-signature groups are not represented in the suite")
+
+    if case_coverage >= 0.8:
+        reasons.append("case budget covers most unique prompt-response pairs")
+    else:
+        reasons.append("case budget is sampling a small share of unique prompt-response pairs")
+
+    if explicit_guard_coverage >= 0.5:
+        reasons.append("many cases have requirements or recorded judgments")
+    elif explicit_guard_coverage > 0:
+        reasons.append("some cases have requirements or recorded judgments")
+    else:
+        reasons.append("no cases have explicit requirements or recorded judgments yet")
+
+    if owner_coverage >= 1.0:
+        reasons.append("all cases have owners")
+    elif owner_coverage > 0:
+        reasons.append("some cases still need owners")
+    else:
+        reasons.append("no cases have owners yet")
+
+    if int(summary.get("high_risk_clusters") or 0) and int(summary.get("requirements") or 0) == 0:
+        reasons.append("high-risk groups need explicit requirements or a judge before CI gating")
+    if int(summary.get("non_ascii_records") or 0):
+        reasons.append("non-ASCII records need extra review because entity/refusal heuristics are English-oriented")
+
+    return reasons
+
+
+def _format_readiness(value: object) -> str:
+    if not isinstance(value, dict):
+        return "<unknown>"
+    score = int(value.get("score") or 0)
+    label = str(value.get("label") or "unknown").replace("_", " ")
+    return f"{score}/100 ({label})"
 
 
 def _manifest_summary_status(summary: dict[str, Any]) -> str:

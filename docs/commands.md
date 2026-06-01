@@ -19,7 +19,7 @@ output and examples after installing.
 | `redline case` | Show one full suite case. | `--json` |
 | `redline require` | Add deterministic include/exclude requirements. | `--include`, `--exclude`, `--owner` |
 | `redline prompts` | Build or check a prompt-to-suite manifest. | `--suite-dir`, `--out`, `--check`, `--check-suites` |
-| `redline summary` | Summarize suite or manifest readiness. | `--json` |
+| `redline summary` | Summarize suite or manifest readiness, including suite score and coverage gaps. | `--json` |
 | `redline validate` | Validate suite or manifest structure and freshness. | `--strict`, `--json` |
 | `redline budget` | Estimate CI runtime without replaying prompts. | `--workers`, `--timeout`, `--max-seconds`, `--measure-local` |
 | `redline benchmark` | Compatibility alias for `redline budget`. | Same as `budget` |
