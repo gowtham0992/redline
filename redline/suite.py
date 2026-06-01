@@ -16,6 +16,18 @@ FeatureCache = dict[int, TextFeatures]
 ClusterInfo = dict[str, Any]
 SUITE_SCHEMA_URL = "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-suite.schema.json"
 PROMPT_DIVERSITY_EDGE_TARGET = 8
+SELECTION_METHODOLOGY_VERSION = "behavior-signature-v1"
+SELECTION_METHODOLOGY = {
+    "name": "deterministic behavior-signature grouping",
+    "version": SELECTION_METHODOLOGY_VERSION,
+    "trust_scope": "structural checks only; review factual, tone, hallucination, policy, and reasoning risks separately",
+    "case_selection": [
+        "one representative per behavior-signature group",
+        "high-risk groups first when case budget is tight",
+        "high-variance edge cases when budget remains",
+        "prompt-diverse samples from large groups when budget remains",
+    ],
+}
 
 
 def build_suite(
@@ -99,6 +111,7 @@ def build_suite(
         "source": str(source),
         "input_field": input_field,
         "output_field": output_field,
+        "methodology": dict(SELECTION_METHODOLOGY),
         "summary": {
             "records_seen": len(records),
             "unique_prompt_response_pairs": len(unique_records),

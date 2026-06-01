@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from redline.features import extract_features
 from redline.io import LogRecord
-from redline.suite import SUITE_SCHEMA_URL, add_suite_case, build_suite
+from redline.suite import SELECTION_METHODOLOGY_VERSION, SUITE_SCHEMA_URL, add_suite_case, build_suite
 
 
 class SuiteTests(unittest.TestCase):
@@ -26,6 +26,9 @@ class SuiteTests(unittest.TestCase):
 
         self.assertEqual(suite["summary"]["records_seen"], 3)
         self.assertEqual(suite["$schema"], SUITE_SCHEMA_URL)
+        self.assertEqual(suite["methodology"]["version"], SELECTION_METHODOLOGY_VERSION)
+        self.assertIn("behavior-signature", suite["methodology"]["name"])
+        self.assertIn("case_selection", suite["methodology"])
         self.assertEqual(suite["summary"]["unique_prompt_response_pairs"], 3)
         self.assertEqual(suite["summary"]["duplicate_prompt_response_pairs"], 0)
         self.assertEqual(suite["summary"]["cases"], 2)
@@ -57,6 +60,7 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("Portable prompt-response regression suite", schema["description"])
         for key in ("summary", "clusters", "cases"):
             self.assertIn(key, schema["properties"])
+        self.assertIn("methodology", schema["properties"])
         case_properties = schema["properties"]["cases"]["items"]["properties"]
         self.assertIn("selection_reason", case_properties)
         self.assertIn("cluster_risk", case_properties)

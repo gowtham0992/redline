@@ -59,6 +59,8 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
     summary = suite.get("summary", {})
     if not isinstance(summary, dict):
         summary = {}
+    methodology = suite.get("methodology")
+    methodology = methodology if isinstance(methodology, dict) else {}
     cases = suite.get("cases", [])
     if not isinstance(cases, list):
         cases = []
@@ -121,6 +123,8 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "source": str(suite.get("source") or ""),
         "created_at": str(suite.get("created_at") or ""),
         "selection": str(summary.get("selection") or ""),
+        "methodology_version": str(methodology.get("version") or ""),
+        "methodology_name": str(methodology.get("name") or ""),
         "records_seen": records_seen,
         "unique_prompt_response_pairs": unique_pairs,
         "duplicate_prompt_response_pairs": int(summary.get("duplicate_prompt_response_pairs", 0)),
@@ -327,6 +331,7 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
         f"Source:                 {summary['source'] or '<unknown>'}",
         f"Created:                {summary['created_at'] or '<unknown>'}",
         f"Selection:              {summary['selection'] or '<unknown>'}",
+        f"Methodology:            {_methodology_label(summary)}",
         f"Records seen:           {summary['records_seen']}",
         f"Unique pairs:           {summary['unique_prompt_response_pairs']}",
         f"Duplicate pairs:        {summary['duplicate_prompt_response_pairs']}",
@@ -575,6 +580,16 @@ def _format_readiness(value: object) -> str:
     score = int(value.get("score") or 0)
     label = str(value.get("label") or "unknown").replace("_", " ")
     return f"{score}/100 ({label})"
+
+
+def _methodology_label(summary: dict[str, Any]) -> str:
+    name = str(summary.get("methodology_name") or "").strip()
+    version = str(summary.get("methodology_version") or "").strip()
+    if name and version:
+        return f"{name} ({version})"
+    if version:
+        return version
+    return "<unknown>"
 
 
 def _manifest_summary_status(summary: dict[str, Any]) -> str:

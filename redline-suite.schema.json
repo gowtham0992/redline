@@ -31,6 +31,17 @@
       "type": "string",
       "description": "JSONL field path used as the baseline response/output."
     },
+    "methodology": {
+      "type": "object",
+      "description": "Deterministic grouping and case-selection method used to generate this suite.",
+      "properties": {
+        "name": {"type": "string"},
+        "version": {"type": "string"},
+        "trust_scope": {"type": "string"},
+        "case_selection": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
     "summary": {
       "type": "object",
       "required": ["records_seen", "unique_prompt_response_pairs", "clusters", "cases", "selection"],

@@ -33,6 +33,8 @@ class SummaryTests(unittest.TestCase):
 
         self.assertEqual(summary["source"], "logs/baseline.jsonl")
         self.assertEqual(summary["selection"], "representative")
+        self.assertEqual(summary["methodology_version"], "behavior-signature-v1")
+        self.assertEqual(summary["methodology_name"], "deterministic behavior-signature grouping")
         self.assertEqual(summary["records_seen"], 2)
         self.assertEqual(summary["unique_prompt_response_pairs"], 2)
         self.assertEqual(summary["duplicate_prompt_response_pairs"], 0)
@@ -95,6 +97,8 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("redline summary", output)
         self.assertIn("Source:", output)
         self.assertIn("Selection:", output)
+        self.assertIn("Methodology:", output)
+        self.assertIn("behavior-signature-v1", output)
         self.assertIn("Records seen:", output)
         self.assertIn("Unique pairs:", output)
         self.assertIn("Duplicate pairs:", output)

@@ -46,6 +46,10 @@ Suite generation chooses cases in this order:
 This strategy optimizes for useful regression coverage from existing logs, not
 perfect coverage of every product risk. If a scenario matters, pin it.
 
+Generated suites include a `methodology` block with the deterministic
+case-selection method and version, currently `behavior-signature-v1`, so
+reports can be audited against the algorithm that selected the suite.
+
 ## Regression Signals
 
 The deterministic diff engine checks for high-signal changes:
