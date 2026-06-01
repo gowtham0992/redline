@@ -200,6 +200,8 @@ redline is deterministic and local-first by default. Optional judge commands are
 available for ambiguous `changed` cases, but redline does not call a cloud model
 unless you explicitly configure that command.
 
+Methodology details live in [docs/methodology.md](docs/methodology.md).
+
 Suite generation does not run statistical or embedding clustering by default.
 It groups logs by deterministic behavior signatures, such as prompt intent,
 response shape, length bucket, and JSON schema. It picks one representative per
@@ -481,6 +483,7 @@ bash scripts/release_check.sh
 - [docs/release.md](docs/release.md): package, tag, PyPI, and MCP Registry release flow
 - [docs/launch.md](docs/launch.md): public alpha launch plan
 - [docs/troubleshooting.md](docs/troubleshooting.md): first-run and CI failure recovery
+- [docs/methodology.md](docs/methodology.md): behavior grouping, case selection, scoring, and trust boundaries
 - [docs/commands.md](docs/commands.md): compact CLI command reference
 - [docs/real-log-dogfood.md](docs/real-log-dogfood.md): redaction-first real-log test protocol
 - [docs/dogfood.md](docs/dogfood.md): first-user dogfood protocol

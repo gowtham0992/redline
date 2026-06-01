@@ -103,6 +103,16 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline-demo-transcript.txt", text)
         self.assertIn("redline demo --public --compact", text)
 
+    def test_methodology_doc_calibrates_behavior_grouping_and_score(self) -> None:
+        text = Path("docs/methodology.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn("does not run statistical, embedding, or semantic clustering", text)
+        self.assertIn("behavior-signature grouping", text)
+        self.assertIn("suite readiness score", text)
+        self.assertIn("not a model-quality score", text)
+        self.assertIn("docs/methodology.md", readme)
+
     def test_release_check_builds_and_smokes_installed_wheel(self) -> None:
         script = Path("scripts/release_check.sh").read_text(encoding="utf-8")
 
