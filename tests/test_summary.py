@@ -101,6 +101,7 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Group coverage:", output)
         self.assertIn("Case coverage:", output)
         self.assertIn("Suite readiness:", output)
+        self.assertIn("Readiness scope:        suite health, not model quality or candidate safety", output)
         self.assertIn("Pinned cases:", output)
         self.assertIn("Owned cases:", output)
         self.assertIn("Owner rule coverage:", output)

@@ -335,6 +335,7 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
         f"Representative cases:   {summary['cases']}",
         f"Case coverage:          {summary['cases']}/{summary['unique_prompt_response_pairs']} ({_percent(summary['case_coverage'])})",
         f"Suite readiness:        {_format_readiness(summary['suite_readiness'])}",
+        "Readiness scope:        suite health, not model quality or candidate safety",
         f"Pinned cases:           {summary['pinned_cases']}",
         f"Owned cases:            {summary['owned_cases']}/{summary['cases']}",
         f"Owner rule coverage:    {summary['owner_rule_cases']}/{summary['owned_cases']} ({_percent(summary['owner_rule_coverage'])})",
