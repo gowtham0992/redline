@@ -256,6 +256,32 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline suite add", text)
         self.assertIn("redline_budget", text)
 
+    def test_prompt_get_review_candidate_outputs_uses_quick_check_when_baseline_is_available(self) -> None:
+        response = handle_jsonrpc_line(
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 36,
+                    "method": "prompts/get",
+                    "params": {
+                        "name": "review_candidate_outputs",
+                        "arguments": {
+                            "baseline_path": "logs/baseline.jsonl",
+                            "candidate_path": "logs/candidate.jsonl",
+                        },
+                    },
+                }
+            )
+        )
+
+        assert response is not None
+        text = response["result"]["messages"][0]["content"]["text"]
+        self.assertIn("redline_quick_check", text)
+        self.assertIn("redline_diff", text)
+        self.assertIn("logs/baseline.jsonl", text)
+        self.assertIn("logs/candidate.jsonl", text)
+        self.assertIn("Do not accept or modify the baseline", text)
+
     def test_prompt_get_builds_first_time_setup_workflow(self) -> None:
         response = handle_jsonrpc_line(
             json.dumps(

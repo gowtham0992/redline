@@ -105,7 +105,7 @@ reach for most often:
 
 - `check_prompt_change`: run doctor, then eval a changed prompt file.
 - `build_suite_from_logs`: generate a suite, validate it, and summarize coverage.
-- `review_candidate_outputs`: diff candidate JSONL outputs and lead with blocking findings.
+- `review_candidate_outputs`: quick-check two JSONL logs or diff candidate outputs against a suite, then lead with blocking findings.
 - `setup_redline_project`: guide first-time setup through runner selection,
   prompt/log discovery, suite validation, CI scale checks, and optional judge setup.
 
@@ -130,6 +130,11 @@ right runner adapter, and do not mutate the baseline.
 ```text
 Generate a redline suite from logs/baseline.jsonl, then diff it against
 logs/candidate.jsonl. Summarize only regressions I should review.
+```
+
+```text
+Quick-check logs/baseline.jsonl against logs/candidate.jsonl and tell me the
+blocking regressions before I wire a permanent suite.
 ```
 
 ```text

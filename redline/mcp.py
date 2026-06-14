@@ -361,9 +361,10 @@ def _prompts() -> list[PromptSpec]:
         ),
         PromptSpec(
             "review_candidate_outputs",
-            "Compare candidate JSONL outputs against a suite and summarize risky behavior changes.",
+            "Quick-check or diff candidate JSONL outputs and summarize risky behavior changes.",
             (
                 PromptArgument("cwd", "Project directory where redline should run."),
+                PromptArgument("baseline_path", "Baseline JSONL outputs to compare when no suite exists."),
                 PromptArgument("candidate_path", "Candidate JSONL outputs to compare.", required=True),
                 PromptArgument("suite_path", "Optional suite JSON path."),
             ),
@@ -428,18 +429,21 @@ def _build_suite_from_logs_prompt(arguments: dict[str, Any]) -> str:
 def _build_review_candidate_outputs_prompt(arguments: dict[str, Any]) -> str:
     candidate_path = _required_string(arguments, "candidate_path")
     cwd = _optional_prompt_argument(arguments, "cwd", "the current project")
+    baseline_path = _optional_prompt_argument(arguments, "baseline_path", "not provided")
     suite_path = _optional_prompt_argument(arguments, "suite_path", "the configured suite")
     return (
         "Review candidate prompt outputs with redline and tell me what changed.\n\n"
         f"- Run in: {cwd}\n"
+        f"- Baseline outputs: {baseline_path}\n"
         f"- Candidate outputs: {candidate_path}\n"
         f"- Suite: {suite_path}\n\n"
         "Use this workflow:\n"
-        "1. Call `redline_diff` against the candidate outputs and suite when provided.\n"
-        "2. Treat exit code 1 as a redline finding, not a tool failure.\n"
-        "3. Lead with blocking regressions and missing outputs.\n"
-        "4. Then summarize changed cases that need human review.\n"
-        "5. Do not accept or modify the baseline.\n"
+        "1. If baseline outputs are provided and no suite exists yet, call `redline_quick_check` with the baseline and candidate logs.\n"
+        "2. Otherwise call `redline_diff` against the candidate outputs and suite when provided.\n"
+        "3. Treat exit code 1 as a redline finding, not a tool failure.\n"
+        "4. Lead with blocking regressions and missing outputs.\n"
+        "5. Then summarize changed cases that need human review.\n"
+        "6. Do not accept or modify the baseline.\n"
     )
 
 
