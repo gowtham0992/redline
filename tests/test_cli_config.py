@@ -655,6 +655,51 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_quick_check_generates_suite_and_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+                output = io.StringIO()
+
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "quick-check",
+                                "baseline.jsonl",
+                                "candidate.jsonl",
+                                "--fail-on",
+                                "none",
+                            ]
+                        ),
+                        0,
+                    )
+
+                text = output.getvalue()
+                self.assertIn("redline quick-check", text)
+                self.assertIn("candidate lost valid JSON format", text)
+                self.assertIn("Open HTML report", text)
+                self.assertTrue((root / ".redline" / "quick-check" / "suite.json").exists())
+                self.assertTrue((root / ".redline" / "quick-check" / "diff.json").exists())
+                self.assertTrue((root / ".redline" / "quick-check" / "diff.md").exists())
+                self.assertTrue((root / ".redline" / "quick-check" / "diff.html").exists())
+                report = json.loads((root / ".redline" / "quick-check" / "diff.json").read_text(encoding="utf-8"))
+                self.assertEqual(report["summary"]["regression"], 1)
+                self.assertEqual(report["artifacts"]["html"], ".redline/quick-check/diff.html")
+                self.assertEqual(report["suite"], ".redline/quick-check/suite.json")
+            finally:
+                os.chdir(previous)
+
     def test_diff_profile_review_downgrades_number_and_entity_loss(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

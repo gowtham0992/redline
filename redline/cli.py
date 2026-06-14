@@ -157,6 +157,7 @@ Start here:
   redline sbom
 
 Core loop:
+  redline quick-check path/to/baseline.jsonl path/to/candidate.jsonl
   redline suite path/to/baseline.jsonl --out redline-suite.json
   redline import downloaded.jsonl --input-field instruction --output-field response --out baseline.jsonl
   redline eval --prompt prompts/v2.txt
@@ -405,6 +406,24 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     validate_parser.add_argument("--strict", action="store_true", help="exit non-zero when warnings are present")
     validate_parser.set_defaults(func=cmd_validate)
+
+    quick_check_parser = subparsers.add_parser("quick-check", help="generate a temporary suite and diff candidate outputs")
+    quick_check_parser.add_argument("baseline", help="baseline prompt-response JSONL")
+    quick_check_parser.add_argument("candidate", help="candidate prompt-response JSONL")
+    quick_check_parser.add_argument("--input-field", default="prompt", help="JSONL prompt field path")
+    quick_check_parser.add_argument("--output-field", default="response", help="JSONL response field path")
+    quick_check_parser.add_argument("--out-dir", default=".redline/quick-check", help="directory for suite and reports")
+    quick_check_parser.add_argument("--max-cases", type=int, default=42, help="maximum representative suite cases")
+    quick_check_parser.add_argument("--all-cases", action="store_true", help="include every unique baseline record")
+    quick_check_parser.add_argument("--profile", choices=DIFF_PROFILES, default="strict", help="diff signal profile")
+    quick_check_parser.add_argument("--compact", action="store_true", help="print compact one-line-per-case output")
+    quick_check_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    quick_check_parser.add_argument(
+        "--fail-on",
+        default="regression,missing",
+        help="comma-separated statuses that produce exit code 1; use 'none' for report-only",
+    )
+    quick_check_parser.set_defaults(func=cmd_quick_check)
 
     diff_parser = subparsers.add_parser("diff", help="compare candidate JSONL to a suite")
     diff_parser.add_argument(
@@ -1329,6 +1348,68 @@ def cmd_validate(args: argparse.Namespace) -> int:
     if args.strict and report["warnings"] > 0:
         return 1
     return 0
+
+
+def cmd_quick_check(args: argparse.Namespace) -> int:
+    if args.all_cases and args.max_cases != 42:
+        raise ValueError("--all-cases cannot be combined with --max-cases")
+    baseline_records = read_jsonl_records(args.baseline, args.input_field, args.output_field)
+    candidate_records = read_jsonl_records(args.candidate, args.input_field, args.output_field)
+    suite = build_suite(
+        baseline_records,
+        source=args.baseline,
+        input_field=args.input_field,
+        output_field=args.output_field,
+        max_cases=args.max_cases,
+        all_cases=args.all_cases,
+    )
+    out_dir = Path(args.out_dir)
+    suite_path = out_dir / "suite.json"
+    report_json = out_dir / "diff.json"
+    report_md = out_dir / "diff.md"
+    report_html = out_dir / "diff.html"
+    write_json(suite_path, suite)
+
+    result = compare_suite_to_candidate(suite, candidate_records, profile=args.profile)
+    result["suite"] = str(suite_path)
+    result["candidate"] = str(args.candidate)
+    result["artifacts"] = _artifact_paths(
+        {
+            "json": str(report_json),
+            "markdown": str(report_md),
+            "html": str(report_html),
+        }
+    )
+    write_json(report_json, result)
+    write_text(report_md, format_markdown_report(result, title="redline quick-check"))
+    write_text(report_html, format_html_report(result, title="redline quick-check"))
+
+    fail_on = parse_fail_on(args.fail_on)
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    elif args.compact:
+        print(format_compact_report(result, title="redline quick-check"), end="")
+    else:
+        print(format_report(result, title="redline quick-check"), end="")
+    if not args.json:
+        summary = suite["summary"]
+        print()
+        print("Artifacts")
+        print(f"- Suite:       {suite_path}")
+        print(f"- JSON report: {report_json}")
+        print(f"- Markdown:    {report_md}")
+        print(f"- HTML report: {report_html}")
+        print()
+        print("Suite coverage")
+        print(f"- Cases: {summary['cases']}/{summary['unique_prompt_response_pairs']} unique prompt-response pairs")
+        covered_clusters = round(int(summary["clusters"]) * float(summary.get("cluster_coverage") or 0.0))
+        print(f"- Behavior groups: {covered_clusters}/{summary['clusters']} represented")
+        print()
+        print("Next:")
+        print(f"- Open HTML report: {report_html}")
+        print(f"- Inspect cases: redline cases {suite_path}")
+        print(f"- Make this persistent: redline suite {args.baseline} --out redline-suite.json")
+    return 1 if should_fail(result, fail_on) else 0
 
 
 def cmd_diff(args: argparse.Namespace) -> int:
