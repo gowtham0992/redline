@@ -90,7 +90,7 @@ from .prompts import (
     format_prompt_manifest,
     format_prompt_manifest_check,
 )
-from .redact import DEFAULT_PLACEHOLDER, format_redaction_report, redact_jsonl, scan_jsonl_redactions
+from .redact import DEFAULT_PLACEHOLDER, REDACTION_BOUNDARY, format_redaction_report, redact_jsonl, scan_jsonl_redactions
 from .reports import (
     format_github_annotations,
     format_html_report,
@@ -835,6 +835,7 @@ def cmd_import(args: argparse.Namespace) -> int:
                 "Redaction:       "
                 f"best-effort common secrets/PII scanned; {report['redactions']} value(s) redacted"
             )
+            print(f"Boundary:        {REDACTION_BOUNDARY}")
             patterns = report.get("redaction_patterns")
             if isinstance(patterns, dict) and patterns:
                 print(f"Redaction hits:  {', '.join(f'{key}={value}' for key, value in patterns.items())}")
@@ -865,6 +866,7 @@ def _print_import_preview(report: Mapping[str, object]) -> None:
             "Redaction:       "
             f"best-effort common secrets/PII scanned; {report['redactions']} value(s) redacted"
         )
+        print(f"Boundary:        {REDACTION_BOUNDARY}")
     else:
         print("Redaction:       disabled; review sensitive logs before sharing or committing")
     print()
@@ -967,6 +969,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
             print(f"Skipped {result['skipped_duplicates']} duplicate records.")
         if result.get("redactions"):
             print(f"Redacted {result['redactions']} sensitive value(s).")
+            print(f"Boundary: {REDACTION_BOUNDARY}.")
         print(f"{str(result['mode']).title()} {Path(str(result['output']))}.")
     return 0
 

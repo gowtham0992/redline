@@ -916,7 +916,7 @@ class CliConfigTests(unittest.TestCase):
                 self.assertNotIn("ada@example.com", row["prompt"])
                 self.assertEqual(row["api_key"], "[REDACTED]")
                 self.assertIn("Redactions: 2", output.getvalue())
-                self.assertIn("best-effort common secret/PII patterns", output.getvalue())
+                self.assertIn("not a privacy boundary", output.getvalue())
                 audit = [
                     json.loads(line)
                     for line in (root / ".redline" / "audit.jsonl").read_text(encoding="utf-8").splitlines()
@@ -2189,6 +2189,7 @@ class CliConfigTests(unittest.TestCase):
 
                 observed = root / ".redline" / "logs" / "prompts.jsonl"
                 self.assertIn("Redacted 1 sensitive value", output.getvalue())
+                self.assertIn("not a privacy boundary", output.getvalue())
                 self.assertNotIn("ada@example.com", observed.read_text(encoding="utf-8"))
 
                 with contextlib.redirect_stdout(io.StringIO()):
@@ -2230,6 +2231,7 @@ class CliConfigTests(unittest.TestCase):
                     )
 
                 self.assertIn("1 value(s) redacted", output.getvalue())
+                self.assertIn("not a privacy boundary", output.getvalue())
                 self.assertNotIn("ada@example.com", Path("baseline.jsonl").read_text(encoding="utf-8"))
 
                 with contextlib.redirect_stdout(io.StringIO()):
