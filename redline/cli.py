@@ -1908,6 +1908,10 @@ def _emit_result(
         print(format_compact_report(result, title=title), end="")
     else:
         print(format_report(result, title=title), end="")
+    if not args.json and out_html:
+        print()
+        print(f"Open HTML report: {Path(out_html)}")
+        print(f"Open dashboard: redline dashboard --reports-dir {Path(out_html).parent} --open")
 
     exit_code = 1 if should_fail(result, fail_on) else 0
     if audit_event is not None:

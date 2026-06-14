@@ -632,10 +632,14 @@ class CliConfigTests(unittest.TestCase):
                     encoding="utf-8",
                 )
 
-                with contextlib.redirect_stdout(io.StringIO()):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
                     self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
                     self.assertEqual(main(["diff", "candidate.jsonl"]), 0)
 
+                text = output.getvalue()
+                self.assertIn("Open HTML report: .redline/reports/diff.html", text)
+                self.assertIn("Open dashboard: redline dashboard --reports-dir .redline/reports --open", text)
                 self.assertTrue((root / ".redline" / "suite.json").exists())
                 self.assertTrue((root / ".redline" / "reports" / "diff.json").exists())
                 self.assertTrue((root / ".redline" / "reports" / "diff.md").exists())
