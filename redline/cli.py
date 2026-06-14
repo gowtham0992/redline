@@ -149,6 +149,7 @@ Local-first prompt regression diffs from JSONL logs.
 
 Start here:
   redline demo
+  redline quick-check path/to/baseline.jsonl path/to/candidate.jsonl --open
   redline dashboard
   redline init --runner stdio --copy-runner
   redline runners
@@ -157,7 +158,6 @@ Start here:
   redline sbom
 
 Core loop:
-  redline quick-check path/to/baseline.jsonl path/to/candidate.jsonl
   redline suite path/to/baseline.jsonl --out redline-suite.json
   redline import downloaded.jsonl --input-field instruction --output-field response --out baseline.jsonl
   redline eval --prompt prompts/v2.txt
@@ -418,6 +418,7 @@ def build_parser() -> argparse.ArgumentParser:
     quick_check_parser.add_argument("--profile", choices=DIFF_PROFILES, default="strict", help="diff signal profile")
     quick_check_parser.add_argument("--compact", action="store_true", help="print compact one-line-per-case output")
     quick_check_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    quick_check_parser.add_argument("--open", action="store_true", help="open the HTML report in the default browser")
     quick_check_parser.add_argument(
         "--fail-on",
         default="regression,missing",
@@ -1386,6 +1387,8 @@ def cmd_quick_check(args: argparse.Namespace) -> int:
     write_json(report_json, result)
     write_text(report_md, format_markdown_report(result, title="redline quick-check"))
     write_text(report_html, format_html_report(result, title="redline quick-check"))
+    if args.open:
+        webbrowser.open(report_html.resolve().as_uri())
 
     fail_on = parse_fail_on(args.fail_on)
     if args.json:
@@ -1412,6 +1415,8 @@ def cmd_quick_check(args: argparse.Namespace) -> int:
         print(f"- Open HTML report: {report_html}")
         print(f"- Inspect cases: redline cases {suite_path}")
         print(f"- Make this persistent: redline suite {args.baseline} --out redline-suite.json")
+        if args.open:
+            print("- Opened HTML report in the default browser.")
     return 1 if should_fail(result, fail_on) else 0
 
 

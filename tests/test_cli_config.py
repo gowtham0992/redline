@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from redline.cli import main
 
@@ -20,6 +21,7 @@ class CliConfigTests(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("Start here:", text)
         self.assertIn("redline demo", text)
+        self.assertIn("redline quick-check path/to/baseline.jsonl path/to/candidate.jsonl --open", text)
         self.assertIn("redline init --runner stdio --copy-runner", text)
         self.assertIn("Review loop:", text)
         self.assertIn("redline suite add redline-suite.json", text)
@@ -35,6 +37,7 @@ class CliConfigTests(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("Start here:", text)
         self.assertIn("redline demo", text)
+        self.assertIn("redline quick-check path/to/baseline.jsonl path/to/candidate.jsonl --open", text)
         self.assertNotIn("suite-add", text)
         self.assertNotIn("==SUPPRESS==", text)
 
@@ -675,24 +678,27 @@ class CliConfigTests(unittest.TestCase):
                 )
                 output = io.StringIO()
 
-                with contextlib.redirect_stdout(output):
-                    self.assertEqual(
-                        main(
-                            [
-                                "quick-check",
-                                "baseline.jsonl",
-                                "candidate.jsonl",
-                                "--fail-on",
-                                "none",
-                            ]
-                        ),
-                        0,
-                    )
+                with patch("redline.cli.webbrowser.open") as open_browser:
+                    with contextlib.redirect_stdout(output):
+                        self.assertEqual(
+                            main(
+                                [
+                                    "quick-check",
+                                    "baseline.jsonl",
+                                    "candidate.jsonl",
+                                    "--fail-on",
+                                    "none",
+                                    "--open",
+                                ]
+                            ),
+                            0,
+                        )
 
                 text = output.getvalue()
                 self.assertIn("redline quick-check", text)
                 self.assertIn("candidate lost valid JSON format", text)
                 self.assertIn("Open HTML report", text)
+                self.assertIn("Opened HTML report in the default browser.", text)
                 self.assertTrue((root / ".redline" / "quick-check" / "suite.json").exists())
                 self.assertTrue((root / ".redline" / "quick-check" / "diff.json").exists())
                 self.assertTrue((root / ".redline" / "quick-check" / "diff.md").exists())
@@ -701,6 +707,7 @@ class CliConfigTests(unittest.TestCase):
                 self.assertEqual(report["summary"]["regression"], 1)
                 self.assertEqual(report["artifacts"]["html"], ".redline/quick-check/diff.html")
                 self.assertEqual(report["suite"], ".redline/quick-check/suite.json")
+                open_browser.assert_called_once()
             finally:
                 os.chdir(previous)
 

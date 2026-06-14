@@ -114,11 +114,12 @@ redline gives you three primitives that cover the prompt-regression loop:
 For a first pass on two local logs, use one command:
 
 ```bash
-redline quick-check logs/baseline.jsonl logs/candidate.jsonl
+redline quick-check logs/baseline.jsonl logs/candidate.jsonl --open
 ```
 
 It generates a temporary suite, writes JSON/Markdown/HTML reports under
-`.redline/quick-check`, and prints the concrete behavioral diff.
+`.redline/quick-check`, opens the local HTML report, and prints the concrete
+behavioral diff.
 
 ### 1. Logs
 
