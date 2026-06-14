@@ -216,6 +216,14 @@ redline is deterministic and local-first by default. Optional judge commands are
 available for ambiguous `changed` cases, but redline does not call a cloud model
 unless you explicitly configure that command.
 
+That is the point. redline is designed to be the fast merge-blocking gate for
+regressions that break production systems: invalid JSON, missing required
+fields, lost tables, empty answers, dropped URLs, changed refusal behavior, and
+explicit requirement failures. LLM judges are useful for semantic review, but
+they are slower, cost money, and can be flaky in CI. redline keeps the default
+gate deterministic, reproducible, and cheap, then lets you add judges only where
+the structural signal is not enough.
+
 Methodology details live in [docs/methodology.md](docs/methodology.md).
 
 Suite generation does not run statistical or embedding clustering by default.

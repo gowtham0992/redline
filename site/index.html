@@ -140,7 +140,7 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
           </article>
           <article>
             <strong>Deterministic by default</strong>
-            <p>No cloud account is required for the core loop; CI-friendly checks run locally, cost nothing, and do not depend on hosted judges.</p>
+            <p>No cloud account is required. The default gate is fast, local, reproducible, and cheap. It catches production-breaking structural regressions without depending on hosted judges.</p>
           </article>
           <article>
             <strong>Reports people can review</strong>
@@ -212,6 +212,11 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
               quality need pinned requirements or an optional judge. redline
               tells you when a run has no structural blockers; it does not
               pretend that means the answer is perfect.
+            </p>
+            <p>
+              This is intentional: deterministic checks are the merge gate.
+              Judges are review evidence for ambiguous or domain-specific
+              behavior, not the only line of defense.
             </p>
           </div>
           <div>

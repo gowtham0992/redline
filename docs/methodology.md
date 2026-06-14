@@ -6,6 +6,12 @@ reviewable suite, checks high-signal behavioral changes, and leaves factual,
 tone, policy, hallucination, and subtle reasoning judgment to explicit
 requirements, optional judges, or humans.
 
+This is a deliberate product boundary. A merge blocker should be fast,
+repeatable, local, and cheap. Deterministic checks catch the production failures
+that break parsers and workflows without asking a model to grade every run. Use
+judges as review evidence for ambiguous or domain-specific behavior, not as the
+only line of defense.
+
 ## Input Model
 
 redline expects prompt-response observations as JSONL. The canonical fields are
