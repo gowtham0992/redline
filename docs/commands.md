@@ -53,6 +53,12 @@ Structural checks are deterministic and local. Green or neutral does not prove
 semantic equivalence. Use `redline require`, `redline mark`, and optional judge
 templates for factual, tone, hallucination, policy, or reasoning risks.
 
+## Import Help
+
+Use `redline import --detect` when you do not know an export's field names, then
+`--preview 3` before writing normalized logs. Source-specific recipes live in
+[docs/import-guides.md](import-guides.md).
+
 ## Diff profiles
 
 - `--profile strict` is the default CI-oriented mode. Missing concrete details

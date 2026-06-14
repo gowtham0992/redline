@@ -507,6 +507,7 @@ bash scripts/release_check.sh
 - [docs/release.md](docs/release.md): package, tag, PyPI, and MCP Registry release flow
 - [docs/launch.md](docs/launch.md): public alpha launch plan
 - [docs/troubleshooting.md](docs/troubleshooting.md): first-run and CI failure recovery
+- [docs/import-guides.md](docs/import-guides.md): Langfuse, Helicone, OpenAI chat, Datadog, and custom log import recipes
 - [docs/methodology.md](docs/methodology.md): behavior grouping, case selection, scoring, and trust boundaries
 - [docs/calibration.md](docs/calibration.md): tiny fixture showing regressions, changed cases, and neutral cases
 - [docs/commands.md](docs/commands.md): compact CLI command reference
