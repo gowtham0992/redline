@@ -30,6 +30,7 @@ class McpServerTests(unittest.TestCase):
         names = {tool["name"] for tool in response["result"]["tools"]}
         self.assertIn("redline_doctor", names)
         self.assertIn("redline_suite", names)
+        self.assertIn("redline_quick_check", names)
         self.assertIn("redline_redact", names)
         self.assertIn("redline_import", names)
         self.assertIn("redline_import_presets", names)
@@ -49,6 +50,44 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_mark", names)
         self.assertNotIn("redline_accept", names)
         self.assertNotIn("redline_require", names)
+
+    def test_quick_check_tool_generates_suite_and_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            baseline = root / "baseline.jsonl"
+            candidate = root / "candidate.jsonl"
+            baseline.write_text(
+                '{"prompt": "Return JSON with owner and priority.", "response": "{\\"owner\\": \\"Support\\", \\"priority\\": \\"high\\"}"}\n',
+                encoding="utf-8",
+            )
+            candidate.write_text(
+                '{"prompt": "Return JSON with owner and priority.", "response": "Support should handle this."}\n',
+                encoding="utf-8",
+            )
+
+            result = call_tool(
+                "redline_quick_check",
+                {
+                    "cwd": directory,
+                    "baseline_path": "baseline.jsonl",
+                    "candidate_path": "candidate.jsonl",
+                    "fail_on": "none",
+                    "json": True,
+                },
+            )
+            report_dir = root / ".redline" / "quick-check"
+            suite_exists = (report_dir / "suite.json").exists()
+            json_exists = (report_dir / "diff.json").exists()
+            html_exists = (report_dir / "diff.html").exists()
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        payload = result["structuredContent"]["json"]
+        self.assertEqual(payload["summary"]["regression"], 1)
+        self.assertEqual(payload["artifacts"]["html"], ".redline/quick-check/diff.html")
+        self.assertTrue(suite_exists)
+        self.assertTrue(json_exists)
+        self.assertTrue(html_exists)
 
     def test_import_tool_normalizes_external_jsonl(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

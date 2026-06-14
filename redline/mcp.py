@@ -108,7 +108,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "redline-mcp\n\n"
             "Local MCP stdio server for redline.\n\n"
             "Run this command from an MCP client. It exposes redline doctor, suite,\n"
-            "watch stats, prompts, runners, judges, redact, audit, SBOM, benchmark, validate, summary, diff, eval, history, dashboard, cases, case, and guarded mark tools.\n",
+            "quick-check, watch stats, prompts, runners, judges, redact, audit, SBOM, benchmark, validate, summary, diff, eval, history, dashboard, cases, case, and guarded mark tools.\n",
             end="",
         )
         return 0
@@ -509,6 +509,27 @@ def _tools() -> list[ToolSpec]:
             _build_suite,
         ),
         ToolSpec(
+            "redline_quick_check",
+            "Generate a temporary suite from baseline JSONL, diff candidate JSONL, and write local reports.",
+            _schema(
+                {
+                    "baseline_path": _string("Baseline prompt-response JSONL path."),
+                    "candidate_path": _string("Candidate prompt-response JSONL path."),
+                    "input_field": _string("JSONL prompt field path."),
+                    "output_field": _string("JSONL response field path."),
+                    "out_dir": _string("Directory for quick-check suite and reports. Defaults to .redline/quick-check."),
+                    "max_cases": _integer("Maximum representative cases."),
+                    "all_cases": _boolean("Include every unique record instead of sampling representative cases."),
+                    "profile": _string("Diff profile: strict or review."),
+                    "compact": _boolean("Print compact one-line-per-case output."),
+                    "json": _boolean("Print machine-readable JSON."),
+                    "fail_on": _string("Comma-separated statuses that produce exit code 1; use none for report-only."),
+                },
+                required=("baseline_path", "candidate_path"),
+            ),
+            _build_quick_check,
+        ),
+        ToolSpec(
             "redline_redact",
             "Scan or redact common secrets and PII from JSONL prompt-response logs.",
             _schema(
@@ -877,6 +898,22 @@ def _build_suite(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--output-field", arguments.get("output_field"))
     _add_option(args, "--max-cases", arguments.get("max_cases"))
     _add_flag(args, "--all-cases", arguments.get("all_cases"))
+    return args
+
+
+def _build_quick_check(arguments: dict[str, Any]) -> list[str]:
+    args = ["quick-check"]
+    _add_positional(args, _required_string(arguments, "baseline_path"))
+    _add_positional(args, _required_string(arguments, "candidate_path"))
+    _add_option(args, "--input-field", arguments.get("input_field"))
+    _add_option(args, "--output-field", arguments.get("output_field"))
+    _add_option(args, "--out-dir", arguments.get("out_dir"))
+    _add_option(args, "--max-cases", arguments.get("max_cases"))
+    _add_flag(args, "--all-cases", arguments.get("all_cases"))
+    _add_option(args, "--profile", arguments.get("profile"))
+    _add_flag(args, "--compact", arguments.get("compact"))
+    _add_flag(args, "--json", arguments.get("json"))
+    _add_option(args, "--fail-on", arguments.get("fail_on"))
     return args
 
 

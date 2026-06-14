@@ -65,6 +65,7 @@ Available tools:
 
 - `redline_doctor`
 - `redline_suite`
+- `redline_quick_check`
 - `redline_redact`
 - `redline_import` (supports `detect` and `preview` before writing)
 - `redline_import_presets`
@@ -87,9 +88,9 @@ Available tools:
 - `redline_audit` (including `verify` and checkpoint output for the local audit hash chain)
 - `redline_sbom`
 
-`redline_diff` and `redline_eval` return the underlying redline exit code as
-structured data. Exit code `1` means redline found blocking regressions or
-missing outputs; the MCP tool still returns successfully because that is a
+`redline_quick_check`, `redline_diff`, and `redline_eval` return the underlying
+redline exit code as structured data. Exit code `1` means redline found blocking regressions
+or missing outputs; the MCP tool still returns successfully because that is a
 product finding, not a protocol failure. Exit code `2` and above indicates a
 setup or command error.
 
