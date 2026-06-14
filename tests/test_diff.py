@@ -50,6 +50,20 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(result["suite_summary"]["case_coverage"], 1.0)
         self.assertEqual(result["suite_summary"]["cluster_coverage"], 1.0)
 
+    def test_report_warns_when_suite_contains_non_ascii_records(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Résumé refund policy", "Répondre avec la politique.", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        candidate = [LogRecord(1, "Résumé refund policy", "Répondre avec la politique.", {})]
+
+        result = compare_suite_to_candidate(suite, candidate)
+
+        self.assertTrue(any("English-centric" in warning for warning in result["warnings"]))
+
     def test_classify_json_regression(self) -> None:
         baseline = extract_features('{"name":"Ada","status":"active"}').to_dict()
         candidate = extract_features('{"name":"Ada"').to_dict()

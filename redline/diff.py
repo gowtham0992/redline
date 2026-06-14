@@ -267,6 +267,7 @@ def compare_suite_to_candidate(
         "profile": profile,
         "methodology": _report_methodology(suite),
         "suite_summary": _report_suite_summary(suite),
+        "warnings": _report_warnings(suite),
         "summary": summary,
         "decision": decision,
         "diffs": [diff.to_dict() for diff in diffs],
@@ -440,6 +441,20 @@ def _report_suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "non_ascii_records",
     )
     return {key: summary[key] for key in keys if key in summary}
+
+
+def _report_warnings(suite: dict[str, Any]) -> list[str]:
+    summary = suite.get("summary")
+    if not isinstance(summary, dict):
+        return []
+    warnings = []
+    non_ascii_records = int(summary.get("non_ascii_records") or 0)
+    if non_ascii_records:
+        warnings.append(
+            f"suite contains {non_ascii_records} non-ASCII record(s); "
+            "English-centric entity, tone, refusal, and policy-polarity heuristics need manual or judge review"
+        )
+    return warnings
 
 
 def _confidence_drift_reason(
