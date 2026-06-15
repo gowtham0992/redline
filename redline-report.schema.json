@@ -39,6 +39,7 @@
         "cases": {"type": "integer", "minimum": 0},
         "case_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
         "cluster_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "stochastic_prompt_groups": {"type": "integer", "minimum": 0},
         "selection": {"type": "string"}
       },
       "additionalProperties": true

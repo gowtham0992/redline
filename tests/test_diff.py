@@ -26,6 +26,7 @@ class DiffTests(unittest.TestCase):
         self.assertIn("diagnosis", schema["properties"]["decision"]["properties"])
         self.assertIn("methodology", schema["properties"])
         self.assertIn("suite_summary", schema["properties"])
+        self.assertIn("stochastic_prompt_groups", schema["properties"]["suite_summary"]["properties"])
         self.assertIn("suite", schema["properties"])
         self.assertIn("candidate", schema["properties"])
         self.assertIn("diffs", schema["properties"])
@@ -63,6 +64,24 @@ class DiffTests(unittest.TestCase):
         result = compare_suite_to_candidate(suite, candidate)
 
         self.assertTrue(any("English-centric" in warning for warning in result["warnings"]))
+
+    def test_report_warns_when_suite_contains_stochastic_baselines(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Classify ticket", "billing", {}),
+                LogRecord(2, "Classify ticket", "support", {}),
+            ],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        candidate = [LogRecord(1, "Classify ticket", "billing", {})]
+
+        result = compare_suite_to_candidate(suite, candidate)
+
+        self.assertEqual(result["suite_summary"]["stochastic_prompt_groups"], 1)
+        self.assertTrue(any("multiple distinct baseline responses" in warning for warning in result["warnings"]))
 
     def test_classify_json_regression(self) -> None:
         baseline = extract_features('{"name":"Ada","status":"active"}').to_dict()

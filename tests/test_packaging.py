@@ -111,6 +111,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("behavior-signature grouping", text)
         self.assertIn("suite readiness score", text)
         self.assertIn("not a model-quality score", text)
+        self.assertIn("stochastic_prompt_groups", text)
         self.assertIn("docs/methodology.md", readme)
 
     def test_calibration_doc_links_runnable_fixture(self) -> None:

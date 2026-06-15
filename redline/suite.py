@@ -68,6 +68,7 @@ def build_suite(
     )
     selected_clusters = {signatures[id(record)] for record, _ in selected}
     non_ascii_records = sum(1 for record in unique_records if _has_non_ascii(record.prompt) or _has_non_ascii(record.response))
+    stochastic_prompt_groups = _stochastic_prompt_groups(unique_records)
     cases = []
     for index, (record, selection_reason) in enumerate(selected, 1):
         signature = signatures[id(record)]
@@ -135,6 +136,7 @@ def build_suite(
             "failure_pattern_clusters": sum(1 for info in cluster_infos.values() if info["failure_patterns"]),
             "prompt_diversity_cases": sum(1 for _, reason in selected if reason == "prompt_diversity_edge"),
             "non_ascii_records": non_ascii_records,
+            "stochastic_prompt_groups": stochastic_prompt_groups,
             "owned_cases": _owned_case_count(cases),
         },
         "clusters": clusters,
@@ -271,6 +273,13 @@ def _unique_prompt_response_records(records: list[LogRecord]) -> list[LogRecord]
         seen.add(key)
         unique.append(record)
     return unique
+
+
+def _stochastic_prompt_groups(records: list[LogRecord]) -> int:
+    responses_by_prompt: dict[str, set[str]] = defaultdict(set)
+    for record in records:
+        responses_by_prompt[record.prompt].add(record.response)
+    return sum(1 for responses in responses_by_prompt.values() if len(responses) > 1)
 
 
 def _has_non_ascii(value: str) -> bool:

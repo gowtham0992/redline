@@ -73,6 +73,7 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("cluster_coverage", schema["properties"]["summary"]["properties"])
         self.assertIn("prompt_diversity_cases", schema["properties"]["summary"]["properties"])
         self.assertIn("non_ascii_records", schema["properties"]["summary"]["properties"])
+        self.assertIn("stochastic_prompt_groups", schema["properties"]["summary"]["properties"])
 
     def test_build_suite_assigns_case_owners_from_rules(self) -> None:
         suite = build_suite(
@@ -302,6 +303,25 @@ class SuiteTests(unittest.TestCase):
         )
 
         self.assertEqual(suite["summary"]["non_ascii_records"], 1)
+
+    def test_build_suite_counts_repeated_prompts_with_distinct_responses(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Classify ticket", "billing", {}),
+                LogRecord(2, "Classify ticket", "support", {}),
+                LogRecord(3, "Classify ticket", "billing", {}),
+                LogRecord(4, "Summarize ticket", "Customer needs a refund.", {}),
+            ],
+            source="logs/baseline.jsonl",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        self.assertEqual(suite["summary"]["records_seen"], 4)
+        self.assertEqual(suite["summary"]["unique_prompt_response_pairs"], 3)
+        self.assertEqual(suite["summary"]["duplicate_prompt_response_pairs"], 1)
+        self.assertEqual(suite["summary"]["stochastic_prompt_groups"], 1)
 
     def test_add_suite_case_pins_manual_case(self) -> None:
         suite = build_suite(

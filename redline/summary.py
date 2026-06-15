@@ -154,6 +154,7 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "high_variance_clusters": len(high_variance),
         "failure_pattern_clusters": len(failure_patterns),
         "non_ascii_records": int(summary.get("non_ascii_records", 0)),
+        "stochastic_prompt_groups": int(summary.get("stochastic_prompt_groups", 0)),
         "judgments": dict(sorted(judgment_counts.items())),
         "requirements": requirements_count,
         "top_clusters": top_clusters,
@@ -245,6 +246,7 @@ def prompt_manifest_summary(
             "high_variance_clusters",
             "failure_pattern_clusters",
             "non_ascii_records",
+            "stochastic_prompt_groups",
             "requirements",
         ):
             totals[key] += int(child_summary.get(key) or 0)
@@ -307,6 +309,7 @@ def prompt_manifest_summary(
         "high_variance_clusters": totals["high_variance_clusters"],
         "failure_pattern_clusters": totals["failure_pattern_clusters"],
         "non_ascii_records": totals["non_ascii_records"],
+        "stochastic_prompt_groups": totals["stochastic_prompt_groups"],
         "requirements": totals["requirements"],
         "prompts": prompt_rows,
         "missing_suites": missing_suites,
@@ -353,6 +356,7 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
         f"High-variance groups:   {summary['high_variance_clusters']}",
         f"Failure-pattern groups: {summary['failure_pattern_clusters']:>2}",
         f"Non-ASCII records:      {summary['non_ascii_records']}",
+        f"Stochastic prompts:     {summary['stochastic_prompt_groups']}",
         f"Cases with requirements: {summary['requirements']:>2}",
         "",
     ]
@@ -428,6 +432,7 @@ def format_prompt_manifest_summary(report: dict[str, Any]) -> str:
         f"High-risk groups:       {report['high_risk_clusters']}",
         f"Medium-risk groups:     {report['medium_risk_clusters']}",
         f"Non-ASCII records:      {report['non_ascii_records']}",
+        f"Stochastic prompts:     {report['stochastic_prompt_groups']}",
         f"Cases with requirements: {report['requirements']:>2}",
         "",
     ]
@@ -493,6 +498,10 @@ def _summary_next_steps(summary: dict[str, Any], *, suite_path: str | None = Non
         steps.append(
             "Review non-English cases manually or with a domain judge; structural checks still work, "
             "but entity/refusal heuristics are English-oriented."
+        )
+    if int(summary.get("stochastic_prompt_groups") or 0):
+        steps.append(
+            "Stabilize repeated-prompt baselines or use review mode; otherwise natural sampling variance can look like regressions."
         )
     if int(summary["cases"]) and not summary["judgments"]:
         steps.append("After the first eval, mark expected or ignored changes to train the suite.")
@@ -570,6 +579,8 @@ def _readiness_reasons(summary: dict[str, Any], *, owner_coverage: float) -> lis
         reasons.append("high-risk groups need explicit requirements or a judge before CI gating")
     if int(summary.get("non_ascii_records") or 0):
         reasons.append("non-ASCII records need extra review because entity/refusal heuristics are English-oriented")
+    if int(summary.get("stochastic_prompt_groups") or 0):
+        reasons.append("repeated prompts with multiple baseline responses need stochastic baseline review")
 
     return reasons
 

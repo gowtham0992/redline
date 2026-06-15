@@ -439,6 +439,7 @@ def _report_suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "high_risk_clusters",
         "medium_risk_clusters",
         "non_ascii_records",
+        "stochastic_prompt_groups",
     )
     return {key: summary[key] for key in keys if key in summary}
 
@@ -453,6 +454,12 @@ def _report_warnings(suite: dict[str, Any]) -> list[str]:
         warnings.append(
             f"suite contains {non_ascii_records} non-ASCII record(s); "
             "English-centric entity, tone, refusal, and policy-polarity heuristics need manual or judge review"
+        )
+    stochastic_prompt_groups = int(summary.get("stochastic_prompt_groups") or 0)
+    if stochastic_prompt_groups:
+        warnings.append(
+            f"suite contains {stochastic_prompt_groups} prompt(s) with multiple distinct baseline responses; "
+            "separate natural sampling variance from prompt regressions before CI gating"
         )
     return warnings
 

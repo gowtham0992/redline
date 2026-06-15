@@ -61,6 +61,13 @@ The generated suite summary also carries `case_coverage` and
 `cluster_coverage` so downstream tools can display basic suite-health context
 without recomputing it.
 
+Suite summaries also count `stochastic_prompt_groups`: prompts that appear with
+more than one distinct baseline response. Those prompts may be genuinely
+multi-answer, or they may come from high-temperature sampling, model drift, or
+mixed production contexts. redline warns on them because natural baseline
+variance can look like a regression unless the suite is stabilized, switched to
+review mode, or guarded with explicit requirements.
+
 ## Regression Signals
 
 The deterministic diff engine checks for high-signal changes:
@@ -88,6 +95,7 @@ suite-health signal, not a model-quality score. It combines:
 - owner coverage
 - high-risk group calibration
 - non-English calibration warnings
+- stochastic baseline warnings
 
 Use the score to decide what to improve before CI gating. A high score means the
 suite is better prepared for review and automation. It does not mean the

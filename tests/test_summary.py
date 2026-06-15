@@ -134,6 +134,26 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("Non-ASCII records:      1", output)
         self.assertIn("entity/refusal heuristics are English-oriented", "\n".join(summary["next_steps"]))
 
+    def test_suite_summary_surfaces_stochastic_baseline_calibration(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Classify ticket", "billing", {}),
+                LogRecord(2, "Classify ticket", "support", {}),
+            ],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        summary = suite_summary(suite)
+        output = format_suite_summary(suite)
+
+        self.assertEqual(summary["stochastic_prompt_groups"], 1)
+        self.assertIn("Stochastic prompts:     1", output)
+        self.assertIn("natural sampling variance can look like regressions", "\n".join(summary["next_steps"]))
+        self.assertTrue(any("stochastic baseline review" in reason for reason in summary["suite_readiness"]["reasons"]))
+
     def test_suite_summary_counts_owners(self) -> None:
         suite = build_suite(
             [

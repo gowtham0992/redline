@@ -62,7 +62,8 @@
         "high_variance_clusters": {"type": "integer", "minimum": 0},
         "failure_pattern_clusters": {"type": "integer", "minimum": 0},
         "prompt_diversity_cases": {"type": "integer", "minimum": 0},
-        "non_ascii_records": {"type": "integer", "minimum": 0}
+        "non_ascii_records": {"type": "integer", "minimum": 0},
+        "stochastic_prompt_groups": {"type": "integer", "minimum": 0}
       },
       "additionalProperties": true
     },
