@@ -318,7 +318,12 @@ class DashboardTests(unittest.TestCase):
 
         self.assertIn('data-redline-dashboard="app"', html)
         self.assertIn("local dashboard", html)
-        self.assertIn("Blocking", html)
+        self.assertIn("Active regressions", html)
+        self.assertIn("Regression trend", html)
+        self.assertIn("Alerts", html)
+        self.assertIn("Log import", html)
+        self.assertIn("Developer workflow integrations", html)
+        self.assertIn("Settings", html)
         self.assertIn("Suite coverage", html)
         self.assertIn("67%", html)
         self.assertIn("case_001", html)

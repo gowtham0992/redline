@@ -166,6 +166,7 @@ def _format_dashboard_app_html(
     warnings = _app_list(latest.get("warnings"))
     if notices:
         warnings = [*(str(item.get("message") or "") for item in notices if isinstance(item, dict)), *warnings]
+    alert_count = active + len([warning for warning in warnings if str(warning).strip()])
     return "\n".join(
         [
             "<!doctype html>",
@@ -180,9 +181,9 @@ def _format_dashboard_app_html(
             "</head>",
             "<body>",
             '<div class="app" data-redline-dashboard="app">',
-            _app_sidebar(active=active, changed=changed),
+            _app_sidebar(active=active, changed=changed, alerts=alert_count),
             '<main class="main">',
-            _app_topbar(title=title, status_class=status_class, status_text=status_text),
+            _app_topbar(title=title, status_class=status_class, status_text=status_text, reports=len(reports)),
             '<div class="pane">',
             _app_dashboard_screen(
                 summary=summary,
@@ -197,12 +198,13 @@ def _format_dashboard_app_html(
                 output_path=output_path,
             ),
             _app_regressions_screen(review_cases=review_cases, summary=summary, decision=decision),
-            _app_suites_screen(suite_summary=suite_summary, owners=owners, trust=trust, checkpoint=checkpoint),
-            _app_logs_screen(),
+            _app_suites_screen(suite_summary=suite_summary, owners=owners, trust=trust, checkpoint=checkpoint, reports=reports),
+            _app_logs_screen(reports=reports, suite_summary=suite_summary),
             _app_compare_screen(latest=latest, output_path=output_path),
-            _app_history_screen(history=history, trend=trend),
-            _app_integrations_screen(),
-            _app_settings_screen(errors=errors),
+            _app_history_screen(history=history, trend=trend, reports=reports),
+            _app_alerts_screen(review_cases=review_cases, warnings=warnings, summary=summary),
+            _app_integrations_screen(benchmarks=benchmarks),
+            _app_settings_screen(errors=errors, dashboard=dashboard),
             "</div>",
             "</main>",
             "</div>",
@@ -214,24 +216,26 @@ def _format_dashboard_app_html(
     )
 
 
-def _app_sidebar(*, active: int, changed: int) -> str:
+def _app_sidebar(*, active: int, changed: int, alerts: int) -> str:
     alert_badge = f'<span class="badge red">{active}</span>' if active else ""
     changed_badge = f'<span class="badge amber">{changed}</span>' if changed else ""
+    alerts_badge = f'<span class="badge red">{alerts}</span>' if alerts else ""
     return (
         '<aside class="sidebar">'
         '<div class="sb-logo"><div class="sb-logo-icon">r</div><div><div class="sb-logo-name">redline</div><div class="sb-logo-version">local dashboard</div></div></div>'
-        '<button class="sb-item active" data-nav="dashboard">Dashboard</button>'
-        f'<button class="sb-item" data-nav="regressions">Regressions {alert_badge}</button>'
-        '<button class="sb-item" data-nav="suites">Eval suites</button>'
-        '<button class="sb-item" data-nav="logs">Log import</button>'
+        '<button class="sb-item active" data-nav="dashboard"><span class="ico">D</span><span>Dashboard</span></button>'
+        f'<button class="sb-item" data-nav="regressions"><span class="ico">!</span><span>Regressions</span> {alert_badge}</button>'
+        '<button class="sb-item" data-nav="suites"><span class="ico">S</span><span>Eval suites</span></button>'
+        '<button class="sb-item" data-nav="logs"><span class="ico">L</span><span>Log import</span></button>'
         '<div class="sb-section">Analysis</div>'
-        f'<button class="sb-item" data-nav="compare">Prompt diff {changed_badge}</button>'
-        '<button class="sb-item" data-nav="history">Run history</button>'
+        f'<button class="sb-item" data-nav="compare"><span class="ico">C</span><span>Prompt diff</span> {changed_badge}</button>'
+        '<button class="sb-item" data-nav="history"><span class="ico">H</span><span>Run history</span></button>'
+        f'<button class="sb-item" data-nav="alerts"><span class="ico">A</span><span>Alerts</span> {alerts_badge}</button>'
         '<div class="sb-section">System</div>'
-        '<button class="sb-item" data-nav="integrations">Integrations</button>'
-        '<button class="sb-item" data-nav="settings">Settings</button>'
+        '<button class="sb-item" data-nav="integrations"><span class="ico">I</span><span>Integrations</span></button>'
+        '<button class="sb-item" data-nav="settings"><span class="ico">G</span><span>Settings</span></button>'
         '<div class="sb-spacer"></div>'
-        '<div class="sb-bottom"><span class="dot"></span><span>Local-first, no telemetry</span></div>'
+        '<div class="sb-bottom"><div class="sb-avatar">RL</div><div><div class="sb-user-name">Local project</div><div class="sb-user-role">Local-first, no telemetry</div></div></div>'
         "</aside>"
     )
 
@@ -246,13 +250,18 @@ def _app_list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
 
 
-def _app_topbar(*, title: str, status_class: str, status_text: str) -> str:
+def _app_topbar(*, title: str, status_class: str, status_text: str, reports: int) -> str:
+    badge_class = {"red": "badge-crit", "amber": "badge-warn", "green": "badge-pass"}.get(status_class, "badge-blue")
     return (
         '<header class="topbar">'
-        f'<div class="crumb" id="crumb"><strong>{_h(title)}</strong></div>'
+        '<div class="topbar-left">'
+        f'<div class="crumb" id="crumb"><b>{_h(title)}</b></div>'
+        f'<span class="top-badge {badge_class}" id="top-badge">{_h(status_text)}</span>'
+        "</div>"
         '<div class="topbar-right">'
-        f'<span class="chip {status_class}">{_h(status_text)}</span>'
-        '<a class="btn" href="#reports">Reports</a>'
+        f'<span class="chip chip-blue">{reports} report(s)</span>'
+        '<a class="btn" href="#reports">Open reports</a>'
+        '<a class="btn btn-primary" href="#s-regressions" data-nav-link="regressions">Review</a>'
         "</div>"
         "</header>"
     )
@@ -275,23 +284,27 @@ def _app_dashboard_screen(
     changed = _changed_count(summary)
     neutral = _safe_int(summary.get("neutral"))
     cases = _safe_int(summary.get("cases"))
-    coverage = _coverage_label(suite_summary)
     action = str(decision.get("recommended_action") or "Run a diff or eval to populate ship guidance.")
     warning_html = _app_warning_banner(warnings, status_class=status_class)
+    pass_text = _pass_rate_label(summary)
     return (
         '<section class="screen active" id="s-dashboard">'
         '<div class="metric-row">'
-        f'{_app_metric("Blocking", str(blocking), "regression + missing", "red" if blocking else "green")}'
-        f'{_app_metric("Changed", str(changed), "needs review", "amber" if changed else "")}'
-        f'{_app_metric("Cases", str(cases), f"{neutral} neutral", "")}'
-        f'{_app_metric("Suite coverage", coverage, f"{len(reports)} reports · {len(history)} history rows", "")}'
+        f'{_app_metric("Active regressions", str(blocking), "regression + missing", "red" if blocking else "green")}'
+        f'{_app_metric("Review changes", str(changed), "changed cases", "amber" if changed else "green")}'
+        f'{_app_metric("Eval cases", str(cases), f"{neutral} neutral", "")}'
+        f'{_app_metric("Pass rate", pass_text, f"{len(reports)} reports, {len(history)} history rows", "green" if not blocking else "red")}'
         "</div>"
         f"{warning_html}"
-        '<div class="two-col">'
-        '<div class="card"><div class="card-head"><span class="card-title">Recent review queue</span></div>'
+        '<div class="two-col hero-grid">'
+        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">!</span> Recent regressions</span><span class="card-meta">latest report</span></div>'
         f'<div class="card-body">{_app_review_rows(review_cases)}</div></div>'
-        '<div class="card"><div class="card-head"><span class="card-title">Ship decision</span></div>'
+        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">V</span> Suite health</span><span class="card-meta">local evidence</span></div>'
         f'<div class="card-body"><div class="decision">{_h(action)}</div>{_app_suite_health(suite_summary, benchmarks)}</div></div>'
+        "</div>"
+        '<div class="card">'
+        '<div class="card-head"><span class="card-title"><span class="ico">T</span> Regression trend</span><span class="card-meta">latest local reports</span></div>'
+        f'<div class="card-body">{_app_report_chart(reports)}{_app_trust_strip(summary, suite_summary)}</div>'
         "</div>"
         f'{_app_reports_table(reports, output_path=output_path)}'
         "</section>"
@@ -303,9 +316,13 @@ def _app_regressions_screen(*, review_cases: list[Any], summary: dict[str, Any],
     action = str(decision.get("recommended_action") or "Review blocking cases before shipping.")
     return (
         '<section class="screen" id="s-regressions">'
-        f'<div class="alert red"><strong>{blocking} blocking case(s).</strong> {_h(action)}</div>'
-        '<div class="card"><div class="card-head"><span class="card-title">Blocking and changed cases</span></div>'
+        f'{_app_alert("red" if blocking else "green", f"{blocking} blocking case(s).", action)}'
+        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">!</span> Active regressions</span><span class="card-meta">blocking and changed</span></div>'
         f'<div class="card-body">{_app_review_rows(review_cases, empty="No review cases in the latest report.")}</div></div>'
+        '<div class="two-col">'
+        f'{_app_breakdown_card("Blocking status", summary)}'
+        f'{_app_fix_card(review_cases)}'
+        "</div>"
         "</section>"
     )
 
@@ -316,6 +333,7 @@ def _app_suites_screen(
     owners: list[Any],
     trust: dict[str, Any],
     checkpoint: dict[str, Any],
+    reports: list[Any],
 ) -> str:
     rows = [
         ("Cases", _safe_int(suite_summary.get("cases"))),
@@ -330,24 +348,41 @@ def _app_suites_screen(
     checkpoint_text = "verified" if checkpoint else "not loaded"
     return (
         '<section class="screen" id="s-suites">'
-        '<div class="two-col">'
-        f'<div class="card"><div class="card-head"><span class="card-title">Suite health</span></div><div class="card-body">{health_rows}</div></div>'
-        f'<div class="card"><div class="card-head"><span class="card-title">Owners</span></div><div class="card-body">{owner_rows}</div></div>'
+        '<div class="metric-row">'
+        f'{_app_metric("Reports", str(len(reports)), "loaded locally", "")}'
+        f'{_app_metric("Suite coverage", _coverage_label(suite_summary), "behavior groups", "")}'
+        f'{_app_metric("Owners", str(len(owners)), "review routing rows", "")}'
+        f'{_app_metric("Audit", checkpoint_text, "checkpoint status", "green" if checkpoint else "amber")}'
         "</div>"
-        f'<div class="card"><div class="card-head"><span class="card-title">Trust boundary</span></div><div class="card-body"><p>{_h(trust_text)}</p><p class="muted">Audit checkpoint: {_h(checkpoint_text)}</p></div></div>'
+        '<div class="two-col">'
+        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">S</span> Suite health</span></div><div class="card-body">{health_rows}</div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">O</span> Owners</span></div><div class="card-body">{owner_rows}</div></div>'
+        "</div>"
+        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">B</span> Trust boundary</span></div><div class="card-body"><p>{_h(trust_text)}</p><p class="muted">Audit checkpoint: {_h(checkpoint_text)}</p></div></div>'
         "</section>"
     )
 
 
-def _app_logs_screen() -> str:
+def _app_logs_screen(*, reports: list[Any], suite_summary: dict[str, Any]) -> str:
     return (
         '<section class="screen" id="s-logs">'
-        '<div class="card"><div class="card-head"><span class="card-title">Import real logs</span></div>'
+        '<div class="metric-row">'
+        f'{_app_metric("Reports loaded", str(len(reports)), "JSON report files", "")}'
+        f'{_app_metric("Cases generated", str(_safe_int(suite_summary.get("cases"))), "from baseline logs", "")}'
+        f'{_app_metric("Import presets", "5", "Langfuse, Helicone, Datadog, OpenAI, custom", "")}'
+        f'{_app_metric("Redaction", "on", "default import posture", "green")}'
+        "</div>"
+        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">U</span> Import log file</span></div>'
         '<div class="card-body">'
-        '<div class="upload-zone">Use <code>redline import --detect</code>, then <code>--preview 3</code> before writing normalized logs.</div>'
+        '<div class="upload-zone"><strong>Drop exported JSONL into the project, then detect fields locally.</strong><p>Use <code>redline import --detect</code>, then <code>--preview 3</code> before writing normalized logs.</p></div>'
         '<div class="log-row"><span>1</span><p>Detect fields from Langfuse, Helicone, Datadog, OpenAI chat, or custom JSONL exports.</p></div>'
         '<div class="log-row"><span>2</span><p>Redaction is best-effort pattern matching, not a privacy boundary. Inspect private logs locally.</p></div>'
         '<div class="log-row"><span>3</span><p>Run <code>redline quick-check baseline.jsonl candidate.jsonl --open</code> for the fastest first pass.</p></div>'
+        "</div></div>"
+        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">P</span> Import presets</span></div><div class="card-body">'
+        f'{_app_integration_row("Langfuse export", "redline import langfuse.jsonl --preset langfuse --out logs/baseline.jsonl", "Available")}'
+        f'{_app_integration_row("Helicone export", "redline import helicone.jsonl --preset helicone --out logs/baseline.jsonl", "Available")}'
+        f'{_app_integration_row("Datadog logs", "redline import datadog.jsonl --preset datadog --out logs/baseline.jsonl", "Available")}'
         "</div></div>"
         "</section>"
     )
@@ -365,41 +400,89 @@ def _app_compare_screen(*, latest: dict[str, Any], output_path: str | Path | Non
     )
     return (
         '<section class="screen" id="s-compare">'
-        f'<div class="card"><div class="card-head"><span class="card-title">Latest report links</span></div><div class="card-body">{links}</div></div>'
-        '<div class="card"><div class="card-head"><span class="card-title">Concrete reasons</span></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">R</span> Latest report links</span></div><div class="card-body">{links}</div></div>'
+        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">C</span> Concrete reasons</span></div>'
         f'<div class="card-body">{_app_review_rows(diffs, empty="No changed or blocking cases in the latest report.")}</div></div>'
         "</section>"
     )
 
 
-def _app_history_screen(*, history: list[Any], trend: dict[str, Any]) -> str:
+def _app_history_screen(*, history: list[Any], trend: dict[str, Any], reports: list[Any]) -> str:
     direction = str(trend.get("direction") or "unknown").replace("_", " ").title()
     rows = _app_history_rows(history)
     return (
         '<section class="screen" id="s-history">'
-        f'<div class="alert blue"><strong>Trend: {_h(direction)}</strong> {_h(str(trend.get("summary") or ""))}</div>'
-        f'<div class="card"><div class="card-head"><span class="card-title">Run history</span></div><div class="card-body">{rows}</div></div>'
+        '<div class="metric-row">'
+        f'{_app_metric("Total reports", str(len(reports)), "loaded from reports dir", "")}'
+        f'{_app_metric("History rows", str(len(history)), "recorded runs", "")}'
+        f'{_app_metric("Trend", direction, "latest local direction", "red" if direction.lower() == "worse" else "")}'
+        f'{_app_metric("Latest blocking", str(_latest_blocking(reports)), "regression + missing", "red" if _latest_blocking(reports) else "green")}'
+        "</div>"
+        f'{_app_alert("blue", f"Trend: {direction}", str(trend.get("summary") or "Record history entries to see whether prompt quality is improving or regressing."))}'
+        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">H</span> Run history</span><span class="card-meta">latest 20 runs</span></div><div class="card-body">{rows}</div></div>'
         "</section>"
     )
 
 
-def _app_integrations_screen() -> str:
-    rows = [
-        ("MCP", "redline-mcp"),
-        ("GitHub Action", "uses: gowtham0992/redline@v0"),
-        ("Runner adapters", "redline runners --copy all"),
-        ("Judge templates", "redline judges --copy support-rubric"),
-    ]
-    content = "".join(f'<div class="t-row"><div class="t-info"><div class="t-name">{_h(name)}</div><div class="t-sub"><code>{_h(command)}</code></div></div></div>' for name, command in rows)
-    return f'<section class="screen" id="s-integrations"><div class="card"><div class="card-head"><span class="card-title">Developer workflow integrations</span></div><div class="card-body">{content}</div></div></section>'
+def _app_alerts_screen(*, review_cases: list[Any], warnings: list[Any], summary: dict[str, Any]) -> str:
+    blocking = _blocking_count(summary)
+    warning_count = len([warning for warning in warnings if str(warning).strip()])
+    alert_rows = _app_review_rows(review_cases, empty="No blocking report alerts.")
+    warning_rows = "".join(
+        f'<div class="t-row"><div class="t-icon amber">W</div><div class="t-info"><div class="t-name">Calibration warning</div><div class="t-sub">{_h(_preview(str(warning), 160))}</div></div><span class="chip chip-warn">review</span></div>'
+        for warning in warnings[:6]
+        if str(warning).strip()
+    )
+    warnings_body = warning_rows or '<p class="muted">No dashboard warnings.</p>'
+    return (
+        '<section class="screen" id="s-alerts">'
+        '<div class="metric-row">'
+        f'{_app_metric("Open alerts", str(blocking + warning_count), "derived from local reports", "red" if blocking else "amber" if warning_count else "green")}'
+        f'{_app_metric("Blocking", str(blocking), "regression + missing", "red" if blocking else "green")}'
+        f'{_app_metric("Warnings", str(warning_count), "notices and calibration", "amber" if warning_count else "green")}'
+        f'{_app_metric("Channels", "local", "CLI, HTML, MCP, CI artifacts", "")}'
+        "</div>"
+        '<div class="two-col">'
+        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">A</span> Report alerts</span></div><div class="card-body">{alert_rows}</div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">W</span> Warnings</span></div><div class="card-body">{warnings_body}</div></div>'
+        "</div>"
+        "</section>"
+    )
 
 
-def _app_settings_screen(*, errors: list[Any]) -> str:
+def _app_integrations_screen(*, benchmarks: list[Any]) -> str:
+    content = (
+        _app_integration_row("MCP", "redline-mcp", "Ready")
+        + _app_integration_row("GitHub Action", "uses: gowtham0992/redline@v0", "Ready")
+        + _app_integration_row("Runner adapters", "redline runners --copy all", "Ready")
+        + _app_integration_row("Judge templates", "redline judges --copy support-rubric", "Optional")
+        + _app_integration_row("Benchmark evidence", f"{len(benchmarks)} local benchmark artifact(s)", "Local")
+    )
+    return (
+        '<section class="screen" id="s-integrations">'
+        '<div class="metric-row">'
+        f'{_app_metric("Connected surfaces", "4", "CLI, MCP, Action, local HTML", "")}'
+        f'{_app_metric("Benchmarks", str(len(benchmarks)), "runtime evidence artifacts", "green" if benchmarks else "amber")}'
+        f'{_app_metric("Runner adapters", "7", "stdio, HTTP, SDK, chains, logs", "")}'
+        f'{_app_metric("Judge templates", "4", "optional semantic review", "")}'
+        "</div>"
+        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">I</span> Developer workflow integrations</span></div><div class="card-body">{content}</div></div>'
+        "</section>"
+    )
+
+
+def _app_settings_screen(*, errors: list[Any], dashboard: dict[str, Any]) -> str:
     error_html = _errors(errors) if errors else '<p class="muted">No skipped local report files.</p>'
+    reports_dir = str(dashboard.get("reports_dir") or ".redline/reports")
+    history_path = str(dashboard.get("history_path") or ".redline/history.jsonl")
+    checkpoint_path = str(dashboard.get("checkpoint_path") or ".redline/audit-checkpoint.json")
     return (
         '<section class="screen" id="s-settings">'
-        '<div class="card"><div class="card-head"><span class="card-title">Local settings</span></div>'
-        f'<div class="card-body"><div class="kv-row"><span>Runtime</span><strong>local files only</strong></div><div class="kv-row"><span>Telemetry</span><strong>off</strong></div>{error_html}</div></div>'
+        '<div class="two-col">'
+        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">G</span> Local settings</span></div>'
+        f'<div class="card-body"><div class="setting-row"><div><div class="setting-label">Runtime</div><div class="setting-sub">All data is read from local files</div></div><span class="chip chip-pass">local</span></div><div class="setting-row"><div><div class="setting-label">Telemetry</div><div class="setting-sub">Dashboard does not transmit report data</div></div><span class="chip chip-pass">off</span></div><div class="setting-row"><div><div class="setting-label">Reports dir</div><div class="setting-sub">{_h(reports_dir)}</div></div></div><div class="setting-row"><div><div class="setting-label">History path</div><div class="setting-sub">{_h(history_path)}</div></div></div><div class="setting-row"><div><div class="setting-label">Checkpoint path</div><div class="setting-sub">{_h(checkpoint_path)}</div></div></div></div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">E</span> Skipped files</span></div><div class="card-body">{error_html}</div></div>'
+        "</div>"
         "</section>"
     )
 
@@ -418,10 +501,10 @@ def _app_metric(label: str, value: str, sub: str, tone: str) -> str:
 def _app_warning_banner(warnings: list[Any], *, status_class: str) -> str:
     if warnings:
         text = " ".join(_preview(str(warning), 160) for warning in warnings[:2])
-        return f'<div class="alert amber"><strong>Calibration warning.</strong> {_h(text)}</div>'
+        return _app_alert("amber", "Calibration warning.", text)
     if status_class == "red":
-        return '<div class="alert red"><strong>Blocking regressions detected.</strong> Fix or mark expected changes before shipping.</div>'
-    return '<div class="alert green"><strong>No blocking structural regressions in latest report.</strong> Review semantic risks separately.</div>'
+        return _app_alert("red", "Blocking regressions detected.", "Fix or mark expected changes before shipping.")
+    return _app_alert("green", "No blocking structural regressions in latest report.", "Review semantic risks separately.")
 
 
 def _app_review_rows(items: list[Any], *, empty: str = "No review cases found.") -> str:
@@ -435,10 +518,10 @@ def _app_review_rows(items: list[Any], *, empty: str = "No review cases found.")
         reason = _preview(str(item.get("reason") or "; ".join(str(value) for value in item.get("reasons", []) if value) or ""), 120)
         tone = "red" if status in {"regression", "missing"} else "amber" if status == "changed" else "green"
         rows.append(
-            '<div class="t-row">'
-            f'<div class="t-icon {tone}">{_h(status[:1].upper())}</div>'
-            f'<div class="t-info"><div class="t-name">{_h(case_id)} · {_h(prompt)}</div><div class="t-sub">{_h(reason or status)}</div></div>'
-            f'<span class="chip {tone}">{_h(status)}</span>'
+            '<div class="reg-row">'
+            f'<div class="reg-icon {tone}">{_h(status[:1].upper())}</div>'
+            f'<div class="reg-info"><div class="reg-name">{_h(case_id)} - {_h(prompt)}</div><div class="reg-sub">{_h(reason or status)}</div><div class="prog-bar"><div class="prog-fill {tone}" style="width:{_status_width(status)}%"></div></div></div>'
+            f'<span class="chip chip-{_chip_tone(tone)}">{_h(status)}</span>'
             "</div>"
         )
     return "".join(rows) if rows else f'<p class="muted">{_h(empty)}</p>'
@@ -450,7 +533,7 @@ def _app_suite_health(suite_summary: dict[str, Any], benchmarks: list[Any]) -> s
         ("Groups", _safe_int(suite_summary.get("clusters"))),
         ("Benchmarks", len(benchmarks)),
     ]
-    return "".join(f'<div class="kv-row"><span>{_h(label)}</span><strong>{value}</strong></div>' for label, value in rows)
+    return "".join(f'<div class="kv-row"><span class="kv-key">{_h(label)}</span><strong class="kv-val">{value}</strong></div>' for label, value in rows)
 
 
 def _app_owner_rows(owners: list[Any]) -> str:
@@ -460,8 +543,8 @@ def _app_owner_rows(owners: list[Any]) -> str:
             continue
         rows.append(
             '<div class="kv-row">'
-            f'<span>{_h(str(owner.get("owner") or "unowned"))}</span>'
-            f'<strong>{_safe_int(owner.get("reviewable"))}</strong>'
+            f'<span class="kv-key">{_h(str(owner.get("owner") or "unowned"))}</span>'
+            f'<strong class="kv-val">{_safe_int(owner.get("reviewable"))}</strong>'
             "</div>"
         )
     return "".join(rows) if rows else '<p class="muted">No owner review rows yet.</p>'
@@ -497,6 +580,110 @@ def _app_history_rows(history: list[Any]) -> str:
             "</div>"
         )
     return "".join(rows) if rows else '<p class="muted">No history recorded yet.</p>'
+
+
+def _app_alert(tone: str, title: str, message: str) -> str:
+    return f'<div class="alert-bar alert-{_h(tone)}"><span class="ico">!</span><div><b>{_h(title)}</b> {_h(message)}</div></div>'
+
+
+def _app_breakdown_card(title: str, summary: dict[str, Any]) -> str:
+    rows = [
+        ("Regressions", _safe_int(summary.get("regression")), "red"),
+        ("Missing", _safe_int(summary.get("missing")), "red"),
+        ("Changed", _safe_int(summary.get("changed")), "amber"),
+        ("Neutral", _safe_int(summary.get("neutral")), "green"),
+    ]
+    body = "".join(
+        f'<div class="check-row"><div class="check-left"><span class="dot {tone}"></span>{_h(label)}</div><span class="kv-val {tone}">{value}</span></div>'
+        for label, value, tone in rows
+    )
+    return f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">B</span> {_h(title)}</span></div><div class="card-body">{body}</div></div>'
+
+
+def _app_fix_card(review_cases: list[Any]) -> str:
+    first = next((item for item in review_cases if isinstance(item, dict)), {})
+    case_id = str(first.get("case_id") or first.get("suite_case_id") or "case id")
+    command = f'redline case redline-suite.json {case_id}' if case_id != "case id" else "redline cases redline-suite.json"
+    body = (
+        '<div class="diff-block">'
+        '<span class="diff-ctx">Recommended local loop</span>'
+        f'<span class="diff-del">1. Inspect: {_h(command)}</span>'
+        '<span class="diff-del">2. Fix prompt or runner output</span>'
+        '<span class="diff-add">3. Mark expected only when the change is intentional</span>'
+        '</div>'
+    )
+    return f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">F</span> Suggested fix</span></div><div class="card-body">{body}</div></div>'
+
+
+def _app_report_chart(reports: list[Any]) -> str:
+    points = []
+    for index, report in enumerate(reversed([item for item in reports[:12] if isinstance(item, dict)])):
+        summary = _app_dict(report.get("summary"))
+        cases = max(_safe_int(summary.get("cases")), 1)
+        blocking = _blocking_count(summary)
+        pass_rate = max(0.0, min(1.0, (cases - blocking) / cases))
+        x = 24 + index * 74
+        y = 132 - int(pass_rate * 96)
+        points.append((x, y))
+    if not points:
+        return '<p class="muted">No report chart yet. Run redline diff or eval to populate trend evidence.</p>'
+    path = " ".join(f"{x},{y}" for x, y in points)
+    dots = "".join(f'<circle cx="{x}" cy="{y}" r="4"></circle>' for x, y in points)
+    return (
+        '<svg class="chart-svg" viewBox="0 0 900 150" role="img" aria-label="Pass rate trend">'
+        '<line x1="20" y1="132" x2="880" y2="132"></line>'
+        '<line x1="20" y1="36" x2="880" y2="36"></line>'
+        f'<polyline points="{path}"></polyline>{dots}'
+        "</svg>"
+        '<div class="chart-legend"><span><i class="legend pass"></i> pass rate</span><span><i class="legend block"></i> blocking cases lower is better</span></div>'
+    )
+
+
+def _app_trust_strip(summary: dict[str, Any], suite_summary: dict[str, Any]) -> str:
+    return (
+        '<div class="trust-strip">'
+        f'<div><span>Scope</span><strong>structural checks</strong></div>'
+        f'<div><span>Cases</span><strong>{_safe_int(summary.get("cases"))}</strong></div>'
+        f'<div><span>Coverage</span><strong>{_coverage_label(suite_summary)}</strong></div>'
+        f'<div><span>Boundary</span><strong>review semantics separately</strong></div>'
+        "</div>"
+    )
+
+
+def _app_integration_row(name: str, command: str, status: str) -> str:
+    tone = "chip-pass" if status.lower() in {"ready", "available", "local"} else "chip-blue"
+    return (
+        '<div class="int-row">'
+        '<div class="int-logo">+</div>'
+        f'<div class="t-info"><div class="t-name">{_h(name)}</div><div class="t-sub"><code>{_h(command)}</code></div></div>'
+        f'<span class="chip {tone}">{_h(status)}</span>'
+        "</div>"
+    )
+
+
+def _status_width(status: str) -> int:
+    if status in {"regression", "missing"}:
+        return 92
+    if status == "changed":
+        return 62
+    return 35
+
+
+def _chip_tone(tone: str) -> str:
+    return {"red": "fail", "amber": "warn", "green": "pass", "blue": "blue"}.get(tone, "idle")
+
+
+def _pass_rate_label(summary: dict[str, Any]) -> str:
+    cases = _safe_int(summary.get("cases"))
+    if not cases:
+        return "-"
+    blocking = _blocking_count(summary)
+    return f"{max(0, int(round(((cases - blocking) / cases) * 100)))}%"
+
+
+def _latest_blocking(reports: list[Any]) -> int:
+    latest = next((report for report in reports if isinstance(report, dict)), {})
+    return _blocking_count(_app_dict(latest.get("summary")))
 
 
 def _coverage_label(summary: dict[str, Any]) -> str:
@@ -1731,19 +1918,39 @@ _APP_DASHBOARD_SCRIPT = """
     logs: "Log import",
     compare: "Prompt diff",
     history: "Run history",
+    alerts: "Alerts",
     integrations: "Integrations",
     settings: "Settings"
   };
-  document.querySelectorAll("[data-nav]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const key = button.getAttribute("data-nav");
+  const badges = {
+    dashboard: ["Overview", "badge-blue"],
+    regressions: ["Review", "badge-crit"],
+    suites: ["Suites", "badge-blue"],
+    logs: ["Import", "badge-blue"],
+    compare: ["Diff", "badge-warn"],
+    history: ["History", "badge-blue"],
+    alerts: ["Alerts", "badge-crit"],
+    integrations: ["Ready", "badge-pass"],
+    settings: ["Local", "badge-pass"]
+  };
+  document.querySelectorAll("[data-nav], [data-nav-link]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      const key = button.getAttribute("data-nav") || button.getAttribute("data-nav-link");
+      if (!key) return;
+      if (button.hasAttribute("data-nav-link")) event.preventDefault();
       document.querySelectorAll("[data-nav]").forEach((item) => item.classList.remove("active"));
-      button.classList.add("active");
+      const navItem = document.querySelector('[data-nav="' + key + '"]');
+      if (navItem) navItem.classList.add("active");
       document.querySelectorAll(".screen").forEach((screen) => screen.classList.remove("active"));
       const screen = document.getElementById("s-" + key);
       if (screen) screen.classList.add("active");
       const crumb = document.getElementById("crumb");
-      if (crumb) crumb.innerHTML = "<strong>" + (labels[key] || "Dashboard") + "</strong>";
+      if (crumb) crumb.innerHTML = "<b>" + (labels[key] || "Dashboard") + "</b>";
+      const badge = document.getElementById("top-badge");
+      if (badge && badges[key]) {
+        badge.textContent = badges[key][0];
+        badge.className = "top-badge " + badges[key][1];
+      }
     });
   });
 })();
@@ -1754,100 +1961,156 @@ _APP_DASHBOARD_SCRIPT = """
 _APP_DASHBOARD_CSS = """
 :root {
   color-scheme: dark;
-  --bg: #080b10;
-  --sidebar: #0d1219;
-  --panel: #111821;
-  --panel-2: #151d28;
-  --line: #253041;
-  --text: #f5f7fb;
-  --muted: #91a0b4;
-  --red: #ff4d4f;
-  --amber: #f0a43a;
-  --green: #33c481;
-  --blue: #5aa9ff;
+  --bg0: #0e0f11;
+  --bg1: #141519;
+  --bg2: #1c1d22;
+  --bg3: #23242b;
+  --border: #2a2b33;
+  --border2: #32333d;
+  --text0: #f0f0f2;
+  --text1: #b8b9c6;
+  --text2: #6e6f82;
+  --text3: #44455a;
+  --green: #3ecf8e;
+  --green-bg: #0d2a1f;
+  --green-border: #1a4a32;
+  --amber: #f5a623;
+  --amber-bg: #2a1f08;
+  --amber-border: #4a3510;
+  --red: #f06060;
+  --red-bg: #2a0e0e;
+  --red-border: #4a1a1a;
+  --blue: #60a5fa;
+  --blue-bg: #0e1a2a;
+  --blue-border: #1a3050;
+  --accent: #e24b4a;
+  --accent-bg: #2a0e0e;
+  --accent-border: #5a1a1a;
+  --radius: 6px;
+  --radius-lg: 10px;
 }
 * { box-sizing: border-box; }
+html, body { min-height: 100%; }
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg0);
+  color: var(--text0);
+  font: 13px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
-a { color: var(--blue); text-decoration: none; font-weight: 650; margin-right: 10px; }
+body::-webkit-scrollbar, .pane::-webkit-scrollbar, .sidebar::-webkit-scrollbar { width: 5px; height: 5px; }
+body::-webkit-scrollbar-track, .pane::-webkit-scrollbar-track, .sidebar::-webkit-scrollbar-track { background: var(--bg1); }
+body::-webkit-scrollbar-thumb, .pane::-webkit-scrollbar-thumb, .sidebar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+a { color: var(--blue); text-decoration: none; font-weight: 600; margin-right: 10px; }
 code {
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
   padding: 2px 5px;
-  background: #0b1017;
-  color: #dce7f7;
+  background: var(--bg3);
+  color: var(--text0);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
 }
 .app {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: 176px minmax(0, 1fr);
 }
 .sidebar {
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  background: var(--bg1);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 22px 14px;
-  border-right: 1px solid var(--line);
-  background: var(--sidebar);
+  overflow-y: auto;
 }
 .sb-logo {
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 4px 8px 22px;
+  gap: 9px;
 }
 .sb-logo-icon {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  background: #172230;
-  color: var(--red);
-  font-size: 24px;
-  font-weight: 800;
-  border-bottom: 3px solid var(--red);
+  width: 28px;
+  height: 28px;
+  background: var(--accent);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+  font-size: 15px;
+  font-weight: 700;
 }
-.sb-logo-name { font-size: 20px; font-weight: 800; letter-spacing: 0; }
-.sb-logo-version { color: var(--muted); font-size: 12px; }
+.sb-logo-name { font-size: 14px; font-weight: 650; color: var(--text0); letter-spacing: 0; }
+.sb-logo-version { color: var(--text2); font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .sb-section {
-  margin: 16px 10px 4px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 750;
+  padding: 14px 16px 4px;
+  color: var(--text3);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .07em;
   text-transform: uppercase;
 }
 .sb-item {
   width: 100%;
   border: 0;
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: var(--muted);
+  border-left: 2px solid transparent;
+  padding: 7px 14px 7px 12px;
+  color: var(--text2);
   background: transparent;
   text-align: left;
   cursor: pointer;
   font: inherit;
-  font-weight: 650;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  transition: all .12s;
 }
 .sb-item:hover, .sb-item.active {
-  color: var(--text);
-  background: #172231;
+  color: var(--text0);
+  background: var(--bg2);
+}
+.sb-item.active {
+  border-left-color: var(--accent);
+  font-weight: 600;
 }
 .sb-spacer { flex: 1; }
 .sb-bottom {
+  padding: 10px 14px 14px;
+  border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--muted);
-  padding: 10px;
-  border-top: 1px solid var(--line);
+}
+.sb-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.sb-user-name { font-size: 12px; font-weight: 600; color: var(--text1); }
+.sb-user-role { font-size: 10px; color: var(--text2); }
+.ico {
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: currentColor;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 .dot {
   width: 8px;
@@ -1855,149 +2118,386 @@ code {
   border-radius: 50%;
   background: var(--green);
 }
-.main { min-width: 0; }
+.dot.red { background: var(--red); }
+.dot.amber { background: var(--amber); }
+.dot.green { background: var(--green); }
+.main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 .topbar {
-  height: 68px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 0 28px;
-  border-bottom: 1px solid var(--line);
-  background: rgba(8, 11, 16, 0.9);
-  position: sticky;
-  top: 0;
-  z-index: 2;
+  flex-shrink: 0;
 }
-.topbar-right {
+.topbar-left {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.pane {
-  width: min(1280px, calc(100% - 56px));
-  margin: 0 auto;
-  padding: 28px 0 44px;
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.screen { display: none; }
-.screen.active { display: block; }
+.crumb { font-size: 12px; color: var(--text2); }
+.crumb b { color: var(--text0); font-weight: 600; }
+.top-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+.badge-crit { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.badge-warn { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+.badge-pass { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.badge-blue { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
+.btn {
+  font-size: 12px;
+  padding: 5px 13px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border2);
+  background: var(--bg2);
+  color: var(--text1);
+  cursor: pointer;
+  transition: all .12s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.btn:hover { color: var(--text0); background: var(--bg3); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+.btn-primary:hover { opacity: .9; }
+.pane {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--bg0);
+}
+.screen { display: none; flex-direction: column; gap: 14px; }
+.screen.active { display: flex; }
 .metric-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
 }
 .metric-card, .card, .alert {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
-.metric-card { padding: 16px; }
-.metric-label, .metric-sub, .muted, .t-sub, .kv-row span { color: var(--muted); }
+.metric-card { padding: 12px 14px; }
+.metric-label, .metric-sub, .muted, .t-sub, .kv-key { color: var(--text2); }
 .metric-label {
-  font-size: 12px;
+  font-size: 10px;
+  color: var(--text2);
+  font-weight: 600;
   text-transform: uppercase;
-  font-weight: 750;
+  letter-spacing: .04em;
+  margin-bottom: 5px;
 }
 .metric-val {
-  margin: 8px 0 2px;
-  font-size: 34px;
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--text0);
   line-height: 1;
-  font-weight: 850;
 }
-.metric-sub { font-size: 12px; }
+.metric-val.green { color: var(--green); }
+.metric-val.amber { color: var(--amber); }
+.metric-val.red { color: var(--red); }
+.metric-sub { font-size: 11px; margin-top: 4px; }
 .two-col {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
-  gap: 16px;
-  margin: 16px 0;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
+.hero-grid { grid-template-columns: 1.2fr .8fr; }
 .card { margin-bottom: 16px; overflow: hidden; }
 .card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel-2);
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
 }
-.card-title { font-weight: 800; }
-.card-body { padding: 14px 16px; }
-.decision { font-size: 20px; font-weight: 800; margin-bottom: 14px; }
+.card-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text0);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.card-meta { font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+.card-body { padding: 12px 14px; }
+.decision { font-size: 16px; font-weight: 650; margin-bottom: 12px; }
 .alert {
   padding: 13px 16px;
   margin: 16px 0;
 }
-.t-row, .kv-row, .log-row {
+.alert-bar {
+  border-radius: var(--radius);
+  padding: 10px 14px;
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--line);
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.5;
 }
-.t-row:last-child, .kv-row:last-child, .log-row:last-child { border-bottom: 0; }
-.t-info { min-width: 0; }
-.t-name { font-weight: 750; overflow-wrap: anywhere; }
-.t-sub { margin-top: 3px; overflow-wrap: anywhere; }
-.t-right { white-space: nowrap; text-align: right; }
+.alert-red { background: var(--red-bg); border: 1px solid var(--red-border); color: var(--red); }
+.alert-amber { background: var(--amber-bg); border: 1px solid var(--amber-border); color: var(--amber); }
+.alert-green { background: var(--green-bg); border: 1px solid var(--green-border); color: var(--green); }
+.alert-blue { background: var(--blue-bg); border: 1px solid var(--blue-border); color: var(--blue); }
+.alert-bar b { font-weight: 650; }
+.t-row, .kv-row, .log-row, .check-row, .setting-row, .int-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.t-row:last-child, .kv-row:last-child, .log-row:last-child, .check-row:last-child, .setting-row:last-child, .int-row:last-child { border-bottom: 0; }
+.t-info { flex: 1; min-width: 0; }
+.t-name { font-size: 12px; font-weight: 600; color: var(--text0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-sub { font-size: 11px; color: var(--text2); overflow-wrap: anywhere; }
+.t-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .t-icon {
-  flex: 0 0 28px;
   width: 28px;
   height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #0c1119;
-  font-weight: 850;
+  border-radius: var(--radius);
+  background: var(--bg3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+.t-icon.red, .reg-icon.red { background: var(--red-bg); color: var(--red); }
+.t-icon.amber, .reg-icon.amber { background: var(--amber-bg); color: var(--amber); }
+.t-icon.green, .reg-icon.green { background: var(--green-bg); color: var(--green); }
+.t-icon.blue, .reg-icon.blue { background: var(--blue-bg); color: var(--blue); }
+.reg-row {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+}
+.reg-row:last-child { border-bottom: none; }
+.reg-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-weight: 700;
+}
+.reg-info { flex: 1; min-width: 0; }
+.reg-name { font-size: 12px; font-weight: 600; color: var(--text0); overflow-wrap: anywhere; }
+.reg-sub { font-size: 11px; color: var(--text2); margin-top: 1px; overflow-wrap: anywhere; }
+.prog-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.prog-fill { height: 100%; border-radius: 2px; background: var(--text3); }
+.prog-fill.red { background: var(--red); }
+.prog-fill.amber { background: var(--amber); }
+.prog-fill.green { background: var(--green); }
+.check-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text0);
 }
 .chip, .badge {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  padding: 4px 9px;
-  border: 1px solid var(--line);
-  background: #0d131c;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 750;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
 }
-.badge { margin-left: 6px; padding: 2px 7px; }
+.badge {
+  margin-left: auto;
+  padding: 1px 6px;
+  font-size: 10px;
+}
 .red { color: var(--red); }
 .amber { color: var(--amber); }
 .green { color: var(--green); }
 .blue { color: var(--blue); }
-.chip.red, .badge.red, .alert.red { border-color: rgba(255, 77, 79, 0.4); background: rgba(255, 77, 79, 0.09); color: #ff9a9b; }
-.chip.amber, .badge.amber, .alert.amber { border-color: rgba(240, 164, 58, 0.4); background: rgba(240, 164, 58, 0.09); color: #ffd38e; }
-.chip.green, .alert.green { border-color: rgba(51, 196, 129, 0.35); background: rgba(51, 196, 129, 0.08); color: #91edc1; }
-.alert.blue { border-color: rgba(90, 169, 255, 0.35); background: rgba(90, 169, 255, 0.08); color: #b8d9ff; }
+.chip-pass, .badge.green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.chip-warn, .badge.amber { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+.chip-fail, .badge.red { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.chip-blue { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
+.chip-idle { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+.kv-key { font-size: 12px; }
+.kv-val { font-size: 12px; color: var(--text0); font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.kv-val.red { color: var(--red); }
+.kv-val.green { color: var(--green); }
+.kv-val.amber { color: var(--amber); }
 .upload-zone {
-  border: 1px dashed var(--line);
-  border-radius: 8px;
-  padding: 18px;
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 28px 20px;
   margin-bottom: 12px;
-  background: #0c1119;
+  text-align: center;
+}
+.upload-zone p { color: var(--text2); margin-top: 8px; font-size: 12px; }
+.log-row {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.log-row span:first-child {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius);
+  background: var(--bg3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text2);
+  flex-shrink: 0;
+  font-weight: 700;
+}
+.log-row p { margin: 0; color: var(--text1); }
+.diff-block {
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.diff-del, .diff-add, .diff-ctx {
+  display: block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin: 1px 0;
+}
+.diff-del { background: #2a0d0d; color: var(--red); }
+.diff-add { background: #0d2a1a; color: var(--green); }
+.diff-ctx { color: var(--text1); }
+.chart-svg {
+  width: 100%;
+  height: 150px;
+  display: block;
+}
+.chart-svg line {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.chart-svg polyline {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chart-svg circle {
+  fill: var(--green);
+  stroke: var(--bg2);
+  stroke-width: 2;
+}
+.chart-legend {
+  display: flex;
+  gap: 14px;
+  padding-top: 8px;
+  color: var(--text2);
+  font-size: 10px;
+}
+.legend {
+  width: 12px;
+  height: 2px;
+  display: inline-block;
+  border-radius: 1px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.legend.pass { background: var(--green); }
+.legend.block { background: var(--red); }
+.trust-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.trust-strip span {
+  display: block;
+  color: var(--text2);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.trust-strip strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--text0);
+  font-size: 12px;
 }
 .pill {
   display: inline-block;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   border-radius: 999px;
   padding: 2px 8px;
   margin: 0 6px 6px 0;
-  background: #0d131c;
+  background: var(--bg3);
   font-size: 12px;
 }
+.regression, .missing, .worse { color: var(--red); border-color: var(--red-border); background: var(--red-bg); }
+.changed { color: var(--amber); border-color: var(--amber-border); background: var(--amber-bg); }
+.better, .resolved { color: var(--green); border-color: var(--green-border); background: var(--green-bg); }
+.empty p { color: var(--text2); }
+.int-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+.setting-row { padding: 9px 0; }
+.setting-label { font-size: 12px; color: var(--text0); font-weight: 600; }
+.setting-sub { font-size: 11px; color: var(--text2); overflow-wrap: anywhere; }
 @media (max-width: 900px) {
+  .metric-row { grid-template-columns: repeat(2, 1fr); }
+  .two-col, .hero-grid, .trust-strip { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
   .app { grid-template-columns: 1fr; }
-  .sidebar {
-    position: static;
-    height: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .metric-row, .two-col { grid-template-columns: 1fr; }
-  .pane { width: min(100% - 24px, 1280px); }
-  .topbar { padding: 0 12px; }
+  .sidebar { display: none; }
+  .topbar { padding: 10px 12px; }
+  .topbar-right .chip { display: none; }
+  .pane { padding: 12px; }
+  .metric-row { grid-template-columns: 1fr; }
 }
 """
 
