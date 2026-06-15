@@ -57,13 +57,13 @@ HTML reports under `.redline/demo`.
 Open the local demo report index:
 
 ```bash
-redline dashboard --reports-dir .redline/demo/reports --open
+redline dashboard --reports-dir .redline/demo/reports --style app --open
 ```
 
 On headless CI or remote shells, skip `--open` and use the printed HTML path:
 
 ```bash
-redline dashboard --reports-dir .redline/demo/reports --out .redline/dashboard.html
+redline dashboard --reports-dir .redline/demo/reports --style app --out .redline/dashboard.html
 ```
 
 <details>

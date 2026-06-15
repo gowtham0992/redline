@@ -30,7 +30,7 @@ output and examples after installing.
 | `redline accept` | Promote reviewed candidate outputs into the suite baseline. | `--candidate`, `--all-expected`, `--approver`, `--note` |
 | `redline history` | Append and summarize trend history. | `--label`, `--out`, `--out-md`, `--fail-on` |
 | `redline compare` | Compare two redline reports. | `--fail-on`, `--out-json`, `--out-html` |
-| `redline dashboard` | Render a self-contained local HTML dashboard. | `--reports-dir`, `--history`, `--checkpoint`, `--out`, `--open` |
+| `redline dashboard` | Render a self-contained local HTML dashboard. | `--reports-dir`, `--history`, `--checkpoint`, `--out`, `--style classic\|app`, `--open` |
 | `redline runners` | List or copy runner and log adapter templates. | `--copy`, `--out`, `--force` |
 | `redline judges` | List or copy judge templates. | `--copy`, `--out`, `--force` |
 | `redline audit` | Show and verify local audit events. | `--verify`, `--checkpoint`, `--out-checkpoint`, `--expect-last-hash` |

@@ -277,6 +277,58 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("structural checks only", html)
             self.assertNotIn("Missing benchmark evidence", html)
 
+    def test_app_dashboard_renders_real_report_data(self) -> None:
+        dashboard = {
+            "reports": [
+                {
+                    "name": "eval.json",
+                    "path": ".redline/reports/eval.json",
+                    "html_path": ".redline/reports/eval.html",
+                    "summary": {"cases": 3, "regression": 1, "changed": 1, "neutral": 1},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    "suite_summary": {"cases": 3, "clusters": 2, "cluster_coverage": 0.67},
+                    "review_cases": [
+                        {
+                            "case_id": "case_001",
+                            "status": "regression",
+                            "prompt": "Return JSON with owner and priority.",
+                            "reason": "candidate lost valid JSON format",
+                        }
+                    ],
+                }
+            ],
+            "history": [
+                {
+                    "timestamp": "2026-05-24T00:00:00Z",
+                    "label": "prompt-v2",
+                    "summary": {"cases": 3, "regression": 1},
+                }
+            ],
+            "benchmarks": [],
+            "errors": [],
+            "notices": [{"message": "Run a benchmark before relying on runtime readiness."}],
+            "scope": "structural checks only",
+        }
+
+        html = format_dashboard_html(
+            dashboard,
+            style="app",
+            output_path=Path(".redline") / "dashboard.html",
+        )
+
+        self.assertIn('data-redline-dashboard="app"', html)
+        self.assertIn("local dashboard", html)
+        self.assertIn("Blocking", html)
+        self.assertIn("Suite coverage", html)
+        self.assertIn("67%", html)
+        self.assertIn("case_001", html)
+        self.assertIn("candidate lost valid JSON format", html)
+        self.assertIn("fix blocking cases before shipping", html)
+        self.assertIn("eval.json", html)
+        self.assertIn("reports/eval.html", html)
+        self.assertIn("prompt-v2", html)
+        self.assertIn("Local-first, no telemetry", html)
+
     def test_dashboard_warns_when_reports_have_no_benchmark_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -430,6 +482,44 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("<span>Benchmarks</span><strong>1</strong>", text)
             self.assertIn("Benchmarks: 1", stdout.getvalue())
             self.assertIn("Notices: 0", stdout.getvalue())
+
+    def test_cli_writes_app_dashboard_html(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / ".redline" / "reports"
+            write_json(
+                reports / "diff.json",
+                {
+                    "summary": {"cases": 1, "regression": 1},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    "diffs": [
+                        {
+                            "case_id": "case_001",
+                            "status": "regression",
+                            "prompt": "Return JSON.",
+                            "reasons": ["candidate lost valid JSON format"],
+                        }
+                    ],
+                },
+            )
+            output = root / ".redline" / "dashboard.html"
+
+            current = Path.cwd()
+            stdout = io.StringIO()
+            try:
+                import os
+
+                os.chdir(root)
+                with contextlib.redirect_stdout(stdout):
+                    code = main(["dashboard", "--style", "app", "--out", str(output)])
+            finally:
+                os.chdir(current)
+
+            self.assertEqual(code, 0)
+            text = output.read_text(encoding="utf-8")
+            self.assertIn('data-redline-dashboard="app"', text)
+            self.assertIn("candidate lost valid JSON format", text)
+            self.assertIn("Reports: 1", stdout.getvalue())
 
 
 if __name__ == "__main__":

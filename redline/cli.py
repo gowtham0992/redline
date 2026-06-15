@@ -491,6 +491,7 @@ def build_parser() -> argparse.ArgumentParser:
     dashboard_parser.add_argument("--checkpoint", default=".redline/audit-checkpoint.json", help="audit checkpoint JSON path")
     dashboard_parser.add_argument("--out", default=".redline/dashboard.html", help="dashboard HTML output path")
     dashboard_parser.add_argument("--limit", type=int, default=20, help="recent reports/history entries to include; use 0 for all")
+    dashboard_parser.add_argument("--style", choices=("classic", "app"), default="classic", help="dashboard visual style")
     dashboard_parser.add_argument("--open", action="store_true", help="open the dashboard in the default browser")
     dashboard_parser.add_argument("--json", action="store_true", help="print machine-readable dashboard metadata")
     dashboard_parser.set_defaults(func=cmd_dashboard)
@@ -1514,7 +1515,7 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
         checkpoint_path=args.checkpoint,
         limit=args.limit,
     )
-    write_text(args.out, format_dashboard_html(dashboard, output_path=args.out))
+    write_text(args.out, format_dashboard_html(dashboard, output_path=args.out, style=args.style))
     if args.open:
         webbrowser.open(Path(args.out).resolve().as_uri())
     if args.json:

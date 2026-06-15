@@ -50,6 +50,7 @@ def format_dashboard_html(
     *,
     title: str = "redline dashboard",
     output_path: str | Path | None = None,
+    style: str = "classic",
 ) -> str:
     reports = dashboard.get("reports")
     if not isinstance(reports, list):
@@ -78,6 +79,24 @@ def format_dashboard_html(
     raw_trend = dashboard.get("trend")
     trend = raw_trend if isinstance(raw_trend, dict) else history_trend(list(reversed(history)))
     latest = reports[0] if reports and isinstance(reports[0], dict) else {}
+    if style == "app":
+        return _format_dashboard_app_html(
+            dashboard,
+            title=title,
+            output_path=output_path,
+            reports=reports,
+            history=history,
+            benchmarks=benchmarks,
+            errors=errors,
+            notices=notices,
+            owners=owners,
+            trust=trust,
+            checkpoint=checkpoint,
+            trend=trend,
+            latest=latest,
+        )
+    if style != "classic":
+        raise ValueError(f"unknown dashboard style: {style}")
     return "\n".join(
         [
             "<!doctype html>",
@@ -118,6 +137,373 @@ def format_dashboard_html(
             "",
         ]
     )
+
+
+def _format_dashboard_app_html(
+    dashboard: dict[str, Any],
+    *,
+    title: str,
+    output_path: str | Path | None,
+    reports: list[Any],
+    history: list[Any],
+    benchmarks: list[Any],
+    errors: list[Any],
+    notices: list[Any],
+    owners: list[Any],
+    trust: dict[str, Any],
+    checkpoint: dict[str, Any],
+    trend: dict[str, Any],
+    latest: dict[str, Any],
+) -> str:
+    summary = _app_dict(latest.get("summary"))
+    suite_summary = _app_dict(latest.get("suite_summary"))
+    decision = _app_dict(latest.get("decision"))
+    active = _blocking_count(summary)
+    changed = _changed_count(summary)
+    status_class = "red" if active else "amber" if changed else "green"
+    status_text = "Regressions" if active else "Review" if changed else "Clear"
+    review_cases = _app_list(latest.get("review_cases"))
+    warnings = _app_list(latest.get("warnings"))
+    if notices:
+        warnings = [*(str(item.get("message") or "") for item in notices if isinstance(item, dict)), *warnings]
+    return "\n".join(
+        [
+            "<!doctype html>",
+            '<html lang="en">',
+            "<head>",
+            '<meta charset="utf-8">',
+            '<meta name="viewport" content="width=device-width, initial-scale=1">',
+            f"<title>{_h(title)}</title>",
+            "<style>",
+            _APP_DASHBOARD_CSS,
+            "</style>",
+            "</head>",
+            "<body>",
+            '<div class="app" data-redline-dashboard="app">',
+            _app_sidebar(active=active, changed=changed),
+            '<main class="main">',
+            _app_topbar(title=title, status_class=status_class, status_text=status_text),
+            '<div class="pane">',
+            _app_dashboard_screen(
+                summary=summary,
+                suite_summary=suite_summary,
+                decision=decision,
+                reports=reports,
+                benchmarks=benchmarks,
+                history=history,
+                review_cases=review_cases,
+                warnings=[warning for warning in warnings if str(warning).strip()],
+                status_class=status_class,
+                output_path=output_path,
+            ),
+            _app_regressions_screen(review_cases=review_cases, summary=summary, decision=decision),
+            _app_suites_screen(suite_summary=suite_summary, owners=owners, trust=trust, checkpoint=checkpoint),
+            _app_logs_screen(),
+            _app_compare_screen(latest=latest, output_path=output_path),
+            _app_history_screen(history=history, trend=trend),
+            _app_integrations_screen(),
+            _app_settings_screen(errors=errors),
+            "</div>",
+            "</main>",
+            "</div>",
+            _APP_DASHBOARD_SCRIPT,
+            "</body>",
+            "</html>",
+            "",
+        ]
+    )
+
+
+def _app_sidebar(*, active: int, changed: int) -> str:
+    alert_badge = f'<span class="badge red">{active}</span>' if active else ""
+    changed_badge = f'<span class="badge amber">{changed}</span>' if changed else ""
+    return (
+        '<aside class="sidebar">'
+        '<div class="sb-logo"><div class="sb-logo-icon">r</div><div><div class="sb-logo-name">redline</div><div class="sb-logo-version">local dashboard</div></div></div>'
+        '<button class="sb-item active" data-nav="dashboard">Dashboard</button>'
+        f'<button class="sb-item" data-nav="regressions">Regressions {alert_badge}</button>'
+        '<button class="sb-item" data-nav="suites">Eval suites</button>'
+        '<button class="sb-item" data-nav="logs">Log import</button>'
+        '<div class="sb-section">Analysis</div>'
+        f'<button class="sb-item" data-nav="compare">Prompt diff {changed_badge}</button>'
+        '<button class="sb-item" data-nav="history">Run history</button>'
+        '<div class="sb-section">System</div>'
+        '<button class="sb-item" data-nav="integrations">Integrations</button>'
+        '<button class="sb-item" data-nav="settings">Settings</button>'
+        '<div class="sb-spacer"></div>'
+        '<div class="sb-bottom"><span class="dot"></span><span>Local-first, no telemetry</span></div>'
+        "</aside>"
+    )
+
+
+def _app_dict(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def _app_list(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []
+
+
+def _app_topbar(*, title: str, status_class: str, status_text: str) -> str:
+    return (
+        '<header class="topbar">'
+        f'<div class="crumb" id="crumb"><strong>{_h(title)}</strong></div>'
+        '<div class="topbar-right">'
+        f'<span class="chip {status_class}">{_h(status_text)}</span>'
+        '<a class="btn" href="#reports">Reports</a>'
+        "</div>"
+        "</header>"
+    )
+
+
+def _app_dashboard_screen(
+    *,
+    summary: dict[str, Any],
+    suite_summary: dict[str, Any],
+    decision: dict[str, Any],
+    reports: list[Any],
+    benchmarks: list[Any],
+    history: list[Any],
+    review_cases: list[Any],
+    warnings: list[Any],
+    status_class: str,
+    output_path: str | Path | None,
+) -> str:
+    blocking = _blocking_count(summary)
+    changed = _changed_count(summary)
+    neutral = _safe_int(summary.get("neutral"))
+    cases = _safe_int(summary.get("cases"))
+    coverage = _coverage_label(suite_summary)
+    action = str(decision.get("recommended_action") or "Run a diff or eval to populate ship guidance.")
+    warning_html = _app_warning_banner(warnings, status_class=status_class)
+    return (
+        '<section class="screen active" id="s-dashboard">'
+        '<div class="metric-row">'
+        f'{_app_metric("Blocking", str(blocking), "regression + missing", "red" if blocking else "green")}'
+        f'{_app_metric("Changed", str(changed), "needs review", "amber" if changed else "")}'
+        f'{_app_metric("Cases", str(cases), f"{neutral} neutral", "")}'
+        f'{_app_metric("Suite coverage", coverage, f"{len(reports)} reports · {len(history)} history rows", "")}'
+        "</div>"
+        f"{warning_html}"
+        '<div class="two-col">'
+        '<div class="card"><div class="card-head"><span class="card-title">Recent review queue</span></div>'
+        f'<div class="card-body">{_app_review_rows(review_cases)}</div></div>'
+        '<div class="card"><div class="card-head"><span class="card-title">Ship decision</span></div>'
+        f'<div class="card-body"><div class="decision">{_h(action)}</div>{_app_suite_health(suite_summary, benchmarks)}</div></div>'
+        "</div>"
+        f'{_app_reports_table(reports, output_path=output_path)}'
+        "</section>"
+    )
+
+
+def _app_regressions_screen(*, review_cases: list[Any], summary: dict[str, Any], decision: dict[str, Any]) -> str:
+    blocking = _blocking_count(summary)
+    action = str(decision.get("recommended_action") or "Review blocking cases before shipping.")
+    return (
+        '<section class="screen" id="s-regressions">'
+        f'<div class="alert red"><strong>{blocking} blocking case(s).</strong> {_h(action)}</div>'
+        '<div class="card"><div class="card-head"><span class="card-title">Blocking and changed cases</span></div>'
+        f'<div class="card-body">{_app_review_rows(review_cases, empty="No review cases in the latest report.")}</div></div>'
+        "</section>"
+    )
+
+
+def _app_suites_screen(
+    *,
+    suite_summary: dict[str, Any],
+    owners: list[Any],
+    trust: dict[str, Any],
+    checkpoint: dict[str, Any],
+) -> str:
+    rows = [
+        ("Cases", _safe_int(suite_summary.get("cases"))),
+        ("Unique pairs", _safe_int(suite_summary.get("unique_prompt_response_pairs"))),
+        ("Behavior groups", _safe_int(suite_summary.get("clusters"))),
+        ("Stochastic prompts", _safe_int(suite_summary.get("stochastic_prompt_groups"))),
+        ("Non-ASCII records", _safe_int(suite_summary.get("non_ascii_records"))),
+    ]
+    health_rows = "".join(f'<div class="kv-row"><span>{_h(label)}</span><strong>{value}</strong></div>' for label, value in rows)
+    owner_rows = _app_owner_rows(owners)
+    trust_text = str(trust.get("scope") or TRUST_SCOPE)
+    checkpoint_text = "verified" if checkpoint else "not loaded"
+    return (
+        '<section class="screen" id="s-suites">'
+        '<div class="two-col">'
+        f'<div class="card"><div class="card-head"><span class="card-title">Suite health</span></div><div class="card-body">{health_rows}</div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">Owners</span></div><div class="card-body">{owner_rows}</div></div>'
+        "</div>"
+        f'<div class="card"><div class="card-head"><span class="card-title">Trust boundary</span></div><div class="card-body"><p>{_h(trust_text)}</p><p class="muted">Audit checkpoint: {_h(checkpoint_text)}</p></div></div>'
+        "</section>"
+    )
+
+
+def _app_logs_screen() -> str:
+    return (
+        '<section class="screen" id="s-logs">'
+        '<div class="card"><div class="card-head"><span class="card-title">Import real logs</span></div>'
+        '<div class="card-body">'
+        '<div class="upload-zone">Use <code>redline import --detect</code>, then <code>--preview 3</code> before writing normalized logs.</div>'
+        '<div class="log-row"><span>1</span><p>Detect fields from Langfuse, Helicone, Datadog, OpenAI chat, or custom JSONL exports.</p></div>'
+        '<div class="log-row"><span>2</span><p>Redaction is best-effort pattern matching, not a privacy boundary. Inspect private logs locally.</p></div>'
+        '<div class="log-row"><span>3</span><p>Run <code>redline quick-check baseline.jsonl candidate.jsonl --open</code> for the fastest first pass.</p></div>'
+        "</div></div>"
+        "</section>"
+    )
+
+
+def _app_compare_screen(*, latest: dict[str, Any], output_path: str | Path | None) -> str:
+    diffs = _app_list(latest.get("review_cases"))
+    links = _links(
+        [
+            ("HTML", str(latest.get("html_path") or "")),
+            ("Markdown", str(latest.get("markdown_path") or "")),
+            ("JSON", str(latest.get("path") or "")),
+        ],
+        output_path=output_path,
+    )
+    return (
+        '<section class="screen" id="s-compare">'
+        f'<div class="card"><div class="card-head"><span class="card-title">Latest report links</span></div><div class="card-body">{links}</div></div>'
+        '<div class="card"><div class="card-head"><span class="card-title">Concrete reasons</span></div>'
+        f'<div class="card-body">{_app_review_rows(diffs, empty="No changed or blocking cases in the latest report.")}</div></div>'
+        "</section>"
+    )
+
+
+def _app_history_screen(*, history: list[Any], trend: dict[str, Any]) -> str:
+    direction = str(trend.get("direction") or "unknown").replace("_", " ").title()
+    rows = _app_history_rows(history)
+    return (
+        '<section class="screen" id="s-history">'
+        f'<div class="alert blue"><strong>Trend: {_h(direction)}</strong> {_h(str(trend.get("summary") or ""))}</div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">Run history</span></div><div class="card-body">{rows}</div></div>'
+        "</section>"
+    )
+
+
+def _app_integrations_screen() -> str:
+    rows = [
+        ("MCP", "redline-mcp"),
+        ("GitHub Action", "uses: gowtham0992/redline@v0"),
+        ("Runner adapters", "redline runners --copy all"),
+        ("Judge templates", "redline judges --copy support-rubric"),
+    ]
+    content = "".join(f'<div class="t-row"><div class="t-info"><div class="t-name">{_h(name)}</div><div class="t-sub"><code>{_h(command)}</code></div></div></div>' for name, command in rows)
+    return f'<section class="screen" id="s-integrations"><div class="card"><div class="card-head"><span class="card-title">Developer workflow integrations</span></div><div class="card-body">{content}</div></div></section>'
+
+
+def _app_settings_screen(*, errors: list[Any]) -> str:
+    error_html = _errors(errors) if errors else '<p class="muted">No skipped local report files.</p>'
+    return (
+        '<section class="screen" id="s-settings">'
+        '<div class="card"><div class="card-head"><span class="card-title">Local settings</span></div>'
+        f'<div class="card-body"><div class="kv-row"><span>Runtime</span><strong>local files only</strong></div><div class="kv-row"><span>Telemetry</span><strong>off</strong></div>{error_html}</div></div>'
+        "</section>"
+    )
+
+
+def _app_metric(label: str, value: str, sub: str, tone: str) -> str:
+    tone_class = f" {tone}" if tone else ""
+    return (
+        '<div class="metric-card">'
+        f'<div class="metric-label">{_h(label)}</div>'
+        f'<div class="metric-val{tone_class}">{_h(value)}</div>'
+        f'<div class="metric-sub">{_h(sub)}</div>'
+        "</div>"
+    )
+
+
+def _app_warning_banner(warnings: list[Any], *, status_class: str) -> str:
+    if warnings:
+        text = " ".join(_preview(str(warning), 160) for warning in warnings[:2])
+        return f'<div class="alert amber"><strong>Calibration warning.</strong> {_h(text)}</div>'
+    if status_class == "red":
+        return '<div class="alert red"><strong>Blocking regressions detected.</strong> Fix or mark expected changes before shipping.</div>'
+    return '<div class="alert green"><strong>No blocking structural regressions in latest report.</strong> Review semantic risks separately.</div>'
+
+
+def _app_review_rows(items: list[Any], *, empty: str = "No review cases found.") -> str:
+    rows = []
+    for item in items[:8]:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or item.get("kind") or "review")
+        case_id = str(item.get("case_id") or item.get("suite_case_id") or "-")
+        prompt = _preview(str(item.get("prompt") or item.get("reason") or "Review case"), 96)
+        reason = _preview(str(item.get("reason") or "; ".join(str(value) for value in item.get("reasons", []) if value) or ""), 120)
+        tone = "red" if status in {"regression", "missing"} else "amber" if status == "changed" else "green"
+        rows.append(
+            '<div class="t-row">'
+            f'<div class="t-icon {tone}">{_h(status[:1].upper())}</div>'
+            f'<div class="t-info"><div class="t-name">{_h(case_id)} · {_h(prompt)}</div><div class="t-sub">{_h(reason or status)}</div></div>'
+            f'<span class="chip {tone}">{_h(status)}</span>'
+            "</div>"
+        )
+    return "".join(rows) if rows else f'<p class="muted">{_h(empty)}</p>'
+
+
+def _app_suite_health(suite_summary: dict[str, Any], benchmarks: list[Any]) -> str:
+    rows = [
+        ("Cases", _safe_int(suite_summary.get("cases"))),
+        ("Groups", _safe_int(suite_summary.get("clusters"))),
+        ("Benchmarks", len(benchmarks)),
+    ]
+    return "".join(f'<div class="kv-row"><span>{_h(label)}</span><strong>{value}</strong></div>' for label, value in rows)
+
+
+def _app_owner_rows(owners: list[Any]) -> str:
+    rows = []
+    for owner in owners[:8]:
+        if not isinstance(owner, dict):
+            continue
+        rows.append(
+            '<div class="kv-row">'
+            f'<span>{_h(str(owner.get("owner") or "unowned"))}</span>'
+            f'<strong>{_safe_int(owner.get("reviewable"))}</strong>'
+            "</div>"
+        )
+    return "".join(rows) if rows else '<p class="muted">No owner review rows yet.</p>'
+
+
+def _app_reports_table(reports: list[Any], *, output_path: str | Path | None) -> str:
+    if not reports:
+        return '<div class="card" id="reports"><div class="card-head"><span class="card-title">Reports</span></div><div class="card-body"><p class="muted">No report JSON files found yet.</p></div></div>'
+    rows = []
+    for report in reports[:8]:
+        if not isinstance(report, dict):
+            continue
+        summary = _app_dict(report.get("summary"))
+        rows.append(
+            '<div class="t-row">'
+            f'<div class="t-info"><div class="t-name">{_h(str(report.get("name") or "-"))}</div><div class="t-sub">{_summary_pills(summary)}</div></div>'
+            f'<div class="t-right">{_links([("HTML", str(report.get("html_path") or "")), ("JSON", str(report.get("path") or ""))], output_path=output_path)}</div>'
+            "</div>"
+        )
+    return '<div class="card" id="reports"><div class="card-head"><span class="card-title">Reports</span></div><div class="card-body">' + "".join(rows) + "</div></div>"
+
+
+def _app_history_rows(history: list[Any]) -> str:
+    rows = []
+    for item in history[:10]:
+        if not isinstance(item, dict):
+            continue
+        summary = _app_dict(item.get("summary"))
+        rows.append(
+            '<div class="t-row">'
+            f'<div class="t-info"><div class="t-name">{_h(str(item.get("label") or item.get("timestamp") or "-"))}</div><div class="t-sub">{_summary_pills(_summary_counts(summary))}</div></div>'
+            f'<div class="t-right"><span class="muted">{_h(str(item.get("timestamp") or ""))}</span></div>'
+            "</div>"
+        )
+    return "".join(rows) if rows else '<p class="muted">No history recorded yet.</p>'
+
+
+def _coverage_label(summary: dict[str, Any]) -> str:
+    coverage = summary.get("cluster_coverage")
+    if isinstance(coverage, (int, float)):
+        return f"{coverage * 100:.0f}%"
+    return "-"
 
 
 def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
@@ -1333,6 +1719,287 @@ def _rate(value: Any) -> str:
     if number >= 10:
         return f"{number:.1f}"
     return f"{number:.2f}"
+
+
+_APP_DASHBOARD_SCRIPT = """
+<script>
+(function () {
+  const labels = {
+    dashboard: "Dashboard",
+    regressions: "Regressions",
+    suites: "Eval suites",
+    logs: "Log import",
+    compare: "Prompt diff",
+    history: "Run history",
+    integrations: "Integrations",
+    settings: "Settings"
+  };
+  document.querySelectorAll("[data-nav]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.getAttribute("data-nav");
+      document.querySelectorAll("[data-nav]").forEach((item) => item.classList.remove("active"));
+      button.classList.add("active");
+      document.querySelectorAll(".screen").forEach((screen) => screen.classList.remove("active"));
+      const screen = document.getElementById("s-" + key);
+      if (screen) screen.classList.add("active");
+      const crumb = document.getElementById("crumb");
+      if (crumb) crumb.innerHTML = "<strong>" + (labels[key] || "Dashboard") + "</strong>";
+    });
+  });
+})();
+</script>
+"""
+
+
+_APP_DASHBOARD_CSS = """
+:root {
+  color-scheme: dark;
+  --bg: #080b10;
+  --sidebar: #0d1219;
+  --panel: #111821;
+  --panel-2: #151d28;
+  --line: #253041;
+  --text: #f5f7fb;
+  --muted: #91a0b4;
+  --red: #ff4d4f;
+  --amber: #f0a43a;
+  --green: #33c481;
+  --blue: #5aa9ff;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+a { color: var(--blue); text-decoration: none; font-weight: 650; margin-right: 10px; }
+code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 5px;
+  background: #0b1017;
+  color: #dce7f7;
+}
+.app {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px 14px;
+  border-right: 1px solid var(--line);
+  background: var(--sidebar);
+}
+.sb-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 8px 22px;
+}
+.sb-logo-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #172230;
+  color: var(--red);
+  font-size: 24px;
+  font-weight: 800;
+  border-bottom: 3px solid var(--red);
+}
+.sb-logo-name { font-size: 20px; font-weight: 800; letter-spacing: 0; }
+.sb-logo-version { color: var(--muted); font-size: 12px; }
+.sb-section {
+  margin: 16px 10px 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+.sb-item {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--muted);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+}
+.sb-item:hover, .sb-item.active {
+  color: var(--text);
+  background: #172231;
+}
+.sb-spacer { flex: 1; }
+.sb-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  padding: 10px;
+  border-top: 1px solid var(--line);
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+}
+.main { min-width: 0; }
+.topbar {
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(8, 11, 16, 0.9);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pane {
+  width: min(1280px, calc(100% - 56px));
+  margin: 0 auto;
+  padding: 28px 0 44px;
+}
+.screen { display: none; }
+.screen.active { display: block; }
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.metric-card, .card, .alert {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.metric-card { padding: 16px; }
+.metric-label, .metric-sub, .muted, .t-sub, .kv-row span { color: var(--muted); }
+.metric-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  font-weight: 750;
+}
+.metric-val {
+  margin: 8px 0 2px;
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 850;
+}
+.metric-sub { font-size: 12px; }
+.two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  gap: 16px;
+  margin: 16px 0;
+}
+.card { margin-bottom: 16px; overflow: hidden; }
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.card-title { font-weight: 800; }
+.card-body { padding: 14px 16px; }
+.decision { font-size: 20px; font-weight: 800; margin-bottom: 14px; }
+.alert {
+  padding: 13px 16px;
+  margin: 16px 0;
+}
+.t-row, .kv-row, .log-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.t-row:last-child, .kv-row:last-child, .log-row:last-child { border-bottom: 0; }
+.t-info { min-width: 0; }
+.t-name { font-weight: 750; overflow-wrap: anywhere; }
+.t-sub { margin-top: 3px; overflow-wrap: anywhere; }
+.t-right { white-space: nowrap; text-align: right; }
+.t-icon {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #0c1119;
+  font-weight: 850;
+}
+.chip, .badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  background: #0d131c;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+.badge { margin-left: 6px; padding: 2px 7px; }
+.red { color: var(--red); }
+.amber { color: var(--amber); }
+.green { color: var(--green); }
+.blue { color: var(--blue); }
+.chip.red, .badge.red, .alert.red { border-color: rgba(255, 77, 79, 0.4); background: rgba(255, 77, 79, 0.09); color: #ff9a9b; }
+.chip.amber, .badge.amber, .alert.amber { border-color: rgba(240, 164, 58, 0.4); background: rgba(240, 164, 58, 0.09); color: #ffd38e; }
+.chip.green, .alert.green { border-color: rgba(51, 196, 129, 0.35); background: rgba(51, 196, 129, 0.08); color: #91edc1; }
+.alert.blue { border-color: rgba(90, 169, 255, 0.35); background: rgba(90, 169, 255, 0.08); color: #b8d9ff; }
+.upload-zone {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  margin-bottom: 12px;
+  background: #0c1119;
+}
+.pill {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin: 0 6px 6px 0;
+  background: #0d131c;
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .metric-row, .two-col { grid-template-columns: 1fr; }
+  .pane { width: min(100% - 24px, 1280px); }
+  .topbar { padding: 0 12px; }
+}
+"""
 
 
 _DASHBOARD_CSS = """
