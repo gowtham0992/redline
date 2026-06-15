@@ -26,10 +26,13 @@ _FEATURE_KEYS = (
     "shape",
     "length_bucket",
 )
+_CURRENT_SUITE_VERSION = "0.1"
+_SUPPORTED_SUITE_VERSIONS = {_CURRENT_SUITE_VERSION}
 
 
 def validate_suite(suite: dict[str, Any], *, suite_path: str = "") -> dict[str, Any]:
     items: list[dict[str, str]] = []
+    _validate_suite_metadata(items, suite)
     cases = suite.get("cases")
     if not isinstance(cases, list):
         _add(items, "error", "cases", "expected a list of suite cases")
@@ -93,7 +96,7 @@ def validate_suite(suite: dict[str, Any], *, suite_path: str = "") -> dict[str, 
     error_count = _count(items, "error")
     warning_count = _count(items, "warning")
     return {
-        "version": "0.1",
+        "version": _CURRENT_SUITE_VERSION,
         "suite": suite_path,
         "valid": error_count == 0,
         "errors": error_count,
@@ -105,6 +108,33 @@ def validate_suite(suite: dict[str, Any], *, suite_path: str = "") -> dict[str, 
             source=suite.get("source"),
         ),
     }
+
+
+def _validate_suite_metadata(items: list[dict[str, str]], suite: dict[str, Any]) -> None:
+    version = suite.get("version")
+    if not isinstance(version, str) or not version.strip():
+        _add(
+            items,
+            "warning",
+            "version",
+            "missing suite version; treating as legacy and recommending regeneration with current redline",
+        )
+    elif version.strip() not in _SUPPORTED_SUITE_VERSIONS:
+        supported = ", ".join(sorted(_SUPPORTED_SUITE_VERSIONS))
+        _add(
+            items,
+            "error",
+            "version",
+            f"unsupported suite version {version.strip()}; supported versions: {supported}",
+        )
+
+    schema = suite.get("$schema")
+    if not isinstance(schema, str) or not schema.strip():
+        _add(items, "warning", "$schema", "missing suite JSON schema reference")
+
+    methodology = suite.get("methodology")
+    if not isinstance(methodology, dict):
+        _add(items, "warning", "methodology", "missing suite selection methodology metadata")
 
 
 def validate_prompt_manifest(
@@ -281,6 +311,8 @@ def _next_steps(items: list[dict[str, str]], *, suite_path: str, source: object)
         steps.append(f"Use a supported judgment status, then rerun: redline validate {suite_arg}")
     if any(item["level"] == "error" and item["path"] == "cases" for item in items):
         steps.append(f"Fix suite JSON shape, then rerun: redline validate {suite_arg}")
+    if any(item["level"] == "error" and item["path"] == "version" for item in items):
+        steps.append(f"Regenerate or migrate unsupported suite schema: redline suite {source_arg} --out {suite_arg}")
 
     if any(
         item["level"] == "warning" and "duplicate prompt-response pair" in item["message"]
@@ -295,6 +327,7 @@ def _next_steps(items: list[dict[str, str]], *, suite_path: str, source: object)
             item["path"].endswith(".content_hash")
             or ".features." in item["path"]
             or item["path"] == "summary"
+            or item["path"] in {"version", "$schema", "methodology"}
         )
         for item in items
     ):

@@ -24,6 +24,50 @@ class ValidateTests(unittest.TestCase):
         self.assertEqual(report["warnings"], 0)
         self.assertEqual(report["next_steps"], [])
 
+    def test_validate_suite_warns_for_legacy_missing_version_metadata(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="logs/baseline.jsonl",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        del suite["version"]
+
+        report = validate_suite(suite, suite_path="redline-suite.json")
+
+        self.assertTrue(report["valid"])
+        self.assertEqual(report["warnings"], 1)
+        self.assertTrue(
+            any(item["path"] == "version" and "missing suite version" in item["message"] for item in report["items"])
+        )
+        self.assertIn(
+            "Regenerate suite metadata from trusted logs: redline suite logs/baseline.jsonl --out redline-suite.json",
+            report["next_steps"],
+        )
+
+    def test_validate_suite_rejects_unsupported_future_version(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="logs/baseline.jsonl",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        suite["version"] = "99.0"
+
+        report = validate_suite(suite, suite_path="redline-suite.json")
+
+        self.assertFalse(report["valid"])
+        self.assertEqual(report["errors"], 1)
+        self.assertTrue(
+            any(item["path"] == "version" and "unsupported suite version 99.0" in item["message"] for item in report["items"])
+        )
+        self.assertIn(
+            "Regenerate or migrate unsupported suite schema: redline suite logs/baseline.jsonl --out redline-suite.json",
+            report["next_steps"],
+        )
+
     def test_validate_suite_rejects_duplicate_case_ids(self) -> None:
         suite = build_suite(
             [
