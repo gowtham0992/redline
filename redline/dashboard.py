@@ -222,18 +222,18 @@ def _app_sidebar(*, active: int, changed: int, alerts: int) -> str:
     alerts_badge = f'<span class="badge red">{alerts}</span>' if alerts else ""
     return (
         '<aside class="sidebar">'
-        '<div class="sb-logo"><div class="sb-logo-icon">r</div><div><div class="sb-logo-name">redline</div><div class="sb-logo-version">local dashboard</div></div></div>'
-        '<button class="sb-item active" data-nav="dashboard"><span class="ico">D</span><span>Dashboard</span></button>'
-        f'<button class="sb-item" data-nav="regressions"><span class="ico">!</span><span>Regressions</span> {alert_badge}</button>'
-        '<button class="sb-item" data-nav="suites"><span class="ico">S</span><span>Eval suites</span></button>'
-        '<button class="sb-item" data-nav="logs"><span class="ico">L</span><span>Log import</span></button>'
+        f'<div class="sb-logo"><div class="sb-logo-icon">{_app_icon("compare")}</div><div><div class="sb-logo-name">redline</div><div class="sb-logo-version">local dashboard</div></div></div>'
+        f'<button type="button" class="sb-item active" data-nav="dashboard">{_app_icon("dashboard")}<span>Dashboard</span></button>'
+        f'<button type="button" class="sb-item" data-nav="regressions">{_app_icon("alert")}<span>Regressions</span> {alert_badge}</button>'
+        f'<button type="button" class="sb-item" data-nav="suites">{_app_icon("suite")}<span>Eval suites</span></button>'
+        f'<button type="button" class="sb-item" data-nav="logs">{_app_icon("logs")}<span>Log import</span></button>'
         '<div class="sb-section">Analysis</div>'
-        f'<button class="sb-item" data-nav="compare"><span class="ico">C</span><span>Prompt diff</span> {changed_badge}</button>'
-        '<button class="sb-item" data-nav="history"><span class="ico">H</span><span>Run history</span></button>'
-        f'<button class="sb-item" data-nav="alerts"><span class="ico">A</span><span>Alerts</span> {alerts_badge}</button>'
+        f'<button type="button" class="sb-item" data-nav="compare">{_app_icon("diff")}<span>Prompt diff</span> {changed_badge}</button>'
+        f'<button type="button" class="sb-item" data-nav="history">{_app_icon("history")}<span>Run history</span></button>'
+        f'<button type="button" class="sb-item" data-nav="alerts">{_app_icon("bell")}<span>Alerts</span> {alerts_badge}</button>'
         '<div class="sb-section">System</div>'
-        '<button class="sb-item" data-nav="integrations"><span class="ico">I</span><span>Integrations</span></button>'
-        '<button class="sb-item" data-nav="settings"><span class="ico">G</span><span>Settings</span></button>'
+        f'<button type="button" class="sb-item" data-nav="integrations">{_app_icon("plug")}<span>Integrations</span></button>'
+        f'<button type="button" class="sb-item" data-nav="settings">{_app_icon("settings")}<span>Settings</span></button>'
         '<div class="sb-spacer"></div>'
         '<div class="sb-bottom"><div class="sb-avatar">RL</div><div><div class="sb-user-name">Local project</div><div class="sb-user-role">Local-first, no telemetry</div></div></div>'
         "</aside>"
@@ -297,13 +297,13 @@ def _app_dashboard_screen(
         "</div>"
         f"{warning_html}"
         '<div class="two-col hero-grid">'
-        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">!</span> Recent regressions</span><span class="card-meta">latest report</span></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("alert")} Recent regressions</span><span class="card-meta">latest report</span></div>'
         f'<div class="card-body">{_app_review_rows(review_cases)}</div></div>'
-        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">V</span> Suite health</span><span class="card-meta">local evidence</span></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("health")} Suite health</span><span class="card-meta">local evidence</span></div>'
         f'<div class="card-body"><div class="decision">{_h(action)}</div>{_app_suite_health(suite_summary, benchmarks)}</div></div>'
         "</div>"
         '<div class="card">'
-        '<div class="card-head"><span class="card-title"><span class="ico">T</span> Regression trend</span><span class="card-meta">latest local reports</span></div>'
+        f'<div class="card-head"><span class="card-title">{_app_icon("trend")} Regression trend</span><span class="card-meta">latest local reports</span></div>'
         f'<div class="card-body">{_app_report_chart(reports)}{_app_trust_strip(summary, suite_summary)}</div>'
         "</div>"
         f'{_app_reports_table(reports, output_path=output_path)}'
@@ -317,7 +317,7 @@ def _app_regressions_screen(*, review_cases: list[Any], summary: dict[str, Any],
     return (
         '<section class="screen" id="s-regressions">'
         f'{_app_alert("red" if blocking else "green", f"{blocking} blocking case(s).", action)}'
-        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">!</span> Active regressions</span><span class="card-meta">blocking and changed</span></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("alert")} Active regressions</span><span class="card-meta">blocking and changed</span></div>'
         f'<div class="card-body">{_app_review_rows(review_cases, empty="No review cases in the latest report.")}</div></div>'
         '<div class="two-col">'
         f'{_app_breakdown_card("Blocking status", summary)}'
@@ -342,7 +342,10 @@ def _app_suites_screen(
         ("Stochastic prompts", _safe_int(suite_summary.get("stochastic_prompt_groups"))),
         ("Non-ASCII records", _safe_int(suite_summary.get("non_ascii_records"))),
     ]
-    health_rows = "".join(f'<div class="kv-row"><span>{_h(label)}</span><strong>{value}</strong></div>' for label, value in rows)
+    health_rows = "".join(
+        f'<div class="kv-row"><span class="kv-key">{_h(label)}</span><strong class="kv-val">{value}</strong></div>'
+        for label, value in rows
+    )
     owner_rows = _app_owner_rows(owners)
     trust_text = str(trust.get("scope") or TRUST_SCOPE)
     checkpoint_text = "verified" if checkpoint else "not loaded"
@@ -355,10 +358,10 @@ def _app_suites_screen(
         f'{_app_metric("Audit", checkpoint_text, "checkpoint status", "green" if checkpoint else "amber")}'
         "</div>"
         '<div class="two-col">'
-        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">S</span> Suite health</span></div><div class="card-body">{health_rows}</div></div>'
-        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">O</span> Owners</span></div><div class="card-body">{owner_rows}</div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("suite")} Suite health</span></div><div class="card-body">{health_rows}</div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("owner")} Owners</span></div><div class="card-body">{owner_rows}</div></div>'
         "</div>"
-        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">B</span> Trust boundary</span></div><div class="card-body"><p>{_h(trust_text)}</p><p class="muted">Audit checkpoint: {_h(checkpoint_text)}</p></div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("shield")} Trust boundary</span></div><div class="card-body"><p>{_h(trust_text)}</p><p class="muted">Audit checkpoint: {_h(checkpoint_text)}</p></div></div>'
         "</section>"
     )
 
@@ -372,14 +375,14 @@ def _app_logs_screen(*, reports: list[Any], suite_summary: dict[str, Any]) -> st
         f'{_app_metric("Import presets", "5", "Langfuse, Helicone, Datadog, OpenAI, custom", "")}'
         f'{_app_metric("Redaction", "on", "default import posture", "green")}'
         "</div>"
-        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">U</span> Import log file</span></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("upload")} Import log file</span></div>'
         '<div class="card-body">'
         '<div class="upload-zone"><strong>Drop exported JSONL into the project, then detect fields locally.</strong><p>Use <code>redline import --detect</code>, then <code>--preview 3</code> before writing normalized logs.</p></div>'
         '<div class="log-row"><span>1</span><p>Detect fields from Langfuse, Helicone, Datadog, OpenAI chat, or custom JSONL exports.</p></div>'
         '<div class="log-row"><span>2</span><p>Redaction is best-effort pattern matching, not a privacy boundary. Inspect private logs locally.</p></div>'
         '<div class="log-row"><span>3</span><p>Run <code>redline quick-check baseline.jsonl candidate.jsonl --open</code> for the fastest first pass.</p></div>'
         "</div></div>"
-        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">P</span> Import presets</span></div><div class="card-body">'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("preset")} Import presets</span></div><div class="card-body">'
         f'{_app_integration_row("Langfuse export", "redline import langfuse.jsonl --preset langfuse --out logs/baseline.jsonl", "Available")}'
         f'{_app_integration_row("Helicone export", "redline import helicone.jsonl --preset helicone --out logs/baseline.jsonl", "Available")}'
         f'{_app_integration_row("Datadog logs", "redline import datadog.jsonl --preset datadog --out logs/baseline.jsonl", "Available")}'
@@ -400,8 +403,8 @@ def _app_compare_screen(*, latest: dict[str, Any], output_path: str | Path | Non
     )
     return (
         '<section class="screen" id="s-compare">'
-        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">R</span> Latest report links</span></div><div class="card-body">{links}</div></div>'
-        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">C</span> Concrete reasons</span></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("report")} Latest report links</span></div><div class="card-body">{links}</div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("diff")} Concrete reasons</span></div>'
         f'<div class="card-body">{_app_review_rows(diffs, empty="No changed or blocking cases in the latest report.")}</div></div>'
         "</section>"
     )
@@ -419,7 +422,7 @@ def _app_history_screen(*, history: list[Any], trend: dict[str, Any], reports: l
         f'{_app_metric("Latest blocking", str(_latest_blocking(reports)), "regression + missing", "red" if _latest_blocking(reports) else "green")}'
         "</div>"
         f'{_app_alert("blue", f"Trend: {direction}", str(trend.get("summary") or "Record history entries to see whether prompt quality is improving or regressing."))}'
-        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">H</span> Run history</span><span class="card-meta">latest 20 runs</span></div><div class="card-body">{rows}</div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("history")} Run history</span><span class="card-meta">latest 20 runs</span></div><div class="card-body">{rows}</div></div>'
         "</section>"
     )
 
@@ -443,8 +446,8 @@ def _app_alerts_screen(*, review_cases: list[Any], warnings: list[Any], summary:
         f'{_app_metric("Channels", "local", "CLI, HTML, MCP, CI artifacts", "")}'
         "</div>"
         '<div class="two-col">'
-        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">A</span> Report alerts</span></div><div class="card-body">{alert_rows}</div></div>'
-        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">W</span> Warnings</span></div><div class="card-body">{warnings_body}</div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("bell")} Report alerts</span></div><div class="card-body">{alert_rows}</div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("warning")} Warnings</span></div><div class="card-body">{warnings_body}</div></div>'
         "</div>"
         "</section>"
     )
@@ -466,7 +469,7 @@ def _app_integrations_screen(*, benchmarks: list[Any]) -> str:
         f'{_app_metric("Runner adapters", "7", "stdio, HTTP, SDK, chains, logs", "")}'
         f'{_app_metric("Judge templates", "4", "optional semantic review", "")}'
         "</div>"
-        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">I</span> Developer workflow integrations</span></div><div class="card-body">{content}</div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("plug")} Developer workflow integrations</span></div><div class="card-body">{content}</div></div>'
         "</section>"
     )
 
@@ -479,9 +482,9 @@ def _app_settings_screen(*, errors: list[Any], dashboard: dict[str, Any]) -> str
     return (
         '<section class="screen" id="s-settings">'
         '<div class="two-col">'
-        '<div class="card"><div class="card-head"><span class="card-title"><span class="ico">G</span> Local settings</span></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("settings")} Local settings</span></div>'
         f'<div class="card-body"><div class="setting-row"><div><div class="setting-label">Runtime</div><div class="setting-sub">All data is read from local files</div></div><span class="chip chip-pass">local</span></div><div class="setting-row"><div><div class="setting-label">Telemetry</div><div class="setting-sub">Dashboard does not transmit report data</div></div><span class="chip chip-pass">off</span></div><div class="setting-row"><div><div class="setting-label">Reports dir</div><div class="setting-sub">{_h(reports_dir)}</div></div></div><div class="setting-row"><div><div class="setting-label">History path</div><div class="setting-sub">{_h(history_path)}</div></div></div><div class="setting-row"><div><div class="setting-label">Checkpoint path</div><div class="setting-sub">{_h(checkpoint_path)}</div></div></div></div></div>'
-        f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">E</span> Skipped files</span></div><div class="card-body">{error_html}</div></div>'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("warning")} Skipped files</span></div><div class="card-body">{error_html}</div></div>'
         "</div>"
         "</section>"
     )
@@ -524,7 +527,12 @@ def _app_review_rows(items: list[Any], *, empty: str = "No review cases found.")
             f'<span class="chip chip-{_chip_tone(tone)}">{_h(status)}</span>'
             "</div>"
         )
-    return "".join(rows) if rows else f'<p class="muted">{_h(empty)}</p>'
+    if not rows:
+        return f'<p class="muted">{_h(empty)}</p>'
+    overflow = len(items) - 8
+    if overflow > 0:
+        rows.append(f'<p class="muted row-note">Showing the first 8 cases. Open the HTML report for {overflow} more.</p>')
+    return "".join(rows)
 
 
 def _app_suite_health(suite_summary: dict[str, Any], benchmarks: list[Any]) -> str:
@@ -583,7 +591,7 @@ def _app_history_rows(history: list[Any]) -> str:
 
 
 def _app_alert(tone: str, title: str, message: str) -> str:
-    return f'<div class="alert-bar alert-{_h(tone)}"><span class="ico">!</span><div><b>{_h(title)}</b> {_h(message)}</div></div>'
+    return f'<div class="alert-bar alert-{_h(tone)}">{_app_icon("alert")}<div><b>{_h(title)}</b> {_h(message)}</div></div>'
 
 
 def _app_breakdown_card(title: str, summary: dict[str, Any]) -> str:
@@ -597,13 +605,14 @@ def _app_breakdown_card(title: str, summary: dict[str, Any]) -> str:
         f'<div class="check-row"><div class="check-left"><span class="dot {tone}"></span>{_h(label)}</div><span class="kv-val {tone}">{value}</span></div>'
         for label, value, tone in rows
     )
-    return f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">B</span> {_h(title)}</span></div><div class="card-body">{body}</div></div>'
+    return f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("breakdown")} {_h(title)}</span></div><div class="card-body">{body}</div></div>'
 
 
 def _app_fix_card(review_cases: list[Any]) -> str:
     first = next((item for item in review_cases if isinstance(item, dict)), {})
     case_id = str(first.get("case_id") or first.get("suite_case_id") or "case id")
-    command = f'redline case redline-suite.json {case_id}' if case_id != "case id" else "redline cases redline-suite.json"
+    suite = str(first.get("suite") or "redline-suite.json")
+    command = f"redline case {shell_quote(suite)} {shell_quote(case_id)}" if case_id != "case id" else "redline cases redline-suite.json"
     body = (
         '<div class="diff-block">'
         '<span class="diff-ctx">Recommended local loop</span>'
@@ -612,7 +621,7 @@ def _app_fix_card(review_cases: list[Any]) -> str:
         '<span class="diff-add">3. Mark expected only when the change is intentional</span>'
         '</div>'
     )
-    return f'<div class="card"><div class="card-head"><span class="card-title"><span class="ico">F</span> Suggested fix</span></div><div class="card-body">{body}</div></div>'
+    return f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("fix")} Suggested fix</span></div><div class="card-body">{body}</div></div>'
 
 
 def _app_report_chart(reports: list[Any]) -> str:
@@ -654,11 +663,38 @@ def _app_integration_row(name: str, command: str, status: str) -> str:
     tone = "chip-pass" if status.lower() in {"ready", "available", "local"} else "chip-blue"
     return (
         '<div class="int-row">'
-        '<div class="int-logo">+</div>'
+        f'<div class="int-logo">{_app_icon("plug")}</div>'
         f'<div class="t-info"><div class="t-name">{_h(name)}</div><div class="t-sub"><code>{_h(command)}</code></div></div>'
         f'<span class="chip {tone}">{_h(status)}</span>'
         "</div>"
     )
+
+
+def _app_icon(name: str) -> str:
+    paths = {
+        "dashboard": '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+        "alert": '<path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+        "suite": '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="m3 6 1 1 2-2"/><path d="m3 12 1 1 2-2"/><path d="m3 18 1 1 2-2"/>',
+        "logs": '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/>',
+        "diff": '<path d="M7 7h10"/><path d="M7 12h6"/><path d="M7 17h10"/><path d="M3 7h.01"/><path d="M3 12h.01"/><path d="M3 17h.01"/>',
+        "history": '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/>',
+        "bell": '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
+        "plug": '<path d="M9 7V2"/><path d="M15 7V2"/><path d="M7 7h10v4a5 5 0 0 1-5 5h0a5 5 0 0 1-5-5z"/><path d="M12 16v6"/>',
+        "settings": '<path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 3.6-.2-.1a1.7 1.7 0 0 0-2 .2 1.7 1.7 0 0 0-.8 1.7H9.3a1.7 1.7 0 0 0-.8-1.7 1.7 1.7 0 0 0-2-.2l-.2.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1.1v-3.8A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.1-3.6.2.1a1.7 1.7 0 0 0 2-.2 1.7 1.7 0 0 0 .8-1.7h5.4a1.7 1.7 0 0 0 .8 1.7 1.7 1.7 0 0 0 2 .2l.2-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1.1v3.8a1.7 1.7 0 0 0-1.5 1.1Z"/>',
+        "compare": '<path d="M7 7h10"/><path d="m14 4 3 3-3 3"/><path d="M17 17H7"/><path d="m10 14-3 3 3 3"/>',
+        "health": '<path d="M20 7 9 18l-5-5"/>',
+        "trend": '<path d="M3 19h18"/><path d="m5 15 4-4 4 3 6-8"/><path d="M18 6h1v1"/>',
+        "owner": '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+        "shield": '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-5"/>',
+        "upload": '<path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 20h16"/>',
+        "preset": '<path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/><path d="M8 3v4"/><path d="M16 10v4"/><path d="M11 17v4"/>',
+        "report": '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M9 12h6"/><path d="M9 16h6"/>',
+        "warning": '<path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/>',
+        "breakdown": '<path d="M4 19V5"/><path d="M4 19h16"/><rect x="7" y="12" width="3" height="4"/><rect x="12" y="8" width="3" height="8"/><rect x="17" y="10" width="3" height="6"/>',
+        "fix": '<path d="m14.7 6.3 3 3"/><path d="M4 20l4.5-1 9.2-9.2a2.1 2.1 0 0 0-3-3L5.5 16 4 20Z"/>',
+    }
+    path = paths.get(name, paths["dashboard"])
+    return f'<svg class="svg-ico" aria-hidden="true" viewBox="0 0 24 24">{path}</svg>'
 
 
 def _status_width(status: str) -> int:
@@ -723,6 +759,7 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
                 "path": str(path),
                 "name": path.name,
                 "kind": _report_kind(report, path),
+                "suite": str(report.get("suite") or ""),
                 "summary": _summary_counts(summary),
                 "decision": report.get("decision") if isinstance(report.get("decision"), dict) else {},
                 "methodology": report.get("methodology") if isinstance(report.get("methodology"), dict) else {},
@@ -730,7 +767,7 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
                 "owners": _report_owner_review(report.get("diffs"), suite_path=str(report.get("suite") or "")),
                 "trust": _report_trust_summary(report.get("diffs")),
                 "review": _report_review_summary(report.get("diffs")),
-                "review_cases": _report_review_cases(report.get("diffs")),
+                "review_cases": _report_review_cases(report.get("diffs"), suite_path=str(report.get("suite") or "")),
                 "prompt_evals": prompt_evals,
                 "prompt_groups": _report_prompt_groups(prompt_evals),
                 "html_path": _existing_sibling(path, ".html"),
@@ -1064,7 +1101,7 @@ def _changed_count(summary: Any) -> int:
     return int(summary.get("changed") or 0)
 
 
-def _report_review_cases(diffs: Any, *, limit: int = 12) -> list[dict[str, Any]]:
+def _report_review_cases(diffs: Any, *, limit: int = 12, suite_path: str = "") -> list[dict[str, Any]]:
     if not isinstance(diffs, list):
         return []
     rows = []
@@ -1088,7 +1125,7 @@ def _report_review_cases(diffs: Any, *, limit: int = 12) -> list[dict[str, Any]]
                 "confidence": str(item.get("confidence") or ""),
                 "signal": str(item.get("signal") or ""),
                 "prompt_path": str(item.get("prompt_path") or ""),
-                "suite": str(item.get("suite") or ""),
+                "suite": str(item.get("suite") or suite_path),
             }
         )
     return rows[:limit]
@@ -2100,17 +2137,17 @@ code {
 }
 .sb-user-name { font-size: 12px; font-weight: 600; color: var(--text1); }
 .sb-user-role { font-size: 10px; color: var(--text2); }
-.ico {
+.svg-ico {
   width: 15px;
   height: 15px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
-  color: currentColor;
-  font-size: 11px;
-  font-weight: 800;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  display: inline-block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: -2px;
 }
 .dot {
   width: 8px;
@@ -2471,6 +2508,12 @@ code {
 .changed { color: var(--amber); border-color: var(--amber-border); background: var(--amber-bg); }
 .better, .resolved { color: var(--green); border-color: var(--green-border); background: var(--green-bg); }
 .empty p { color: var(--text2); }
+.row-note {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
 .int-logo {
   width: 32px;
   height: 32px;
@@ -2492,11 +2535,56 @@ code {
   .two-col, .hero-grid, .trust-strip { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
-  .app { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
+  .app {
+    display: block;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+  .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 6px 8px;
+  }
+  .sb-logo {
+    padding: 0 8px 0 0;
+    border-bottom: 0;
+    flex-shrink: 0;
+  }
+  .sb-logo-icon { width: 26px; height: 26px; }
+  .sb-logo-version, .sb-section, .sb-bottom { display: none; }
+  .sb-item {
+    width: auto;
+    flex: 0 0 auto;
+    border-left: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: var(--radius);
+    padding: 7px 10px;
+    white-space: nowrap;
+  }
+  .sb-item.active {
+    border-left-color: transparent;
+    border-bottom-color: var(--accent);
+  }
+  .main {
+    display: block;
+    overflow: visible;
+  }
   .topbar { padding: 10px 12px; }
   .topbar-right .chip { display: none; }
-  .pane { padding: 12px; }
+  .pane {
+    overflow: visible;
+    padding: 12px;
+  }
   .metric-row { grid-template-columns: 1fr; }
 }
 """

@@ -291,6 +291,7 @@ class DashboardTests(unittest.TestCase):
                         {
                             "case_id": "case_001",
                             "status": "regression",
+                            "suite": "suites/support/triage.redline-suite.json",
                             "prompt": "Return JSON with owner and priority.",
                             "reason": "candidate lost valid JSON format",
                         }
@@ -318,6 +319,8 @@ class DashboardTests(unittest.TestCase):
 
         self.assertIn('data-redline-dashboard="app"', html)
         self.assertIn("local dashboard", html)
+        self.assertIn('class="svg-ico"', html)
+        self.assertIn('button type="button" class="sb-item', html)
         self.assertIn("Active regressions", html)
         self.assertIn("Regression trend", html)
         self.assertIn("Alerts", html)
@@ -328,11 +331,15 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("67%", html)
         self.assertIn("case_001", html)
         self.assertIn("candidate lost valid JSON format", html)
+        self.assertIn("redline case suites/support/triage.redline-suite.json case_001", html)
         self.assertIn("fix blocking cases before shipping", html)
         self.assertIn("eval.json", html)
         self.assertIn("reports/eval.html", html)
         self.assertIn("prompt-v2", html)
         self.assertIn("Local-first, no telemetry", html)
+        self.assertIn("@media (max-width: 700px)", html)
+        self.assertIn("position: sticky;", html)
+        self.assertNotIn(".sidebar { display: none; }", html)
 
     def test_dashboard_warns_when_reports_have_no_benchmark_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

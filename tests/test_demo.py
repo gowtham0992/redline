@@ -23,6 +23,7 @@ class DemoTests(unittest.TestCase):
 
             report = read_json(result["report_json"])
             self.assertEqual(report["summary"]["regression"], result["summary"]["regression"])
+            self.assertEqual(report["suite"], result["suite"])
 
     def test_format_demo_includes_regression_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -74,6 +75,7 @@ class DemoTests(unittest.TestCase):
             self.assertEqual(result["summary"]["cases"], 10)
             self.assertEqual(result["summary"]["regression"], 10)
             self.assertTrue(result["public"])
+            self.assertEqual(read_json(result["report_json"])["suite"], result["suite"])
 
             output = format_demo(result, compact=True)
 

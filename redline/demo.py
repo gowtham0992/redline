@@ -179,6 +179,7 @@ def run_demo(output_dir: str | Path = ".redline/demo", *, public: bool = False) 
 
     candidate = read_jsonl_records(candidate_path, "prompt", "response")
     result = compare_suite_to_candidate(suite, candidate)
+    result["suite"] = str(suite_path)
     write_json(report_json_path, result)
     title = "redline public dogfood" if public else "redline demo"
     write_text(report_md_path, format_markdown_report(result, title=title))
