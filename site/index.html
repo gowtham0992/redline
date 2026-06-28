@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>redline - Local-first prompt regression diffs</title>
+    <title>redline - Catch prompt regressions before they ship</title>
     <meta
       name="description"
       content="redline turns prompt-response logs you already have into deterministic eval suites that catch prompt regressions before they ship."
     >
     <meta property="og:title" content="redline">
-    <meta property="og:description" content="Local-first prompt regression diffs from JSONL logs.">
+    <meta property="og:description" content="Automatic eval suites from prompt logs you already have.">
     <meta property="og:image" content="assets/redline-preview.png">
     <meta property="og:type" content="website">
     <link rel="icon" href="assets/redline-mark.svg" type="image/svg+xml">
@@ -29,50 +29,63 @@
         <a href="#mcp">MCP</a>
         <a href="#certification">Certify</a>
         <a href="https://github.com/gowtham0992/redline#project-docs">Docs</a>
-        <a href="https://github.com/gowtham0992/redline">GitHub</a>
+        <a class="nav-cta" href="https://github.com/gowtham0992/redline">Star on GitHub</a>
       </nav>
     </header>
 
     <main id="top">
-      <section class="hero band">
+      <section class="hero band" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow">Automatic eval suites from logs you already have</p>
-          <h1>redline</h1>
+          <p class="eyebrow pill"><span></span>Local-first prompt regression diffs</p>
+          <h1 id="hero-title">Catch prompt regressions <span>before</span> they ship.</h1>
           <p class="lede">
-            Local-first prompt regression diffs for AI engineers. Point redline
-            at real prompt-response logs, change your prompt, then catch broken
-            JSON, missing URLs, lost tables, refusals, and other structural
-            regressions before they ship.
+            Point redline at the prompt-response logs you already have, change
+            your prompt, then catch broken JSON, missing URLs, lost tables, and
+            silent refusals before your users do.
           </p>
-          <div class="hero-metrics" aria-label="Product proof points">
-            <span><strong>0</strong><small>manual test cases to start</small></span>
-            <span><strong>0</strong><small>cloud calls by default</small></span>
-            <span><strong>1</strong><small>command to see the proof</small></span>
+          <div class="install-card" aria-label="Install and demo commands">
+            <div>
+              <code><span>$</span> python -m pip install redline-ai</code>
+            </div>
+            <div>
+              <code><span>$</span> redline demo --public --compact</code>
+            </div>
           </div>
-          <div class="command" aria-label="Install and proof commands">
-            <span>$</span>
-            <code>python -m pip install redline-ai<br>redline demo --public --compact</code>
+          <div class="actions" aria-label="Primary actions">
+            <a class="button primary" href="https://github.com/gowtham0992/redline#start-here">Start in 5 minutes</a>
+            <a class="button secondary" href="https://github.com/gowtham0992/redline">View source</a>
+          </div>
+          <div class="hero-metrics" aria-label="Product proof points">
+            <span><strong>0</strong><small>manual test cases</small></span>
+            <span><strong>0</strong><small>cloud calls by default</small></span>
+            <span><strong>1</strong><small>command to the proof</small></span>
           </div>
           <div class="badges" aria-label="Project status badges">
             <a href="https://github.com/gowtham0992/redline/actions/workflows/ci.yml"><img src="https://github.com/gowtham0992/redline/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
             <a href="https://pypi.org/project/redline-ai/"><img src="https://img.shields.io/pypi/v/redline-ai.svg" alt="PyPI version"></a>
             <a href="https://github.com/gowtham0992/redline/stargazers"><img src="https://img.shields.io/github/stars/gowtham0992/redline?style=social" alt="GitHub stars"></a>
           </div>
-          <div class="actions" aria-label="Primary actions">
-            <a class="button primary" href="https://github.com/gowtham0992/redline#start-here">Start in 5 minutes</a>
-            <a class="button secondary" href="https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline">MCP Registry</a>
-            <a class="button secondary" href="https://github.com/gowtham0992/redline">View source</a>
-          </div>
         </div>
-        <figure class="hero-visual">
-          <img
-            src="assets/redline-preview.png"
-            alt="redline terminal and dashboard preview showing four prompt regressions caught"
-            width="1600"
-            height="1050"
-            loading="lazy"
-          >
-        </figure>
+
+        <div class="terminal-proof hero-terminal" aria-label="redline compact demo output">
+          <div class="terminal-top">
+            <span></span>
+            <span></span>
+            <span></span>
+            <strong>redline - demo</strong>
+          </div>
+          <pre><code>$ redline demo --public --compact
+redline public dogfood: cases=10 regression=10 changed=0 missing=0 neutral=0
+Confidence: HIGH | fix blocking cases before shipping
+Scope: structural checks only; review factual correctness, tone, hallucinations, and subtle reasoning separately
+
+REGRESSION case_001: candidate lost valid JSON format
+REGRESSION case_002: candidate lost markdown table structure
+REGRESSION case_006: candidate newly refuses
+REGRESSION case_010: candidate lost bullet list structure
+
+10 blocking regressions - fix before you ship.</code></pre>
+        </div>
       </section>
 
       <section class="quickstart band" id="proof">
@@ -85,25 +98,57 @@
             required structure, dates, owners, URLs, and refusal behavior.
           </p>
         </div>
-        <div class="terminal-proof" aria-label="redline compact demo output">
-          <div class="terminal-top">
-            <span></span>
-            <span></span>
-            <span></span>
-            <strong>redline demo</strong>
-          </div>
-          <pre><code>$ redline demo --public --compact
-redline public dogfood: cases=10 regression=10 changed=0 missing=0 neutral=0
-Confidence: HIGH | fix blocking cases before shipping
-Scope: structural checks only; review factual correctness, tone, hallucinations, and subtle reasoning separately
+        <div class="proof-showcase" aria-label="Example redline regression diagnosis">
+          <article class="diff-card">
+            <div class="diff-card-header">
+              <span>case_001</span>
+              <small>JSON validity</small>
+              <strong>REGRESSION</strong>
+            </div>
+            <div class="diff-columns">
+              <div>
+                <p>baseline</p>
+                <pre><code>{
+  "owner": "ana@acme.dev",
+  "due": "2025-07-01",
+  "links": ["acme.dev/x"],
+  "status": "open"
+}</code></pre>
+              </div>
+              <div>
+                <p>candidate</p>
+                <pre><code>owner: ana, due: soon,
+links: omitted,
+status: open
 
-REGRESSION case_001: candidate lost valid JSON format
-REGRESSION case_002: candidate lost markdown table structure
-REGRESSION case_006: candidate newly refuses
-REGRESSION case_010: candidate lost bullet list structure
-
-Next: inspect the HTML report, mark intentional changes, accept reviewed outputs.</code></pre>
+not valid JSON</code></pre>
+              </div>
+            </div>
+            <p class="reason"><strong>reason:</strong> candidate lost valid JSON format; required keys are no longer parseable.</p>
+          </article>
+          <aside class="readiness-card">
+            <p class="eyebrow">Ship readiness</p>
+            <h3>BLOCKED</h3>
+            <p>Confidence: <strong>HIGH</strong>. Fix blocking cases first.</p>
+            <div class="readiness-stats">
+              <span><strong>10</strong><small>regression</small></span>
+              <span><strong>0</strong><small>changed</small></span>
+              <span><strong>0</strong><small>missing</small></span>
+              <span><strong>0</strong><small>neutral</small></span>
+            </div>
+            <small>structural checks only - review tone, facts, and reasoning separately.</small>
+          </aside>
         </div>
+        <figure class="demo-film">
+          <img
+            src="assets/redline-product-demo.gif"
+            alt="Animated redline product demo showing a prompt regression report"
+            width="1600"
+            height="1050"
+            loading="lazy"
+            decoding="async"
+          >
+        </figure>
         <div class="artifact-proof" aria-label="Generated redline product artifacts">
           <figure>
             <img
@@ -112,6 +157,7 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
               width="1440"
               height="1050"
               loading="lazy"
+              decoding="async"
             >
             <figcaption>Local dashboard with ship readiness, history, benchmark evidence, and report links.</figcaption>
           </figure>
@@ -122,6 +168,7 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
               width="1440"
               height="1050"
               loading="lazy"
+              decoding="async"
             >
             <figcaption>HTML report with concrete reasons and side-by-side baseline versus candidate output.</figcaption>
           </figure>
@@ -130,25 +177,25 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
 
       <section class="proof band">
         <div class="section-heading">
-          <p class="eyebrow">Why it exists</p>
+          <p class="eyebrow">Product promise</p>
           <h2>You already have the eval data. redline turns it into a gate.</h2>
         </div>
         <div class="proof-grid">
           <article>
-            <strong>Zero manual test writing</strong>
-            <p>Build suites from JSONL prompt-response logs instead of inventing cases by hand.</p>
+            <strong>Zero manual cases to start</strong>
+            <p>Build suites from JSONL prompt-response logs instead of inventing eval cases by hand.</p>
           </article>
           <article>
-            <strong>Deterministic by default</strong>
-            <p>No cloud account is required. The default gate is fast, local, reproducible, and cheap. It catches production-breaking structural regressions without depending on hosted judges.</p>
+            <strong>No cloud calls by default</strong>
+            <p>The core checks run locally with zero runtime dependencies, no API keys, and reproducible CI output.</p>
           </article>
           <article>
-            <strong>Reports people can review</strong>
-            <p>Write JSON, Markdown, JUnit, and self-contained HTML reports for local review, CI artifacts, and GitHub summaries.</p>
+            <strong>Clear failure reasons</strong>
+            <p>Reports name the broken behavior: lost JSON, missing keys, dropped URLs, new refusals, empty output, or structure drift.</p>
           </article>
           <article>
             <strong>Review loop included</strong>
-            <p>Mark intentional changes, accept new baselines, and keep the suite moving with your prompt.</p>
+            <p>Mark intentional changes, accept reviewed baselines, and keep the suite evolving with your prompt.</p>
           </article>
         </div>
       </section>
@@ -163,6 +210,7 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
             <span>01</span>
             <div>
               <h3>Collect behavior</h3>
+              <p>Watch an app, import JSONL, or adapt exports from your logging stack.</p>
               <code>redline watch --log logs/prompts.jsonl</code>
             </div>
           </li>
@@ -170,13 +218,15 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
             <span>02</span>
             <div>
               <h3>Generate the suite</h3>
-              <code>redline suite .redline/logs/prompts.jsonl --out redline-suite.json</code>
+              <p>Select representative behavior from real prompt-output data.</p>
+              <code>redline suite logs/prompts.jsonl --out redline-suite.json</code>
             </div>
           </li>
           <li>
             <span>03</span>
             <div>
-              <h3>Evaluate a prompt change</h3>
+              <h3>Evaluate a change</h3>
+              <p>Replay the suite against a new prompt file or candidate log.</p>
               <code>redline eval --prompt prompts/v2.txt</code>
             </div>
           </li>
@@ -184,6 +234,7 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
             <span>04</span>
             <div>
               <h3>Review and accept</h3>
+              <p>Pin requirements, mark expected changes, and promote reviewed outputs.</p>
               <code>redline mark ...</code>
               <code>redline accept ...</code>
             </div>
@@ -212,11 +263,6 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
               quality need pinned requirements or an optional judge. redline
               tells you when a run has no structural blockers; it does not
               pretend that means the answer is perfect.
-            </p>
-            <p>
-              This is intentional: deterministic checks are the merge gate.
-              Judges are review evidence for ambiguous or domain-specific
-              behavior, not the only line of defense.
             </p>
           </div>
           <div>
@@ -255,7 +301,7 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
           </div>
           <div>
             <h3>Local dashboard</h3>
-            <p>Publish self-contained HTML reports as CI artifacts or browse them locally.</p>
+            <p>Publish self-contained HTML reports as CI artifacts or browse the ship-readiness dashboard locally.</p>
             <code>redline dashboard --reports-dir .redline/demo/reports --open</code>
           </div>
         </div>
@@ -319,7 +365,7 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
           </article>
           <article>
             <span>03</span>
-            <strong>Trend and coverage pressure</strong>
+            <strong>Trend pressure</strong>
             <p>History shows whether blocking regressions are getting better or worse; summary and doctor surface thin coverage and semantic gaps.</p>
             <code>redline history --fail-on worse</code>
           </article>
@@ -334,12 +380,9 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
 
       <section class="launch band">
         <div class="launch-copy">
-          <p class="eyebrow">Public alpha ready path</p>
+          <p class="eyebrow">Public alpha path</p>
           <h2>Clone it, run the proof, then point it at one real prompt log.</h2>
-          <p>
-            The fastest way to understand redline is to make it catch one
-            regression in your own AI workflow.
-          </p>
+          <p>The fastest way to understand redline is to make it catch one regression in your own AI workflow.</p>
         </div>
         <a class="button primary" href="https://github.com/gowtham0992/redline#start-here">Read the quickstart</a>
       </section>
@@ -351,8 +394,8 @@ Next: inspect the HTML report, mark intentional changes, accept reviewed outputs
         </div>
         <div class="resource-links">
           <a href="https://github.com/gowtham0992/redline/actions/workflows/ci.yml">CI status</a>
-          <a href="https://github.com/gowtham0992/redline/blob/main/CONTRIBUTING.md">Contributor guide</a>
-          <a href="https://github.com/gowtham0992/redline/blob/main/SECURITY.md">Security policy</a>
+          <a href="https://github.com/gowtham0992/redline/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>
+          <a href="https://github.com/gowtham0992/redline/blob/main/SECURITY.md">SECURITY.md</a>
           <a href="https://github.com/gowtham0992/redline/blob/main/LICENSE">MIT license</a>
         </div>
       </section>

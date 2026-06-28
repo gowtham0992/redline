@@ -27,10 +27,15 @@ class GitHubPagesSiteTests(unittest.TestCase):
     def test_site_homepage_has_launch_copy_and_product_paths(self) -> None:
         html = Path("site/index.html").read_text(encoding="utf-8")
 
-        self.assertIn("<h1>redline</h1>", html)
+        self.assertIn("Catch prompt regressions", html)
+        self.assertIn("Local-first prompt regression diffs", html)
+        self.assertIn("Star on GitHub", html)
         self.assertIn("redline demo --public --compact", html)
         self.assertIn("redline dashboard --reports-dir .redline/demo/reports --open", html)
         self.assertIn("redline eval --prompt prompts/v2.txt", html)
+        self.assertIn("candidate lost valid JSON format", html)
+        self.assertIn("Ship readiness", html)
+        self.assertIn("BLOCKED", html)
         self.assertIn("No cloud", html)
         self.assertIn("Optional judges", html)
         self.assertIn("One command, ten regressions", html)
@@ -96,7 +101,7 @@ class GitHubPagesSiteTests(unittest.TestCase):
             parser.links,
         )
         self.assertIn(
-            ("assets/redline-preview.png", "redline terminal and dashboard preview showing four prompt regressions caught"),
+            ("assets/redline-product-demo.gif", "Animated redline product demo showing a prompt regression report"),
             parser.images,
         )
         self.assertIn(
