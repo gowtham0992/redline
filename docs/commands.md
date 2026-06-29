@@ -7,6 +7,7 @@ output and examples after installing.
 | --- | --- | --- |
 | `redline` | Show first-run help. | `--version` |
 | `redline demo` | Generate and diff the bundled demo logs. | `--public`, `--compact` |
+| `redline app` | Open the guided local product app for import, suite, eval, review, history, and integration commands. | `--reports-dir`, `--history`, `--checkpoint`, `--out`, `--no-open`, `--json` |
 | `redline init` | Write `redline.json`, runner files, and optional CI workflow. | `--runner`, `--copy-runner`, `--github-action`, `--force` |
 | `redline doctor` | Check config, suite, replay, reports, audit, and team workflow. | `--strict`, `--json` |
 | `redline watch` | Collect prompt-response observations or print snippets. | `--log`, `--stats`, `--snippet`, `--follow` |
@@ -30,7 +31,7 @@ output and examples after installing.
 | `redline accept` | Promote reviewed candidate outputs into the suite baseline. | `--candidate`, `--all-expected`, `--approver`, `--note` |
 | `redline history` | Append and summarize trend history. | `--label`, `--out`, `--out-md`, `--fail-on` |
 | `redline compare` | Compare two redline reports. | `--fail-on`, `--out-json`, `--out-html` |
-| `redline dashboard` | Render a self-contained local HTML dashboard. | `--reports-dir`, `--history`, `--checkpoint`, `--out`, `--style classic\|app`, `--open` |
+| `redline dashboard` | Render a self-contained local HTML dashboard artifact. | `--reports-dir`, `--history`, `--checkpoint`, `--out`, `--style classic\|app`, `--open` |
 | `redline runners` | List or copy runner and log adapter templates. | `--copy`, `--out`, `--force` |
 | `redline judges` | List or copy judge templates. | `--copy`, `--out`, `--force` |
 | `redline audit` | Show and verify local audit events. | `--verify`, `--checkpoint`, `--out-checkpoint`, `--expect-last-hash` |

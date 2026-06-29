@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from redline.cli import main
 from redline.dashboard import build_dashboard, format_dashboard_html
@@ -321,6 +322,16 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("local dashboard", html)
         self.assertIn('class="svg-ico"', html)
         self.assertIn('button type="button" class="sb-item', html)
+        self.assertIn("Workflow", html)
+        self.assertIn('id="s-workflow"', html)
+        self.assertIn("Command center.", html)
+        self.assertIn("dashboard never runs shell commands", html)
+        self.assertIn('data-copy="redline demo --public --compact"', html)
+        self.assertIn("redline import path/to/export.jsonl --detect", html)
+        self.assertIn("redline suite .redline/logs/baseline.jsonl", html)
+        self.assertIn("redline eval --compact", html)
+        self.assertIn("redline history .redline/reports/eval.json", html)
+        self.assertIn("redline app --reports-dir .redline/reports", html)
         self.assertIn("Active regressions", html)
         self.assertIn("Regression trend", html)
         self.assertIn("Alerts", html)
@@ -532,6 +543,73 @@ class DashboardTests(unittest.TestCase):
             self.assertIn('data-redline-dashboard="app"', text)
             self.assertIn("candidate lost valid JSON format", text)
             self.assertIn("Reports: 1", stdout.getvalue())
+
+    def test_cli_app_opens_guided_local_app_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / ".redline" / "reports"
+            write_json(
+                reports / "eval.json",
+                {
+                    "summary": {"cases": 1, "regression": 1},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    "suite": "redline-suite.json",
+                    "diffs": [
+                        {
+                            "case_id": "case_001",
+                            "status": "regression",
+                            "prompt": "Return JSON.",
+                            "reasons": ["candidate lost valid JSON format"],
+                        }
+                    ],
+                },
+            )
+            output = root / ".redline" / "app.html"
+
+            current = Path.cwd()
+            stdout = io.StringIO()
+            try:
+                import os
+
+                os.chdir(root)
+                with patch("redline.cli.webbrowser.open") as open_browser:
+                    with contextlib.redirect_stdout(stdout):
+                        code = main(["app", "--out", str(output)])
+            finally:
+                os.chdir(current)
+
+            self.assertEqual(code, 0)
+            text = output.read_text(encoding="utf-8")
+            self.assertIn("<title>redline app</title>", text)
+            self.assertIn('data-redline-dashboard="app"', text)
+            self.assertIn('id="s-workflow"', text)
+            self.assertIn("redline import path/to/export.jsonl --detect", text)
+            self.assertIn("candidate lost valid JSON format", text)
+            self.assertIn("Opened redline app in the default browser.", stdout.getvalue())
+            self.assertIn("Next:", stdout.getvalue())
+            open_browser.assert_called_once()
+
+    def test_cli_app_can_write_without_opening_browser(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / ".redline" / "app.html"
+
+            current = Path.cwd()
+            stdout = io.StringIO()
+            try:
+                import os
+
+                os.chdir(root)
+                with patch("redline.cli.webbrowser.open") as open_browser:
+                    with contextlib.redirect_stdout(stdout):
+                        code = main(["app", "--no-open", "--out", str(output)])
+            finally:
+                os.chdir(current)
+
+            self.assertEqual(code, 0)
+            self.assertTrue(output.exists())
+            self.assertIn("Open:", stdout.getvalue())
+            open_browser.assert_not_called()
 
 
 if __name__ == "__main__":

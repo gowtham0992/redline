@@ -23,13 +23,13 @@ Estimated time: 10 minutes.
 python -m pip install redline-ai
 redline demo
 redline cases .redline/demo/suite.json
-redline dashboard --reports-dir .redline/demo/reports --out .redline/dashboard.html
+redline app --reports-dir .redline/demo/reports --no-open --out .redline/app.html
 redline runners
 redline doctor
 ```
 
 Expected result: the demo catches realistic support-agent regressions, the next
-steps are obvious, the dashboard links reports cleanly, and the first warning
+steps are obvious, the app links reports cleanly, and the first warning
 explains exactly what to run next.
 
 ## Pass 2: Real Replay Setup

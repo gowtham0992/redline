@@ -23,10 +23,11 @@ python -m redline history "$demo_dir/reports/public_diff.json" \
   --out "$history_path" \
   --out-md "$history_markdown_path"
 
-printf '\n$ redline dashboard --reports-dir %s --history %s --out %s\n' "$demo_dir/reports" "$history_path" "$dashboard_path"
-python -m redline dashboard \
+printf '\n$ redline app --reports-dir %s --history %s --no-open --out %s\n' "$demo_dir/reports" "$history_path" "$dashboard_path"
+python -m redline app \
   --reports-dir "$demo_dir/reports" \
   --history "$history_path" \
+  --no-open \
   --out "$dashboard_path"
 
 printf '\nArtifacts:\n'

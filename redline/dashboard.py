@@ -185,6 +185,15 @@ def _format_dashboard_app_html(
             '<main class="main">',
             _app_topbar(title=title, status_class=status_class, status_text=status_text, reports=len(reports)),
             '<div class="pane">',
+            _app_workflow_screen(
+                dashboard=dashboard,
+                latest=latest,
+                reports=reports,
+                benchmarks=benchmarks,
+                history=history,
+                checkpoint=checkpoint,
+                review_cases=review_cases,
+            ),
             _app_dashboard_screen(
                 summary=summary,
                 suite_summary=suite_summary,
@@ -224,6 +233,7 @@ def _app_sidebar(*, active: int, changed: int, alerts: int) -> str:
         '<aside class="sidebar">'
         f'<div class="sb-logo"><div class="sb-logo-icon">{_app_icon("compare")}</div><div><div class="sb-logo-name">redline</div><div class="sb-logo-version">local dashboard</div></div></div>'
         f'<button type="button" class="sb-item active" data-nav="dashboard">{_app_icon("dashboard")}<span>Dashboard</span></button>'
+        f'<button type="button" class="sb-item" data-nav="workflow">{_app_icon("workflow")}<span>Workflow</span></button>'
         f'<button type="button" class="sb-item" data-nav="regressions">{_app_icon("alert")}<span>Regressions</span> {alert_badge}</button>'
         f'<button type="button" class="sb-item" data-nav="suites">{_app_icon("suite")}<span>Eval suites</span></button>'
         f'<button type="button" class="sb-item" data-nav="logs">{_app_icon("logs")}<span>Log import</span></button>'
@@ -265,6 +275,183 @@ def _app_topbar(*, title: str, status_class: str, status_text: str, reports: int
         "</div>"
         "</header>"
     )
+
+
+def _app_workflow_screen(
+    *,
+    dashboard: dict[str, Any],
+    latest: dict[str, Any],
+    reports: list[Any],
+    benchmarks: list[Any],
+    history: list[Any],
+    checkpoint: dict[str, Any],
+    review_cases: list[Any],
+) -> str:
+    items = _app_workflow_items(
+        dashboard=dashboard,
+        latest=latest,
+        reports=reports,
+        benchmarks=benchmarks,
+        history=history,
+        checkpoint=checkpoint,
+        review_cases=review_cases,
+    )
+    blocking = _blocking_count(_app_dict(latest.get("summary")))
+    next_item = next((item for item in items if item["tone"] != "green"), items[-1])
+    cards = "".join(_app_workflow_card(item) for item in items)
+    return (
+        '<section class="screen" id="s-workflow">'
+        '<div class="metric-row">'
+        f'{_app_metric("Next command", str(next_item["stage"]), next_item["title"], "amber" if next_item["tone"] == "amber" else "red" if next_item["tone"] == "red" else "green")}'
+        f'{_app_metric("Reports", str(len(reports)), "local evidence files", "green" if reports else "amber")}'
+        f'{_app_metric("Blocking", str(blocking), "cases to inspect", "red" if blocking else "green")}'
+        f'{_app_metric("Automation", "copy-only", "dashboard never runs shell commands", "blue")}'
+        "</div>"
+        f'{_app_alert("blue", "Command center.", "Copy a command, run it in your terminal, then refresh this dashboard. redline stays local-first and does not execute shell commands from the browser.")}'
+        f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("workflow")} Next best action</span><span class="card-meta">state-aware</span></div><div class="card-body">{_app_workflow_card(next_item, featured=True)}</div></div>'
+        f'<div class="command-grid">{cards}</div>'
+        "</section>"
+    )
+
+
+def _app_workflow_items(
+    *,
+    dashboard: dict[str, Any],
+    latest: dict[str, Any],
+    reports: list[Any],
+    benchmarks: list[Any],
+    history: list[Any],
+    checkpoint: dict[str, Any],
+    review_cases: list[Any],
+) -> list[dict[str, str]]:
+    reports_dir = str(dashboard.get("reports_dir") or ".redline/reports")
+    history_path = str(dashboard.get("history_path") or ".redline/history.jsonl")
+    checkpoint_path = str(dashboard.get("checkpoint_path") or ".redline/audit-checkpoint.json")
+    latest_report = str(latest.get("path") or f"{reports_dir}/eval.json")
+    suite = _app_latest_suite(latest=latest, benchmarks=benchmarks)
+    first_case = next((item for item in review_cases if isinstance(item, dict)), {})
+    case_id = str(first_case.get("case_id") or first_case.get("suite_case_id") or "<case_id>")
+    case_suite = str(first_case.get("suite") or suite)
+    blocking = _blocking_count(_app_dict(latest.get("summary")))
+    changed = _changed_count(_app_dict(latest.get("summary")))
+    has_reports = bool(reports)
+    has_history = bool(history)
+    has_benchmarks = bool(benchmarks)
+    has_checkpoint = bool(checkpoint)
+    return [
+        {
+            "stage": "0",
+            "title": "Prove the loop",
+            "body": "Run the bundled regression proof before connecting private logs.",
+            "command": "redline demo --public --compact",
+            "tone": "green" if has_reports else "amber",
+        },
+        {
+            "stage": "1",
+            "title": "Get logs in",
+            "body": "Detect fields first. Redaction is on by default when writing normalized JSONL.",
+            "command": "redline import path/to/export.jsonl --detect",
+            "tone": "green" if has_reports else "amber",
+        },
+        {
+            "stage": "2",
+            "title": "Preview import",
+            "body": "Check a few mapped rows before creating a baseline log.",
+            "command": "redline import path/to/export.jsonl --preset langfuse --preview 3",
+            "tone": "green" if has_reports else "amber",
+        },
+        {
+            "stage": "3",
+            "title": "Generate suite",
+            "body": "Turn normalized baseline logs into representative regression cases.",
+            "command": f"redline suite .redline/logs/baseline.jsonl --out {shell_quote(suite)}",
+            "tone": "green" if has_reports else "amber",
+        },
+        {
+            "stage": "4",
+            "title": "Run eval",
+            "body": "Replay your changed prompt or runner and write reports for the dashboard.",
+            "command": "redline eval --compact",
+            "tone": "green" if has_reports else "amber",
+        },
+        {
+            "stage": "5",
+            "title": "Review first case",
+            "body": "Inspect the exact baseline, candidate, and concrete regression reason.",
+            "command": f"redline case {shell_quote(case_suite)} {shell_quote(case_id)}",
+            "tone": "red" if blocking else "amber" if changed else "green",
+        },
+        {
+            "stage": "6",
+            "title": "Record trend",
+            "body": "Add this run to history so prompt quality is visible over time.",
+            "command": f"redline history {shell_quote(latest_report)} --label prompt-v2 --out {shell_quote(history_path)} --out-md .redline/history.md",
+            "tone": "green" if has_history else "amber",
+        },
+        {
+            "stage": "7",
+            "title": "Add runtime evidence",
+            "body": "Estimate worst-case eval time and attach local benchmark evidence.",
+            "command": f"redline budget {shell_quote(suite)} --measure-local --out-json {shell_quote(reports_dir + '/benchmark.json')} --out-md {shell_quote(reports_dir + '/benchmark.md')}",
+            "tone": "green" if has_benchmarks else "amber",
+        },
+        {
+            "stage": "8",
+            "title": "Verify audit trail",
+            "body": "Write a checkpoint for stronger evidence that local run history was not silently changed.",
+            "command": f"redline audit --verify --out-checkpoint {shell_quote(checkpoint_path)}",
+            "tone": "green" if has_checkpoint else "amber",
+        },
+        {
+            "stage": "9",
+            "title": "Refresh dashboard",
+            "body": "Regenerate the app dashboard after each run.",
+            "command": f"redline app --reports-dir {shell_quote(reports_dir)} --history {shell_quote(history_path)}",
+            "tone": "green",
+        },
+    ]
+
+
+def _app_latest_suite(*, latest: dict[str, Any], benchmarks: list[Any]) -> str:
+    suite = str(latest.get("suite") or "").strip()
+    if suite:
+        return suite
+    prompt_evals = latest.get("prompt_evals")
+    if isinstance(prompt_evals, list):
+        for item in prompt_evals:
+            if isinstance(item, dict) and str(item.get("suite") or "").strip():
+                return str(item.get("suite"))
+    for item in benchmarks:
+        if isinstance(item, dict) and str(item.get("suite") or "").strip() and str(item.get("suite")) != "-":
+            return str(item.get("suite"))
+    return "redline-suite.json"
+
+
+def _app_workflow_card(item: dict[str, str], *, featured: bool = False) -> str:
+    tone = item.get("tone") or "blue"
+    command = item.get("command") or ""
+    featured_class = " featured" if featured else ""
+    return (
+        f'<div class="command-card command-{_h(tone)}{featured_class}">'
+        '<div class="command-head">'
+        f'<span class="command-stage">{_h(item.get("stage") or "")}</span>'
+        f'<div><div class="command-title">{_h(item.get("title") or "")}</div><div class="command-body">{_h(item.get("body") or "")}</div></div>'
+        f'<span class="chip chip-{_chip_tone(tone)}">{_h(_workflow_status(tone))}</span>'
+        "</div>"
+        '<div class="command-row">'
+        f'<code>{_h(command)}</code>'
+        f'<button type="button" class="copy-btn" data-copy="{_h(command)}">Copy</button>'
+        "</div>"
+        "</div>"
+    )
+
+
+def _workflow_status(tone: str) -> str:
+    if tone == "green":
+        return "ready"
+    if tone == "red":
+        return "blocking"
+    return "next"
 
 
 def _app_dashboard_screen(
@@ -673,6 +860,7 @@ def _app_integration_row(name: str, command: str, status: str) -> str:
 def _app_icon(name: str) -> str:
     paths = {
         "dashboard": '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+        "workflow": '<path d="M4 6h6"/><path d="M14 6h6"/><path d="M4 12h16"/><path d="M4 18h6"/><path d="M14 18h6"/><path d="m10 6 2 2 2-2"/><path d="m10 18 2-2 2 2"/>',
         "alert": '<path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
         "suite": '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="m3 6 1 1 2-2"/><path d="m3 12 1 1 2-2"/><path d="m3 18 1 1 2-2"/>',
         "logs": '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/>',
@@ -1950,6 +2138,7 @@ _APP_DASHBOARD_SCRIPT = """
 (function () {
   const labels = {
     dashboard: "Dashboard",
+    workflow: "Workflow",
     regressions: "Regressions",
     suites: "Eval suites",
     logs: "Log import",
@@ -1961,6 +2150,7 @@ _APP_DASHBOARD_SCRIPT = """
   };
   const badges = {
     dashboard: ["Overview", "badge-blue"],
+    workflow: ["Workflow", "badge-blue"],
     regressions: ["Review", "badge-crit"],
     suites: ["Suites", "badge-blue"],
     logs: ["Import", "badge-blue"],
@@ -1988,6 +2178,39 @@ _APP_DASHBOARD_SCRIPT = """
         badge.textContent = badges[key][0];
         badge.className = "top-badge " + badges[key][1];
       }
+    });
+  });
+  document.querySelectorAll("[data-copy]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const text = button.getAttribute("data-copy") || "";
+      const previous = button.textContent || "Copy";
+      const setCopied = () => {
+        button.textContent = "Copied";
+        button.classList.add("copied");
+        window.setTimeout(() => {
+          button.textContent = previous;
+          button.classList.remove("copied");
+        }, 1200);
+      };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          setCopied();
+          return;
+        }
+      } catch (_error) {
+        // Use a DOM fallback below for file:// dashboards and locked-down browsers.
+      }
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "readonly");
+      area.style.position = "fixed";
+      area.style.left = "-9999px";
+      document.body.appendChild(area);
+      area.select();
+      try { document.execCommand("copy"); } catch (_error) {}
+      document.body.removeChild(area);
+      setCopied();
     });
   });
 })();
@@ -2436,6 +2659,80 @@ code {
 .diff-del { background: #2a0d0d; color: var(--red); }
 .diff-add { background: #0d2a1a; color: var(--green); }
 .diff-ctx { color: var(--text1); }
+.command-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.command-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--blue);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+}
+.command-card.featured {
+  background: linear-gradient(180deg, rgba(96, 165, 250, .08), rgba(96, 165, 250, .02)), var(--bg2);
+}
+.command-green { border-left-color: var(--green); }
+.command-amber { border-left-color: var(--amber); }
+.command-red { border-left-color: var(--red); }
+.command-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+.command-stage {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius);
+  background: var(--bg3);
+  color: var(--text1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.command-title {
+  color: var(--text0);
+  font-size: 12px;
+  font-weight: 650;
+}
+.command-body {
+  color: var(--text2);
+  font-size: 11px;
+  margin-top: 2px;
+}
+.command-row {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.command-row code {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.copy-btn {
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  background: var(--bg3);
+  color: var(--text1);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  padding: 5px 9px;
+}
+.copy-btn:hover, .copy-btn.copied {
+  border-color: var(--green-border);
+  color: var(--green);
+  background: var(--green-bg);
+}
 .chart-svg {
   width: 100%;
   height: 150px;

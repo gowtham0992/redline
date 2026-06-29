@@ -27,7 +27,7 @@ Sleep 5s
 Type "python -m redline history ${run_dir}/demo/reports/public_diff.json --label public-demo --out ${run_dir}/history.jsonl --out-md ${run_dir}/history.md"
 Enter
 Sleep 2s
-Type "python -m redline dashboard --reports-dir ${run_dir}/demo/reports --history ${run_dir}/history.jsonl --out ${run_dir}/dashboard.html"
+Type "python -m redline app --reports-dir ${run_dir}/demo/reports --history ${run_dir}/history.jsonl --no-open --out ${run_dir}/app.html"
 Enter
 Sleep 2s
 TAPE

@@ -149,6 +149,7 @@ Local-first prompt regression diffs from JSONL logs.
 
 Start here:
   redline demo
+  redline app
   redline quick-check path/to/baseline.jsonl path/to/candidate.jsonl --open
   redline dashboard
   redline init --runner stdio --copy-runner
@@ -495,6 +496,17 @@ def build_parser() -> argparse.ArgumentParser:
     dashboard_parser.add_argument("--open", action="store_true", help="open the dashboard in the default browser")
     dashboard_parser.add_argument("--json", action="store_true", help="print machine-readable dashboard metadata")
     dashboard_parser.set_defaults(func=cmd_dashboard)
+
+    app_parser = subparsers.add_parser("app", help="open the guided local redline app")
+    app_parser.add_argument("--reports-dir", default=".redline/reports", help="directory containing redline JSON reports")
+    app_parser.add_argument("--history", default=".redline/history.jsonl", help="history JSONL path")
+    app_parser.add_argument("--checkpoint", default=".redline/audit-checkpoint.json", help="audit checkpoint JSON path")
+    app_parser.add_argument("--out", default=".redline/app.html", help="app HTML output path")
+    app_parser.add_argument("--limit", type=int, default=20, help="recent reports/history entries to include; use 0 for all")
+    app_parser.add_argument("--open", dest="open", action="store_true", default=True, help="open the local app in the default browser")
+    app_parser.add_argument("--no-open", dest="open", action="store_false", help="write the app HTML without opening a browser")
+    app_parser.add_argument("--json", action="store_true", help="print machine-readable app metadata")
+    app_parser.set_defaults(func=cmd_app)
 
     eval_parser = subparsers.add_parser("eval", help="replay a suite with a local command")
     eval_parser.add_argument("suite", nargs="?", help="suite JSON, or prompt manifest JSON from redline prompts")
@@ -1509,15 +1521,44 @@ def cmd_history(args: argparse.Namespace) -> int:
 
 
 def cmd_dashboard(args: argparse.Namespace) -> int:
+    return _write_dashboard_artifact(
+        args,
+        style=args.style,
+        title="redline dashboard",
+        noun="dashboard",
+        open_message="Opened dashboard in the default browser.",
+    )
+
+
+def cmd_app(args: argparse.Namespace) -> int:
+    return _write_dashboard_artifact(
+        args,
+        style="app",
+        title="redline app",
+        noun="app",
+        open_message="Opened redline app in the default browser.",
+    )
+
+
+def _write_dashboard_artifact(
+    args: argparse.Namespace,
+    *,
+    style: str,
+    title: str,
+    noun: str,
+    open_message: str,
+) -> int:
     dashboard = build_dashboard(
         reports_dir=args.reports_dir,
         history_path=args.history,
         checkpoint_path=args.checkpoint,
         limit=args.limit,
     )
-    write_text(args.out, format_dashboard_html(dashboard, output_path=args.out, style=args.style))
-    if args.open:
+    write_text(args.out, format_dashboard_html(dashboard, title=title, output_path=args.out, style=style))
+    opened = False
+    if args.open and not args.json:
         webbrowser.open(Path(args.out).resolve().as_uri())
+        opened = True
     if args.json:
         print(json.dumps({**dashboard, "output": args.out}, indent=2, sort_keys=True))
     else:
@@ -1528,10 +1569,16 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
         print(f"Checkpoint: {'yes' if dashboard.get('checkpoint') else 'no'}")
         print(f"Notices: {len(dashboard.get('notices', []))}")
         print(f"Warnings: {len(dashboard.get('errors', []))}")
-        if args.open:
-            print("Opened dashboard in the default browser.")
+        if opened:
+            print(open_message)
         else:
             print(f"Open: {Path(args.out)}")
+        if noun == "app":
+            print()
+            print("Next:")
+            print("- Import logs: redline import path/to/export.jsonl --detect")
+            print("- Generate suite: redline suite .redline/logs/baseline.jsonl --out redline-suite.json")
+            print("- Run eval: redline eval --compact")
     return 0
 
 
@@ -1917,7 +1964,7 @@ def _emit_result(
     if not args.json and out_html:
         print()
         print(f"Open HTML report: {Path(out_html)}")
-        print(f"Open dashboard: redline dashboard --reports-dir {Path(out_html).parent} --open")
+        print(f"Open app: redline app --reports-dir {Path(out_html).parent}")
 
     exit_code = 1 if should_fail(result, fail_on) else 0
     if audit_event is not None:

@@ -46,7 +46,7 @@ class DemoTests(unittest.TestCase):
             self.assertIn("--status expected", output)
             self.assertIn("redline accept", output)
             self.assertIn("--all-expected", output)
-            self.assertIn("redline dashboard --reports-dir", output)
+            self.assertIn("redline app --reports-dir", output)
             self.assertIn("redline init --runner stdio --copy-runner --github-action", output)
             self.assertIn("redline runners --copy all", output)
             self.assertIn("redline suite path/to/baseline.jsonl --out redline-suite.json", output)

@@ -31,7 +31,7 @@ class GitHubPagesSiteTests(unittest.TestCase):
         self.assertIn("Local-first prompt regression diffs", html)
         self.assertIn("Star on GitHub", html)
         self.assertIn("redline demo --public --compact", html)
-        self.assertIn("redline dashboard --reports-dir .redline/demo/reports --open", html)
+        self.assertIn("redline app --reports-dir .redline/demo/reports", html)
         self.assertIn("redline eval --prompt prompts/v2.txt", html)
         self.assertIn("candidate lost valid JSON format", html)
         self.assertIn("Ship readiness", html)

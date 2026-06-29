@@ -14,7 +14,7 @@ class QuickstartTests(unittest.TestCase):
         readme = Path("README.md").read_text(encoding="utf-8")
 
         self.assertIn("redline demo --public --compact", readme)
-        self.assertIn("redline dashboard --reports-dir .redline/demo/reports --style app --open", readme)
+        self.assertIn("redline app --reports-dir .redline/demo/reports", readme)
 
     def test_readme_quickstart_path_catches_realistic_regressions(self) -> None:
         repo = Path(__file__).resolve().parents[1]

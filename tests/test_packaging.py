@@ -91,7 +91,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline demo --public --compact", text)
         self.assertIn("redline history", text)
         self.assertIn("--out-md", text)
-        self.assertIn("redline dashboard", text)
+        self.assertIn("redline app", text)
 
     def test_demo_gif_script_records_or_writes_transcript(self) -> None:
         script = Path("scripts/demo_gif.sh")
@@ -160,7 +160,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("--out-md history.md", script)
         self.assertIn("redline compare .redline/demo/reports/diff.json", script)
         self.assertIn("--out-html compare.html", script)
-        self.assertIn("redline dashboard --reports-dir .redline/demo/reports", script)
+        self.assertIn("redline app --reports-dir .redline/demo/reports", script)
         self.assertIn("--github-summary", script)
         self.assertIn("--all-cases", script)
         self.assertIn("redline suite add all-suite.json", script)

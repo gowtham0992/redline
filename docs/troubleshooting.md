@@ -32,14 +32,15 @@ The demo writes only local files under `.redline/demo`.
 
 ## Dashboard does not open
 
-`--open` uses Python's local browser integration. It can be a no-op on headless
-CI, SSH sessions, containers, and remote agents. Write the file explicitly:
+`redline app` uses Python's local browser integration by default. It can be a
+no-op on headless CI, SSH sessions, containers, and remote agents. Write the
+file explicitly:
 
 ```bash
-redline dashboard --reports-dir .redline/demo/reports --out .redline/dashboard.html
+redline app --reports-dir .redline/demo/reports --no-open --out .redline/app.html
 ```
 
-Then open `.redline/dashboard.html` from your local machine or upload it as a CI
+Then open `.redline/app.html` from your local machine or upload it as a CI
 artifact.
 
 ## Suite file not found

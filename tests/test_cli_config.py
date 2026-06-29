@@ -642,7 +642,7 @@ class CliConfigTests(unittest.TestCase):
 
                 text = output.getvalue()
                 self.assertIn("Open HTML report: .redline/reports/diff.html", text)
-                self.assertIn("Open dashboard: redline dashboard --reports-dir .redline/reports --open", text)
+                self.assertIn("Open app: redline app --reports-dir .redline/reports", text)
                 self.assertTrue((root / ".redline" / "suite.json").exists())
                 self.assertTrue((root / ".redline" / "reports" / "diff.json").exists())
                 self.assertTrue((root / ".redline" / "reports" / "diff.md").exists())

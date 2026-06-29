@@ -54,16 +54,21 @@ The demo catches ten synthetic regressions without API keys, private logs, a
 cloud account, or an LLM judge. It writes JSON, Markdown, and self-contained
 HTML reports under `.redline/demo`.
 
-Open the local demo report index:
+Open the guided local product app:
 
 ```bash
-redline dashboard --reports-dir .redline/demo/reports --style app --open
+redline app --reports-dir .redline/demo/reports
 ```
 
-On headless CI or remote shells, skip `--open` and use the printed HTML path:
+The app is a local, copy-command workflow: import logs, generate suites, run
+evals, review regressions, record history, and export CI/MCP setup without the
+browser executing shell commands.
+
+On headless CI or remote shells, skip browser opening and use the printed HTML
+path:
 
 ```bash
-redline dashboard --reports-dir .redline/demo/reports --style app --out .redline/dashboard.html
+redline app --reports-dir .redline/demo/reports --no-open --out .redline/app.html
 ```
 
 <details>
@@ -71,7 +76,7 @@ redline dashboard --reports-dir .redline/demo/reports --style app --out .redline
 
 - `redline: command not found`: run `python -m pip install redline-ai`, then
   confirm `python -m pip show redline-ai`.
-- Dashboard did not open: use `--out .redline/dashboard.html` and open or
+- App did not open: use `--no-open --out .redline/app.html` and open or
   upload that file from your environment.
 - Suite not found: run `redline suite logs/baseline.jsonl --out redline-suite.json`.
 - Validation failed: run `redline validate redline-suite.json --strict` and fix
@@ -278,11 +283,13 @@ redline is built around the full prompt-regression loop:
   `--out-checkpoint .redline/audit-checkpoint.json` to persist that evidence,
   then `--checkpoint .redline/audit-checkpoint.json` to verify against it later.
 - `redline sbom`: write CycloneDX SBOM release evidence for security review.
+- `redline app`: open the guided local product surface for importing logs,
+  generating suites, reviewing regressions, recording history, and wiring CI/MCP.
 - `redline history`, `redline compare`, and `redline dashboard`: track quality
-  over time and inspect reports locally. The dashboard surfaces feature-level
-  rollups, prompt-level eval rows, benchmark evidence, and a latest-report
-  review queue when reports come from a prompt manifest. It also warns when
-  reports exist without benchmark evidence from the same project.
+  over time and inspect report artifacts locally. The dashboard surfaces
+  feature-level rollups, prompt-level eval rows, benchmark evidence, and a
+  latest-report review queue when reports come from a prompt manifest. It also
+  warns when reports exist without benchmark evidence from the same project.
 - `redline summary`: inspect suite readiness, or pass `redline-prompts.json` to
   roll up multi-prompt suite coverage, owners, requirements, and missing suites.
 - `redline-mcp`: let AI coding assistants run checks inside Claude, Codex,
