@@ -1265,11 +1265,16 @@ def cmd_suite(args: argparse.Namespace) -> int:
             },
         },
     )
+    suite_health = suite_summary(suite)
+    readiness = suite_health.get("suite_readiness")
+    readiness = readiness if isinstance(readiness, dict) else {}
     summary = suite["summary"]
     print(f"Generated {summary['cases']} cases from {summary['records_seen']} records.")
     if summary.get("duplicate_prompt_response_pairs"):
         print(f"Skipped {summary['duplicate_prompt_response_pairs']} duplicate prompt-response pairs.")
     print(f"Detected {summary['clusters']} behavior-signature groups.")
+    print(f"Suite readiness: {readiness.get('label', 'unknown')} ({readiness.get('score', 0)}/100)")
+    print("Readiness scope: suite health, not model quality or candidate safety")
     if summary.get("selection") != "all":
         unique_pairs = int(summary.get("unique_prompt_response_pairs", summary["records_seen"]))
         cases = int(summary["cases"])
@@ -1278,6 +1283,11 @@ def cmd_suite(args: argparse.Namespace) -> int:
                 f"Selected {cases} representative cases from {unique_pairs} unique prompt-response pairs. "
                 "Use --all-cases for exhaustive coverage or redline suite add for must-cover edge cases."
             )
+    improvement_steps = suite_health.get("next_steps")
+    if isinstance(improvement_steps, list) and improvement_steps:
+        print("Improve suite:")
+        for step in improvement_steps[:2]:
+            print(f"- {step}")
     print(f"Wrote {Path(output)}.")
     print()
     print("Next:")

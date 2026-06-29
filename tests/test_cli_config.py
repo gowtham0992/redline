@@ -849,6 +849,9 @@ class CliConfigTests(unittest.TestCase):
                     )
 
                 text = output.getvalue()
+                self.assertIn("Suite readiness:", text)
+                self.assertIn("Readiness scope: suite health, not model quality or candidate safety", text)
+                self.assertIn("Improve suite:", text)
                 self.assertIn("Selected 1 representative cases from 3 unique prompt-response pairs.", text)
                 self.assertIn("Use --all-cases for exhaustive coverage", text)
                 self.assertIn("redline suite add for must-cover edge cases", text)

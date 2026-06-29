@@ -166,6 +166,9 @@ Use `--detect` when you do not know the field names. Use `--preview` when the
 export is new to you; it shows mapped, redacted sample rows without writing a
 baseline file.
 
+Suite generation prints a readiness score and improvement suggestions. That
+score measures suite health, not model quality or candidate safety.
+
 ### 2. Suite
 
 redline groups behavior into deterministic signatures and selects
