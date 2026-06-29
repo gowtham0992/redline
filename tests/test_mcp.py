@@ -80,15 +80,18 @@ class McpServerTests(unittest.TestCase):
             suite_exists = (report_dir / "suite.json").exists()
             json_exists = (report_dir / "diff.json").exists()
             html_exists = (report_dir / "diff.html").exists()
+            app_exists = (report_dir / "app.html").exists()
 
         self.assertFalse(result["isError"])
         self.assertEqual(result["structuredContent"]["exit_code"], 0)
         payload = result["structuredContent"]["json"]
         self.assertEqual(payload["summary"]["regression"], 1)
         self.assertEqual(payload["artifacts"]["html"], ".redline/quick-check/diff.html")
+        self.assertEqual(payload["artifacts"]["app"], ".redline/quick-check/app.html")
         self.assertTrue(suite_exists)
         self.assertTrue(json_exists)
         self.assertTrue(html_exists)
+        self.assertTrue(app_exists)
 
     def test_import_tool_normalizes_external_jsonl(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

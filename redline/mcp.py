@@ -532,7 +532,7 @@ def _tools() -> list[ToolSpec]:
         ),
         ToolSpec(
             "redline_quick_check",
-            "Generate a temporary suite from baseline JSONL, diff candidate JSONL, and write local reports.",
+            "Generate a temporary suite from baseline JSONL, diff candidate JSONL, and write reports plus a guided local app.",
             _schema(
                 {
                     "baseline_path": _string("Baseline prompt-response JSONL path."),

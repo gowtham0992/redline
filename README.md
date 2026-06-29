@@ -141,9 +141,9 @@ For a first pass on two local logs, use one command:
 redline quick-check logs/baseline.jsonl logs/candidate.jsonl --open
 ```
 
-It generates a temporary suite, writes JSON/Markdown/HTML reports under
-`.redline/quick-check`, opens the local HTML report, and prints the concrete
-behavioral diff.
+It generates a temporary suite, writes JSON/Markdown/HTML reports plus a guided
+local app under `.redline/quick-check`, opens the focused HTML report, and
+prints the concrete behavioral diff.
 
 ### 1. Logs
 

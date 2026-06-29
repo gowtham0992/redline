@@ -1484,6 +1484,7 @@ def cmd_quick_check(args: argparse.Namespace) -> int:
     report_json = out_dir / "diff.json"
     report_md = out_dir / "diff.md"
     report_html = out_dir / "diff.html"
+    app_html = out_dir / "app.html"
     write_json(suite_path, suite)
 
     result = compare_suite_to_candidate(suite, candidate_records, profile=args.profile)
@@ -1494,11 +1495,18 @@ def cmd_quick_check(args: argparse.Namespace) -> int:
             "json": str(report_json),
             "markdown": str(report_md),
             "html": str(report_html),
+            "app": str(app_html),
         }
     )
     write_json(report_json, result)
     write_text(report_md, format_markdown_report(result, title="redline quick-check"))
     write_text(report_html, format_html_report(result, title="redline quick-check"))
+    dashboard = build_dashboard(
+        reports_dir=out_dir,
+        history_path=out_dir / "history.jsonl",
+        checkpoint_path=out_dir / "audit-checkpoint.json",
+    )
+    write_text(app_html, format_dashboard_html(dashboard, title="redline quick-check app", output_path=app_html, style="app"))
     if args.open:
         webbrowser.open(report_html.resolve().as_uri())
 
@@ -1517,6 +1525,7 @@ def cmd_quick_check(args: argparse.Namespace) -> int:
         print(f"- JSON report: {report_json}")
         print(f"- Markdown:    {report_md}")
         print(f"- HTML report: {report_html}")
+        print(f"- App:         {app_html}")
         print()
         print("Suite coverage")
         print(f"- Cases: {summary['cases']}/{summary['unique_prompt_response_pairs']} unique prompt-response pairs")
@@ -1525,6 +1534,7 @@ def cmd_quick_check(args: argparse.Namespace) -> int:
         print()
         print("Next:")
         print(f"- Open HTML report: {report_html}")
+        print(f"- Open guided app: {app_html}")
         print(f"- Inspect cases: redline cases {suite_path}")
         print(f"- Make this persistent: redline suite {args.baseline} --out redline-suite.json")
         if args.open:

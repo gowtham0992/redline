@@ -23,7 +23,7 @@ output and examples after installing.
 | `redline prompts` | Build or check a prompt-to-suite manifest. | `--suite-dir`, `--out`, `--check`, `--check-suites` |
 | `redline summary` | Summarize suite or manifest readiness, including suite score and coverage gaps. | `--json` |
 | `redline validate` | Validate suite or manifest structure and freshness. | `--strict`, `--json` |
-| `redline quick-check` | Generate a temporary suite from baseline JSONL, diff candidate JSONL, and write local reports in one first-run command. | `--input-field`, `--output-field`, `--out-dir`, `--max-cases`, `--all-cases`, `--profile`, `--fail-on`, `--open` |
+| `redline quick-check` | Generate a temporary suite from baseline JSONL, diff candidate JSONL, and write reports plus a guided local app in one first-run command. | `--input-field`, `--output-field`, `--out-dir`, `--max-cases`, `--all-cases`, `--profile`, `--fail-on`, `--open` |
 | `redline budget` | Estimate CI runtime without replaying prompts. | `--workers`, `--timeout`, `--max-seconds`, `--measure-local` |
 | `redline benchmark` | Compatibility alias for `redline budget`. | Same as `budget` |
 | `redline eval` | Replay suite cases through a configured runner. | `--prompt`, `--replay`, `--workers`, `--judge`, `--fail-on`, `--compact` |
