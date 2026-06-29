@@ -151,7 +151,7 @@ Local-first prompt regression diffs from JSONL logs.
 Start here:
   redline demo
   redline status
-  redline app
+  redline app --demo
   redline quick-check path/to/baseline.jsonl path/to/candidate.jsonl --open
   redline dashboard
   redline init --runner stdio --copy-runner
@@ -514,6 +514,8 @@ def build_parser() -> argparse.ArgumentParser:
     app_parser.add_argument("--checkpoint", default=".redline/audit-checkpoint.json", help="audit checkpoint JSON path")
     app_parser.add_argument("--out", default=".redline/app.html", help="app HTML output path")
     app_parser.add_argument("--limit", type=int, default=20, help="recent reports/history entries to include; use 0 for all")
+    app_parser.add_argument("--demo", action="store_true", help="generate the public demo reports before opening the app")
+    app_parser.add_argument("--demo-out", default=".redline/demo", help="demo output directory for --demo")
     app_parser.add_argument("--open", dest="open", action="store_true", default=True, help="open the local app in the default browser")
     app_parser.add_argument("--no-open", dest="open", action="store_false", help="write the app HTML without opening a browser")
     app_parser.add_argument("--json", action="store_true", help="print machine-readable app metadata")
@@ -1572,6 +1574,12 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
 
 
 def cmd_app(args: argparse.Namespace) -> int:
+    if args.demo:
+        run_demo(args.demo_out, public=True)
+        if args.reports_dir == ".redline/reports":
+            args.reports_dir = str(Path(args.demo_out) / "reports")
+        if not args.json:
+            print(f"Generated public demo evidence in {Path(args.demo_out)}.")
     return _write_dashboard_artifact(
         args,
         style="app",

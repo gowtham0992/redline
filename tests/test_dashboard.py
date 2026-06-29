@@ -611,6 +611,32 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("Open:", stdout.getvalue())
             open_browser.assert_not_called()
 
+    def test_cli_app_demo_generates_public_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / ".redline" / "app.html"
+
+            current = Path.cwd()
+            stdout = io.StringIO()
+            try:
+                import os
+
+                os.chdir(root)
+                with patch("redline.cli.webbrowser.open") as open_browser:
+                    with contextlib.redirect_stdout(stdout):
+                        code = main(["app", "--demo", "--no-open", "--out", str(output)])
+            finally:
+                os.chdir(current)
+
+            self.assertEqual(code, 0)
+            text = output.read_text(encoding="utf-8")
+            self.assertIn("Generated public demo evidence in .redline/demo.", stdout.getvalue())
+            self.assertIn("Reports: 1", stdout.getvalue())
+            self.assertTrue((root / ".redline" / "demo" / "reports" / "public_diff.json").exists())
+            self.assertIn("public_diff.json", text)
+            self.assertIn("Workflow", text)
+            open_browser.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

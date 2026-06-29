@@ -44,15 +44,25 @@ Install from PyPI:
 python -m pip install redline-ai
 ```
 
-Run the public proof:
+Run the guided local app with the public proof loaded:
+
+```bash
+redline app --demo
+```
+
+This generates the public demo reports, opens the local product app, and shows
+the full import -> suite -> eval -> review workflow. The demo catches ten
+synthetic regressions without API keys, private logs, a cloud account, or an LLM
+judge.
+
+Prefer terminal output first:
 
 ```bash
 redline demo --public --compact
 ```
 
-The demo catches ten synthetic regressions without API keys, private logs, a
-cloud account, or an LLM judge. It writes JSON, Markdown, and self-contained
-HTML reports under `.redline/demo`.
+The demo writes JSON, Markdown, and self-contained HTML reports under
+`.redline/demo`.
 
 Ask redline what to do next:
 
@@ -63,7 +73,7 @@ redline status --reports-dir .redline/demo/reports
 `status` reads local config, suites, reports, history, and audit evidence, then
 prints the next command instead of leaving you to infer the workflow.
 
-Open the guided local product app:
+Open the guided local product app on existing reports:
 
 ```bash
 redline app --reports-dir .redline/demo/reports
