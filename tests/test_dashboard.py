@@ -184,6 +184,10 @@ class DashboardTests(unittest.TestCase):
                 dashboard["reports"][0]["review_cases"][0]["reason"],
                 "candidate lost valid JSON format",
             )
+            self.assertEqual(
+                dashboard["reports"][0]["review_cases"][0]["impact"],
+                "Downstream code may fail if consumers expect parseable JSON or required fields.",
+            )
             self.assertEqual(dashboard["checkpoint"]["entries"], 3)
             self.assertEqual(
                 dashboard["reports"][0]["prompt_evals"],
@@ -244,6 +248,7 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("<h2>Review Queue</h2>", html)
             self.assertIn("case_001", html)
             self.assertIn("candidate lost valid JSON format", html)
+            self.assertIn("Downstream code may fail if consumers expect parseable JSON or required fields.", html)
             self.assertIn("Return JSON with owner and priority.", html)
             self.assertIn("<th>Review</th>", html)
             self.assertIn("blocking 1", html)
@@ -295,6 +300,7 @@ class DashboardTests(unittest.TestCase):
                             "suite": "suites/support/triage.redline-suite.json",
                             "prompt": "Return JSON with owner and priority.",
                             "reason": "candidate lost valid JSON format",
+                            "impact": "Downstream code may fail if consumers expect parseable JSON or required fields.",
                         }
                     ],
                 }
@@ -343,6 +349,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("67%", html)
         self.assertIn("case_001", html)
         self.assertIn("candidate lost valid JSON format", html)
+        self.assertIn("Why this matters: Downstream code may fail", html)
         self.assertIn("redline case suites/support/triage.redline-suite.json case_001", html)
         self.assertIn("fix blocking cases before shipping", html)
         self.assertIn("eval.json", html)
@@ -543,6 +550,7 @@ class DashboardTests(unittest.TestCase):
             text = output.read_text(encoding="utf-8")
             self.assertIn('data-redline-dashboard="app"', text)
             self.assertIn("candidate lost valid JSON format", text)
+            self.assertIn("Why this matters: Downstream code may fail", text)
             self.assertIn("Reports: 1", stdout.getvalue())
 
     def test_cli_app_opens_guided_local_app_by_default(self) -> None:
@@ -586,6 +594,7 @@ class DashboardTests(unittest.TestCase):
             self.assertIn('id="s-workflow"', text)
             self.assertIn("redline import path/to/export.jsonl --detect", text)
             self.assertIn("candidate lost valid JSON format", text)
+            self.assertIn("Why this matters: Downstream code may fail", text)
             self.assertIn("Opened redline app in the default browser.", stdout.getvalue())
             self.assertIn("Next:", stdout.getvalue())
             open_browser.assert_called_once()

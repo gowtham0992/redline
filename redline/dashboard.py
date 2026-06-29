@@ -7,7 +7,7 @@ from shlex import quote as shell_quote
 from typing import Any
 from urllib.parse import quote
 
-from .diff import TRUST_SCOPE
+from .diff import TRUST_SCOPE, case_impact
 from .history import history_trend, read_history
 from .io import read_json
 
@@ -706,11 +706,13 @@ def _app_review_rows(items: list[Any], *, empty: str = "No review cases found.")
         case_id = str(item.get("case_id") or item.get("suite_case_id") or "-")
         prompt = _preview(str(item.get("prompt") or item.get("reason") or "Review case"), 96)
         reason = _preview(str(item.get("reason") or "; ".join(str(value) for value in item.get("reasons", []) if value) or ""), 120)
+        impact = _preview(str(item.get("impact") or ""), 140)
+        impact_html = f'<div class="reg-impact">Why this matters: {_h(impact)}</div>' if impact else ""
         tone = "red" if status in {"regression", "missing"} else "amber" if status == "changed" else "green"
         rows.append(
             '<div class="reg-row">'
             f'<div class="reg-icon {tone}">{_h(status[:1].upper())}</div>'
-            f'<div class="reg-info"><div class="reg-name">{_h(case_id)} - {_h(prompt)}</div><div class="reg-sub">{_h(reason or status)}</div><div class="prog-bar"><div class="prog-fill {tone}" style="width:{_status_width(status)}%"></div></div></div>'
+            f'<div class="reg-info"><div class="reg-name">{_h(case_id)} - {_h(prompt)}</div><div class="reg-sub">{_h(reason or status)}</div>{impact_html}<div class="prog-bar"><div class="prog-fill {tone}" style="width:{_status_width(status)}%"></div></div></div>'
             f'<span class="chip chip-{_chip_tone(tone)}">{_h(status)}</span>'
             "</div>"
         )
@@ -1303,6 +1305,9 @@ def _report_review_cases(diffs: Any, *, limit: int = 12, suite_path: str = "") -
         first_reason = ""
         if isinstance(reasons, list) and reasons:
             first_reason = str(reasons[0])
+        impact = str(item.get("impact") or "").strip()
+        if not impact:
+            impact = case_impact(status, reasons if isinstance(reasons, list) else [])
         rows.append(
             {
                 "case_id": str(item.get("case_id") or ""),
@@ -1310,6 +1315,7 @@ def _report_review_cases(diffs: Any, *, limit: int = 12, suite_path: str = "") -
                 "owner": str(item.get("owner") or ""),
                 "prompt": str(item.get("prompt") or ""),
                 "reason": first_reason,
+                "impact": impact,
                 "confidence": str(item.get("confidence") or ""),
                 "signal": str(item.get("signal") or ""),
                 "prompt_path": str(item.get("prompt_path") or ""),
@@ -1970,7 +1976,7 @@ def _review_queue_panel(review_cases: Any) -> str:
             "<tr>"
             f"<td><span class=\"pill { _h(str(item.get('status') or '')) }\">{_h(str(item.get('status') or '-'))}</span></td>"
             f"<td><strong>{_h(str(item.get('case_id') or '-'))}</strong><span>{_h(_preview(str(item.get('prompt') or '')))}</span></td>"
-            f"<td>{_h(str(item.get('reason') or '-'))}</td>"
+            f"<td>{_h(str(item.get('reason') or '-'))}<span>{_h(str(item.get('impact') or ''))}</span></td>"
             f"<td>{_h(str(item.get('owner') or '-'))}</td>"
             f"<td>{_h(trust or '-')}<span>{_h(context)}</span></td>"
             "</tr>"
@@ -2570,6 +2576,7 @@ code {
 .reg-info { flex: 1; min-width: 0; }
 .reg-name { font-size: 12px; font-weight: 600; color: var(--text0); overflow-wrap: anywhere; }
 .reg-sub { font-size: 11px; color: var(--text2); margin-top: 1px; overflow-wrap: anywhere; }
+.reg-impact { font-size: 11px; color: var(--text1); margin-top: 4px; overflow-wrap: anywhere; }
 .prog-bar {
   height: 3px;
   background: var(--border);
