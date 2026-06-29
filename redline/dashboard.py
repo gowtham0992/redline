@@ -357,7 +357,7 @@ def _app_workflow_items(
             "stage": "2",
             "title": "Preview import",
             "body": "Check a few mapped rows before creating a baseline log.",
-            "command": "redline import path/to/export.jsonl --preset langfuse --preview 3",
+            "command": "redline import path/to/export.jsonl --auto-map --preview 3",
             "tone": "green" if has_reports else "amber",
         },
         {
@@ -564,7 +564,7 @@ def _app_logs_screen(*, reports: list[Any], suite_summary: dict[str, Any]) -> st
         "</div>"
         f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("upload")} Import log file</span></div>'
         '<div class="card-body">'
-        '<div class="upload-zone"><strong>Drop exported JSONL into the project, then detect fields locally.</strong><p>Use <code>redline import --detect</code>, then <code>--preview 3</code> before writing normalized logs.</p></div>'
+        '<div class="upload-zone"><strong>Drop exported JSONL into the project, then detect fields locally.</strong><p>Use <code>redline import --detect</code>, then <code>--auto-map --preview 3</code> before writing normalized logs.</p></div>'
         '<div class="log-row"><span>1</span><p>Detect fields from Langfuse, Helicone, Datadog, OpenAI chat, or custom JSONL exports.</p></div>'
         '<div class="log-row"><span>2</span><p>Redaction is best-effort pattern matching, not a privacy boundary. Inspect private logs locally.</p></div>'
         '<div class="log-row"><span>3</span><p>Run <code>redline quick-check baseline.jsonl candidate.jsonl --open</code> for the fastest first pass.</p></div>'

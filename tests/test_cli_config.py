@@ -191,6 +191,51 @@ class CliConfigTests(unittest.TestCase):
             self.assertIn('"category": "summarization"', text)
             self.assertFalse(imported.exists())
 
+    def test_import_command_auto_maps_external_jsonl(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            imported = root / "baseline.jsonl"
+            source.write_text(
+                (
+                    '{"instruction": "Summarize", "context": "Policy text", '
+                    '"response": "Summary", "category": "summarization"}\n'
+                ),
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["import", str(source), "--auto-map", "--out", str(imported)]), 0)
+
+            text = output.getvalue()
+            self.assertIn("Auto-mapped:     yes (score 100; preset dolly)", text)
+            self.assertIn("Preset:          dolly", text)
+            self.assertIn("Mapped prompt:   instruction", text)
+            self.assertIn("Mapped response: response", text)
+            row = json.loads(imported.read_text(encoding="utf-8"))
+            self.assertEqual(row["prompt"], "Summarize\n\nContext:\nPolicy text")
+            self.assertEqual(row["response"], "Summary")
+            self.assertEqual(row["metadata"], {"category": "summarization"})
+
+    def test_import_command_auto_maps_preview_without_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            imported = root / "baseline.jsonl"
+            source.write_text('{"input": "Classify", "output": "billing"}\n', encoding="utf-8")
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["import", str(source), "--auto-map", "--preview", "1"]), 0)
+
+            text = output.getvalue()
+            self.assertIn("Previewed 1 prompt-response pairs", text)
+            self.assertIn("Auto-mapped:     yes (score 100; preset langfuse)", text)
+            self.assertIn("Mapped prompt:   input", text)
+            self.assertIn("Mapped response: output", text)
+            self.assertFalse(imported.exists())
+
     def test_import_command_detects_external_jsonl_fields(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -328,6 +328,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("dashboard never runs shell commands", html)
         self.assertIn('data-copy="redline demo --public --compact"', html)
         self.assertIn("redline import path/to/export.jsonl --detect", html)
+        self.assertIn("redline import path/to/export.jsonl --auto-map --preview 3", html)
         self.assertIn("redline suite .redline/logs/baseline.jsonl", html)
         self.assertIn("redline eval --compact", html)
         self.assertIn("redline history .redline/reports/eval.json", html)

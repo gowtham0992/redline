@@ -263,6 +263,7 @@ def build_parser() -> argparse.ArgumentParser:
     import_parser.add_argument("path", nargs="?", help="source JSONL file to normalize")
     import_parser.add_argument("--list-presets", action="store_true", help="list built-in import presets")
     import_parser.add_argument("--detect", action="store_true", help="suggest prompt and response field mappings")
+    import_parser.add_argument("--auto-map", action="store_true", help="use the best detected prompt/response mapping")
     import_parser.add_argument("--preset", choices=sorted(IMPORT_PRESETS), help="field mapping preset for common log exports")
     import_parser.add_argument("--input-field", help="source field path containing prompt text")
     import_parser.add_argument("--output-field", help="source field path containing response text")
@@ -835,9 +836,14 @@ def cmd_import(args: argparse.Namespace) -> int:
         else:
             print(format_import_detection(result), end="")
         return 0
-    preset = import_preset(args.preset) if args.preset else {}
+    auto_mapping = _auto_import_mapping(args) if args.auto_map else {}
+    preset_name = args.preset or str(auto_mapping.get("preset") or "")
+    preset = import_preset(preset_name) if preset_name else {}
     input_field = args.input_field or str(preset.get("input_field") or "prompt")
     output_field = args.output_field or str(preset.get("output_field") or "response")
+    if args.auto_map:
+        input_field = args.input_field or str(auto_mapping.get("input_field") or input_field)
+        output_field = args.output_field or str(auto_mapping.get("output_field") or output_field)
     context_field = args.context_field if args.context_field is not None else _optional_preset_string(preset, "context_field")
     id_field = args.id_field if args.id_field is not None else _optional_preset_string(preset, "id_field")
     metadata_fields = _preset_string_list(preset, "metadata_fields")
@@ -854,7 +860,10 @@ def cmd_import(args: argparse.Namespace) -> int:
             redact=not args.no_redact,
             placeholder=args.redaction_placeholder,
         )
-        report["preset"] = args.preset or ""
+        report["preset"] = preset_name
+        report["auto_mapped"] = bool(args.auto_map)
+        if auto_mapping:
+            report["auto_mapping"] = auto_mapping
         if args.json:
             print(json.dumps(report, indent=2, sort_keys=True))
         else:
@@ -874,11 +883,16 @@ def cmd_import(args: argparse.Namespace) -> int:
         redact=not args.no_redact,
         placeholder=args.redaction_placeholder,
     )
-    report["preset"] = args.preset or ""
+    report["preset"] = preset_name
+    report["auto_mapped"] = bool(args.auto_map)
+    if auto_mapping:
+        report["auto_mapping"] = auto_mapping
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
         print(f"Imported {report['records']} prompt-response pairs from {Path(str(report['source']))}.")
+        if report["auto_mapped"]:
+            _print_auto_mapping(report)
         if report["preset"]:
             print(f"Preset:          {report['preset']}")
         print(f"Mapped prompt:   {report['input_field']}")
@@ -907,8 +921,40 @@ def cmd_import(args: argparse.Namespace) -> int:
     return 0
 
 
+def _auto_import_mapping(args: argparse.Namespace) -> dict[str, object]:
+    detection = detect_import_fields(args.path, limit=args.limit or 20)
+    suggestions = detection.get("suggestions")
+    if not isinstance(suggestions, list) or not suggestions:
+        raise ValueError(
+            "auto-map could not find a prompt/response mapping; run "
+            "`redline import path/to/export.jsonl --detect` and pass fields manually"
+        )
+    best = suggestions[0]
+    if not isinstance(best, dict):
+        raise ValueError("auto-map produced an invalid mapping; pass --input-field and --output-field manually")
+    return {
+        "input_field": str(best.get("input_field") or ""),
+        "output_field": str(best.get("output_field") or ""),
+        "preset": str(best.get("preset") or ""),
+        "score": int(best.get("score") or 0),
+        "matches": int(best.get("matches") or 0),
+        "records_scanned": int(best.get("records_scanned") or 0),
+    }
+
+
+def _print_auto_mapping(report: Mapping[str, object]) -> None:
+    mapping = report.get("auto_mapping")
+    mapping = mapping if isinstance(mapping, Mapping) else {}
+    details = f"score {mapping.get('score', 0)}"
+    if mapping.get("preset"):
+        details += f"; preset {mapping['preset']}"
+    print(f"Auto-mapped:     yes ({details})")
+
+
 def _print_import_preview(report: Mapping[str, object]) -> None:
     print(f"Previewed {report['previewed']} prompt-response pairs from {Path(str(report['source']))}.")
+    if report.get("auto_mapped"):
+        _print_auto_mapping(report)
     if report.get("preset"):
         print(f"Preset:          {report['preset']}")
     print(f"Mapped prompt:   {report['input_field']}")

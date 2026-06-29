@@ -12,7 +12,7 @@ output and examples after installing.
 | `redline init` | Write `redline.json`, runner files, and optional CI workflow. | `--runner`, `--copy-runner`, `--github-action`, `--force` |
 | `redline doctor` | Check config, suite, replay, reports, audit, and team workflow. | `--strict`, `--json` |
 | `redline watch` | Collect prompt-response observations or print snippets. | `--log`, `--stats`, `--snippet`, `--follow` |
-| `redline import` | Normalize exported JSONL fields into redline `prompt`/`response` logs, with best-effort redaction on by default. | `--list-presets`, `--detect`, `--preview`, `--preset`, `--input-field`, `--output-field`, `--context-field`, `--metadata-field`, `--limit`, `--out`, `--no-redact` |
+| `redline import` | Normalize exported JSONL fields into redline `prompt`/`response` logs, with best-effort redaction on by default. | `--list-presets`, `--detect`, `--auto-map`, `--preview`, `--preset`, `--input-field`, `--output-field`, `--context-field`, `--metadata-field`, `--limit`, `--out`, `--no-redact` |
 | `redline redact` | Check or write best-effort redacted logs. | `--check`, `--out`, `--json` |
 | `redline cluster` | Inspect deterministic behavior-signature groups before suite generation. | `--max-cases`, `--json` |
 | `redline suite` | Generate a suite from baseline JSONL logs. | `--out`, `--max-cases`, `--all-cases`, `--owner` |
@@ -57,8 +57,9 @@ templates for factual, tone, hallucination, policy, or reasoning risks.
 
 ## Import Help
 
-Use `redline import --detect` when you do not know an export's field names, then
-`--preview 3` before writing normalized logs. Source-specific recipes live in
+Use `redline import --detect` when you do not know an export's field names.
+Use `--auto-map --preview 3` when you want redline to try the best detected
+mapping before writing normalized logs. Source-specific recipes live in
 [docs/import-guides.md](import-guides.md).
 
 ## Diff profiles

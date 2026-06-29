@@ -6,6 +6,8 @@ write the normalized baseline.
 
 ```bash
 redline import raw-export.jsonl --detect
+redline import raw-export.jsonl --auto-map --preview 3
+redline import raw-export.jsonl --auto-map --out logs/baseline.jsonl
 redline import raw-export.jsonl --input-field request.prompt --output-field response.text --preview 3
 redline import raw-export.jsonl --input-field request.prompt --output-field response.text --out logs/baseline.jsonl
 ```
