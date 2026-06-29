@@ -109,6 +109,7 @@ from .runners import (
     runner_adapters,
 )
 from .sbom import build_sbom, format_sbom_report
+from .status import build_project_status, format_project_status
 from .summary import (
     format_prompt_manifest_summary,
     format_suite_summary,
@@ -149,6 +150,7 @@ Local-first prompt regression diffs from JSONL logs.
 
 Start here:
   redline demo
+  redline status
   redline app
   redline quick-check path/to/baseline.jsonl path/to/candidate.jsonl --open
   redline dashboard
@@ -220,6 +222,15 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     doctor_parser.add_argument("--strict", action="store_true", help="exit non-zero when warnings are present")
     doctor_parser.set_defaults(func=cmd_doctor)
+
+    status_parser = subparsers.add_parser("status", help="show project readiness and the next command to run")
+    status_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
+    status_parser.add_argument("--reports-dir", default=".redline/reports", help="directory containing redline JSON reports")
+    status_parser.add_argument("--history", default=".redline/history.jsonl", help="history JSONL path")
+    status_parser.add_argument("--checkpoint", default=".redline/audit-checkpoint.json", help="audit checkpoint JSON path")
+    status_parser.add_argument("--limit", type=int, default=20, help="recent reports/history entries to inspect; use 0 for all")
+    status_parser.add_argument("--json", action="store_true", help="print machine-readable status metadata")
+    status_parser.set_defaults(func=cmd_status)
 
     sbom_parser = subparsers.add_parser("sbom", help="write CycloneDX SBOM release evidence")
     sbom_parser.add_argument("--out", help="write SBOM JSON to this path")
@@ -675,6 +686,36 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         return 1
     if args.strict and report["warnings"] > 0:
         return 1
+    return 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    if args.limit < 0:
+        raise ValueError("status --limit must be 0 or greater")
+    config = load_config(args.config)
+    suite_path = str(config.get("suite") or "redline-suite.json")
+    suite = None
+    suite_error = None
+    if Path(suite_path).exists():
+        try:
+            suite = _read_suite_or_manifest(suite_path)
+        except ValueError as exc:
+            suite_error = str(exc)
+    status = build_project_status(
+        config_path=args.config,
+        config=config,
+        suite=suite,
+        suite_error=suite_error,
+        suite_git_ignored=_is_git_ignored(suite_path),
+        reports_dir=args.reports_dir,
+        history_path=args.history,
+        checkpoint_path=args.checkpoint,
+        limit=args.limit,
+    )
+    if args.json:
+        print(json.dumps(status, indent=2, sort_keys=True))
+    else:
+        print(format_project_status(status), end="")
     return 0
 
 

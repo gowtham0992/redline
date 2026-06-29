@@ -54,6 +54,15 @@ The demo catches ten synthetic regressions without API keys, private logs, a
 cloud account, or an LLM judge. It writes JSON, Markdown, and self-contained
 HTML reports under `.redline/demo`.
 
+Ask redline what to do next:
+
+```bash
+redline status --reports-dir .redline/demo/reports
+```
+
+`status` reads local config, suites, reports, history, and audit evidence, then
+prints the next command instead of leaving you to infer the workflow.
+
 Open the guided local product app:
 
 ```bash
@@ -285,6 +294,8 @@ redline is built around the full prompt-regression loop:
 - `redline sbom`: write CycloneDX SBOM release evidence for security review.
 - `redline app`: open the guided local product surface for importing logs,
   generating suites, reviewing regressions, recording history, and wiring CI/MCP.
+- `redline status`: show project readiness and the next command from local
+  evidence.
 - `redline history`, `redline compare`, and `redline dashboard`: track quality
   over time and inspect report artifacts locally. The dashboard surfaces
   feature-level rollups, prompt-level eval rows, benchmark evidence, and a

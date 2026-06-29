@@ -1,0 +1,92 @@
+import contextlib
+import io
+import json
+import os
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+from redline.cli import main
+from redline.io import LogRecord, write_json
+from redline.suite import build_suite
+
+
+class StatusTests(unittest.TestCase):
+    def test_status_guides_uninitialized_project(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(directory)
+            try:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["status"]), 0)
+            finally:
+                os.chdir(previous)
+
+        text = output.getvalue()
+        self.assertIn("redline status", text)
+        self.assertIn("State: SETUP - project is not initialized", text)
+        self.assertIn("Next:  redline init --runner stdio --copy-runner", text)
+        self.assertIn("- Config: warn - redline.json not found", text)
+        self.assertIn("- No redline report found yet.", text)
+
+    def test_status_surfaces_blocking_latest_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_json(
+                root / "redline.json",
+                {
+                    "suite": "redline-suite.json",
+                    "replay": f"{sys.executable} -c 'import sys; print(sys.stdin.read())'",
+                    "reports": {"json": ".redline/reports/eval.json"},
+                },
+            )
+            suite = build_suite(
+                [LogRecord(1, "Return JSON with owner.", '{"owner":"support"}', {})],
+                source="baseline.jsonl",
+                input_field="prompt",
+                output_field="response",
+                all_cases=True,
+            )
+            write_json(root / "redline-suite.json", suite)
+            write_json(
+                root / ".redline" / "reports" / "eval.json",
+                {
+                    "suite": "redline-suite.json",
+                    "summary": {"cases": 1, "regression": 1, "missing": 0, "changed": 0, "neutral": 0},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    "diffs": [
+                        {
+                            "case_id": "case_001",
+                            "suite_case_id": "case_001",
+                            "status": "regression",
+                            "prompt": "Return JSON with owner.",
+                            "reasons": ["candidate lost valid JSON format"],
+                        }
+                    ],
+                },
+            )
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["status"]), 0)
+                json_output = io.StringIO()
+                with contextlib.redirect_stdout(json_output):
+                    self.assertEqual(main(["status", "--json"]), 0)
+            finally:
+                os.chdir(previous)
+
+        text = output.getvalue()
+        self.assertIn("State: BLOCKED - latest report has 1 blocking case(s)", text)
+        self.assertIn("Next:  redline case redline-suite.json case_001", text)
+        self.assertIn("- Reports: 1 in .redline/reports", text)
+        self.assertIn("- Summary: cases=1 regression=1 missing=0 changed=0 neutral=0", text)
+        self.assertIn("- Decision: fix blocking cases before shipping", text)
+
+        payload = json.loads(json_output.getvalue())
+        self.assertEqual(payload["state"], "blocked")
+        self.assertEqual(payload["blocking"], 1)
+        self.assertEqual(payload["next_command"], "redline case redline-suite.json case_001")
