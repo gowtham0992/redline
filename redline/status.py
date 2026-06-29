@@ -36,6 +36,7 @@ def build_project_status(
     latest = _first_dict(dashboard.get("reports"))
     summary = _dict(latest.get("summary"))
     review_cases = _list(latest.get("review_cases"))
+    first_review_case = _first_dict(review_cases)
     blocking = _count(summary, "regression") + _count(summary, "missing")
     changed = _count(summary, "changed")
     suite_path = str(config.get("suite") or "redline-suite.json")
@@ -71,6 +72,7 @@ def build_project_status(
         "benchmarks": len(_list(dashboard.get("benchmarks"))),
         "checkpoint": bool(dashboard.get("checkpoint")),
         "latest_report": latest,
+        "first_review_case": _status_review_case(first_review_case, fallback_suite=suite_path),
         "summary": summary,
         "blocking": blocking,
         "changed": changed,
@@ -83,6 +85,7 @@ def format_project_status(status: dict[str, Any]) -> str:
     summary = _dict(status.get("summary"))
     doctor = _dict(status.get("doctor"))
     checks = _list(doctor.get("checks"))
+    first_review_case = _dict(status.get("first_review_case"))
     lines = [
         "redline status",
         "",
@@ -109,6 +112,17 @@ def format_project_status(status: dict[str, Any]) -> str:
                 f"- Decision: {_decision_line(latest)}",
             ]
         )
+        if first_review_case:
+            lines.extend(
+                [
+                    "",
+                    "First review case",
+                    f"- Case: {first_review_case.get('case_id')} ({first_review_case.get('status')})",
+                    f"- Reason: {first_review_case.get('reason') or 'review report details'}",
+                    f"- Impact: {first_review_case.get('impact') or 'review the case before shipping'}",
+                    f"- Command: {first_review_case.get('command')}",
+                ]
+            )
     else:
         lines.extend(["", "Latest report", "- No redline report found yet."])
     lines.extend(["", "Trust boundary", f"- {status.get('scope') or TRUST_SCOPE}"])
@@ -166,6 +180,19 @@ def _case_command(case: dict[str, Any], *, fallback_suite: str) -> str:
     case_id = str(case.get("suite_case_id") or case.get("case_id") or "<case_id>")
     suite = str(case.get("suite") or fallback_suite)
     return f"redline case {suite} {case_id}"
+
+
+def _status_review_case(case: dict[str, Any], *, fallback_suite: str) -> dict[str, str]:
+    if not case:
+        return {}
+    command = _case_command(case, fallback_suite=fallback_suite)
+    return {
+        "case_id": str(case.get("case_id") or case.get("suite_case_id") or ""),
+        "status": str(case.get("status") or ""),
+        "reason": str(case.get("reason") or ""),
+        "impact": str(case.get("impact") or ""),
+        "command": command,
+    }
 
 
 def _summary_line(summary: dict[str, Any]) -> str:

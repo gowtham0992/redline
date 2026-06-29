@@ -85,8 +85,26 @@ class StatusTests(unittest.TestCase):
         self.assertIn("- Reports: 1 in .redline/reports", text)
         self.assertIn("- Summary: cases=1 regression=1 missing=0 changed=0 neutral=0", text)
         self.assertIn("- Decision: fix blocking cases before shipping", text)
+        self.assertIn("First review case", text)
+        self.assertIn("- Case: case_001 (regression)", text)
+        self.assertIn("- Reason: candidate lost valid JSON format", text)
+        self.assertIn(
+            "- Impact: Downstream code may fail if consumers expect parseable JSON or required fields.",
+            text,
+        )
+        self.assertIn("- Command: redline case redline-suite.json case_001", text)
 
         payload = json.loads(json_output.getvalue())
         self.assertEqual(payload["state"], "blocked")
         self.assertEqual(payload["blocking"], 1)
         self.assertEqual(payload["next_command"], "redline case redline-suite.json case_001")
+        self.assertEqual(
+            payload["first_review_case"],
+            {
+                "case_id": "case_001",
+                "status": "regression",
+                "reason": "candidate lost valid JSON format",
+                "impact": "Downstream code may fail if consumers expect parseable JSON or required fields.",
+                "command": "redline case redline-suite.json case_001",
+            },
+        )

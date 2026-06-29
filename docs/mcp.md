@@ -124,7 +124,8 @@ Run redline doctor in this repo and tell me the next setup step.
 ```
 
 ```text
-Run redline status in this repo and tell me the exact next command.
+Run redline status in this repo and tell me the exact next command, first review
+case, and why that case matters.
 ```
 
 ```text
