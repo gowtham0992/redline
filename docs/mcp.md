@@ -63,11 +63,12 @@ reports.
 
 Available tools:
 
+- `redline_status`
 - `redline_doctor`
 - `redline_suite`
 - `redline_quick_check`
 - `redline_redact`
-- `redline_import` (supports `detect` and `preview` before writing)
+- `redline_import` (supports `detect`, `auto_map`, and `preview` before writing)
 - `redline_import_presets`
 - `redline_watch_stats`
 - `redline_watch_snippets`
@@ -103,7 +104,7 @@ assistants can reason over reports without scraping terminal text.
 The server also exposes MCP prompt templates for the workflows agents should
 reach for most often:
 
-- `check_prompt_change`: run doctor, then eval a changed prompt file.
+- `check_prompt_change`: run status/doctor, then eval a changed prompt file.
 - `build_suite_from_logs`: generate a suite, validate it, and summarize coverage.
 - `review_candidate_outputs`: quick-check two JSONL logs or diff candidate outputs against a suite, then lead with blocking findings.
 - `setup_redline_project`: guide first-time setup through runner selection,
@@ -120,6 +121,10 @@ Ask your assistant:
 
 ```text
 Run redline doctor in this repo and tell me the next setup step.
+```
+
+```text
+Run redline status in this repo and tell me the exact next command.
 ```
 
 ```text

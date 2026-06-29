@@ -107,8 +107,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(
             "redline-mcp\n\n"
             "Local MCP stdio server for redline.\n\n"
-            "Run this command from an MCP client. It exposes redline doctor, suite,\n"
-            "quick-check, watch stats, prompts, runners, judges, redact, audit, SBOM, benchmark, validate, summary, diff, eval, history, dashboard, cases, case, and guarded mark tools.\n",
+            "Run this command from an MCP client. It exposes redline status, doctor, suite,\n"
+            "quick-check, import, watch stats, prompts, runners, judges, redact, audit, SBOM, benchmark, validate, summary, diff, eval, history, dashboard, cases, case, and guarded mark tools.\n",
             end="",
         )
         return 0
@@ -399,11 +399,12 @@ def _build_check_prompt_change_prompt(arguments: dict[str, Any]) -> str:
         f"- Prompt file: {prompt_path}\n"
         f"- Suite: {suite_path}\n\n"
         "Use this workflow:\n"
-        "1. Call `redline_doctor` first. If setup has errors, stop and tell me the next fix.\n"
-        "2. Call `redline_eval` with the prompt file when provided and the suite when provided.\n"
-        "3. Treat exit code 1 as a redline finding, not a tool failure.\n"
-        "4. Summarize regressions, missing outputs, changed cases, and the recommended action.\n"
-        "5. Do not call baseline mutation commands or tell me the change is safe when redline only found neutral output.\n"
+        "1. Call `redline_status` first so I can see current readiness and the exact next command.\n"
+        "2. Call `redline_doctor` if status reports setup gaps. If setup has errors, stop and tell me the next fix.\n"
+        "3. Call `redline_eval` with the prompt file when provided and the suite when provided.\n"
+        "4. Treat exit code 1 as a redline finding, not a tool failure.\n"
+        "5. Summarize regressions, missing outputs, changed cases, and the recommended action.\n"
+        "6. Do not call baseline mutation commands or tell me the change is safe when redline only found neutral output.\n"
     )
 
 
@@ -460,16 +461,18 @@ def _build_setup_redline_project_prompt(arguments: dict[str, Any]) -> str:
         f"- Runner preference: {runner}\n"
         f"- Judge preference: {judge}\n\n"
         "Use this workflow:\n"
-        "1. Call `redline_doctor` first and explain the next setup gap in plain language.\n"
-        "2. Call `redline_runners` to show adapter choices. If I named a runner, copy that runner; otherwise recommend the safest adapter for my app shape before copying anything.\n"
-        "3. If I do not already have logs, call `redline_watch_snippets` for the app shape so I can add local capture first.\n"
-        "4. If prompt files are available, call `redline_prompts` to create or check a prompt-to-suite manifest.\n"
-        "5. If logs are available, call `redline_suite`, then `redline_validate` and `redline_summary` so I can inspect coverage before trusting the suite.\n"
-        "6. If summary reports coverage gaps, call `redline_cases` or `redline_case` and recommend a `redline suite add` command I can run; do not mutate the suite yourself.\n"
-        "7. Call `redline_budget` before recommending CI gating.\n"
-        "8. Call `redline_judges` only when structural checks cannot cover factual, tone, hallucination, or reasoning risk; copy a judge template only after naming why it is needed.\n"
-        "9. Finish by re-running `redline_doctor` with strict setup when possible and list the exact next commands I should run.\n"
-        "10. Do not call baseline mutation commands, do not upload private logs, and do not say green or neutral means semantically safe.\n"
+        "1. Call `redline_status` first and explain the next setup gap in plain language.\n"
+        "2. Call `redline_doctor` when status reports setup gaps or when I ask for strict setup validation.\n"
+        "3. Call `redline_runners` to show adapter choices. If I named a runner, copy that runner; otherwise recommend the safest adapter for my app shape before copying anything.\n"
+        "4. If I do not already have logs, call `redline_watch_snippets` for the app shape so I can add local capture first.\n"
+        "5. If prompt files are available, call `redline_prompts` to create or check a prompt-to-suite manifest.\n"
+        "6. If logs are available but field names are unclear, call `redline_import` with `detect=true`, then use `auto_map=true` with preview before writing normalized logs.\n"
+        "7. If logs are available, call `redline_suite`, then `redline_validate` and `redline_summary` so I can inspect coverage before trusting the suite.\n"
+        "8. If summary reports coverage gaps, call `redline_cases` or `redline_case` and recommend a `redline suite add` command I can run; do not mutate the suite yourself.\n"
+        "9. Call `redline_budget` before recommending CI gating.\n"
+        "10. Call `redline_judges` only when structural checks cannot cover factual, tone, hallucination, or reasoning risk; copy a judge template only after naming why it is needed.\n"
+        "11. Finish by re-running `redline_status` and list the exact next commands I should run.\n"
+        "12. Do not call baseline mutation commands, do not upload private logs, and do not say green or neutral means semantically safe.\n"
     )
 
 
@@ -484,6 +487,21 @@ def _optional_prompt_argument(arguments: dict[str, Any], key: str, fallback: str
 
 def _tools() -> list[ToolSpec]:
     return [
+        ToolSpec(
+            "redline_status",
+            "Show project readiness, latest local evidence, and the next command to run.",
+            _schema(
+                {
+                    "config": _string("Config path to read."),
+                    "reports_dir": _string("Directory containing redline JSON reports."),
+                    "history": _string("History JSONL path."),
+                    "checkpoint": _string("Audit checkpoint JSON path."),
+                    "limit": _integer("Recent reports/history entries to inspect; use 0 for all."),
+                    "json": _boolean("Print machine-readable JSON."),
+                }
+            ),
+            _build_status,
+        ),
         ToolSpec(
             "redline_doctor",
             "Check local redline setup health and print next steps.",
@@ -557,6 +575,7 @@ def _tools() -> list[ToolSpec]:
                     "path": _string("Source JSONL file to normalize."),
                     "out": _string("Redline JSONL output path."),
                     "detect": _boolean("Suggest prompt and response field mappings without writing output."),
+                    "auto_map": _boolean("Use the best detected prompt/response mapping."),
                     "preset": _string("Optional import preset such as langfuse, helicone, datadog, dolly, or openai-chat."),
                     "input_field": _string("Source field path containing prompt text."),
                     "output_field": _string("Source field path containing response text."),
@@ -885,6 +904,17 @@ def _tool_by_name(name: str) -> ToolSpec | None:
     return next((tool for tool in _tools() if tool.name == name), None)
 
 
+def _build_status(arguments: dict[str, Any]) -> list[str]:
+    args = ["status"]
+    _add_option(args, "--config", arguments.get("config"))
+    _add_option(args, "--reports-dir", arguments.get("reports_dir"))
+    _add_option(args, "--history", arguments.get("history"))
+    _add_option(args, "--checkpoint", arguments.get("checkpoint"))
+    _add_option(args, "--limit", arguments.get("limit"))
+    _add_flag(args, "--json", arguments.get("json"))
+    return args
+
+
 def _build_doctor(arguments: dict[str, Any]) -> list[str]:
     args = ["doctor"]
     _add_option(args, "--config", arguments.get("config"))
@@ -940,6 +970,7 @@ def _build_import(arguments: dict[str, Any]) -> list[str]:
     else:
         _add_option(args, "--out", arguments.get("out"))
     _add_flag(args, "--detect", arguments.get("detect"))
+    _add_flag(args, "--auto-map", arguments.get("auto_map"))
     _add_option(args, "--preset", arguments.get("preset"))
     _add_option(args, "--input-field", arguments.get("input_field"))
     _add_option(args, "--output-field", arguments.get("output_field"))

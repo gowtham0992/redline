@@ -28,6 +28,7 @@ class McpServerTests(unittest.TestCase):
 
         assert response is not None
         names = {tool["name"] for tool in response["result"]["tools"]}
+        self.assertIn("redline_status", names)
         self.assertIn("redline_doctor", names)
         self.assertIn("redline_suite", names)
         self.assertIn("redline_quick_check", names)
@@ -172,6 +173,34 @@ class McpServerTests(unittest.TestCase):
         self.assertEqual(result["structuredContent"]["json"]["suggestions"][0]["input_field"], "input")
         self.assertEqual(result["structuredContent"]["json"]["suggestions"][0]["output_field"], "output")
 
+    def test_import_tool_auto_maps_external_jsonl(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            output = root / "baseline.jsonl"
+            source.write_text('{"instruction": "Classify", "response": "billing"}\n', encoding="utf-8")
+
+            result = call_tool(
+                "redline_import",
+                {
+                    "cwd": directory,
+                    "path": str(source),
+                    "out": str(output),
+                    "auto_map": True,
+                    "json": True,
+                },
+            )
+            wrote_output = output.exists()
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        payload = result["structuredContent"]["json"]
+        self.assertEqual(payload["records"], 1)
+        self.assertTrue(payload["auto_mapped"])
+        self.assertEqual(payload["input_field"], "instruction")
+        self.assertEqual(payload["output_field"], "response")
+        self.assertTrue(wrote_output)
+
     def test_import_presets_tool_lists_mappings(self) -> None:
         result = call_tool("redline_import_presets", {"json": True})
 
@@ -226,6 +255,7 @@ class McpServerTests(unittest.TestCase):
 
         assert response is not None
         text = response["result"]["messages"][0]["content"]["text"]
+        self.assertIn("redline_status", text)
         self.assertIn("redline_doctor", text)
         self.assertIn("redline_eval", text)
         self.assertIn("prompts/v2.txt", text)
@@ -304,9 +334,11 @@ class McpServerTests(unittest.TestCase):
 
         assert response is not None
         text = response["result"]["messages"][0]["content"]["text"]
+        self.assertIn("redline_status", text)
         self.assertIn("redline_doctor", text)
         self.assertIn("redline_runners", text)
         self.assertIn("redline_watch_snippets", text)
+        self.assertIn("auto_map=true", text)
         self.assertIn("redline_prompts", text)
         self.assertIn("redline_suite", text)
         self.assertIn("redline_validate", text)
@@ -320,6 +352,22 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("http", text)
         self.assertIn("support-rubric", text)
         self.assertIn("do not say green or neutral means semantically safe", text)
+
+    def test_status_tool_reports_next_command(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = call_tool(
+                "redline_status",
+                {
+                    "cwd": directory,
+                    "json": True,
+                },
+            )
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        payload = result["structuredContent"]["json"]
+        self.assertEqual(payload["state"], "setup")
+        self.assertEqual(payload["next_command"], "redline init --runner stdio --copy-runner")
 
     def test_unknown_prompt_returns_jsonrpc_error(self) -> None:
         response = handle_jsonrpc_line(
