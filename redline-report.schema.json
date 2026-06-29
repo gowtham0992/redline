@@ -118,6 +118,10 @@
           "baseline_response": {"type": "string"},
           "candidate_response": {"type": ["string", "null"]},
           "reasons": {"type": "array", "items": {"type": "string"}},
+          "impact": {
+            "type": "string",
+            "description": "Plain-English explanation of why this case matters to reviewers."
+          },
           "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
           "signal": {
             "type": "string",

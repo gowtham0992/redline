@@ -152,6 +152,33 @@ class ReportTests(unittest.TestCase):
 
         self.assertIn("Prompt: ``Use `json` output``", report)
 
+    def test_markdown_report_prefers_explicit_case_impact(self) -> None:
+        result = {
+            "summary": {"regression": 1, "changed": 0, "improved": 0, "neutral": 0, "missing": 0},
+            "diffs": [
+                {
+                    "case_id": "case_001",
+                    "status": "regression",
+                    "prompt": "Return JSON",
+                    "baseline_response": '{"owner":"billing"}',
+                    "candidate_response": "billing",
+                    "reasons": ["candidate lost valid JSON format"],
+                    "impact": "Billing routing automation may fail because the owner field disappeared.",
+                }
+            ],
+        }
+
+        report = format_markdown_report(result)
+
+        self.assertIn(
+            "Why this matters: Billing routing automation may fail because the owner field disappeared.",
+            report,
+        )
+        self.assertNotIn(
+            "Why this matters: Downstream code may fail if consumers expect parseable JSON or required fields.",
+            report,
+        )
+
     def test_markdown_code_blocks_use_fence_longer_than_output_backticks(self) -> None:
         result = {
             "summary": {"regression": 0, "changed": 1, "improved": 0, "neutral": 0, "missing": 0},

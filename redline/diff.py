@@ -149,6 +149,7 @@ class CaseDiff:
             "baseline_response": self.baseline_response,
             "candidate_response": self.candidate_response,
             "reasons": list(self.reasons),
+            "impact": case_impact(self.status, self.reasons),
             "confidence": self.confidence,
             "signal": self.signal,
             "baseline_features": self.baseline_features,
@@ -552,6 +553,34 @@ def _case_confidence_signal(status: str, reasons: list[str]) -> tuple[str, str]:
     return "medium", "shallow_semantic"
 
 
+def case_impact(status: str, reasons: tuple[str, ...] | list[str]) -> str:
+    text = " ".join(str(reason).lower() for reason in reasons)
+    normalized_status = status.lower()
+    if normalized_status == "missing":
+        return "Replay did not produce a candidate output, so this baseline behavior is untested."
+    if "valid json" in text or "json keys" in text:
+        return "Downstream code may fail if consumers expect parseable JSON or required fields."
+    if "markdown table" in text or "table structure" in text:
+        return "A consumer expecting rows and columns may receive unstructured prose instead."
+    if "code block" in text:
+        return "A developer or tool expecting copyable code may lose the executable structure."
+    if "bullet list" in text or "numbered list" in text:
+        return "A workflow expecting ordered or scannable steps may become harder to review."
+    if "missing numbers" in text or "missing urls" in text or "missing entities" in text:
+        return "Concrete details used for decisions, routing, or compliance may have been dropped."
+    if "newly refuses" in text or "refusal" in text:
+        return "A previously supported safe workflow may now be blocked."
+    if "became empty" in text:
+        return "The user may receive no usable answer."
+    if "content changed substantially" in text or "much shorter" in text:
+        return "Meaning may have changed enough to require human review before acceptance."
+    if normalized_status == "regression":
+        return "This case changed in a way redline treats as blocking before shipping."
+    if normalized_status == "changed":
+        return "Review whether this behavioral change is intentional before accepting it."
+    return ""
+
+
 def _is_requirement_reason(reason: str) -> bool:
     return reason.startswith("candidate missing required text:") or reason.startswith(
         "candidate includes forbidden text:"
@@ -637,6 +666,9 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
         lines.append(status.upper())
         for item in matching:
             lines.append(f"- {_case_label(item)}: {_preview(item['prompt'])}")
+            impact = str(item.get("impact") or "")
+            if impact:
+                lines.append(f"  - why this matters: {impact}")
             for reason in item["reasons"]:
                 lines.append(f"  - {reason}")
         lines.append("")

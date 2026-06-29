@@ -5,6 +5,7 @@ from shlex import quote
 from typing import Any
 from xml.etree import ElementTree
 
+from .diff import case_impact
 from .labels import behavior_label
 
 
@@ -530,32 +531,12 @@ def _percent_value(value: object) -> str:
 
 
 def _why_this_matters(item: dict[str, Any]) -> str:
+    impact = str(item.get("impact") or "").strip()
+    if impact:
+        return impact
     status = str(item.get("status") or "").lower()
     reasons = item.get("reasons")
-    text = " ".join(str(reason).lower() for reason in reasons) if isinstance(reasons, list) else ""
-    if status == "missing":
-        return "Replay did not produce a candidate output, so this baseline behavior is untested."
-    if "valid json" in text or "json keys" in text:
-        return "Downstream code may fail if consumers expect parseable JSON or required fields."
-    if "markdown table" in text or "table structure" in text:
-        return "A consumer expecting rows and columns may receive unstructured prose instead."
-    if "code block" in text:
-        return "A developer or tool expecting copyable code may lose the executable structure."
-    if "bullet list" in text or "numbered list" in text:
-        return "A workflow expecting ordered or scannable steps may become harder to review."
-    if "missing numbers" in text or "missing urls" in text or "missing entities" in text:
-        return "Concrete details used for decisions, routing, or compliance may have been dropped."
-    if "newly refuses" in text or "refusal" in text:
-        return "A previously supported safe workflow may now be blocked."
-    if "became empty" in text:
-        return "The user may receive no usable answer."
-    if "content changed substantially" in text or "much shorter" in text:
-        return "Meaning may have changed enough to require human review before acceptance."
-    if status == "regression":
-        return "This case changed in a way redline treats as blocking before shipping."
-    if status == "changed":
-        return "Review whether this behavioral change is intentional before accepting it."
-    return ""
+    return case_impact(status, reasons if isinstance(reasons, list) else [])
 
 
 def _result_warnings(result: dict[str, Any]) -> list[str]:

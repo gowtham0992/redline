@@ -4,6 +4,7 @@ from pathlib import Path
 
 from redline.diff import (
     REPORT_SCHEMA_URL,
+    case_impact,
     classify_change,
     compare_suite_to_candidate,
     format_compact_report,
@@ -32,6 +33,7 @@ class DiffTests(unittest.TestCase):
         self.assertIn("diffs", schema["properties"])
         diff_properties = schema["properties"]["diffs"]["items"]["properties"]
         self.assertIn("owner_rule", diff_properties)
+        self.assertIn("impact", diff_properties)
 
     def test_report_carries_suite_methodology(self) -> None:
         suite = build_suite(
@@ -357,6 +359,20 @@ class DiffTests(unittest.TestCase):
         self.assertIn("cluster", result["diffs"][0])
         self.assertEqual(result["diffs"][0]["confidence"], "high")
         self.assertEqual(result["diffs"][0]["signal"], "structural")
+        self.assertEqual(
+            result["diffs"][0]["impact"],
+            "Replay did not produce a candidate output, so this baseline behavior is untested.",
+        )
+
+    def test_case_impact_explains_common_regression_shapes(self) -> None:
+        self.assertEqual(
+            case_impact("regression", ["candidate missing numbers: 30"]),
+            "Concrete details used for decisions, routing, or compliance may have been dropped.",
+        )
+        self.assertEqual(
+            case_impact("changed", ["short answer changed"]),
+            "Review whether this behavioral change is intentional before accepting it.",
+        )
 
     def test_compare_summarizes_plain_english_diagnosis(self) -> None:
         prompt = "Return a numbered rollout checklist with owner, URL, and 30 day deadline."
@@ -513,6 +529,41 @@ class DiffTests(unittest.TestCase):
         self.assertIn("Diagnosis: No structural blockers were detected", report)
         self.assertIn("Warnings:", report)
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
+
+    def test_format_report_includes_case_impact(self) -> None:
+        result = {
+            "summary": {
+                "cases": 1,
+                "regression": 1,
+                "changed": 0,
+                "improved": 0,
+                "accepted": 0,
+                "ignored": 0,
+                "neutral": 0,
+                "missing": 0,
+            },
+            "decision": {
+                "confidence": "high",
+                "recommended_action": "fix blocking cases before shipping",
+                "scope": "structural checks only",
+            },
+            "diffs": [
+                {
+                    "case_id": "case_001",
+                    "status": "regression",
+                    "prompt": "Return JSON",
+                    "reasons": ["candidate lost valid JSON format"],
+                    "impact": "Downstream code may fail if consumers expect parseable JSON or required fields.",
+                }
+            ],
+        }
+
+        report = format_report(result)
+
+        self.assertIn(
+            "why this matters: Downstream code may fail if consumers expect parseable JSON or required fields.",
+            report,
+        )
 
     def test_format_compact_report_outputs_one_line_per_actionable_case(self) -> None:
         result = {
