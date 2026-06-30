@@ -221,10 +221,13 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
     )
     history_label = "public-dogfood" if result.get("public") else "demo"
     history_command = (
-        f"redline history {result['report_json']} --label {history_label} "
+        f"redline history {quote(str(result['report_json']))} --label {history_label} "
         "--out .redline/history.jsonl --out-md .redline/history.md"
     )
     review_case_id = _first_reviewable_case_id(result["diff"])
+    suite_arg = quote(str(result["suite"]))
+    candidate_arg = quote(str(result["candidate"]))
+    review_case_arg = quote(review_case_id)
     lines = [
         result["title"],
         "",
@@ -241,9 +244,9 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
         "Next steps",
         f"- Inspect the HTML report: {result['report_html']}",
         f"- Inspect the Markdown report: {result['report_markdown']}",
-        f"- List demo cases: redline cases {result['suite']}",
-        f"- Mark an intentional change: redline mark {result['suite']} {review_case_id} --status expected --note \"intentional prompt change\"",
-        f"- Promote reviewed changes: redline accept {result['suite']} --all-expected --candidate {result['candidate']} --note \"accepted prompt v2\"",
+        f"- List demo cases: redline cases {suite_arg}",
+        f"- Mark an intentional change: redline mark {suite_arg} {review_case_arg} --status expected --note \"intentional prompt change\"",
+        f"- Promote reviewed changes: redline accept {suite_arg} --all-expected --candidate {candidate_arg} --note \"accepted prompt v2\"",
         f"- Record a trend entry: {history_command}",
         f"- Open the guided local app: redline app --reports-dir {quote(str(Path(result['report_json']).parent))} --history .redline/history.jsonl",
         "- Connect a runner: redline init --runner stdio --copy-runner --github-action",

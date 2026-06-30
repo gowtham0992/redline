@@ -61,6 +61,13 @@ class DemoTests(unittest.TestCase):
             self.assertIn("redline app --reports-dir", output)
             self.assertIn("--reports-dir '", output)
             self.assertIn("demo output/reports", output)
+            self.assertIn("redline history '", output)
+            self.assertIn("demo output/reports/diff.json", output)
+            self.assertIn("redline cases '", output)
+            self.assertIn("demo output/suite.json", output)
+            self.assertIn("redline accept '", output)
+            self.assertIn("--candidate '", output)
+            self.assertIn("demo output/candidate.jsonl", output)
 
     def test_format_demo_can_use_compact_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
