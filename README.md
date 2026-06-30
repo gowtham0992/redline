@@ -311,7 +311,8 @@ redline is built around the full prompt-regression loop:
 - `redline app`: open the guided local product surface for importing logs,
   generating suites, reviewing regressions, recording history, and wiring CI/MCP.
 - `redline status`: show project readiness and the next command from local
-  evidence, including the first review case, its reason, and why it matters.
+  evidence, including the guided app command, first review case, its reason, and
+  why it matters.
 - `redline history`, `redline compare`, and `redline dashboard`: track quality
   over time and inspect report artifacts locally. The dashboard surfaces
   feature-level rollups, prompt-level eval rows, benchmark evidence, and a

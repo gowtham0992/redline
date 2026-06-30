@@ -28,6 +28,10 @@ class StatusTests(unittest.TestCase):
         self.assertIn("redline status", text)
         self.assertIn("State: SETUP - project is not initialized", text)
         self.assertIn("Next:  redline init --runner stdio --copy-runner", text)
+        self.assertIn(
+            "App:   redline app --reports-dir .redline/reports --history .redline/history.jsonl --checkpoint .redline/audit-checkpoint.json",
+            text,
+        )
         self.assertIn("- Config: warn - redline.json not found", text)
         self.assertIn("- No redline report found yet.", text)
 
@@ -82,6 +86,10 @@ class StatusTests(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("State: BLOCKED - latest report has 1 blocking case(s)", text)
         self.assertIn("Next:  redline case redline-suite.json case_001", text)
+        self.assertIn(
+            "App:   redline app --reports-dir .redline/reports --history .redline/history.jsonl --checkpoint .redline/audit-checkpoint.json",
+            text,
+        )
         self.assertIn("- Reports: 1 in .redline/reports", text)
         self.assertIn("- Summary: cases=1 regression=1 missing=0 changed=0 neutral=0", text)
         self.assertIn("- Decision: fix blocking cases before shipping", text)
@@ -98,6 +106,10 @@ class StatusTests(unittest.TestCase):
         self.assertEqual(payload["state"], "blocked")
         self.assertEqual(payload["blocking"], 1)
         self.assertEqual(payload["next_command"], "redline case redline-suite.json case_001")
+        self.assertEqual(
+            payload["app_command"],
+            "redline app --reports-dir .redline/reports --history .redline/history.jsonl --checkpoint .redline/audit-checkpoint.json",
+        )
         self.assertEqual(
             payload["first_review_case"],
             {

@@ -7,7 +7,7 @@ output and examples after installing.
 | --- | --- | --- |
 | `redline` | Show first-run help. | `--version` |
 | `redline demo` | Generate and diff the bundled demo logs. | `--public`, `--compact` |
-| `redline status` | Show project readiness, latest local evidence, the first review case, and the next command to run. | `--reports-dir`, `--history`, `--checkpoint`, `--limit`, `--json` |
+| `redline status` | Show project readiness, latest local evidence, app command, first review case, and the next command to run. | `--reports-dir`, `--history`, `--checkpoint`, `--limit`, `--json` |
 | `redline app` | Open the guided local product app for import, suite, eval, review, history, and integration commands. | `--demo`, `--reports-dir`, `--history`, `--checkpoint`, `--out`, `--no-open`, `--json` |
 | `redline init` | Write `redline.json`, runner files, and optional CI workflow. | `--runner`, `--copy-runner`, `--github-action`, `--force` |
 | `redline doctor` | Check config, suite, replay, reports, audit, and team workflow. | `--strict`, `--json` |

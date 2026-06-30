@@ -56,6 +56,11 @@ def build_project_status(
         "state": state,
         "message": message,
         "next_command": next_command,
+        "app_command": _app_command(
+            reports_dir=str(reports_dir),
+            history_path=str(history_path),
+            checkpoint_path=str(checkpoint_path),
+        ),
         "config_path": config_path,
         "suite_path": suite_path,
         "reports_dir": str(reports_dir),
@@ -91,6 +96,7 @@ def format_project_status(status: dict[str, Any]) -> str:
         "",
         f"State: {str(status.get('state') or '').upper()} - {status.get('message')}",
         f"Next:  {status.get('next_command')}",
+        f"App:   {status.get('app_command')}",
         "",
         "Evidence",
         f"- Config: {_check_line(checks, 'config')}",
@@ -180,6 +186,10 @@ def _case_command(case: dict[str, Any], *, fallback_suite: str) -> str:
     case_id = str(case.get("suite_case_id") or case.get("case_id") or "<case_id>")
     suite = str(case.get("suite") or fallback_suite)
     return f"redline case {suite} {case_id}"
+
+
+def _app_command(*, reports_dir: str, history_path: str, checkpoint_path: str) -> str:
+    return f"redline app --reports-dir {reports_dir} --history {history_path} --checkpoint {checkpoint_path}"
 
 
 def _status_review_case(case: dict[str, Any], *, fallback_suite: str) -> dict[str, str]:
