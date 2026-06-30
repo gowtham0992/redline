@@ -120,3 +120,82 @@ class StatusTests(unittest.TestCase):
                 "command": "redline case redline-suite.json case_001",
             },
         )
+
+    def test_status_quotes_app_command_paths_with_spaces(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            previous = Path.cwd()
+            os.chdir(directory)
+            try:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "status",
+                                "--reports-dir",
+                                "redline reports",
+                                "--history",
+                                "history file.jsonl",
+                                "--checkpoint",
+                                "audit checkpoint.json",
+                            ]
+                        ),
+                        0,
+                    )
+            finally:
+                os.chdir(previous)
+
+        self.assertIn(
+            "App:   redline app --reports-dir 'redline reports' --history 'history file.jsonl' --checkpoint 'audit checkpoint.json'",
+            output.getvalue(),
+        )
+
+    def test_status_quotes_review_case_command_paths_with_spaces(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            suite_path = "suite files/redline suite.json"
+            write_json(
+                root / "redline.json",
+                {
+                    "suite": suite_path,
+                    "replay": f"{sys.executable} -c 'import sys; print(sys.stdin.read())'",
+                    "reports": {"json": ".redline/reports/eval.json"},
+                },
+            )
+            suite = build_suite(
+                [LogRecord(1, "Return JSON with owner.", '{"owner":"support"}', {})],
+                source="baseline.jsonl",
+                input_field="prompt",
+                output_field="response",
+                all_cases=True,
+            )
+            write_json(root / suite_path, suite)
+            write_json(
+                root / ".redline" / "reports" / "eval.json",
+                {
+                    "suite": suite_path,
+                    "summary": {"cases": 1, "regression": 1},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    "diffs": [
+                        {
+                            "case_id": "case needs review",
+                            "status": "regression",
+                            "prompt": "Return JSON with owner.",
+                            "reasons": ["candidate lost valid JSON format"],
+                            "suite": suite_path,
+                        }
+                    ],
+                },
+            )
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["status"]), 0)
+            finally:
+                os.chdir(previous)
+
+        text = output.getvalue()
+        self.assertIn("Next:  redline case 'suite files/redline suite.json' 'case needs review'", text)
+        self.assertIn("- Command: redline case 'suite files/redline suite.json' 'case needs review'", text)

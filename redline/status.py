@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from shlex import quote
 from typing import Any
 
 from .dashboard import build_dashboard
@@ -160,7 +161,7 @@ def _state_and_next(
     if suite.get("status") in {"warn", "error"}:
         return "setup", "no usable suite baseline yet", _first_step(
             doctor_steps,
-            f"redline suite path/to/log.jsonl --out {suite_path}",
+            f"redline suite path/to/log.jsonl --out {quote(suite_path)}",
         )
     if not latest:
         return "ready", "suite exists; run the first eval or diff", "redline eval --compact"
@@ -175,21 +176,24 @@ def _state_and_next(
     if not Path(history_path).exists():
         report_path = str(latest.get("path") or f"{reports_dir}/eval.json")
         return "record", "latest report is clear; record it in history", (
-            f"redline history {report_path} --label prompt-v2 --out {history_path}"
+            f"redline history {quote(report_path)} --label prompt-v2 --out {quote(history_path)}"
         )
     return "ready", "latest report has no blocking structural regressions", (
-        f"redline app --reports-dir {reports_dir} --history {history_path}"
+        f"redline app --reports-dir {quote(reports_dir)} --history {quote(history_path)}"
     )
 
 
 def _case_command(case: dict[str, Any], *, fallback_suite: str) -> str:
     case_id = str(case.get("suite_case_id") or case.get("case_id") or "<case_id>")
     suite = str(case.get("suite") or fallback_suite)
-    return f"redline case {suite} {case_id}"
+    return f"redline case {quote(suite)} {quote(case_id)}"
 
 
 def _app_command(*, reports_dir: str, history_path: str, checkpoint_path: str) -> str:
-    return f"redline app --reports-dir {reports_dir} --history {history_path} --checkpoint {checkpoint_path}"
+    return (
+        f"redline app --reports-dir {quote(reports_dir)} "
+        f"--history {quote(history_path)} --checkpoint {quote(checkpoint_path)}"
+    )
 
 
 def _status_review_case(case: dict[str, Any], *, fallback_suite: str) -> dict[str, str]:
