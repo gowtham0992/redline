@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from shlex import quote
 from typing import Any
 
 from .diff import compare_suite_to_candidate, format_compact_report, format_report
@@ -244,7 +245,7 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
         f"- Mark an intentional change: redline mark {result['suite']} {review_case_id} --status expected --note \"intentional prompt change\"",
         f"- Promote reviewed changes: redline accept {result['suite']} --all-expected --candidate {result['candidate']} --note \"accepted prompt v2\"",
         f"- Record a trend entry: {history_command}",
-        f"- Open the guided local app: redline app --reports-dir {Path(result['report_json']).parent} --history .redline/history.jsonl",
+        f"- Open the guided local app: redline app --reports-dir {quote(str(Path(result['report_json']).parent))} --history .redline/history.jsonl",
         "- Connect a runner: redline init --runner stdio --copy-runner --github-action",
         "- Explore adapters: redline runners --copy all",
         "- Build a real suite: redline suite path/to/baseline.jsonl --out redline-suite.json",

@@ -52,6 +52,16 @@ class DemoTests(unittest.TestCase):
             self.assertIn("redline suite path/to/baseline.jsonl --out redline-suite.json", output)
             self.assertIn("redline doctor --strict", output)
 
+    def test_format_demo_quotes_app_command_with_spaced_output_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = run_demo(Path(directory) / "demo output")
+
+            output = format_demo(result)
+
+            self.assertIn("redline app --reports-dir", output)
+            self.assertIn("--reports-dir '", output)
+            self.assertIn("demo output/reports", output)
+
     def test_format_demo_can_use_compact_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             result = run_demo(Path(directory) / "demo")

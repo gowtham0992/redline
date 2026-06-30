@@ -2084,7 +2084,7 @@ def _emit_result(
     if not args.json and out_html:
         print()
         print(f"Open HTML report: {Path(out_html)}")
-        print(f"Open app: redline app --reports-dir {Path(out_html).parent}")
+        print(f"Open app: redline app --reports-dir {shlex.quote(str(Path(out_html).parent))}")
 
     exit_code = 1 if should_fail(result, fail_on) else 0
     if audit_event is not None:

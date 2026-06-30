@@ -804,6 +804,42 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_diff_output_quotes_app_command_report_dir_with_spaces(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["suite", "baseline.jsonl", "--out", "suite.json"]), 0)
+                    self.assertEqual(
+                        main(
+                            [
+                                "diff",
+                                "suite.json",
+                                "candidate.jsonl",
+                                "--fail-on",
+                                "none",
+                                "--out-html",
+                                "report dir/diff.html",
+                            ]
+                        ),
+                        0,
+                    )
+            finally:
+                os.chdir(previous)
+
+        self.assertIn("Open app: redline app --reports-dir 'report dir'", output.getvalue())
+
     def test_diff_profile_review_downgrades_number_and_entity_loss(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
