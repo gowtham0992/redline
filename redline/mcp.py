@@ -545,6 +545,7 @@ def _tools() -> list[ToolSpec]:
                     "profile": _string("Diff profile: strict or review."),
                     "compact": _boolean("Print compact one-line-per-case output."),
                     "json": _boolean("Print machine-readable JSON."),
+                    "open_app": _boolean("Open the guided local app in the default browser."),
                     "fail_on": _string("Comma-separated statuses that produce exit code 1; use none for report-only."),
                 },
                 required=("baseline_path", "candidate_path"),
@@ -947,6 +948,7 @@ def _build_quick_check(arguments: dict[str, Any]) -> list[str]:
     _add_option(args, "--profile", arguments.get("profile"))
     _add_flag(args, "--compact", arguments.get("compact"))
     _add_flag(args, "--json", arguments.get("json"))
+    _add_flag(args, "--open-app", arguments.get("open_app"))
     _add_option(args, "--fail-on", arguments.get("fail_on"))
     return args
 

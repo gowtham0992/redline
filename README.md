@@ -143,7 +143,8 @@ redline quick-check logs/baseline.jsonl logs/candidate.jsonl --open
 
 It generates a temporary suite, writes JSON/Markdown/HTML reports plus a guided
 local app under `.redline/quick-check`, opens the focused HTML report, and
-prints the concrete behavioral diff.
+prints the concrete behavioral diff. Use `--open-app` when you want the guided
+review workflow to open instead of only the focused report.
 
 ### 1. Logs
 

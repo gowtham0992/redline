@@ -51,6 +51,8 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_mark", names)
         self.assertNotIn("redline_accept", names)
         self.assertNotIn("redline_require", names)
+        quick_check = next(tool for tool in response["result"]["tools"] if tool["name"] == "redline_quick_check")
+        self.assertIn("open_app", quick_check["inputSchema"]["properties"])
 
     def test_quick_check_tool_generates_suite_and_reports(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

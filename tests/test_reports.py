@@ -49,6 +49,7 @@ class ReportTests(unittest.TestCase):
                 "json": ".redline/reports/eval.json",
                 "markdown": ".redline/reports/eval.md",
                 "html": ".redline/reports/eval.html",
+                "app": ".redline/reports/app.html",
                 "junit": ".redline/reports/eval.xml",
             },
             "prompt_evals": [
@@ -99,6 +100,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("## Warnings", report)
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn("## Artifacts", report)
+        self.assertIn("| App | `.redline/reports/app.html` |", report)
         self.assertIn("| HTML | `.redline/reports/eval.html` |", report)
         self.assertIn("| JUnit | `.redline/reports/eval.xml` |", report)
         self.assertIn("## Owner Review", report)

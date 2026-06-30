@@ -575,6 +575,7 @@ def _artifact_label(label: str) -> str:
         "slack": "Slack",
         "markdown": "Markdown",
         "comment": "PR comment",
+        "app": "App",
         "dashboard": "Dashboard",
         "audit_checkpoint": "Audit checkpoint",
     }

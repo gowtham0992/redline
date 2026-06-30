@@ -764,6 +764,46 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_quick_check_can_open_guided_app(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+                output = io.StringIO()
+
+                with patch("redline.cli.webbrowser.open") as open_browser:
+                    with contextlib.redirect_stdout(output):
+                        self.assertEqual(
+                            main(
+                                [
+                                    "quick-check",
+                                    "baseline.jsonl",
+                                    "candidate.jsonl",
+                                    "--fail-on",
+                                    "none",
+                                    "--open-app",
+                                ]
+                            ),
+                            0,
+                        )
+
+                text = output.getvalue()
+                app_path = root / ".redline" / "quick-check" / "app.html"
+                self.assertTrue(app_path.exists())
+                self.assertIn("Opened guided app in the default browser.", text)
+                open_browser.assert_called_once_with(app_path.resolve().as_uri())
+            finally:
+                os.chdir(previous)
+
     def test_diff_profile_review_downgrades_number_and_entity_loss(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

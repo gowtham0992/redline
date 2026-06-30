@@ -432,6 +432,7 @@ def build_parser() -> argparse.ArgumentParser:
     quick_check_parser.add_argument("--compact", action="store_true", help="print compact one-line-per-case output")
     quick_check_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     quick_check_parser.add_argument("--open", action="store_true", help="open the HTML report in the default browser")
+    quick_check_parser.add_argument("--open-app", action="store_true", help="open the guided local app in the default browser")
     quick_check_parser.add_argument(
         "--fail-on",
         default="regression,missing",
@@ -1509,6 +1510,8 @@ def cmd_quick_check(args: argparse.Namespace) -> int:
     write_text(app_html, format_dashboard_html(dashboard, title="redline quick-check app", output_path=app_html, style="app"))
     if args.open:
         webbrowser.open(report_html.resolve().as_uri())
+    if args.open_app:
+        webbrowser.open(app_html.resolve().as_uri())
 
     fail_on = parse_fail_on(args.fail_on)
     if args.json:
@@ -1539,6 +1542,8 @@ def cmd_quick_check(args: argparse.Namespace) -> int:
         print(f"- Make this persistent: redline suite {args.baseline} --out redline-suite.json")
         if args.open:
             print("- Opened HTML report in the default browser.")
+        if args.open_app:
+            print("- Opened guided app in the default browser.")
     return 1 if should_fail(result, fail_on) else 0
 
 
