@@ -658,7 +658,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     print("Next:")
     if not replay:
         print("- Connect a runner: redline init --runner stdio --copy-runner --force")
-    print(f"- Generate suite: redline suite path/to/log.jsonl --out {config['suite']}")
+    print(f"- Generate suite: {_shell_command('redline', 'suite', 'path/to/log.jsonl', '--out', config['suite'])}")
     if replay:
         print("- Run eval: redline eval")
     print("- Check setup: redline doctor")
@@ -916,7 +916,10 @@ def cmd_import(args: argparse.Namespace) -> int:
         print(f"Wrote {Path(str(report['output']))}.")
         print()
         print("Next:")
-        print(f"- Generate suite: redline suite {Path(str(report['output']))} --out redline-suite.json")
+        print(
+            f"- Generate suite: "
+            f"{_shell_command('redline', 'suite', report['output'], '--out', 'redline-suite.json')}"
+        )
         print("- Inspect cases: redline cases redline-suite.json")
         print("- Compare candidate outputs: redline diff redline-suite.json path/to/candidate.jsonl")
     return 0
@@ -990,7 +993,7 @@ def _print_import_preview(report: Mapping[str, object]) -> None:
     print()
     print("No file written.")
     print("Next:")
-    print(f"- Import when ready: redline import {Path(str(report['source']))} --out baseline.jsonl")
+    print(f"- Import when ready: {_shell_command('redline', 'import', report['source'], '--out', 'baseline.jsonl')}")
 
 
 def _truncate_preview(value: str, *, limit: int = 120) -> str:
@@ -1292,8 +1295,8 @@ def cmd_suite(args: argparse.Namespace) -> int:
     print(f"Wrote {Path(output)}.")
     print()
     print("Next:")
-    print(f"- Inspect cases: redline cases {Path(output)}")
-    print(f"- Compare a candidate log: redline diff {Path(output)} path/to/candidate.jsonl")
+    print(f"- Inspect cases: {_shell_command('redline', 'cases', output)}")
+    print(f"- Compare a candidate log: {_shell_command('redline', 'diff', output, 'path/to/candidate.jsonl')}")
     print("- Configure replay when ready: redline init --runner stdio --copy-runner")
     return 0
 
@@ -1357,9 +1360,9 @@ def cmd_suite_add(args: argparse.Namespace) -> int:
             print(f"Added {rules} requirement rule(s).")
         print()
         print("Next:")
-        print(f"- Inspect case: redline case {Path(output)} {case['id']}")
-        print(f"- Validate suite: redline validate {Path(output)}")
-        print(f"- Compare candidate: redline diff {Path(output)} path/to/candidate.jsonl")
+        print(f"- Inspect case: {_shell_command('redline', 'case', output, case['id'])}")
+        print(f"- Validate suite: {_shell_command('redline', 'validate', output)}")
+        print(f"- Compare candidate: {_shell_command('redline', 'diff', output, 'path/to/candidate.jsonl')}")
     return 0
 
 
@@ -1538,8 +1541,8 @@ def cmd_quick_check(args: argparse.Namespace) -> int:
         print("Next:")
         print(f"- Open HTML report: {report_html}")
         print(f"- Open guided app: {app_html}")
-        print(f"- Inspect cases: redline cases {suite_path}")
-        print(f"- Make this persistent: redline suite {args.baseline} --out redline-suite.json")
+        print(f"- Inspect cases: {_shell_command('redline', 'cases', suite_path)}")
+        print(f"- Make this persistent: {_shell_command('redline', 'suite', args.baseline, '--out', 'redline-suite.json')}")
         if args.open:
             print("- Opened HTML report in the default browser.")
         if args.open_app:
@@ -1914,14 +1917,14 @@ def cmd_mark(args: argparse.Namespace) -> int:
     print(f"Marked {case_id} as {args.status} in {Path(output)}.")
     print()
     print("Next:")
-    print(f"- Validate suite: redline validate {Path(output)}")
+    print(f"- Validate suite: {_shell_command('redline', 'validate', output)}")
     if args.status == "expected":
         print(
-            f"- Promote reviewed output: redline accept {Path(output)} {case_id} "
-            '--candidate path/to/candidate.jsonl --note "accepted prompt change"'
+            f"- Promote reviewed output: "
+            f"{_shell_command('redline', 'accept', output, case_id, '--candidate', 'path/to/candidate.jsonl', '--note', 'accepted prompt change')}"
         )
     else:
-        print(f"- Re-run diff: redline diff {Path(output)} path/to/candidate.jsonl")
+        print(f"- Re-run diff: {_shell_command('redline', 'diff', output, 'path/to/candidate.jsonl')}")
     return 0
 
 
@@ -2279,7 +2282,7 @@ def _read_suite_or_manifest(path: str) -> dict[str, object]:
             raise ValueError(
                 f"{path} looks like raw JSONL logs, but this command expects a redline suite JSON "
                 "or prompt manifest. Build a suite first: "
-                f"redline suite {path} --out redline-suite.json"
+                f"{_shell_command('redline', 'suite', path, '--out', 'redline-suite.json')}"
             ) from exc
         raise
 
@@ -2628,4 +2631,8 @@ def _prompts_regenerate_command(args: argparse.Namespace) -> str:
     parts = ["redline", "prompts", str(args.path), "--suite-dir", str(args.suite_dir), "--out", str(args.out)]
     for extension in args.ext:
         parts.extend(["--ext", str(extension)])
-    return " ".join(shlex.quote(part) for part in parts)
+    return _shell_command(*parts)
+
+
+def _shell_command(*parts: object) -> str:
+    return " ".join(shlex.quote(str(part)) for part in parts)

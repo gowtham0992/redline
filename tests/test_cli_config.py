@@ -191,6 +191,121 @@ class CliConfigTests(unittest.TestCase):
             self.assertIn('"category": "summarization"', text)
             self.assertFalse(imported.exists())
 
+    def test_next_step_commands_quote_user_paths_with_spaces(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                raw_source = Path("raw exports/downloaded log.jsonl")
+                raw_source.parent.mkdir()
+                raw_source.write_text(
+                    '{"instruction": "Return JSON", "response": "{\\"owner\\": \\"billing\\"}"}\n',
+                    encoding="utf-8",
+                )
+                imported = Path("normalized logs/baseline log.jsonl")
+                imported.parent.mkdir()
+
+                preview_output = io.StringIO()
+                with contextlib.redirect_stdout(preview_output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "import",
+                                str(raw_source),
+                                "--input-field",
+                                "instruction",
+                                "--output-field",
+                                "response",
+                                "--preview",
+                                "1",
+                            ]
+                        ),
+                        0,
+                    )
+                self.assertIn(
+                    "redline import 'raw exports/downloaded log.jsonl' --out baseline.jsonl",
+                    preview_output.getvalue(),
+                )
+
+                import_output = io.StringIO()
+                with contextlib.redirect_stdout(import_output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "import",
+                                str(raw_source),
+                                "--input-field",
+                                "instruction",
+                                "--output-field",
+                                "response",
+                                "--out",
+                                str(imported),
+                            ]
+                        ),
+                        0,
+                    )
+                self.assertIn(
+                    "redline suite 'normalized logs/baseline log.jsonl' --out redline-suite.json",
+                    import_output.getvalue(),
+                )
+
+                suite_path = Path("suite files/redline suite.json")
+                suite_path.parent.mkdir()
+                suite_output = io.StringIO()
+                with contextlib.redirect_stdout(suite_output):
+                    self.assertEqual(main(["suite", str(imported), "--out", str(suite_path), "--all-cases"]), 0)
+                suite_text = suite_output.getvalue()
+                self.assertIn("redline cases 'suite files/redline suite.json'", suite_text)
+                self.assertIn("redline diff 'suite files/redline suite.json' path/to/candidate.jsonl", suite_text)
+
+                add_output = io.StringIO()
+                with contextlib.redirect_stdout(add_output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "suite",
+                                "add",
+                                str(suite_path),
+                                "--prompt",
+                                "Pinned path prompt",
+                                "--response",
+                                "Pinned path response",
+                                "--case-id",
+                                "case with spaces",
+                            ]
+                        ),
+                        0,
+                    )
+                add_text = add_output.getvalue()
+                self.assertIn("redline case 'suite files/redline suite.json' 'case with spaces'", add_text)
+                self.assertIn("redline validate 'suite files/redline suite.json'", add_text)
+
+                mark_output = io.StringIO()
+                with contextlib.redirect_stdout(mark_output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "mark",
+                                str(suite_path),
+                                "case with spaces",
+                                "--status",
+                                "expected",
+                                "--note",
+                                "intentional",
+                            ]
+                        ),
+                        0,
+                    )
+                mark_text = mark_output.getvalue()
+                self.assertIn("redline validate 'suite files/redline suite.json'", mark_text)
+                self.assertIn(
+                    "redline accept 'suite files/redline suite.json' 'case with spaces'",
+                    mark_text,
+                )
+            finally:
+                os.chdir(previous)
+
     def test_import_command_auto_maps_external_jsonl(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
