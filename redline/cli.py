@@ -146,37 +146,31 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _root_help() -> str:
     return """redline
 
-Local-first prompt regression diffs from JSONL logs.
+Catch prompt regressions before they ship.
 
-Start here:
-  redline demo
-  redline status
+Recommended first run:
   redline app --demo
-  redline quick-check path/to/baseline.jsonl path/to/candidate.jsonl --open
-  redline dashboard
-  redline init --runner stdio --copy-runner
-  redline runners
-  redline judges
+
+Terminal-only demo:
+  redline demo --public --compact
+
+Try your own logs:
+  redline quick-check logs/baseline.jsonl logs/candidate.jsonl --open-app
+
+Vocabulary:
+  baseline         known-good prompt/output log
+  candidate        new prompt/output log to compare
+  suite            saved regression cases generated from baseline logs
+  structural check deterministic signal for broken JSON, tables, refusals, missing details, or empty output
+
+Next after setup:
+  redline import path/to/export.jsonl --detect
+  redline status
   redline doctor
-  redline sbom
 
-Core loop:
-  redline suite path/to/baseline.jsonl --out redline-suite.json
-  redline import downloaded.jsonl --input-field instruction --output-field response --out baseline.jsonl
-  redline eval --prompt prompts/v2.txt
-  redline diff redline-suite.json path/to/candidate.jsonl
-
-Review loop:
-  redline cases redline-suite.json
-  redline case redline-suite.json case_001
-  redline suite add redline-suite.json --prompt-file prompt.txt --response-file baseline.txt
-  redline accept redline-suite.json --all-expected --candidate .redline/runs/candidate.jsonl
-
-Scale:
-  redline prompts prompts/ --suite-dir suites --out redline-prompts.json
-  redline eval redline-prompts.json
-
-Run `redline <command> --help` for command details.
+More commands:
+  redline <command> --help
+  docs/commands.md
 """
 
 

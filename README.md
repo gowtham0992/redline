@@ -17,8 +17,6 @@
 <p align="center">
   <a href="https://gowtham0992.github.io/redline/">Website</a> ·
   <a href="#project-docs">Docs</a> ·
-  <a href="docs/mcp.md">MCP</a> ·
-  <a href="https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline">MCP Registry</a> ·
   <a href="SECURITY.md">Security</a> ·
   <a href="LICENSE">License</a>
 </p>
@@ -26,7 +24,6 @@
 [![CI](https://github.com/gowtham0992/redline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gowtham0992/redline/actions/workflows/ci.yml)
 [![GitHub Pages](https://github.com/gowtham0992/redline/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/gowtham0992/redline/actions/workflows/pages.yml)
 [![PyPI](https://img.shields.io/pypi/v/redline-ai.svg)](https://pypi.org/project/redline-ai/)
-[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.gowtham0992%2Fredline-blue)](https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/gowtham0992/redline?style=social)](https://github.com/gowtham0992/redline/stargazers)
 
@@ -38,18 +35,17 @@ Install from PyPI:
 python -m pip install redline-ai
 ```
 
-Run the guided local app with the public proof loaded:
+Run one command first:
 
 ```bash
 redline app --demo
 ```
 
-This generates the public demo reports, opens the local product app, and shows
-the full import -> suite -> eval -> review workflow. The demo catches ten
-synthetic regressions without API keys, private logs, a cloud account, or an LLM
-judge.
+This generates synthetic public demo reports, opens the local app, and shows
+the import -> suite -> eval -> review workflow. The demo catches ten
+regressions without API keys, private logs, a cloud account, or an LLM judge.
 
-Prefer terminal output first:
+Prefer terminal-only output:
 
 ```bash
 redline demo --public --compact
@@ -58,14 +54,18 @@ redline demo --public --compact
 The demo writes JSON, Markdown, and self-contained HTML reports under
 `.redline/demo`.
 
-Ask redline what to do next:
+Try your own baseline and candidate logs:
+
+```bash
+redline quick-check logs/baseline.jsonl logs/candidate.jsonl --open-app
+```
+
+`quick-check` builds a temporary suite, writes reports, and opens the app on the
+local result. Ask redline what to do next after any run:
 
 ```bash
 redline status --reports-dir .redline/demo/reports
 ```
-
-`status` reads local config, suites, reports, history, and audit evidence, then
-prints the next command instead of leaving you to infer the workflow.
 
 Open the guided local product app on existing reports:
 
@@ -100,6 +100,15 @@ redline app --reports-dir .redline/demo/reports --no-open --out .redline/app.htm
 Full guide: [docs/troubleshooting.md](docs/troubleshooting.md).
 </details>
 
+## First Concepts
+
+- **Baseline**: the known-good prompt/output log.
+- **Candidate**: the new prompt/output log after a prompt, model, or app change.
+- **Suite**: saved regression cases generated from baseline logs, plus any cases
+  you pin by hand.
+- **Structural check**: a deterministic signal for broken JSON, lost tables,
+  empty output, new refusals, missing URLs, missing numbers, or dropped entities.
+
 ![redline product demo](https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-product-demo.gif)
 
 ## Product Proof
@@ -118,7 +127,7 @@ rerun the same style of check, follow the source list and conversion recipe in
 [docs/internet-dogfood-sources.md](docs/internet-dogfood-sources.md) with your
 own local download.
 
-| Dashboard | HTML report |
+| Local app | HTML report |
 | --- | --- |
 | ![redline dashboard showing reports, benchmark evidence, history, and ship readiness](https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-dashboard-proof.png) | ![redline HTML report showing concrete regression reasons and side-by-side baseline and candidate outputs](https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-report-proof.png) |
 
@@ -286,56 +295,32 @@ tools is dangerous. Each reported case includes a confidence and signal
 so reviewers can see why redline is making the call. Use requirements or an
 optional judge for semantic risks that structural checks cannot prove.
 
-## Product Surface
+## Core Product Loop
 
-redline is built around the full prompt-regression loop:
+The README keeps the first path short. The full command reference lives in
+[docs/commands.md](docs/commands.md).
 
-- `redline watch`: collect prompt-response observations from logs, Python
-  functions, OpenAI/Anthropic-compatible SDK calls, or ASGI apps, with
-  best-effort common secrets and PII redacted before write by default.
-- `redline import`: normalize exported team logs into redline JSONL, with the
-  same best-effort redaction enabled by default. Use `--no-redact` only for
-  reviewed local-only logs.
-- `RedlineMiddleware`: capture bounded JSON FastAPI or ASGI request/response pairs locally, with optional skip diagnostics.
-- `redline redact --check`: scan logs for common secrets and PII, then write a scrubbed copy when needed.
-  Redaction is best-effort pattern matching, not a privacy boundary; review sensitive logs before sharing.
-  It covers common provider keys, GitHub/PyPI/AWS access-key IDs, JWTs, bearer tokens,
-  emails, SSNs, phone numbers, card-like numbers, and sensitive field names such as
-  `api_key`, `password`, `secret`, and `token`.
-- `redline cluster`: inspect deterministic behavior-signature groups before suite generation.
-- `redline suite`: generate a representative eval suite from baseline logs.
-- `redline prompts`: scan many prompt files and write or check a versionable prompt-to-suite manifest.
-  Add `--check-suites` in CI when every prompt should already have a built and valid suite.
-- `redline suite add`: pin hand-picked edge cases the algorithm should never miss.
-- `redline budget` / `redline benchmark`: estimate suite or prompt-manifest runtime without
-  executing replay commands, write budget artifacts, and optionally fail on a CI
-  time budget. Add `--measure-local` to time redline's deterministic local diff
-  work on your suite baselines without calling a model.
-- `redline eval`: replay each suite case through your local app or model runner.
-- `redline diff`: compare candidate JSONL outputs against the suite baseline.
-- `redline mark` and `redline accept`: review intentional changes and promote the
-  new baseline.
-- `redline require`: add deterministic must-include or must-not-include rules.
-- `redline audit --verify`: inspect the local audit trail and verify the hash chain.
-  Add `--expect-last-hash` or `--expect-entries` when you want to prove the
-  local log tail still matches a checkpoint from CI or release evidence. Add
-  `--out-checkpoint .redline/audit-checkpoint.json` to persist that evidence,
-  then `--checkpoint .redline/audit-checkpoint.json` to verify against it later.
-- `redline sbom`: write CycloneDX SBOM release evidence for security review.
-- `redline app`: open the guided local product surface for importing logs,
-  generating suites, reviewing regressions, recording history, and wiring CI/MCP.
-- `redline status`: show project readiness and the next command from local
-  evidence, including the guided app command, first review case, its reason, and
-  why it matters.
-- `redline history`, `redline compare`, and `redline dashboard`: track quality
-  over time and inspect report artifacts locally. The dashboard surfaces
-  feature-level rollups, prompt-level eval rows, benchmark evidence, and a
-  latest-report review queue when reports come from a prompt manifest. It also
-  warns when reports exist without benchmark evidence from the same project.
-- `redline summary`: inspect suite readiness, or pass `redline-prompts.json` to
-  roll up multi-prompt suite coverage, owners, requirements, and missing suites.
-- `redline-mcp`: let AI coding assistants run checks inside Claude, Codex,
-  Cursor, Kiro, or any MCP client.
+1. **Get logs in** with `redline import`, `redline watch`, SDK capture, ASGI
+   middleware, or an existing JSONL export.
+2. **Generate a suite** with `redline suite` or pin important edge cases with
+   `redline suite add`.
+3. **Compare behavior** with `redline quick-check`, `redline diff`, or
+   `redline eval`.
+4. **Review and calibrate** with `redline cases`, `redline case`,
+   `redline mark`, `redline require`, and `redline accept`.
+5. **Operate the loop** with `redline app`, `redline status`, GitHub Actions,
+   local HTML reports, audit checkpoints, and optional MCP tools.
+
+Redaction is on by default for import and capture flows. It covers common
+provider keys, GitHub/PyPI/AWS access-key IDs, JWTs, bearer tokens, emails,
+SSNs, phone numbers, card-like numbers, and sensitive field names such as
+`api_key`, `password`, `secret`, and `token`. Redaction is best-effort pattern
+matching, not a privacy boundary; review sensitive logs before sharing.
+
+[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.gowtham0992%2Fredline-blue)](https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline)
+
+MCP is an integration surface, not the first-run path. Use it after the local
+CLI/app loop makes sense: [docs/mcp.md](docs/mcp.md).
 
 For repos with many prompt files, the manifest becomes the eval plan:
 
@@ -433,7 +418,7 @@ Every `diff` and `eval` run can write:
 - JSON for machines and dashboards
 - full Markdown for detailed summaries, including prompt-manifest rollups
 - concise PR-comment Markdown for merge-review surfaces
-- self-contained HTML for side-by-side inspection, including feature and prompt eval tables
+- self-contained HTML for side-by-side inspection, including feature and prompt eval tables plus a latest-report review queue
 - JUnit XML for CI test reporting
 - Slack Block Kit JSON for CI bots or webhook integrations you control
 - GitHub annotations for changed or blocking cases
@@ -554,20 +539,31 @@ bash scripts/release_check.sh
 
 ## Project Docs
 
-- [docs/release.md](docs/release.md): package, tag, PyPI, and MCP Registry release flow
-- [docs/launch.md](docs/launch.md): public alpha launch plan
+**Start and connect**
+
 - [docs/troubleshooting.md](docs/troubleshooting.md): first-run and CI failure recovery
+- [docs/commands.md](docs/commands.md): compact CLI command reference
 - [docs/import-guides.md](docs/import-guides.md): Langfuse, Helicone, OpenAI chat, Datadog, and custom log import recipes
+- [docs/runners.md](docs/runners.md): runner and log adapter setup
+
+**Understand the method**
+
 - [docs/methodology.md](docs/methodology.md): behavior grouping, case selection, scoring, and trust boundaries
 - [docs/calibration.md](docs/calibration.md): tiny fixture showing regressions, changed cases, and neutral cases
-- [docs/commands.md](docs/commands.md): compact CLI command reference
+- [docs/benchmarks.md](docs/benchmarks.md): performance contract and CI benchmark artifacts
+
+**Dogfood and evidence**
+
 - [docs/real-log-dogfood.md](docs/real-log-dogfood.md): redaction-first real-log test protocol
 - [docs/dogfood.md](docs/dogfood.md): first-user dogfood protocol
 - [docs/case-studies.md](docs/case-studies.md): reproducible dogfood case studies
 - [docs/internet-dogfood-sources.md](docs/internet-dogfood-sources.md): public prompt-response datasets for dogfood sourcing
-- [docs/runners.md](docs/runners.md): runner and log adapter setup
+
+**Operate and release**
+
 - [docs/mcp.md](docs/mcp.md): MCP server setup
-- [docs/benchmarks.md](docs/benchmarks.md): performance contract and CI benchmark artifacts
+- [docs/release.md](docs/release.md): package, tag, PyPI, and MCP Registry release flow
+- [docs/launch.md](docs/launch.md): public alpha launch plan
 - [docs/repository.md](docs/repository.md): GitHub repository controls
 - [scripts/README.md](scripts/README.md): maintainer script index
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributor validation

@@ -158,10 +158,12 @@ def _format_dashboard_app_html(
     summary = _app_dict(latest.get("summary"))
     suite_summary = _app_dict(latest.get("suite_summary"))
     decision = _app_dict(latest.get("decision"))
+    has_reports = bool(reports)
     active = _blocking_count(summary)
     changed = _changed_count(summary)
-    status_class = "red" if active else "amber" if changed else "green"
-    status_text = "Regressions" if active else "Review" if changed else "Clear"
+    status_class = "red" if active else "amber" if changed else "green" if has_reports else "blue"
+    status_text = "Regressions" if active else "Review" if changed else "Clear" if has_reports else "Start"
+    active_screen = "dashboard" if has_reports else "workflow"
     review_cases = _app_list(latest.get("review_cases"))
     warnings = _app_list(latest.get("warnings"))
     if notices:
@@ -181,9 +183,15 @@ def _format_dashboard_app_html(
             "</head>",
             "<body>",
             '<div class="app" data-redline-dashboard="app">',
-            _app_sidebar(active=active, changed=changed, alerts=alert_count),
+            _app_sidebar(active=active, changed=changed, alerts=alert_count, active_screen=active_screen),
             '<main class="main">',
-            _app_topbar(title=title, status_class=status_class, status_text=status_text, reports=len(reports)),
+            _app_topbar(
+                title=title,
+                status_class=status_class,
+                status_text=status_text,
+                reports=len(reports),
+                active_screen=active_screen,
+            ),
             '<div class="pane">',
             _app_workflow_screen(
                 dashboard=dashboard,
@@ -193,6 +201,7 @@ def _format_dashboard_app_html(
                 history=history,
                 checkpoint=checkpoint,
                 review_cases=review_cases,
+                active=active_screen == "workflow",
             ),
             _app_dashboard_screen(
                 summary=summary,
@@ -205,6 +214,8 @@ def _format_dashboard_app_html(
                 warnings=[warning for warning in warnings if str(warning).strip()],
                 status_class=status_class,
                 output_path=output_path,
+                active=active_screen == "dashboard",
+                has_reports=has_reports,
             ),
             _app_regressions_screen(review_cases=review_cases, summary=summary, decision=decision),
             _app_suites_screen(suite_summary=suite_summary, owners=owners, trust=trust, checkpoint=checkpoint, reports=reports),
@@ -225,15 +236,17 @@ def _format_dashboard_app_html(
     )
 
 
-def _app_sidebar(*, active: int, changed: int, alerts: int) -> str:
+def _app_sidebar(*, active: int, changed: int, alerts: int, active_screen: str) -> str:
     alert_badge = f'<span class="badge red">{active}</span>' if active else ""
     changed_badge = f'<span class="badge amber">{changed}</span>' if changed else ""
     alerts_badge = f'<span class="badge red">{alerts}</span>' if alerts else ""
+    dashboard_class = "sb-item active" if active_screen == "dashboard" else "sb-item"
+    workflow_class = "sb-item active" if active_screen == "workflow" else "sb-item"
     return (
         '<aside class="sidebar">'
-        f'<div class="sb-logo"><div class="sb-logo-icon">{_app_icon("compare")}</div><div><div class="sb-logo-name">redline</div><div class="sb-logo-version">local dashboard</div></div></div>'
-        f'<button type="button" class="sb-item active" data-nav="dashboard">{_app_icon("dashboard")}<span>Dashboard</span></button>'
-        f'<button type="button" class="sb-item" data-nav="workflow">{_app_icon("workflow")}<span>Workflow</span></button>'
+        f'<div class="sb-logo"><div class="sb-logo-icon">{_app_icon("compare")}</div><div><div class="sb-logo-name">redline</div><div class="sb-logo-version">local app</div></div></div>'
+        f'<button type="button" class="{dashboard_class}" data-nav="dashboard">{_app_icon("dashboard")}<span>Dashboard</span></button>'
+        f'<button type="button" class="{workflow_class}" data-nav="workflow">{_app_icon("workflow")}<span>Workflow</span></button>'
         f'<button type="button" class="sb-item" data-nav="regressions">{_app_icon("alert")}<span>Regressions</span> {alert_badge}</button>'
         f'<button type="button" class="sb-item" data-nav="suites">{_app_icon("suite")}<span>Eval suites</span></button>'
         f'<button type="button" class="sb-item" data-nav="logs">{_app_icon("logs")}<span>Log import</span></button>'
@@ -260,12 +273,13 @@ def _app_list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
 
 
-def _app_topbar(*, title: str, status_class: str, status_text: str, reports: int) -> str:
+def _app_topbar(*, title: str, status_class: str, status_text: str, reports: int, active_screen: str) -> str:
     badge_class = {"red": "badge-crit", "amber": "badge-warn", "green": "badge-pass"}.get(status_class, "badge-blue")
+    crumb = "Workflow" if active_screen == "workflow" else title
     return (
         '<header class="topbar">'
         '<div class="topbar-left">'
-        f'<div class="crumb" id="crumb"><b>{_h(title)}</b></div>'
+        f'<div class="crumb" id="crumb"><b>{_h(crumb)}</b></div>'
         f'<span class="top-badge {badge_class}" id="top-badge">{_h(status_text)}</span>'
         "</div>"
         '<div class="topbar-right">'
@@ -286,6 +300,7 @@ def _app_workflow_screen(
     history: list[Any],
     checkpoint: dict[str, Any],
     review_cases: list[Any],
+    active: bool,
 ) -> str:
     items = _app_workflow_items(
         dashboard=dashboard,
@@ -299,8 +314,9 @@ def _app_workflow_screen(
     blocking = _blocking_count(_app_dict(latest.get("summary")))
     next_item = next((item for item in items if item["tone"] != "green"), items[-1])
     cards = "".join(_app_workflow_card(item) for item in items)
+    section_class = "screen active" if active else "screen"
     return (
-        '<section class="screen" id="s-workflow">'
+        f'<section class="{section_class}" id="s-workflow">'
         '<div class="metric-row">'
         f'{_app_metric("Next command", str(next_item["stage"]), next_item["title"], "amber" if next_item["tone"] == "amber" else "red" if next_item["tone"] == "red" else "green")}'
         f'{_app_metric("Reports", str(len(reports)), "local evidence files", "green" if reports else "amber")}'
@@ -446,6 +462,15 @@ def _app_workflow_card(item: dict[str, str], *, featured: bool = False) -> str:
     )
 
 
+def _app_command_block(command: str) -> str:
+    return (
+        '<div class="command-row">'
+        f'<code>{_h(command)}</code>'
+        f'<button type="button" class="copy-btn" data-copy="{_h(command)}">Copy</button>'
+        "</div>"
+    )
+
+
 def _workflow_status(tone: str) -> str:
     if tone == "green":
         return "ready"
@@ -466,16 +491,40 @@ def _app_dashboard_screen(
     warnings: list[Any],
     status_class: str,
     output_path: str | Path | None,
+    active: bool,
+    has_reports: bool,
 ) -> str:
+    section_class = "screen active" if active else "screen"
+    if not has_reports:
+        return (
+            f'<section class="{section_class}" id="s-dashboard">'
+            '<div class="metric-row">'
+            f'{_app_metric("Active regressions", "n/a", "no report loaded", "blue")}'
+            f'{_app_metric("Review changes", "n/a", "run a diff or eval first", "blue")}'
+            f'{_app_metric("Eval cases", "0", "no local evidence yet", "")}'
+            f'{_app_metric("Pass rate", "n/a", "not evaluated", "blue")}'
+            "</div>"
+            f'{_app_warning_banner(warnings, status_class=status_class, has_reports=False)}'
+            '<div class="two-col hero-grid">'
+            f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("workflow")} Nothing to review yet</span><span class="card-meta">first run</span></div>'
+            '<div class="card-body"><p class="muted">Generate a report before using dashboard ship guidance. Start with the bundled demo or compare your own baseline and candidate logs.</p>'
+            f'{_app_command_block("redline demo --public --compact")}'
+            f'{_app_command_block("redline quick-check logs/baseline.jsonl logs/candidate.jsonl --open-app")}'
+            "</div></div>"
+            f'<div class="card"><div class="card-head"><span class="card-title">{_app_icon("shield")} Trust boundary</span><span class="card-meta">before data</span></div>'
+            '<div class="card-body"><p class="muted">No report means no verdict. redline only gives ship guidance after it reads local JSON reports from demo, quick-check, diff, or eval.</p></div></div>'
+            "</div>"
+            "</section>"
+        )
     blocking = _blocking_count(summary)
     changed = _changed_count(summary)
     neutral = _safe_int(summary.get("neutral"))
     cases = _safe_int(summary.get("cases"))
     action = str(decision.get("recommended_action") or "Run a diff or eval to populate ship guidance.")
-    warning_html = _app_warning_banner(warnings, status_class=status_class)
+    warning_html = _app_warning_banner(warnings, status_class=status_class, has_reports=has_reports)
     pass_text = _pass_rate_label(summary)
     return (
-        '<section class="screen active" id="s-dashboard">'
+        f'<section class="{section_class}" id="s-dashboard">'
         '<div class="metric-row">'
         f'{_app_metric("Active regressions", str(blocking), "regression + missing", "red" if blocking else "green")}'
         f'{_app_metric("Review changes", str(changed), "changed cases", "amber" if changed else "green")}'
@@ -688,7 +737,9 @@ def _app_metric(label: str, value: str, sub: str, tone: str) -> str:
     )
 
 
-def _app_warning_banner(warnings: list[Any], *, status_class: str) -> str:
+def _app_warning_banner(warnings: list[Any], *, status_class: str, has_reports: bool = True) -> str:
+    if not has_reports:
+        return _app_alert("blue", "No report yet.", "Run the demo or quick-check to generate local evidence before reading ship guidance.")
     if warnings:
         text = " ".join(_preview(str(warning), 160) for warning in warnings[:2])
         return _app_alert("amber", "Calibration warning.", text)

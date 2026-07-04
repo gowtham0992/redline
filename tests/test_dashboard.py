@@ -325,7 +325,7 @@ class DashboardTests(unittest.TestCase):
         )
 
         self.assertIn('data-redline-dashboard="app"', html)
-        self.assertIn("local dashboard", html)
+        self.assertIn("local app", html)
         self.assertIn('class="svg-ico"', html)
         self.assertIn('button type="button" class="sb-item', html)
         self.assertIn("Workflow", html)
@@ -653,6 +653,15 @@ class DashboardTests(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertTrue(output.exists())
+            text = output.read_text(encoding="utf-8")
+            self.assertIn('<button type="button" class="sb-item active" data-nav="workflow">', text)
+            self.assertIn('<section class="screen active" id="s-workflow">', text)
+            self.assertIn('<section class="screen" id="s-dashboard">', text)
+            self.assertIn("local app", text)
+            self.assertIn("No report yet.", text)
+            self.assertIn("Nothing to review yet", text)
+            self.assertIn("No report means no verdict.", text)
+            self.assertNotIn("No blocking structural regressions in latest report.", text)
             self.assertIn("Open:", stdout.getvalue())
             open_browser.assert_not_called()
 

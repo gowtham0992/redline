@@ -26,7 +26,6 @@
         <a href="#workflow">Workflow</a>
         <a href="#trust">Trust</a>
         <a href="#adapters">Adapters</a>
-        <a href="#mcp">MCP</a>
         <a href="#certification">Certify</a>
         <a href="https://github.com/gowtham0992/redline#project-docs">Docs</a>
         <a class="nav-cta" href="https://github.com/gowtham0992/redline">Star on GitHub</a>
@@ -48,7 +47,7 @@
               <code><span>$</span> python -m pip install redline-ai</code>
             </div>
             <div>
-              <code><span>$</span> redline demo --public --compact</code>
+              <code><span>$</span> redline app --demo</code>
             </div>
           </div>
           <div class="actions" aria-label="Primary actions">
@@ -56,14 +55,13 @@
             <a class="button secondary" href="https://github.com/gowtham0992/redline">View source</a>
           </div>
           <div class="hero-metrics" aria-label="Product proof points">
-            <span><strong>100</strong><small>public rows dogfooded</small></span>
+            <span><strong>100</strong><small>local-only rows dogfooded</small></span>
             <span><strong>0</strong><small>runtime dependencies</small></span>
             <span><strong>1</strong><small>local app workflow</small></span>
           </div>
           <div class="badges" aria-label="Project status badges">
             <a href="https://github.com/gowtham0992/redline/actions/workflows/ci.yml"><strong>CI</strong><span>passing</span></a>
             <a href="https://pypi.org/project/redline-ai/"><strong>PyPI</strong><span>redline-ai</span></a>
-            <a href="https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Fredline"><strong>MCP</strong><span>registered</span></a>
             <a href="https://github.com/gowtham0992/redline/stargazers"><strong>GitHub</strong><span>star</span></a>
           </div>
         </div>
@@ -96,7 +94,7 @@ Diagnosis: candidate got shorter, lost required structure, dropped concrete deta
       <section class="quickstart band" id="proof">
         <div class="section-heading">
           <p class="eyebrow">First-run proof</p>
-          <h2>One command for the demo. One public dataset for proof.</h2>
+          <h2>One synthetic demo. One local-only public-data proof.</h2>
           <p>
             The public demo is synthetic and safe to share, but it behaves like
             a real prompt change: the candidate gets shorter and silently drops
@@ -149,7 +147,7 @@ not valid JSON</code></pre>
         </div>
         <div class="dogfood-proof" aria-label="Internet dogfood evidence">
           <article>
-            <strong>100 public prompt-response rows</strong>
+            <strong>100 local-only public-data rows</strong>
             <p>Imported from Databricks Dolly 15k with redline's JSONL importer. The protocol is public; raw third-party rows stay uncommitted under .redline/private/.</p>
           </article>
           <article>
