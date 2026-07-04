@@ -33,11 +33,23 @@ class ReportTests(unittest.TestCase):
             },
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "suite": "redline-suite.json",
+            "methodology": {
+                "name": "deterministic behavior-signature grouping",
+                "version": "behavior-signature-v1",
+            },
+            "suite_summary": {
+                "cases": 1,
+                "unique_prompt_response_pairs": 2,
+                "clusters": 1,
+                "case_coverage": 0.5,
+                "cluster_coverage": 1.0,
+            },
             "candidate": ".redline/runs/candidate.jsonl",
             "artifacts": {
                 "json": ".redline/reports/eval.json",
                 "markdown": ".redline/reports/eval.md",
                 "html": ".redline/reports/eval.html",
+                "app": ".redline/reports/app.html",
                 "junit": ".redline/reports/eval.xml",
             },
             "prompt_evals": [
@@ -83,9 +95,12 @@ class ReportTests(unittest.TestCase):
         self.assertIn("**Recommended action:** fix blocking cases before shipping", report)
         self.assertIn("**Scope:** structural checks only", report)
         self.assertIn("**Diagnosis:** Candidate lost required structure; fix blocking cases before shipping.", report)
+        self.assertIn("**Methodology:** deterministic behavior-signature grouping (behavior-signature-v1)", report)
+        self.assertIn("**Suite coverage:** cases 1/2 (50.0%); behavior groups 1/1 (100.0%)", report)
         self.assertIn("## Warnings", report)
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
         self.assertIn("## Artifacts", report)
+        self.assertIn("| App | `.redline/reports/app.html` |", report)
         self.assertIn("| HTML | `.redline/reports/eval.html` |", report)
         self.assertIn("| JUnit | `.redline/reports/eval.xml` |", report)
         self.assertIn("## Owner Review", report)
@@ -112,6 +127,10 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Owner: `@platform-team`", report)
         self.assertIn("Confidence: `high`", report)
         self.assertIn("Signal: `structural`", report)
+        self.assertIn(
+            "Why this matters: Downstream code may fail if consumers expect parseable JSON or required fields.",
+            report,
+        )
         self.assertIn("Baseline:", report)
         self.assertIn('{"ok": true}', report)
         self.assertIn("Candidate:", report)
@@ -134,6 +153,33 @@ class ReportTests(unittest.TestCase):
         report = format_markdown_report(result)
 
         self.assertIn("Prompt: ``Use `json` output``", report)
+
+    def test_markdown_report_prefers_explicit_case_impact(self) -> None:
+        result = {
+            "summary": {"regression": 1, "changed": 0, "improved": 0, "neutral": 0, "missing": 0},
+            "diffs": [
+                {
+                    "case_id": "case_001",
+                    "status": "regression",
+                    "prompt": "Return JSON",
+                    "baseline_response": '{"owner":"billing"}',
+                    "candidate_response": "billing",
+                    "reasons": ["candidate lost valid JSON format"],
+                    "impact": "Billing routing automation may fail because the owner field disappeared.",
+                }
+            ],
+        }
+
+        report = format_markdown_report(result)
+
+        self.assertIn(
+            "Why this matters: Billing routing automation may fail because the owner field disappeared.",
+            report,
+        )
+        self.assertNotIn(
+            "Why this matters: Downstream code may fail if consumers expect parseable JSON or required fields.",
+            report,
+        )
 
     def test_markdown_code_blocks_use_fence_longer_than_output_backticks(self) -> None:
         result = {
@@ -176,6 +222,17 @@ class ReportTests(unittest.TestCase):
             },
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
             "suite": "redline-suite.json",
+            "methodology": {
+                "name": "deterministic behavior-signature grouping",
+                "version": "behavior-signature-v1",
+            },
+            "suite_summary": {
+                "cases": 1,
+                "unique_prompt_response_pairs": 2,
+                "clusters": 1,
+                "case_coverage": 0.5,
+                "cluster_coverage": 1.0,
+            },
             "candidate": ".redline/runs/candidate.jsonl",
             "artifacts": {
                 "json": ".redline/reports/eval.json",
@@ -226,9 +283,15 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Owner: @platform-team", report)
         self.assertIn("Behavior: structured JSON prompt -&gt; JSON response (short)", report)
         self.assertIn("Confidence: high | Signal: structural", report)
+        self.assertIn("Why this matters:", report)
+        self.assertIn("Downstream code may fail if consumers expect parseable JSON or required fields.", report)
         self.assertIn("fix blocking cases before shipping", report)
         self.assertIn("structural checks only", report)
         self.assertIn("Candidate lost required structure; fix blocking cases before shipping.", report)
+        self.assertIn("<h2>Methodology</h2>", report)
+        self.assertIn("deterministic behavior-signature grouping (behavior-signature-v1)", report)
+        self.assertIn("<h2>Suite coverage</h2>", report)
+        self.assertIn("cases 1/2 (50.0%); behavior groups 1/1 (100.0%)", report)
         self.assertIn("<h2>Warnings</h2>", report)
         self.assertIn("<h2>Artifacts</h2>", report)
         self.assertIn("<td>HTML</td><td>.redline/reports/eval.html</td>", report)

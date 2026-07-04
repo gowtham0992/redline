@@ -8,6 +8,7 @@ from .io import iter_jsonl, write_jsonl
 
 
 DEFAULT_PLACEHOLDER = "[REDACTED]"
+REDACTION_BOUNDARY = "best-effort pattern matching, not a privacy boundary; review before sharing or committing"
 
 SENSITIVE_FIELD_FRAGMENTS = (
     "api_key",
@@ -135,7 +136,7 @@ def format_redaction_report(report: dict[str, Any]) -> str:
         [
             f"Records:    {report['records']}",
             f"Redactions: {report['redactions']}",
-            "Boundary:   best-effort common secret/PII patterns; review sensitive logs before sharing",
+            f"Boundary:   {REDACTION_BOUNDARY}",
         ]
     )
     patterns = report.get("patterns")

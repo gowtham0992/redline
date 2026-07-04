@@ -1,0 +1,4 @@
+{"prompt":"Return JSON with keys owner and priority for ticket INV-1042.","response":"owner: billing, priority: high"}
+{"prompt":"Answer a customer asking about refunds. Include the 30 day window and policy URL https://docs.example.test/refunds.","response":"Refunds are available. See the policy page."}
+{"prompt":"Tell Sam that the export is ready.","response":"Sorry Sam, unfortunately the export is ready in the dashboard."}
+{"prompt":"Confirm the workspace status in one sentence.","response":"The workspace remains available."}

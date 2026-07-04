@@ -33,6 +33,8 @@ class SummaryTests(unittest.TestCase):
 
         self.assertEqual(summary["source"], "logs/baseline.jsonl")
         self.assertEqual(summary["selection"], "representative")
+        self.assertEqual(summary["methodology_version"], "behavior-signature-v1")
+        self.assertEqual(summary["methodology_name"], "deterministic behavior-signature grouping")
         self.assertEqual(summary["records_seen"], 2)
         self.assertEqual(summary["unique_prompt_response_pairs"], 2)
         self.assertEqual(summary["duplicate_prompt_response_pairs"], 0)
@@ -54,6 +56,12 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["judgment_cases"], 1)
         self.assertEqual(summary["explicit_guard_cases"], 1)
         self.assertEqual(summary["explicit_guard_coverage"], 0.5)
+        self.assertEqual(summary["suite_readiness"]["score"], 80)
+        self.assertEqual(summary["suite_readiness"]["label"], "strong")
+        self.assertIn(
+            "many cases have requirements or recorded judgments",
+            summary["suite_readiness"]["reasons"],
+        )
         self.assertEqual(summary["judgments"], {"expected": 1})
         self.assertEqual(summary["requirements"], 1)
         self.assertEqual(summary["failure_pattern_clusters"], 0)
@@ -89,20 +97,25 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("redline summary", output)
         self.assertIn("Source:", output)
         self.assertIn("Selection:", output)
+        self.assertIn("Methodology:", output)
+        self.assertIn("behavior-signature-v1", output)
         self.assertIn("Records seen:", output)
         self.assertIn("Unique pairs:", output)
         self.assertIn("Duplicate pairs:", output)
-        self.assertIn("Cluster coverage:", output)
+        self.assertIn("Group coverage:", output)
         self.assertIn("Case coverage:", output)
+        self.assertIn("Suite readiness:", output)
+        self.assertIn("Readiness scope:        suite health, not model quality or candidate safety", output)
         self.assertIn("Pinned cases:", output)
         self.assertIn("Owned cases:", output)
         self.assertIn("Owner rule coverage:", output)
         self.assertIn("Accepted baselines:", output)
         self.assertIn("Approved baselines:", output)
         self.assertIn("Explicit guard coverage:", output)
-        self.assertIn("High-risk clusters:", output)
-        self.assertIn("Failure-pattern clusters:", output)
-        self.assertIn("Top clusters:", output)
+        self.assertIn("High-risk groups:", output)
+        self.assertIn("Failure-pattern groups:", output)
+        self.assertIn("Top groups:", output)
+        self.assertIn("Readiness signals:", output)
         self.assertIn("structured JSON prompt -> JSON response", output)
 
     def test_suite_summary_surfaces_non_ascii_calibration(self) -> None:
@@ -120,6 +133,26 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["non_ascii_records"], 1)
         self.assertIn("Non-ASCII records:      1", output)
         self.assertIn("entity/refusal heuristics are English-oriented", "\n".join(summary["next_steps"]))
+
+    def test_suite_summary_surfaces_stochastic_baseline_calibration(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Classify ticket", "billing", {}),
+                LogRecord(2, "Classify ticket", "support", {}),
+            ],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        summary = suite_summary(suite)
+        output = format_suite_summary(suite)
+
+        self.assertEqual(summary["stochastic_prompt_groups"], 1)
+        self.assertIn("Stochastic prompts:     1", output)
+        self.assertIn("natural sampling variance can look like regressions", "\n".join(summary["next_steps"]))
+        self.assertTrue(any("stochastic baseline review" in reason for reason in summary["suite_readiness"]["reasons"]))
 
     def test_suite_summary_counts_owners(self) -> None:
         suite = build_suite(
@@ -271,9 +304,10 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(summary["clusters"], 2)
         self.assertEqual(summary["case_coverage"], 0.5)
         self.assertEqual(summary["cluster_coverage"], 0.5)
+        self.assertEqual(summary["suite_readiness"]["label"], "needs_work")
         self.assertIn("Increase --max-cases", summary["next_steps"][0])
         self.assertIn("redline suite add redline-suite.json --prompt-file", output)
-        self.assertIn("Cluster coverage:       1/2 (50.0%)", output)
+        self.assertIn("Group coverage:         1/2 (50.0%)", output)
         self.assertIn("Next:", output)
 
 

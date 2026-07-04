@@ -5,11 +5,69 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from redline.import_logs import import_jsonl_log
+from redline.import_logs import (
+    detect_import_fields,
+    format_import_detection,
+    format_import_presets,
+    import_jsonl_log,
+    import_preset_rows,
+    preview_jsonl_import,
+)
 from redline.io import read_jsonl_records
 
 
 class ImportLogTests(unittest.TestCase):
+    def test_import_preset_rows_are_human_discoverable(self) -> None:
+        rows = import_preset_rows()
+        output = format_import_presets()
+
+        self.assertTrue(any(row["id"] == "langfuse" for row in rows))
+        self.assertTrue(any(row["id"] == "openai-chat" for row in rows))
+        self.assertIn("redline import presets", output)
+        self.assertIn("langfuse", output)
+        self.assertIn("openai-chat", output)
+        self.assertIn("redline import raw.jsonl --preset langfuse", output)
+
+    def test_detect_import_fields_suggests_known_mapping(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "langfuse.jsonl"
+            source.write_text(
+                '{"input": "Classify ticket", "output": "billing", "traceId": "trace-1"}\n'
+                '{"input": "Summarize ticket", "output": "short summary", "traceId": "trace-2"}\n',
+                encoding="utf-8",
+            )
+
+            result = detect_import_fields(source)
+            text = format_import_detection(result)
+
+            self.assertEqual(result["records_scanned"], 2)
+            self.assertEqual(result["suggestions"][0]["input_field"], "input")
+            self.assertEqual(result["suggestions"][0]["output_field"], "output")
+            self.assertEqual(result["suggestions"][0]["score"], 100)
+            self.assertIn("redline import detection", text)
+            self.assertIn("--input-field input --output-field output --preview 3", text)
+
+    def test_detect_import_fields_discovers_custom_nested_mapping(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "custom.jsonl"
+            source.write_text(
+                json.dumps(
+                    {
+                        "payload": {"user_question": "What is refund policy?"},
+                        "result": {"assistant_answer": "Refunds are available within 30 days."},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = detect_import_fields(source)
+            fields = {(row["input_field"], row["output_field"]) for row in result["suggestions"]}
+
+            self.assertIn(("payload.user_question", "result.assistant_answer"), fields)
+
     def test_import_jsonl_log_maps_external_fields_and_context(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -68,11 +126,130 @@ class ImportLogTests(unittest.TestCase):
             self.assertEqual(report["records"], 1)
             self.assertEqual(len(read_jsonl_records(output, "prompt", "response")), 1)
 
+    def test_preview_jsonl_import_maps_rows_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            output = root / "baseline.jsonl"
+            source.write_text(
+                '{"instruction": "Email ada@example.com", "response": "ok", "category": "support"}\n',
+                encoding="utf-8",
+            )
+
+            report = preview_jsonl_import(
+                source,
+                input_field="instruction",
+                output_field="response",
+                metadata_fields=["category"],
+                limit=1,
+            )
+
+            self.assertEqual(report["previewed"], 1)
+            self.assertFalse(output.exists())
+            self.assertNotIn("ada@example.com", report["rows"][0]["prompt"])
+            self.assertEqual(report["rows"][0]["response"], "ok")
+            self.assertEqual(report["rows"][0]["metadata"], {"category": "support"})
+
+    def test_import_jsonl_log_reads_nested_list_paths_for_chat_exports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "openai.jsonl"
+            output = root / "baseline.jsonl"
+            source.write_text(
+                json.dumps(
+                    {
+                        "request": {
+                            "messages": [
+                                {"role": "system", "content": "Use JSON."},
+                                {"role": "user", "content": "Classify ticket INV-1042."},
+                            ],
+                            "model": "gpt-4o-mini",
+                        },
+                        "response": {
+                            "choices": [
+                                {"message": {"content": '{"owner": "billing"}'}},
+                            ]
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            report = import_jsonl_log(
+                source,
+                output=output,
+                input_field="request.messages",
+                output_field="response.choices.0.message.content",
+                metadata_fields=["request.model"],
+            )
+
+            self.assertEqual(report["records"], 1)
+            records = read_jsonl_records(output, "prompt", "response")
+            self.assertIn("Classify ticket INV-1042", records[0].prompt)
+            self.assertEqual(records[0].response, '{"owner": "billing"}')
+            self.assertEqual(records[0].raw["metadata"], {"request.model": "gpt-4o-mini"})
+
+    def test_import_jsonl_log_redacts_common_secrets_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            output = root / "baseline.jsonl"
+            source.write_text(
+                json.dumps(
+                    {
+                        "instruction": "Email ada@example.com with the result.",
+                        "response": "Used key sk-ant-" + ("a" * 24),
+                        "metadata": {"api_key": "secret-value"},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            report = import_jsonl_log(
+                source,
+                output=output,
+                input_field="instruction",
+                output_field="response",
+                metadata_fields=["metadata"],
+            )
+
+            self.assertTrue(report["redacted"])
+            self.assertEqual(report["redactions"], 3)
+            records = read_jsonl_records(output, "prompt", "response")
+            self.assertNotIn("ada@example.com", records[0].prompt)
+            self.assertNotIn("sk-ant-", records[0].response)
+            self.assertEqual(records[0].raw["metadata"]["metadata"]["api_key"], "[REDACTED]")
+
+    def test_import_jsonl_log_can_disable_redaction_for_local_only_logs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            output = root / "baseline.jsonl"
+            source.write_text(
+                '{"instruction": "Email ada@example.com", "response": "ok"}\n',
+                encoding="utf-8",
+            )
+
+            report = import_jsonl_log(
+                source,
+                output=output,
+                input_field="instruction",
+                output_field="response",
+                redact=False,
+            )
+
+            self.assertFalse(report["redacted"])
+            self.assertEqual(report["redactions"], 0)
+            records = read_jsonl_records(output, "prompt", "response")
+            self.assertIn("ada@example.com", records[0].prompt)
+
     def test_import_jsonl_log_reports_missing_fields(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "downloaded.jsonl"
             source.write_text('{"instruction": "missing response"}\n', encoding="utf-8")
 
-            with self.assertRaisesRegex(ValueError, "missing output field: response"):
+            with self.assertRaisesRegex(ValueError, "redline import --list-presets"):
                 import_jsonl_log(source, output=root / "baseline.jsonl", input_field="instruction")

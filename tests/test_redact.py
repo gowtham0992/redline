@@ -95,7 +95,7 @@ class RedactTests(unittest.TestCase):
         )
 
         self.assertIn("redline redact", output)
-        self.assertIn("best-effort common secret/PII patterns", output)
+        self.assertIn("not a privacy boundary", output)
         self.assertIn("redline suite clean.jsonl --out redline-suite.json", output)
 
     def test_format_redaction_check_report_points_to_write_step(self) -> None:

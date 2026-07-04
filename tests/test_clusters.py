@@ -69,10 +69,10 @@ class ClusterReportTests(unittest.TestCase):
         output = format_cluster_report(suite)
 
         self.assertIn("redline cluster", output)
-        self.assertIn("Identified 1 behavioral clusters from 1 unique pairs", output)
+        self.assertIn("Identified 1 behavior-signature groups from 1 unique pairs", output)
         self.assertIn("Records seen: 1  Duplicate pairs: 0", output)
-        self.assertIn("High-risk clusters: 0", output)
-        self.assertIn("Failure-pattern clusters: 0", output)
+        self.assertIn("High-risk groups: 0", output)
+        self.assertIn("Failure-pattern groups: 0", output)
         self.assertIn("Suggested eval suite: 1 representative cases.", output)
         self.assertIn("Case coverage: 1/1 (100.0%)", output)
         self.assertIn("RISK", output)

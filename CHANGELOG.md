@@ -1,5 +1,75 @@
 # Changelog
 
+## 0.3.0
+
+redline 0.3.0 turns the alpha from a CLI-first regression checker into a
+guided local product loop: import logs, generate a suite, run a quick check,
+review cases in the app, and carry the result into CI or an MCP client.
+
+Highlights:
+
+- Add a guided local app workflow for first-run demos, report review, suite
+  health, benchmark evidence, history, and next-step commands.
+- Add `redline quick-check` and `redline status` so new users can get from two
+  logs to a reviewed result without knowing the full command graph.
+- Expand log import with field detection, auto-mapping, previews, presets, and
+  redaction-first docs for real team exports.
+- Add suite readiness, methodology, coverage, calibration, and per-case impact
+  signals so users can understand what redline selected and why it matters.
+- Expand MCP coverage so AI coding assistants can run quick checks, imports,
+  status review, and dashboard rendering with the same trust boundary as the
+  CLI.
+- Refresh the README, GitHub Pages site, screenshots, and case studies around
+  reproducible product proof, including a 100-row Databricks Dolly dogfood run.
+
+### Added
+
+- Add `redline app --demo` for a one-command local product demo with generated
+  reports and review workflow.
+- Add `redline quick-check` for temporary suite generation, diffing, report
+  output, and optional app opening from two local logs.
+- Add `redline status` to summarize config, suites, reports, history, audit
+  evidence, and the next command a user should run.
+- Add import field detection, `--auto-map`, preview output, richer diagnostics,
+  and source guides for public datasets and team log exports.
+- Add suite readiness scoring and explicit messaging that readiness measures
+  suite health, not model quality or candidate safety.
+- Add report methodology and suite coverage metadata to JSON, Markdown, HTML,
+  dashboard, and summary surfaces.
+- Add calibration examples and profile documentation for strict versus review
+  behavior.
+- Add per-case impact guidance in reports and dashboard review queues.
+- Add MCP tools and prompts for quick-check, status, auto import, and safer
+  review workflows inside AI coding assistants.
+- Add a public internet dogfood case study using a local 100-row Databricks
+  Dolly sample, with raw third-party rows kept out of git.
+
+### Changed
+
+- Revamp the local dashboard into an app-style review surface with report
+  cards, ship readiness, case review, benchmark evidence, and history context.
+- Refresh GitHub Pages and README positioning around product proof instead of
+  only command reference.
+- Update proof screenshots from real local app and HTML report artifacts.
+- Position deterministic structural checks as a merge gate while keeping the
+  trust boundary visible in CLI, docs, and reports.
+- Improve CLI next-step output by quoting paths and commands that users can
+  copy safely.
+- Surface HTML reports and app-opening commands after first-run and eval flows.
+- Improve summary and dashboard wording for stochastic suites, English-centric
+  heuristics, and semantic review gaps.
+
+### Fixed
+
+- Ignore dashboard sidecar JSON artifacts such as Slack payloads and schemas so
+  dashboard/app report counts stay clean.
+- Validate suite schema compatibility more explicitly before users rely on a
+  generated suite.
+- Fix README and PyPI product-surface rendering by removing the fragile top SVG
+  README hero and using current raw asset URLs for proof images.
+- Quote printed app, demo, status, and CLI next-step commands to avoid broken
+  copy/paste paths.
+
 ## 0.2.1
 
 redline 0.2.1 is a packaging polish patch for PyPI rendering.

@@ -91,7 +91,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline demo --public --compact", text)
         self.assertIn("redline history", text)
         self.assertIn("--out-md", text)
-        self.assertIn("redline dashboard", text)
+        self.assertIn("redline app", text)
 
     def test_demo_gif_script_records_or_writes_transcript(self) -> None:
         script = Path("scripts/demo_gif.sh")
@@ -102,6 +102,28 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("asciinema", text)
         self.assertIn("redline-demo-transcript.txt", text)
         self.assertIn("redline demo --public --compact", text)
+
+    def test_methodology_doc_calibrates_behavior_grouping_and_score(self) -> None:
+        text = Path("docs/methodology.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn("does not run statistical, embedding, or semantic clustering", text)
+        self.assertIn("behavior-signature grouping", text)
+        self.assertIn("suite readiness score", text)
+        self.assertIn("not a model-quality score", text)
+        self.assertIn("stochastic_prompt_groups", text)
+        self.assertIn("docs/methodology.md", readme)
+
+    def test_calibration_doc_links_runnable_fixture(self) -> None:
+        text = Path("docs/calibration.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn("examples/calibration_baseline.jsonl", text)
+        self.assertIn("examples/calibration_candidate.jsonl", text)
+        self.assertIn("Two regressions", text)
+        self.assertIn("One changed case", text)
+        self.assertIn("One neutral case", text)
+        self.assertIn("docs/calibration.md", readme)
 
     def test_release_check_builds_and_smokes_installed_wheel(self) -> None:
         script = Path("scripts/release_check.sh").read_text(encoding="utf-8")
@@ -138,7 +160,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("--out-md history.md", script)
         self.assertIn("redline compare .redline/demo/reports/diff.json", script)
         self.assertIn("--out-html compare.html", script)
-        self.assertIn("redline dashboard --reports-dir .redline/demo/reports", script)
+        self.assertIn("redline app --reports-dir .redline/demo/reports", script)
         self.assertIn("--github-summary", script)
         self.assertIn("--all-cases", script)
         self.assertIn("redline suite add all-suite.json", script)
@@ -219,13 +241,25 @@ class PackagingTests(unittest.TestCase):
     def test_readme_marks_repo_only_script_commands(self) -> None:
         readme = Path("README.md").read_text(encoding="utf-8")
 
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-logo.svg", readme)
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-logo-dark.svg", readme)
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-product-demo.gif", readme)
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-dashboard-proof.png", readme)
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-report-proof.png", readme)
+        self.assertIn(
+            "https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-product-demo.gif",
+            readme,
+        )
+        self.assertIn(
+            "https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-dashboard-proof.png",
+            readme,
+        )
+        self.assertIn(
+            "https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-report-proof.png",
+            readme,
+        )
+        self.assertIn('<h1 align="center">redline</h1>', readme)
         self.assertIn("Automatic eval suites from the prompt logs you already have", readme)
         self.assertIn("Product Proof", readme)
+        self.assertIn("100 prompt-response rows sampled from [Databricks Dolly 15k]", readme)
+        self.assertIn("51 regressions, 27 changed cases, 22 neutral controls", readme)
+        self.assertIn("0 dashboard warnings", readme)
+        self.assertIn("These screenshots are local artifacts from the 100-row internet dogfood run", readme)
         self.assertIn("Product Promise", readme)
         self.assertIn("[![PyPI](https://img.shields.io/pypi/v/redline-ai.svg)](https://pypi.org/project/redline-ai/)", readme)
         self.assertIn("[![MCP Registry]", readme)
@@ -238,6 +272,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("zero runtime", readme)
         self.assertIn("docs/troubleshooting.md", readme)
         self.assertIn("docs/commands.md", readme)
+        self.assertIn("docs/real-log-dogfood.md", readme)
         self.assertIn("redline judges", readme)
         self.assertIn("feature-level", readme)
         self.assertIn("From a repo checkout, record the public demo", readme)
@@ -284,6 +319,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("Neutral does not mean safe", troubleshooting)
         self.assertIn("| `redline eval` |", commands)
         self.assertIn("| `redline import` |", commands)
+        self.assertIn("--no-redact", commands)
         self.assertIn("| `redline dashboard` |", commands)
         self.assertIn("| `redline-mcp` |", commands)
         self.assertIn("Default fail-on statuses", commands)
@@ -331,7 +367,10 @@ class PackagingTests(unittest.TestCase):
         readme = Path("README.md").read_text(encoding="utf-8")
 
         self.assertIn("redline-demo.gif", guide)
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-product-demo.gif", guide)
+        self.assertIn(
+            "https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-product-demo.gif",
+            guide,
+        )
         self.assertIn("python -m pip install redline-ai", guide)
         self.assertIn("Website Checklist", guide)
         self.assertIn("Demo GIF Storyboard", guide)
@@ -500,7 +539,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("Dependabot alerts", guide)
         self.assertIn(".github/workflows/pages.yml", guide)
         self.assertIn("on `main`", guide)
-        self.assertIn("bash scripts/certify_release.sh /tmp/redline-certify-v0.2.1", guide)
+        self.assertIn("bash scripts/certify_release.sh /tmp/redline-certify-v0.3.0", guide)
         self.assertIn("docs/repository.md", readme)
         self.assertIn("scripts/README.md", readme)
         self.assertIn("redline import downloaded.jsonl", readme)
@@ -550,6 +589,10 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline diff: cases=10 regression=9", guide)
         self.assertIn("docs/ai-session-dogfood-prompts.jsonl", guide)
         self.assertIn(".redline/private/", guide)
+        self.assertIn("Public Internet Dogfood", guide)
+        self.assertIn("Databricks Dolly 15k", guide)
+        self.assertIn("redline diff: cases=100 regression=51 changed=27", guide)
+        self.assertIn("1 report, 1 benchmark, 1 history entry, and 0", guide)
         self.assertIn("External Case Studies Still Needed", guide)
 
     def test_public_dogfood_fixture_documents_source_inspiration(self) -> None:

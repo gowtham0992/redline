@@ -19,6 +19,31 @@
       "enum": ["strict", "review"],
       "description": "Diff profile used to classify missing numbers and entities."
     },
+    "methodology": {
+      "type": "object",
+      "description": "Suite selection methodology copied from the suite, when available.",
+      "properties": {
+        "name": {"type": "string"},
+        "version": {"type": "string"},
+        "trust_scope": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "suite_summary": {
+      "type": "object",
+      "description": "Suite-health metadata copied from the suite used to generate this report.",
+      "properties": {
+        "records_seen": {"type": "integer", "minimum": 0},
+        "unique_prompt_response_pairs": {"type": "integer", "minimum": 0},
+        "clusters": {"type": "integer", "minimum": 0},
+        "cases": {"type": "integer", "minimum": 0},
+        "case_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "cluster_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "stochastic_prompt_groups": {"type": "integer", "minimum": 0},
+        "selection": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
     "summary": {
       "type": "object",
       "required": ["cases", "regression", "changed", "improved", "accepted", "ignored", "neutral", "missing"],
@@ -93,6 +118,10 @@
           "baseline_response": {"type": "string"},
           "candidate_response": {"type": ["string", "null"]},
           "reasons": {"type": "array", "items": {"type": "string"}},
+          "impact": {
+            "type": "string",
+            "description": "Plain-English explanation of why this case matters to reviewers."
+          },
           "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
           "signal": {
             "type": "string",

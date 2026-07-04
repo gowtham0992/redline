@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from redline.cli import main
 from redline.dashboard import build_dashboard, format_dashboard_html
@@ -24,6 +25,17 @@ class DashboardTests(unittest.TestCase):
                     "neutral": 3,
                 },
                 "decision": {"recommended_action": "review changed cases before shipping"},
+                "methodology": {
+                    "name": "deterministic behavior-signature grouping",
+                    "version": "behavior-signature-v1",
+                },
+                "suite_summary": {
+                    "cases": 5,
+                    "unique_prompt_response_pairs": 10,
+                    "clusters": 4,
+                    "case_coverage": 0.5,
+                    "cluster_coverage": 0.75,
+                },
                 "prompt_evals": [
                     {
                         "id": "support/triage",
@@ -156,7 +168,11 @@ class DashboardTests(unittest.TestCase):
                 {
                     "cases": 2,
                     "confidence": {"high": 1, "medium": 1},
+                    "methodology": {
+                        "deterministic behavior-signature grouping (behavior-signature-v1)": 1,
+                    },
                     "signal": {"judge": 1, "structural": 1},
+                    "suite_coverage": {"cases 5/10 (50.0%); groups 3/4 (75.0%)": 1},
                 },
             )
             self.assertEqual(
@@ -167,6 +183,10 @@ class DashboardTests(unittest.TestCase):
             self.assertEqual(
                 dashboard["reports"][0]["review_cases"][0]["reason"],
                 "candidate lost valid JSON format",
+            )
+            self.assertEqual(
+                dashboard["reports"][0]["review_cases"][0]["impact"],
+                "Downstream code may fail if consumers expect parseable JSON or required fields.",
             )
             self.assertEqual(dashboard["checkpoint"]["entries"], 3)
             self.assertEqual(
@@ -228,6 +248,7 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("<h2>Review Queue</h2>", html)
             self.assertIn("case_001", html)
             self.assertIn("candidate lost valid JSON format", html)
+            self.assertIn("Downstream code may fail if consumers expect parseable JSON or required fields.", html)
             self.assertIn("Return JSON with owner and priority.", html)
             self.assertIn("<th>Review</th>", html)
             self.assertIn("blocking 1", html)
@@ -238,6 +259,11 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("redline-suite.json", html)
             self.assertIn("1m 30s", html)
             self.assertIn("5ms for 5 cases", html)
+            self.assertIn("<h2>Trust Signals</h2>", html)
+            self.assertIn("Methodology", html)
+            self.assertIn("deterministic behavior-signature grouping (behavior-signature-v1)", html)
+            self.assertIn("Suite coverage", html)
+            self.assertIn("cases 5/10 (50.0%); groups 3/4 (75.0%)", html)
             self.assertIn("1000 cases/sec", html)
             self.assertIn("<h2>Trust Signals</h2>", html)
             self.assertIn("<h2>Audit Checkpoint</h2>", html)
@@ -256,6 +282,83 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("reports/eval.html", html)
             self.assertIn("structural checks only", html)
             self.assertNotIn("Missing benchmark evidence", html)
+
+    def test_app_dashboard_renders_real_report_data(self) -> None:
+        dashboard = {
+            "reports": [
+                {
+                    "name": "eval.json",
+                    "path": ".redline/reports/eval.json",
+                    "html_path": ".redline/reports/eval.html",
+                    "summary": {"cases": 3, "regression": 1, "changed": 1, "neutral": 1},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    "suite_summary": {"cases": 3, "clusters": 2, "cluster_coverage": 0.67},
+                    "review_cases": [
+                        {
+                            "case_id": "case_001",
+                            "status": "regression",
+                            "suite": "suites/support/triage.redline-suite.json",
+                            "prompt": "Return JSON with owner and priority.",
+                            "reason": "candidate lost valid JSON format",
+                            "impact": "Downstream code may fail if consumers expect parseable JSON or required fields.",
+                        }
+                    ],
+                }
+            ],
+            "history": [
+                {
+                    "timestamp": "2026-05-24T00:00:00Z",
+                    "label": "prompt-v2",
+                    "summary": {"cases": 3, "regression": 1},
+                }
+            ],
+            "benchmarks": [],
+            "errors": [],
+            "notices": [{"message": "Run a benchmark before relying on runtime readiness."}],
+            "scope": "structural checks only",
+        }
+
+        html = format_dashboard_html(
+            dashboard,
+            style="app",
+            output_path=Path(".redline") / "dashboard.html",
+        )
+
+        self.assertIn('data-redline-dashboard="app"', html)
+        self.assertIn("local dashboard", html)
+        self.assertIn('class="svg-ico"', html)
+        self.assertIn('button type="button" class="sb-item', html)
+        self.assertIn("Workflow", html)
+        self.assertIn('id="s-workflow"', html)
+        self.assertIn("Command center.", html)
+        self.assertIn("dashboard never runs shell commands", html)
+        self.assertIn('data-copy="redline demo --public --compact"', html)
+        self.assertIn("redline import path/to/export.jsonl --detect", html)
+        self.assertIn("redline import path/to/export.jsonl --auto-map --preview 3", html)
+        self.assertIn("redline suite .redline/logs/baseline.jsonl", html)
+        self.assertIn("redline eval --compact", html)
+        self.assertIn("redline history .redline/reports/eval.json", html)
+        self.assertIn("redline app --reports-dir .redline/reports", html)
+        self.assertIn("Active regressions", html)
+        self.assertIn("Regression trend", html)
+        self.assertIn("Alerts", html)
+        self.assertIn("Log import", html)
+        self.assertIn("Developer workflow integrations", html)
+        self.assertIn("Settings", html)
+        self.assertIn("Suite coverage", html)
+        self.assertIn("67%", html)
+        self.assertIn("case_001", html)
+        self.assertIn("candidate lost valid JSON format", html)
+        self.assertIn("Why this matters: Downstream code may fail", html)
+        self.assertIn("redline case suites/support/triage.redline-suite.json case_001", html)
+        self.assertIn("fix blocking cases before shipping", html)
+        self.assertIn("eval.json", html)
+        self.assertIn("reports/eval.html", html)
+        self.assertIn("prompt-v2", html)
+        self.assertIn("Local-first, no telemetry", html)
+        self.assertIn("@media (max-width: 700px)", html)
+        self.assertIn("position: sticky;", html)
+        self.assertNotIn(".sidebar { display: none; }", html)
 
     def test_dashboard_warns_when_reports_have_no_benchmark_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -326,7 +429,7 @@ class DashboardTests(unittest.TestCase):
 
         html = format_dashboard_html(dashboard)
 
-        self.assertIn("<h3>Cluster diagnosis</h3>", html)
+        self.assertIn("<h3>Behavior group diagnosis</h3>", html)
         self.assertIn("structured JSON prompt -&gt; JSON response (short)", html)
         self.assertIn("blocking +1", html)
         self.assertIn("changed -1", html)
@@ -347,6 +450,41 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("Skipped Files", html)
             self.assertIn("bad.json", html)
             self.assertIn("missing summary object", html)
+
+    def test_dashboard_ignores_redline_sidecar_json_files(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / ".redline" / "reports"
+            reports.mkdir(parents=True)
+            write_json(
+                reports / "eval.json",
+                {
+                    "$schema": "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-report.schema.json",
+                    "summary": {"cases": 1, "regression": 1, "changed": 0, "missing": 0, "neutral": 0},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    "diffs": [],
+                },
+            )
+            write_json(
+                reports / "redline-suite.json",
+                {
+                    "$schema": "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-suite.schema.json",
+                    "summary": {"cases": 1, "clusters": 1},
+                    "cases": [],
+                },
+            )
+            write_json(
+                reports / "eval.slack.json",
+                {
+                    "text": "redline summary",
+                    "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "regression"}}],
+                },
+            )
+
+            dashboard = build_dashboard(reports_dir=reports, history_path=root / "missing.jsonl")
+
+            self.assertEqual([report["name"] for report in dashboard["reports"]], ["eval.json"])
+            self.assertEqual(dashboard["errors"], [])
 
     def test_dashboard_reports_invalid_checkpoint_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -410,6 +548,139 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("<span>Benchmarks</span><strong>1</strong>", text)
             self.assertIn("Benchmarks: 1", stdout.getvalue())
             self.assertIn("Notices: 0", stdout.getvalue())
+
+    def test_cli_writes_app_dashboard_html(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / ".redline" / "reports"
+            write_json(
+                reports / "diff.json",
+                {
+                    "summary": {"cases": 1, "regression": 1},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    "diffs": [
+                        {
+                            "case_id": "case_001",
+                            "status": "regression",
+                            "prompt": "Return JSON.",
+                            "reasons": ["candidate lost valid JSON format"],
+                        }
+                    ],
+                },
+            )
+            output = root / ".redline" / "dashboard.html"
+
+            current = Path.cwd()
+            stdout = io.StringIO()
+            try:
+                import os
+
+                os.chdir(root)
+                with contextlib.redirect_stdout(stdout):
+                    code = main(["dashboard", "--style", "app", "--out", str(output)])
+            finally:
+                os.chdir(current)
+
+            self.assertEqual(code, 0)
+            text = output.read_text(encoding="utf-8")
+            self.assertIn('data-redline-dashboard="app"', text)
+            self.assertIn("candidate lost valid JSON format", text)
+            self.assertIn("Why this matters: Downstream code may fail", text)
+            self.assertIn("Reports: 1", stdout.getvalue())
+
+    def test_cli_app_opens_guided_local_app_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / ".redline" / "reports"
+            write_json(
+                reports / "eval.json",
+                {
+                    "summary": {"cases": 1, "regression": 1},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    "suite": "redline-suite.json",
+                    "diffs": [
+                        {
+                            "case_id": "case_001",
+                            "status": "regression",
+                            "prompt": "Return JSON.",
+                            "reasons": ["candidate lost valid JSON format"],
+                        }
+                    ],
+                },
+            )
+            output = root / ".redline" / "app.html"
+
+            current = Path.cwd()
+            stdout = io.StringIO()
+            try:
+                import os
+
+                os.chdir(root)
+                with patch("redline.cli.webbrowser.open") as open_browser:
+                    with contextlib.redirect_stdout(stdout):
+                        code = main(["app", "--out", str(output)])
+            finally:
+                os.chdir(current)
+
+            self.assertEqual(code, 0)
+            text = output.read_text(encoding="utf-8")
+            self.assertIn("<title>redline app</title>", text)
+            self.assertIn('data-redline-dashboard="app"', text)
+            self.assertIn('id="s-workflow"', text)
+            self.assertIn("redline import path/to/export.jsonl --detect", text)
+            self.assertIn("candidate lost valid JSON format", text)
+            self.assertIn("Why this matters: Downstream code may fail", text)
+            self.assertIn("Opened redline app in the default browser.", stdout.getvalue())
+            self.assertIn("Next:", stdout.getvalue())
+            open_browser.assert_called_once()
+
+    def test_cli_app_can_write_without_opening_browser(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / ".redline" / "app.html"
+
+            current = Path.cwd()
+            stdout = io.StringIO()
+            try:
+                import os
+
+                os.chdir(root)
+                with patch("redline.cli.webbrowser.open") as open_browser:
+                    with contextlib.redirect_stdout(stdout):
+                        code = main(["app", "--no-open", "--out", str(output)])
+            finally:
+                os.chdir(current)
+
+            self.assertEqual(code, 0)
+            self.assertTrue(output.exists())
+            self.assertIn("Open:", stdout.getvalue())
+            open_browser.assert_not_called()
+
+    def test_cli_app_demo_generates_public_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / ".redline" / "app.html"
+
+            current = Path.cwd()
+            stdout = io.StringIO()
+            try:
+                import os
+
+                os.chdir(root)
+                with patch("redline.cli.webbrowser.open") as open_browser:
+                    with contextlib.redirect_stdout(stdout):
+                        code = main(["app", "--demo", "--no-open", "--out", str(output)])
+            finally:
+                os.chdir(current)
+
+            self.assertEqual(code, 0)
+            text = output.read_text(encoding="utf-8")
+            self.assertIn("Generated public demo evidence in .redline/demo.", stdout.getvalue())
+            self.assertIn("Reports: 1", stdout.getvalue())
+            self.assertTrue((root / ".redline" / "demo" / "reports" / "public_diff.json").exists())
+            self.assertIn("public_diff.json", text)
+            self.assertIn("Workflow", text)
+            open_browser.assert_not_called()
 
 
 if __name__ == "__main__":

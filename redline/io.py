@@ -19,8 +19,7 @@ def read_jsonl_records(path: str | Path, input_field: str, output_field: str) ->
     for line_number, obj in iter_jsonl(path):
         missing = [field for field in (input_field, output_field) if _get_field(obj, field) is _MISSING]
         if missing:
-            joined = ", ".join(missing)
-            raise ValueError(f"{path}:{line_number} missing required field(s): {joined}")
+            raise ValueError(_missing_fields_message(path, line_number, obj, missing))
         prompt = _get_field(obj, input_field)
         response = _get_field(obj, output_field)
         records.append(
@@ -63,8 +62,7 @@ def read_jsonl_records_from_offset(
                 obj = _parse_jsonl_object(path, line_number, stripped)
                 missing = [field for field in (input_field, output_field) if _get_field(obj, field) is _MISSING]
                 if missing:
-                    joined = ", ".join(missing)
-                    raise ValueError(f"{path}:{line_number} missing required field(s): {joined}")
+                    raise ValueError(_missing_fields_message(path, line_number, obj, missing))
                 prompt = _get_field(obj, input_field)
                 response = _get_field(obj, output_field)
                 records.append(
@@ -183,3 +181,14 @@ def _get_field(obj: dict[str, Any], field: str) -> Any:
             return _MISSING
         current = current[part]
     return current
+
+
+def _missing_fields_message(path: str | Path, line_number: int, obj: dict[str, Any], missing: list[str]) -> str:
+    joined = ", ".join(missing)
+    fields = ", ".join(sorted(str(key) for key in obj)[:8]) or "<none>"
+    return (
+        f"{path}:{line_number} missing required field(s): {joined}. "
+        f"Available top-level fields: {fields}. "
+        "If this is an exported provider log, run "
+        "`redline import --list-presets` or pass --input-field/--output-field."
+    )

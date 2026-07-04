@@ -4,6 +4,7 @@ from pathlib import Path
 
 from redline.diff import (
     REPORT_SCHEMA_URL,
+    case_impact,
     classify_change,
     compare_suite_to_candidate,
     format_compact_report,
@@ -24,11 +25,65 @@ class DiffTests(unittest.TestCase):
         self.assertIn("summary", schema["properties"])
         self.assertIn("decision", schema["properties"])
         self.assertIn("diagnosis", schema["properties"]["decision"]["properties"])
+        self.assertIn("methodology", schema["properties"])
+        self.assertIn("suite_summary", schema["properties"])
+        self.assertIn("stochastic_prompt_groups", schema["properties"]["suite_summary"]["properties"])
         self.assertIn("suite", schema["properties"])
         self.assertIn("candidate", schema["properties"])
         self.assertIn("diffs", schema["properties"])
         diff_properties = schema["properties"]["diffs"]["items"]["properties"]
         self.assertIn("owner_rule", diff_properties)
+        self.assertIn("impact", diff_properties)
+
+    def test_report_carries_suite_methodology(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Return JSON", '{"ok": true}', {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        candidate = [LogRecord(1, "Return JSON", '{"ok": true}', {})]
+
+        result = compare_suite_to_candidate(suite, candidate)
+
+        self.assertEqual(result["methodology"]["version"], "behavior-signature-v1")
+        self.assertIn("behavior-signature", result["methodology"]["name"])
+        self.assertEqual(result["suite_summary"]["cases"], 1)
+        self.assertEqual(result["suite_summary"]["case_coverage"], 1.0)
+        self.assertEqual(result["suite_summary"]["cluster_coverage"], 1.0)
+
+    def test_report_warns_when_suite_contains_non_ascii_records(self) -> None:
+        suite = build_suite(
+            [LogRecord(1, "Résumé refund policy", "Répondre avec la politique.", {})],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        candidate = [LogRecord(1, "Résumé refund policy", "Répondre avec la politique.", {})]
+
+        result = compare_suite_to_candidate(suite, candidate)
+
+        self.assertTrue(any("English-centric" in warning for warning in result["warnings"]))
+
+    def test_report_warns_when_suite_contains_stochastic_baselines(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Classify ticket", "billing", {}),
+                LogRecord(2, "Classify ticket", "support", {}),
+            ],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+        candidate = [LogRecord(1, "Classify ticket", "billing", {})]
+
+        result = compare_suite_to_candidate(suite, candidate)
+
+        self.assertEqual(result["suite_summary"]["stochastic_prompt_groups"], 1)
+        self.assertTrue(any("multiple distinct baseline responses" in warning for warning in result["warnings"]))
 
     def test_classify_json_regression(self) -> None:
         baseline = extract_features('{"name":"Ada","status":"active"}').to_dict()
@@ -304,6 +359,20 @@ class DiffTests(unittest.TestCase):
         self.assertIn("cluster", result["diffs"][0])
         self.assertEqual(result["diffs"][0]["confidence"], "high")
         self.assertEqual(result["diffs"][0]["signal"], "structural")
+        self.assertEqual(
+            result["diffs"][0]["impact"],
+            "Replay did not produce a candidate output, so this baseline behavior is untested.",
+        )
+
+    def test_case_impact_explains_common_regression_shapes(self) -> None:
+        self.assertEqual(
+            case_impact("regression", ["candidate missing numbers: 30"]),
+            "Concrete details used for decisions, routing, or compliance may have been dropped.",
+        )
+        self.assertEqual(
+            case_impact("changed", ["short answer changed"]),
+            "Review whether this behavioral change is intentional before accepting it.",
+        )
 
     def test_compare_summarizes_plain_english_diagnosis(self) -> None:
         prompt = "Return a numbered rollout checklist with owner, URL, and 30 day deadline."
@@ -446,17 +515,55 @@ class DiffTests(unittest.TestCase):
                 "diagnosis": "No structural blockers were detected; still review semantic risks.",
             },
             "warnings": ["prompt file prompts/v2.txt is newer than suite"],
+            "profile": "review",
             "diffs": [],
         }
 
         report = format_report(result)
 
+        self.assertIn("Profile: review", report)
+        self.assertIn("detail/entity loss becomes reviewable changed signal", report)
         self.assertIn("Confidence: MEDIUM", report)
         self.assertIn("Recommended action: no structural blockers detected; review semantic risks before shipping", report)
         self.assertIn("Scope: structural checks only", report)
         self.assertIn("Diagnosis: No structural blockers were detected", report)
         self.assertIn("Warnings:", report)
         self.assertIn("prompt file prompts/v2.txt is newer than suite", report)
+
+    def test_format_report_includes_case_impact(self) -> None:
+        result = {
+            "summary": {
+                "cases": 1,
+                "regression": 1,
+                "changed": 0,
+                "improved": 0,
+                "accepted": 0,
+                "ignored": 0,
+                "neutral": 0,
+                "missing": 0,
+            },
+            "decision": {
+                "confidence": "high",
+                "recommended_action": "fix blocking cases before shipping",
+                "scope": "structural checks only",
+            },
+            "diffs": [
+                {
+                    "case_id": "case_001",
+                    "status": "regression",
+                    "prompt": "Return JSON",
+                    "reasons": ["candidate lost valid JSON format"],
+                    "impact": "Downstream code may fail if consumers expect parseable JSON or required fields.",
+                }
+            ],
+        }
+
+        report = format_report(result)
+
+        self.assertIn(
+            "why this matters: Downstream code may fail if consumers expect parseable JSON or required fields.",
+            report,
+        )
 
     def test_format_compact_report_outputs_one_line_per_actionable_case(self) -> None:
         result = {
@@ -476,6 +583,7 @@ class DiffTests(unittest.TestCase):
                 "scope": "structural checks only; review semantic risks separately",
                 "diagnosis": "Candidate lost required structure; fix blocking cases before shipping.",
             },
+            "profile": "strict",
             "prompt_evals": [
                 {
                     "id": "support/triage",
@@ -517,6 +625,8 @@ class DiffTests(unittest.TestCase):
         report = format_compact_report(result, title="redline eval")
 
         self.assertIn("redline eval: cases=2 regression=1 changed=1", report)
+        self.assertIn("Profile: strict", report)
+        self.assertIn("detail/entity loss is blocking", report)
         self.assertIn("Confidence: HIGH | fix blocking cases before shipping", report)
         self.assertIn("Scope: structural checks only", report)
         self.assertIn("Diagnosis: Candidate lost required structure; fix blocking cases before shipping.", report)

@@ -156,9 +156,9 @@ def format_markdown_history(entries: list[dict[str, Any]], *, limit: int | None 
     if cluster_rows:
         lines.extend(
             [
-                "## Cluster Diagnosis",
+                "## Behavior Group Diagnosis",
                 "",
-                "| Cluster | Blocking Delta | Latest Blocking | Changed Delta |",
+                "| Behavior Group | Blocking Delta | Latest Blocking | Changed Delta |",
                 "| --- | ---: | ---: | ---: |",
             ]
         )

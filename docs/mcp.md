@@ -63,10 +63,13 @@ reports.
 
 Available tools:
 
+- `redline_status`
 - `redline_doctor`
 - `redline_suite`
+- `redline_quick_check`
 - `redline_redact`
-- `redline_import`
+- `redline_import` (supports `detect`, `auto_map`, and `preview` before writing)
+- `redline_import_presets`
 - `redline_watch_stats`
 - `redline_watch_snippets`
 - `redline_prompts`
@@ -86,9 +89,9 @@ Available tools:
 - `redline_audit` (including `verify` and checkpoint output for the local audit hash chain)
 - `redline_sbom`
 
-`redline_diff` and `redline_eval` return the underlying redline exit code as
-structured data. Exit code `1` means redline found blocking regressions or
-missing outputs; the MCP tool still returns successfully because that is a
+`redline_quick_check`, `redline_diff`, and `redline_eval` return the underlying
+redline exit code as structured data. Exit code `1` means redline found blocking regressions
+or missing outputs; the MCP tool still returns successfully because that is a
 product finding, not a protocol failure. Exit code `2` and above indicates a
 setup or command error.
 
@@ -101,9 +104,9 @@ assistants can reason over reports without scraping terminal text.
 The server also exposes MCP prompt templates for the workflows agents should
 reach for most often:
 
-- `check_prompt_change`: run doctor, then eval a changed prompt file.
+- `check_prompt_change`: run status/doctor, then eval a changed prompt file.
 - `build_suite_from_logs`: generate a suite, validate it, and summarize coverage.
-- `review_candidate_outputs`: diff candidate JSONL outputs and lead with blocking findings.
+- `review_candidate_outputs`: quick-check two JSONL logs or diff candidate outputs against a suite, then lead with blocking findings.
 - `setup_redline_project`: guide first-time setup through runner selection,
   prompt/log discovery, suite validation, CI scale checks, and optional judge setup.
 
@@ -121,6 +124,11 @@ Run redline doctor in this repo and tell me the next setup step.
 ```
 
 ```text
+Run redline status in this repo and tell me the exact next command, app command,
+first review case, and why that case matters.
+```
+
+```text
 Set up redline for this project. Use my existing logs if available, choose the
 right runner adapter, and do not mutate the baseline.
 ```
@@ -128,6 +136,11 @@ right runner adapter, and do not mutate the baseline.
 ```text
 Generate a redline suite from logs/baseline.jsonl, then diff it against
 logs/candidate.jsonl. Summarize only regressions I should review.
+```
+
+```text
+Quick-check logs/baseline.jsonl against logs/candidate.jsonl and tell me the
+blocking regressions before I wire a permanent suite.
 ```
 
 ```text

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from shlex import quote
 from typing import Any
 
 from .diff import compare_suite_to_candidate, format_compact_report, format_report
@@ -179,6 +180,7 @@ def run_demo(output_dir: str | Path = ".redline/demo", *, public: bool = False) 
 
     candidate = read_jsonl_records(candidate_path, "prompt", "response")
     result = compare_suite_to_candidate(suite, candidate)
+    result["suite"] = str(suite_path)
     write_json(report_json_path, result)
     title = "redline public dogfood" if public else "redline demo"
     write_text(report_md_path, format_markdown_report(result, title=title))
@@ -219,10 +221,13 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
     )
     history_label = "public-dogfood" if result.get("public") else "demo"
     history_command = (
-        f"redline history {result['report_json']} --label {history_label} "
+        f"redline history {quote(str(result['report_json']))} --label {history_label} "
         "--out .redline/history.jsonl --out-md .redline/history.md"
     )
     review_case_id = _first_reviewable_case_id(result["diff"])
+    suite_arg = quote(str(result["suite"]))
+    candidate_arg = quote(str(result["candidate"]))
+    review_case_arg = quote(review_case_id)
     lines = [
         result["title"],
         "",
@@ -239,11 +244,11 @@ def format_demo(result: dict[str, Any], *, compact: bool = False) -> str:
         "Next steps",
         f"- Inspect the HTML report: {result['report_html']}",
         f"- Inspect the Markdown report: {result['report_markdown']}",
-        f"- List demo cases: redline cases {result['suite']}",
-        f"- Mark an intentional change: redline mark {result['suite']} {review_case_id} --status expected --note \"intentional prompt change\"",
-        f"- Promote reviewed changes: redline accept {result['suite']} --all-expected --candidate {result['candidate']} --note \"accepted prompt v2\"",
+        f"- List demo cases: redline cases {suite_arg}",
+        f"- Mark an intentional change: redline mark {suite_arg} {review_case_arg} --status expected --note \"intentional prompt change\"",
+        f"- Promote reviewed changes: redline accept {suite_arg} --all-expected --candidate {candidate_arg} --note \"accepted prompt v2\"",
         f"- Record a trend entry: {history_command}",
-        f"- Open a local dashboard: redline dashboard --reports-dir {Path(result['report_json']).parent} --history .redline/history.jsonl",
+        f"- Open the guided local app: redline app --reports-dir {quote(str(Path(result['report_json']).parent))} --history .redline/history.jsonl",
         "- Connect a runner: redline init --runner stdio --copy-runner --github-action",
         "- Explore adapters: redline runners --copy all",
         "- Build a real suite: redline suite path/to/baseline.jsonl --out redline-suite.json",

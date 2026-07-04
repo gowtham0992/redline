@@ -121,12 +121,13 @@ printf '\n$ %s -m pip install --no-deps --force-reinstall %s\n' "$venv_dir/bin/p
     --fail-on none
   test -s compare.html
 
-  printf '\n$ redline dashboard --reports-dir .redline/demo/reports --history history.jsonl --out dashboard.html\n'
-  "$venv_dir/bin/redline" dashboard \
+  printf '\n$ redline app --reports-dir .redline/demo/reports --history history.jsonl --no-open --out app.html\n'
+  "$venv_dir/bin/redline" app \
     --reports-dir .redline/demo/reports \
     --history history.jsonl \
-    --out dashboard.html
-  test -s dashboard.html
+    --no-open \
+    --out app.html
+  test -s app.html
 
   printf '\n$ redline suite .redline/demo/baseline.jsonl --out all-suite.json --all-cases\n'
   "$venv_dir/bin/redline" suite .redline/demo/baseline.jsonl --out all-suite.json --all-cases

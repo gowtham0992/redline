@@ -28,10 +28,13 @@ class McpServerTests(unittest.TestCase):
 
         assert response is not None
         names = {tool["name"] for tool in response["result"]["tools"]}
+        self.assertIn("redline_status", names)
         self.assertIn("redline_doctor", names)
         self.assertIn("redline_suite", names)
+        self.assertIn("redline_quick_check", names)
         self.assertIn("redline_redact", names)
         self.assertIn("redline_import", names)
+        self.assertIn("redline_import_presets", names)
         self.assertIn("redline_watch_stats", names)
         self.assertIn("redline_watch_snippets", names)
         self.assertIn("redline_prompts", names)
@@ -48,6 +51,49 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline_mark", names)
         self.assertNotIn("redline_accept", names)
         self.assertNotIn("redline_require", names)
+        quick_check = next(tool for tool in response["result"]["tools"] if tool["name"] == "redline_quick_check")
+        self.assertIn("open_app", quick_check["inputSchema"]["properties"])
+
+    def test_quick_check_tool_generates_suite_and_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            baseline = root / "baseline.jsonl"
+            candidate = root / "candidate.jsonl"
+            baseline.write_text(
+                '{"prompt": "Return JSON with owner and priority.", "response": "{\\"owner\\": \\"Support\\", \\"priority\\": \\"high\\"}"}\n',
+                encoding="utf-8",
+            )
+            candidate.write_text(
+                '{"prompt": "Return JSON with owner and priority.", "response": "Support should handle this."}\n',
+                encoding="utf-8",
+            )
+
+            result = call_tool(
+                "redline_quick_check",
+                {
+                    "cwd": directory,
+                    "baseline_path": "baseline.jsonl",
+                    "candidate_path": "candidate.jsonl",
+                    "fail_on": "none",
+                    "json": True,
+                },
+            )
+            report_dir = root / ".redline" / "quick-check"
+            suite_exists = (report_dir / "suite.json").exists()
+            json_exists = (report_dir / "diff.json").exists()
+            html_exists = (report_dir / "diff.html").exists()
+            app_exists = (report_dir / "app.html").exists()
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        payload = result["structuredContent"]["json"]
+        self.assertEqual(payload["summary"]["regression"], 1)
+        self.assertEqual(payload["artifacts"]["html"], ".redline/quick-check/diff.html")
+        self.assertEqual(payload["artifacts"]["app"], ".redline/quick-check/app.html")
+        self.assertTrue(suite_exists)
+        self.assertTrue(json_exists)
+        self.assertTrue(html_exists)
+        self.assertTrue(app_exists)
 
     def test_import_tool_normalizes_external_jsonl(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -65,6 +111,7 @@ class McpServerTests(unittest.TestCase):
                     "cwd": directory,
                     "path": str(source),
                     "out": str(output),
+                    "preset": "dolly",
                     "input_field": "instruction",
                     "output_field": "response",
                     "context_field": "context",
@@ -77,7 +124,96 @@ class McpServerTests(unittest.TestCase):
         self.assertFalse(result["isError"])
         self.assertEqual(result["structuredContent"]["exit_code"], 0)
         self.assertEqual(result["structuredContent"]["json"]["records"], 1)
+        self.assertEqual(result["structuredContent"]["json"]["preset"], "dolly")
+        self.assertTrue(result["structuredContent"]["json"]["redacted"])
         self.assertTrue(wrote_output)
+
+    def test_import_tool_previews_external_jsonl_without_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            output = root / "baseline.jsonl"
+            source.write_text(
+                '{"instruction": "Classify", "response": "billing"}\n',
+                encoding="utf-8",
+            )
+
+            result = call_tool(
+                "redline_import",
+                {
+                    "cwd": directory,
+                    "path": str(source),
+                    "input_field": "instruction",
+                    "output_field": "response",
+                    "preview": 1,
+                    "json": True,
+                },
+            )
+            wrote_output = output.exists()
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        self.assertEqual(result["structuredContent"]["json"]["previewed"], 1)
+        self.assertEqual(result["structuredContent"]["json"]["rows"][0]["prompt"], "Classify")
+        self.assertFalse(wrote_output)
+
+    def test_import_tool_detects_external_jsonl_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "export.jsonl"
+            source.write_text('{"input": "Classify", "output": "billing"}\n', encoding="utf-8")
+
+            result = call_tool(
+                "redline_import",
+                {
+                    "cwd": directory,
+                    "path": str(source),
+                    "detect": True,
+                    "json": True,
+                },
+            )
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        self.assertEqual(result["structuredContent"]["json"]["suggestions"][0]["input_field"], "input")
+        self.assertEqual(result["structuredContent"]["json"]["suggestions"][0]["output_field"], "output")
+
+    def test_import_tool_auto_maps_external_jsonl(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            output = root / "baseline.jsonl"
+            source.write_text('{"instruction": "Classify", "response": "billing"}\n', encoding="utf-8")
+
+            result = call_tool(
+                "redline_import",
+                {
+                    "cwd": directory,
+                    "path": str(source),
+                    "out": str(output),
+                    "auto_map": True,
+                    "json": True,
+                },
+            )
+            wrote_output = output.exists()
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        payload = result["structuredContent"]["json"]
+        self.assertEqual(payload["records"], 1)
+        self.assertTrue(payload["auto_mapped"])
+        self.assertEqual(payload["input_field"], "instruction")
+        self.assertEqual(payload["output_field"], "response")
+        self.assertTrue(wrote_output)
+
+    def test_import_presets_tool_lists_mappings(self) -> None:
+        result = call_tool("redline_import_presets", {"json": True})
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        presets = result["structuredContent"]["json"]["presets"]
+        self.assertTrue(any(row["id"] == "langfuse" for row in presets))
+        self.assertTrue(any(row["id"] == "openai-chat" for row in presets))
 
     def test_eval_and_diff_tools_do_not_accept_dynamic_commands(self) -> None:
         response = handle_jsonrpc_line(
@@ -124,6 +260,7 @@ class McpServerTests(unittest.TestCase):
 
         assert response is not None
         text = response["result"]["messages"][0]["content"]["text"]
+        self.assertIn("redline_status", text)
         self.assertIn("redline_doctor", text)
         self.assertIn("redline_eval", text)
         self.assertIn("prompts/v2.txt", text)
@@ -154,6 +291,32 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("redline suite add", text)
         self.assertIn("redline_budget", text)
 
+    def test_prompt_get_review_candidate_outputs_uses_quick_check_when_baseline_is_available(self) -> None:
+        response = handle_jsonrpc_line(
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 36,
+                    "method": "prompts/get",
+                    "params": {
+                        "name": "review_candidate_outputs",
+                        "arguments": {
+                            "baseline_path": "logs/baseline.jsonl",
+                            "candidate_path": "logs/candidate.jsonl",
+                        },
+                    },
+                }
+            )
+        )
+
+        assert response is not None
+        text = response["result"]["messages"][0]["content"]["text"]
+        self.assertIn("redline_quick_check", text)
+        self.assertIn("redline_diff", text)
+        self.assertIn("logs/baseline.jsonl", text)
+        self.assertIn("logs/candidate.jsonl", text)
+        self.assertIn("Do not accept or modify the baseline", text)
+
     def test_prompt_get_builds_first_time_setup_workflow(self) -> None:
         response = handle_jsonrpc_line(
             json.dumps(
@@ -176,9 +339,11 @@ class McpServerTests(unittest.TestCase):
 
         assert response is not None
         text = response["result"]["messages"][0]["content"]["text"]
+        self.assertIn("redline_status", text)
         self.assertIn("redline_doctor", text)
         self.assertIn("redline_runners", text)
         self.assertIn("redline_watch_snippets", text)
+        self.assertIn("auto_map=true", text)
         self.assertIn("redline_prompts", text)
         self.assertIn("redline_suite", text)
         self.assertIn("redline_validate", text)
@@ -192,6 +357,22 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("http", text)
         self.assertIn("support-rubric", text)
         self.assertIn("do not say green or neutral means semantically safe", text)
+
+    def test_status_tool_reports_next_command(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = call_tool(
+                "redline_status",
+                {
+                    "cwd": directory,
+                    "json": True,
+                },
+            )
+
+        self.assertFalse(result["isError"])
+        self.assertEqual(result["structuredContent"]["exit_code"], 0)
+        payload = result["structuredContent"]["json"]
+        self.assertEqual(payload["state"], "setup")
+        self.assertEqual(payload["next_command"], "redline init --runner stdio --copy-runner")
 
     def test_unknown_prompt_returns_jsonrpc_error(self) -> None:
         response = handle_jsonrpc_line(

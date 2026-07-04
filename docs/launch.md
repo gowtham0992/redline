@@ -34,15 +34,15 @@ Generate launch artifacts from a clean release checkout:
 ```bash
 bash scripts/release_check.sh
 bash scripts/demo_gif.sh .redline/launch .redline/launch/redline-demo.gif
-bash scripts/build_release.sh /tmp/redline-dist-v0.2.1
+bash scripts/build_release.sh /tmp/redline-dist-v0.3.0
 ```
 
 Required artifacts:
 
 - `.redline/launch/redline-demo.gif` or `.redline/launch/redline-demo-transcript.txt`
 - `.redline/dashboard.html` from the demo path
-- `/tmp/redline-dist-v0.2.1/redline_ai-0.2.1-py3-none-any.whl`
-- `/tmp/redline-dist-v0.2.1/redline_ai-0.2.1.tar.gz`
+- `/tmp/redline-dist-v0.3.0/redline_ai-0.3.0-py3-none-any.whl`
+- `/tmp/redline-dist-v0.3.0/redline_ai-0.3.0.tar.gz`
 
 ## Website Checklist
 
@@ -79,19 +79,21 @@ should sell the loop, not the package manager.
 2. Tag the exact commit:
 
    ```bash
-   git tag v0.2.1
-   git push origin v0.2.1
+   git tag v0.3.0
+   git push origin v0.3.0
    ```
 
 3. Upload the release distribution:
 
    ```bash
-   python -m twine upload /tmp/redline-dist-v0.2.1/*
+   python -m twine upload \
+     /tmp/redline-dist-v0.3.0/redline_ai-*.whl \
+     /tmp/redline-dist-v0.3.0/redline_ai-*.tar.gz
    ```
 
-4. Create the GitHub release from `v0.2.1`.
+4. Create the GitHub release from `v0.3.0`.
 5. Attach the demo GIF or link the public README asset:
-   `https://gowtham0992.github.io/redline/assets/redline-product-demo.gif`.
+   `https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-product-demo.gif`.
 
 ## Launch Post
 
@@ -101,7 +103,7 @@ Short post:
 I built redline, a local-first tool that turns prompt-response logs into eval
 suites automatically.
 
-You point it at existing JSONL logs, it clusters behavior, picks representative
+You point it at existing JSONL logs, groups behavior by deterministic signatures, picks representative
 cases, and catches regressions when a prompt change drops structure, numbers,
 URLs, entities, refusals, tables, code blocks, or required fields.
 
@@ -123,7 +125,7 @@ Longer post:
 Most eval tools start with "write test cases." redline starts from the logs you
 already have.
 
-It watches or imports prompt-response JSONL, clusters observed behavior, builds
+It watches or imports prompt-response JSONL, groups observed behavior by deterministic signatures, builds
 a representative suite, and compares new prompt runs against the accepted
 baseline. The default checks are deterministic and local: JSON validity, missing
 keys, empty outputs, refusals, URLs, numbers, entities, code blocks, tables,

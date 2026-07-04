@@ -23,6 +23,7 @@ class DemoTests(unittest.TestCase):
 
             report = read_json(result["report_json"])
             self.assertEqual(report["summary"]["regression"], result["summary"]["regression"])
+            self.assertEqual(report["suite"], result["suite"])
 
     def test_format_demo_includes_regression_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -45,11 +46,28 @@ class DemoTests(unittest.TestCase):
             self.assertIn("--status expected", output)
             self.assertIn("redline accept", output)
             self.assertIn("--all-expected", output)
-            self.assertIn("redline dashboard --reports-dir", output)
+            self.assertIn("redline app --reports-dir", output)
             self.assertIn("redline init --runner stdio --copy-runner --github-action", output)
             self.assertIn("redline runners --copy all", output)
             self.assertIn("redline suite path/to/baseline.jsonl --out redline-suite.json", output)
             self.assertIn("redline doctor --strict", output)
+
+    def test_format_demo_quotes_app_command_with_spaced_output_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = run_demo(Path(directory) / "demo output")
+
+            output = format_demo(result)
+
+            self.assertIn("redline app --reports-dir", output)
+            self.assertIn("--reports-dir '", output)
+            self.assertIn("demo output/reports", output)
+            self.assertIn("redline history '", output)
+            self.assertIn("demo output/reports/diff.json", output)
+            self.assertIn("redline cases '", output)
+            self.assertIn("demo output/suite.json", output)
+            self.assertIn("redline accept '", output)
+            self.assertIn("--candidate '", output)
+            self.assertIn("demo output/candidate.jsonl", output)
 
     def test_format_demo_can_use_compact_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -74,6 +92,7 @@ class DemoTests(unittest.TestCase):
             self.assertEqual(result["summary"]["cases"], 10)
             self.assertEqual(result["summary"]["regression"], 10)
             self.assertTrue(result["public"])
+            self.assertEqual(read_json(result["report_json"])["suite"], result["suite"])
 
             output = format_demo(result, compact=True)
 

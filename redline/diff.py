@@ -149,6 +149,7 @@ class CaseDiff:
             "baseline_response": self.baseline_response,
             "candidate_response": self.candidate_response,
             "reasons": list(self.reasons),
+            "impact": case_impact(self.status, self.reasons),
             "confidence": self.confidence,
             "signal": self.signal,
             "baseline_features": self.baseline_features,
@@ -265,6 +266,9 @@ def compare_suite_to_candidate(
         "$schema": REPORT_SCHEMA_URL,
         "version": "0.1",
         "profile": profile,
+        "methodology": _report_methodology(suite),
+        "suite_summary": _report_suite_summary(suite),
+        "warnings": _report_warnings(suite),
         "summary": summary,
         "decision": decision,
         "diffs": [diff.to_dict() for diff in diffs],
@@ -409,6 +413,58 @@ def _diff_profile(value: str) -> str:
     return value
 
 
+def _report_methodology(suite: dict[str, Any]) -> dict[str, Any]:
+    methodology = suite.get("methodology")
+    if not isinstance(methodology, dict):
+        return {}
+    return {
+        "name": str(methodology.get("name") or ""),
+        "version": str(methodology.get("version") or ""),
+        "trust_scope": str(methodology.get("trust_scope") or ""),
+    }
+
+
+def _report_suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
+    summary = suite.get("summary")
+    if not isinstance(summary, dict):
+        return {}
+    keys = (
+        "records_seen",
+        "unique_prompt_response_pairs",
+        "clusters",
+        "cases",
+        "max_cases",
+        "case_coverage",
+        "cluster_coverage",
+        "selection",
+        "high_risk_clusters",
+        "medium_risk_clusters",
+        "non_ascii_records",
+        "stochastic_prompt_groups",
+    )
+    return {key: summary[key] for key in keys if key in summary}
+
+
+def _report_warnings(suite: dict[str, Any]) -> list[str]:
+    summary = suite.get("summary")
+    if not isinstance(summary, dict):
+        return []
+    warnings = []
+    non_ascii_records = int(summary.get("non_ascii_records") or 0)
+    if non_ascii_records:
+        warnings.append(
+            f"suite contains {non_ascii_records} non-ASCII record(s); "
+            "English-centric entity, tone, refusal, and policy-polarity heuristics need manual or judge review"
+        )
+    stochastic_prompt_groups = int(summary.get("stochastic_prompt_groups") or 0)
+    if stochastic_prompt_groups:
+        warnings.append(
+            f"suite contains {stochastic_prompt_groups} prompt(s) with multiple distinct baseline responses; "
+            "separate natural sampling variance from prompt regressions before CI gating"
+        )
+    return warnings
+
+
 def _confidence_drift_reason(
     baseline_text: str | None,
     candidate_text: str | None,
@@ -497,6 +553,34 @@ def _case_confidence_signal(status: str, reasons: list[str]) -> tuple[str, str]:
     return "medium", "shallow_semantic"
 
 
+def case_impact(status: str, reasons: tuple[str, ...] | list[str]) -> str:
+    text = " ".join(str(reason).lower() for reason in reasons)
+    normalized_status = status.lower()
+    if normalized_status == "missing":
+        return "Replay did not produce a candidate output, so this baseline behavior is untested."
+    if "valid json" in text or "json keys" in text:
+        return "Downstream code may fail if consumers expect parseable JSON or required fields."
+    if "markdown table" in text or "table structure" in text:
+        return "A consumer expecting rows and columns may receive unstructured prose instead."
+    if "code block" in text:
+        return "A developer or tool expecting copyable code may lose the executable structure."
+    if "bullet list" in text or "numbered list" in text:
+        return "A workflow expecting ordered or scannable steps may become harder to review."
+    if "missing numbers" in text or "missing urls" in text or "missing entities" in text:
+        return "Concrete details used for decisions, routing, or compliance may have been dropped."
+    if "newly refuses" in text or "refusal" in text:
+        return "A previously supported safe workflow may now be blocked."
+    if "became empty" in text:
+        return "The user may receive no usable answer."
+    if "content changed substantially" in text or "much shorter" in text:
+        return "Meaning may have changed enough to require human review before acceptance."
+    if normalized_status == "regression":
+        return "This case changed in a way redline treats as blocking before shipping."
+    if normalized_status == "changed":
+        return "Review whether this behavioral change is intentional before accepting it."
+    return ""
+
+
 def _is_requirement_reason(reason: str) -> bool:
     return reason.startswith("candidate missing required text:") or reason.startswith(
         "candidate includes forbidden text:"
@@ -544,6 +628,10 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
         f"  MISSING    {summary['missing']:>3}",
         "",
     ]
+    profile = str(result.get("profile") or "")
+    if profile:
+        lines.append(f"Profile: {profile} ({_profile_description(profile)})")
+        lines.append("")
     decision = result.get("decision")
     if isinstance(decision, dict):
         confidence = str(decision.get("confidence") or "").upper()
@@ -578,6 +666,9 @@ def format_report(result: dict[str, Any], *, title: str = "redline diff") -> str
         lines.append(status.upper())
         for item in matching:
             lines.append(f"- {_case_label(item)}: {_preview(item['prompt'])}")
+            impact = str(item.get("impact") or "")
+            if impact:
+                lines.append(f"  - why this matters: {impact}")
             for reason in item["reasons"]:
                 lines.append(f"  - {reason}")
         lines.append("")
@@ -596,6 +687,9 @@ def format_compact_report(result: dict[str, Any], *, title: str = "redline diff"
             f"neutral={summary['neutral']}"
         )
     ]
+    profile = str(result.get("profile") or "")
+    if profile:
+        lines.append(f"Profile: {profile} ({_profile_description(profile)})")
     decision = result.get("decision")
     if isinstance(decision, dict):
         confidence = str(decision.get("confidence") or "").upper()
@@ -669,6 +763,14 @@ def _prompt_eval_lines(value: Any) -> list[str]:
             f"{_summary_inline(summary)}{action_context}"
         )
     return rows
+
+
+def _profile_description(profile: str) -> str:
+    if profile == "review":
+        return "detail/entity loss becomes reviewable changed signal"
+    if profile == "strict":
+        return "detail/entity loss is blocking"
+    return "custom"
 
 
 def _prompt_eval_status(summary: dict[str, Any]) -> str:

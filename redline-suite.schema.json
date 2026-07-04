@@ -31,6 +31,17 @@
       "type": "string",
       "description": "JSONL field path used as the baseline response/output."
     },
+    "methodology": {
+      "type": "object",
+      "description": "Deterministic grouping and case-selection method used to generate this suite.",
+      "properties": {
+        "name": {"type": "string"},
+        "version": {"type": "string"},
+        "trust_scope": {"type": "string"},
+        "case_selection": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
     "summary": {
       "type": "object",
       "required": ["records_seen", "unique_prompt_response_pairs", "clusters", "cases", "selection"],
@@ -40,6 +51,8 @@
         "duplicate_prompt_response_pairs": {"type": "integer", "minimum": 0},
         "clusters": {"type": "integer", "minimum": 0},
         "cases": {"type": "integer", "minimum": 0},
+        "case_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "cluster_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
         "max_cases": {"type": "integer", "minimum": 0},
         "selection": {"type": "string", "enum": ["representative", "all"]},
         "pinned_cases": {"type": "integer", "minimum": 0},
@@ -49,7 +62,8 @@
         "high_variance_clusters": {"type": "integer", "minimum": 0},
         "failure_pattern_clusters": {"type": "integer", "minimum": 0},
         "prompt_diversity_cases": {"type": "integer", "minimum": 0},
-        "non_ascii_records": {"type": "integer", "minimum": 0}
+        "non_ascii_records": {"type": "integer", "minimum": 0},
+        "stochastic_prompt_groups": {"type": "integer", "minimum": 0}
       },
       "additionalProperties": true
     },

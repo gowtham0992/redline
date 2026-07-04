@@ -5,6 +5,7 @@ from shlex import quote
 from typing import Any
 from xml.etree import ElementTree
 
+from .diff import case_impact
 from .labels import behavior_label
 
 
@@ -41,6 +42,14 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
             if diagnosis:
                 lines.append(f"**Diagnosis:** {diagnosis}")
                 lines.append("")
+    methodology = _methodology_label(result.get("methodology"))
+    if methodology:
+        lines.append(f"**Methodology:** {methodology}")
+        lines.append("")
+    suite_coverage = _suite_coverage_label(result.get("suite_summary"))
+    if suite_coverage:
+        lines.append(f"**Suite coverage:** {suite_coverage}")
+        lines.append("")
 
     warnings = _result_warnings(result)
     if warnings:
@@ -131,6 +140,10 @@ def format_markdown_report(result: dict[str, Any], *, title: str = "redline diff
             metadata = _metadata_lines(item)
             if metadata:
                 lines.extend(metadata)
+                lines.append("")
+            impact = _why_this_matters(item)
+            if impact:
+                lines.append(f"Why this matters: {impact}")
                 lines.append("")
             for reason in item["reasons"]:
                 lines.append(f"- {reason}")
@@ -352,6 +365,8 @@ def format_html_report(result: dict[str, Any], *, title: str = "redline diff") -
             "</header>",
             _html_summary(summary),
             _html_decision(decision),
+            _html_methodology(result.get("methodology")),
+            _html_suite_coverage(result.get("suite_summary")),
             _html_warnings(result),
             _html_artifacts(result),
             _html_owner_review(diffs),
@@ -482,6 +497,48 @@ def _metadata_lines(item: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _methodology_label(value: object) -> str:
+    if not isinstance(value, dict):
+        return ""
+    name = str(value.get("name") or "").strip()
+    version = str(value.get("version") or "").strip()
+    if name and version:
+        return f"{name} ({version})"
+    return version or name
+
+
+def _suite_coverage_label(value: object) -> str:
+    if not isinstance(value, dict):
+        return ""
+    case_coverage = _percent_value(value.get("case_coverage"))
+    cluster_coverage = _percent_value(value.get("cluster_coverage"))
+    cases = value.get("cases")
+    pairs = value.get("unique_prompt_response_pairs")
+    clusters = value.get("clusters")
+    parts = []
+    if cases is not None and pairs is not None and case_coverage:
+        parts.append(f"cases {cases}/{pairs} ({case_coverage})")
+    if isinstance(clusters, int) and isinstance(value.get("cluster_coverage"), int | float) and cluster_coverage:
+        covered_clusters = round(clusters * float(value["cluster_coverage"]))
+        parts.append(f"behavior groups {covered_clusters}/{clusters} ({cluster_coverage})")
+    return "; ".join(parts)
+
+
+def _percent_value(value: object) -> str:
+    if not isinstance(value, int | float):
+        return ""
+    return f"{value * 100:.1f}%"
+
+
+def _why_this_matters(item: dict[str, Any]) -> str:
+    impact = str(item.get("impact") or "").strip()
+    if impact:
+        return impact
+    status = str(item.get("status") or "").lower()
+    reasons = item.get("reasons")
+    return case_impact(status, reasons if isinstance(reasons, list) else [])
+
+
 def _result_warnings(result: dict[str, Any]) -> list[str]:
     warnings = result.get("warnings")
     if not isinstance(warnings, list):
@@ -518,6 +575,7 @@ def _artifact_label(label: str) -> str:
         "slack": "Slack",
         "markdown": "Markdown",
         "comment": "PR comment",
+        "app": "App",
         "dashboard": "Dashboard",
         "audit_checkpoint": "Audit checkpoint",
     }
@@ -1054,7 +1112,12 @@ h3 { margin: 0; font-size: 16px; letter-spacing: 0; }
 .changed { background: var(--changed); }
 .improved { background: var(--improved); }
 .accepted, .ignored, .neutral { background: var(--neutral); }
-.meta, .prompt { color: var(--muted); font-size: 13px; }
+.meta, .prompt, .impact { color: var(--muted); font-size: 13px; }
+.impact {
+  border-left: 3px solid var(--changed);
+  margin: 10px 0;
+  padding-left: 10px;
+}
 .reasons { margin: 10px 0 14px 20px; padding: 0; }
 .responses {
   display: grid;
@@ -1134,6 +1197,30 @@ def _html_decision(decision: dict[str, Any]) -> str:
         lines.append("</ul>")
     lines.append("</section>")
     return "".join(lines)
+
+
+def _html_methodology(value: object) -> str:
+    label = _methodology_label(value)
+    if not label:
+        return ""
+    return (
+        '<section class="panel">'
+        "<h2>Methodology</h2>"
+        f"<p>{_h(label)}</p>"
+        "</section>"
+    )
+
+
+def _html_suite_coverage(value: object) -> str:
+    label = _suite_coverage_label(value)
+    if not label:
+        return ""
+    return (
+        '<section class="panel">'
+        "<h2>Suite coverage</h2>"
+        f"<p>{_h(label)}</p>"
+        "</section>"
+    )
 
 
 def _html_warnings(result: dict[str, Any]) -> str:
@@ -1344,6 +1431,9 @@ def _html_case(item: dict[str, Any]) -> str:
         lines.append(f'<div class="meta">{_h(metadata)}</div>')
     if prompt:
         lines.append(f'<p class="prompt"><strong>Prompt:</strong> {_h(prompt)}</p>')
+    impact = _why_this_matters(item)
+    if impact:
+        lines.append(f'<p class="impact"><strong>Why this matters:</strong> {_h(impact)}</p>')
     if isinstance(reasons, list) and reasons:
         lines.append('<ul class="reasons">')
         for reason in reasons:

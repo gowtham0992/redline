@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from redline.features import extract_features
 from redline.io import LogRecord
-from redline.suite import SUITE_SCHEMA_URL, add_suite_case, build_suite
+from redline.suite import SELECTION_METHODOLOGY_VERSION, SUITE_SCHEMA_URL, add_suite_case, build_suite
 
 
 class SuiteTests(unittest.TestCase):
@@ -26,10 +26,15 @@ class SuiteTests(unittest.TestCase):
 
         self.assertEqual(suite["summary"]["records_seen"], 3)
         self.assertEqual(suite["$schema"], SUITE_SCHEMA_URL)
+        self.assertEqual(suite["methodology"]["version"], SELECTION_METHODOLOGY_VERSION)
+        self.assertIn("behavior-signature", suite["methodology"]["name"])
+        self.assertIn("case_selection", suite["methodology"])
         self.assertEqual(suite["summary"]["unique_prompt_response_pairs"], 3)
         self.assertEqual(suite["summary"]["duplicate_prompt_response_pairs"], 0)
         self.assertEqual(suite["summary"]["cases"], 2)
         self.assertEqual(suite["summary"]["clusters"], 2)
+        self.assertEqual(suite["summary"]["case_coverage"], 2 / 3)
+        self.assertEqual(suite["summary"]["cluster_coverage"], 1.0)
         self.assertEqual(suite["summary"]["high_risk_clusters"], 0)
         self.assertEqual(suite["summary"]["medium_risk_clusters"], 0)
         self.assertEqual(suite["summary"]["prompt_diversity_cases"], 0)
@@ -57,14 +62,18 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("Portable prompt-response regression suite", schema["description"])
         for key in ("summary", "clusters", "cases"):
             self.assertIn(key, schema["properties"])
+        self.assertIn("methodology", schema["properties"])
         case_properties = schema["properties"]["cases"]["items"]["properties"]
         self.assertIn("selection_reason", case_properties)
         self.assertIn("cluster_risk", case_properties)
         self.assertIn("owner", case_properties)
         self.assertIn("owner_rule", case_properties)
         self.assertIn("owned_cases", schema["properties"]["summary"]["properties"])
+        self.assertIn("case_coverage", schema["properties"]["summary"]["properties"])
+        self.assertIn("cluster_coverage", schema["properties"]["summary"]["properties"])
         self.assertIn("prompt_diversity_cases", schema["properties"]["summary"]["properties"])
         self.assertIn("non_ascii_records", schema["properties"]["summary"]["properties"])
+        self.assertIn("stochastic_prompt_groups", schema["properties"]["summary"]["properties"])
 
     def test_build_suite_assigns_case_owners_from_rules(self) -> None:
         suite = build_suite(
@@ -294,6 +303,25 @@ class SuiteTests(unittest.TestCase):
         )
 
         self.assertEqual(suite["summary"]["non_ascii_records"], 1)
+
+    def test_build_suite_counts_repeated_prompts_with_distinct_responses(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Classify ticket", "billing", {}),
+                LogRecord(2, "Classify ticket", "support", {}),
+                LogRecord(3, "Classify ticket", "billing", {}),
+                LogRecord(4, "Summarize ticket", "Customer needs a refund.", {}),
+            ],
+            source="logs/baseline.jsonl",
+            input_field="prompt",
+            output_field="response",
+            max_cases=10,
+        )
+
+        self.assertEqual(suite["summary"]["records_seen"], 4)
+        self.assertEqual(suite["summary"]["unique_prompt_response_pairs"], 3)
+        self.assertEqual(suite["summary"]["duplicate_prompt_response_pairs"], 1)
+        self.assertEqual(suite["summary"]["stochastic_prompt_groups"], 1)
 
     def test_add_suite_case_pins_manual_case(self) -> None:
         suite = build_suite(

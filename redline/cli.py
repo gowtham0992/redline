@@ -63,7 +63,16 @@ from .history import (
     read_history,
     should_fail_history,
 )
-from .import_logs import import_jsonl_log
+from .import_logs import (
+    IMPORT_PRESETS,
+    detect_import_fields,
+    format_import_detection,
+    format_import_presets,
+    import_jsonl_log,
+    import_preset,
+    import_preset_rows,
+    preview_jsonl_import,
+)
 from .io import append_jsonl, append_text, read_json, read_jsonl_records, write_json, write_jsonl, write_text
 from .judge import apply_judge
 from .judge_templates import (
@@ -81,7 +90,7 @@ from .prompts import (
     format_prompt_manifest,
     format_prompt_manifest_check,
 )
-from .redact import DEFAULT_PLACEHOLDER, format_redaction_report, redact_jsonl, scan_jsonl_redactions
+from .redact import DEFAULT_PLACEHOLDER, REDACTION_BOUNDARY, format_redaction_report, redact_jsonl, scan_jsonl_redactions
 from .reports import (
     format_github_annotations,
     format_html_report,
@@ -100,6 +109,7 @@ from .runners import (
     runner_adapters,
 )
 from .sbom import build_sbom, format_sbom_report
+from .status import build_project_status, format_project_status
 from .summary import (
     format_prompt_manifest_summary,
     format_suite_summary,
@@ -140,6 +150,9 @@ Local-first prompt regression diffs from JSONL logs.
 
 Start here:
   redline demo
+  redline status
+  redline app --demo
+  redline quick-check path/to/baseline.jsonl path/to/candidate.jsonl --open
   redline dashboard
   redline init --runner stdio --copy-runner
   redline runners
@@ -210,6 +223,15 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser.add_argument("--strict", action="store_true", help="exit non-zero when warnings are present")
     doctor_parser.set_defaults(func=cmd_doctor)
 
+    status_parser = subparsers.add_parser("status", help="show project readiness and the next command to run")
+    status_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
+    status_parser.add_argument("--reports-dir", default=".redline/reports", help="directory containing redline JSON reports")
+    status_parser.add_argument("--history", default=".redline/history.jsonl", help="history JSONL path")
+    status_parser.add_argument("--checkpoint", default=".redline/audit-checkpoint.json", help="audit checkpoint JSON path")
+    status_parser.add_argument("--limit", type=int, default=20, help="recent reports/history entries to inspect; use 0 for all")
+    status_parser.add_argument("--json", action="store_true", help="print machine-readable status metadata")
+    status_parser.set_defaults(func=cmd_status)
+
     sbom_parser = subparsers.add_parser("sbom", help="write CycloneDX SBOM release evidence")
     sbom_parser.add_argument("--out", help="write SBOM JSON to this path")
     sbom_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
@@ -238,9 +260,13 @@ def build_parser() -> argparse.ArgumentParser:
     runners_parser.set_defaults(func=cmd_runners)
 
     import_parser = subparsers.add_parser("import", help="normalize exported JSONL logs into redline format")
-    import_parser.add_argument("path", help="source JSONL file to normalize")
-    import_parser.add_argument("--input-field", default="prompt", help="source field path containing prompt text")
-    import_parser.add_argument("--output-field", default="response", help="source field path containing response text")
+    import_parser.add_argument("path", nargs="?", help="source JSONL file to normalize")
+    import_parser.add_argument("--list-presets", action="store_true", help="list built-in import presets")
+    import_parser.add_argument("--detect", action="store_true", help="suggest prompt and response field mappings")
+    import_parser.add_argument("--auto-map", action="store_true", help="use the best detected prompt/response mapping")
+    import_parser.add_argument("--preset", choices=sorted(IMPORT_PRESETS), help="field mapping preset for common log exports")
+    import_parser.add_argument("--input-field", help="source field path containing prompt text")
+    import_parser.add_argument("--output-field", help="source field path containing response text")
     import_parser.add_argument("--context-field", help="optional source field path appended to the prompt as Context")
     import_parser.add_argument("--id-field", help="optional source field path copied to the redline id field")
     import_parser.add_argument(
@@ -250,7 +276,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="source field path copied into metadata; repeat for multiple fields",
     )
     import_parser.add_argument("--limit", type=int, help="maximum records to import")
-    import_parser.add_argument("--out", required=True, help="redline JSONL output path")
+    import_parser.add_argument("--preview", type=int, metavar="N", help="preview N mapped rows without writing output")
+    import_parser.add_argument("--out", help="redline JSONL output path")
+    import_parser.add_argument("--no-redact", action="store_true", help="write raw values without import redaction")
+    import_parser.add_argument("--redaction-placeholder", default=DEFAULT_PLACEHOLDER, help="replacement text for import redaction")
     import_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     import_parser.set_defaults(func=cmd_import)
 
@@ -320,7 +349,7 @@ def build_parser() -> argparse.ArgumentParser:
     audit_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
     audit_parser.set_defaults(func=cmd_audit)
 
-    cluster_parser = subparsers.add_parser("cluster", help="analyze behavioral clusters in a log")
+    cluster_parser = subparsers.add_parser("cluster", help="inspect deterministic behavior-signature groups in a log")
     cluster_parser.add_argument("log", nargs="?", help="JSONL prompt-response log; defaults to watched log")
     cluster_parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="config path to read")
     cluster_parser.add_argument("--input-field", help="JSONL input field")
@@ -391,6 +420,26 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("--strict", action="store_true", help="exit non-zero when warnings are present")
     validate_parser.set_defaults(func=cmd_validate)
 
+    quick_check_parser = subparsers.add_parser("quick-check", help="generate a temporary suite and diff candidate outputs")
+    quick_check_parser.add_argument("baseline", help="baseline prompt-response JSONL")
+    quick_check_parser.add_argument("candidate", help="candidate prompt-response JSONL")
+    quick_check_parser.add_argument("--input-field", default="prompt", help="JSONL prompt field path")
+    quick_check_parser.add_argument("--output-field", default="response", help="JSONL response field path")
+    quick_check_parser.add_argument("--out-dir", default=".redline/quick-check", help="directory for suite and reports")
+    quick_check_parser.add_argument("--max-cases", type=int, default=42, help="maximum representative suite cases")
+    quick_check_parser.add_argument("--all-cases", action="store_true", help="include every unique baseline record")
+    quick_check_parser.add_argument("--profile", choices=DIFF_PROFILES, default="strict", help="diff signal profile")
+    quick_check_parser.add_argument("--compact", action="store_true", help="print compact one-line-per-case output")
+    quick_check_parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    quick_check_parser.add_argument("--open", action="store_true", help="open the HTML report in the default browser")
+    quick_check_parser.add_argument("--open-app", action="store_true", help="open the guided local app in the default browser")
+    quick_check_parser.add_argument(
+        "--fail-on",
+        default="regression,missing",
+        help="comma-separated statuses that produce exit code 1; use 'none' for report-only",
+    )
+    quick_check_parser.set_defaults(func=cmd_quick_check)
+
     diff_parser = subparsers.add_parser("diff", help="compare candidate JSONL to a suite")
     diff_parser.add_argument(
         "paths",
@@ -456,9 +505,23 @@ def build_parser() -> argparse.ArgumentParser:
     dashboard_parser.add_argument("--checkpoint", default=".redline/audit-checkpoint.json", help="audit checkpoint JSON path")
     dashboard_parser.add_argument("--out", default=".redline/dashboard.html", help="dashboard HTML output path")
     dashboard_parser.add_argument("--limit", type=int, default=20, help="recent reports/history entries to include; use 0 for all")
+    dashboard_parser.add_argument("--style", choices=("classic", "app"), default="classic", help="dashboard visual style")
     dashboard_parser.add_argument("--open", action="store_true", help="open the dashboard in the default browser")
     dashboard_parser.add_argument("--json", action="store_true", help="print machine-readable dashboard metadata")
     dashboard_parser.set_defaults(func=cmd_dashboard)
+
+    app_parser = subparsers.add_parser("app", help="open the guided local redline app")
+    app_parser.add_argument("--reports-dir", default=".redline/reports", help="directory containing redline JSON reports")
+    app_parser.add_argument("--history", default=".redline/history.jsonl", help="history JSONL path")
+    app_parser.add_argument("--checkpoint", default=".redline/audit-checkpoint.json", help="audit checkpoint JSON path")
+    app_parser.add_argument("--out", default=".redline/app.html", help="app HTML output path")
+    app_parser.add_argument("--limit", type=int, default=20, help="recent reports/history entries to include; use 0 for all")
+    app_parser.add_argument("--demo", action="store_true", help="generate the public demo reports before opening the app")
+    app_parser.add_argument("--demo-out", default=".redline/demo", help="demo output directory for --demo")
+    app_parser.add_argument("--open", dest="open", action="store_true", default=True, help="open the local app in the default browser")
+    app_parser.add_argument("--no-open", dest="open", action="store_false", help="write the app HTML without opening a browser")
+    app_parser.add_argument("--json", action="store_true", help="print machine-readable app metadata")
+    app_parser.set_defaults(func=cmd_app)
 
     eval_parser = subparsers.add_parser("eval", help="replay a suite with a local command")
     eval_parser.add_argument("suite", nargs="?", help="suite JSON, or prompt manifest JSON from redline prompts")
@@ -595,7 +658,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     print("Next:")
     if not replay:
         print("- Connect a runner: redline init --runner stdio --copy-runner --force")
-    print(f"- Generate suite: redline suite path/to/log.jsonl --out {config['suite']}")
+    print(f"- Generate suite: {_shell_command('redline', 'suite', 'path/to/log.jsonl', '--out', config['suite'])}")
     if replay:
         print("- Run eval: redline eval")
     print("- Check setup: redline doctor")
@@ -627,6 +690,36 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         return 1
     if args.strict and report["warnings"] > 0:
         return 1
+    return 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    if args.limit < 0:
+        raise ValueError("status --limit must be 0 or greater")
+    config = load_config(args.config)
+    suite_path = str(config.get("suite") or "redline-suite.json")
+    suite = None
+    suite_error = None
+    if Path(suite_path).exists():
+        try:
+            suite = _read_suite_or_manifest(suite_path)
+        except ValueError as exc:
+            suite_error = str(exc)
+    status = build_project_status(
+        config_path=args.config,
+        config=config,
+        suite=suite,
+        suite_error=suite_error,
+        suite_git_ignored=_is_git_ignored(suite_path),
+        reports_dir=args.reports_dir,
+        history_path=args.history,
+        checkpoint_path=args.checkpoint,
+        limit=args.limit,
+    )
+    if args.json:
+        print(json.dumps(status, indent=2, sort_keys=True))
+    else:
+        print(format_project_status(status), end="")
     return 0
 
 
@@ -729,33 +822,200 @@ def cmd_judges(args: argparse.Namespace) -> int:
 
 
 def cmd_import(args: argparse.Namespace) -> int:
+    if args.list_presets:
+        if args.json:
+            print(json.dumps({"presets": import_preset_rows()}, indent=2, sort_keys=True))
+        else:
+            print(format_import_presets(), end="")
+        return 0
+    if not args.path:
+        raise ValueError("import path is required unless --list-presets is used")
+    if args.detect:
+        result = detect_import_fields(args.path, limit=args.limit or 20)
+        if args.json:
+            print(json.dumps(result, indent=2, sort_keys=True))
+        else:
+            print(format_import_detection(result), end="")
+        return 0
+    auto_mapping = _auto_import_mapping(args) if args.auto_map else {}
+    preset_name = args.preset or str(auto_mapping.get("preset") or "")
+    preset = import_preset(preset_name) if preset_name else {}
+    input_field = args.input_field or str(preset.get("input_field") or "prompt")
+    output_field = args.output_field or str(preset.get("output_field") or "response")
+    if args.auto_map:
+        input_field = args.input_field or str(auto_mapping.get("input_field") or input_field)
+        output_field = args.output_field or str(auto_mapping.get("output_field") or output_field)
+    context_field = args.context_field if args.context_field is not None else _optional_preset_string(preset, "context_field")
+    id_field = args.id_field if args.id_field is not None else _optional_preset_string(preset, "id_field")
+    metadata_fields = _preset_string_list(preset, "metadata_fields")
+    metadata_fields.extend(args.metadata_field)
+    if args.preview is not None:
+        report = preview_jsonl_import(
+            args.path,
+            input_field=input_field,
+            output_field=output_field,
+            context_field=context_field,
+            id_field=id_field,
+            metadata_fields=metadata_fields,
+            limit=args.preview,
+            redact=not args.no_redact,
+            placeholder=args.redaction_placeholder,
+        )
+        report["preset"] = preset_name
+        report["auto_mapped"] = bool(args.auto_map)
+        if auto_mapping:
+            report["auto_mapping"] = auto_mapping
+        if args.json:
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            _print_import_preview(report)
+        return 0
+    if not args.out:
+        raise ValueError("--out is required unless --list-presets or --preview is used")
     report = import_jsonl_log(
         args.path,
         output=args.out,
-        input_field=args.input_field,
-        output_field=args.output_field,
-        context_field=args.context_field,
-        id_field=args.id_field,
-        metadata_fields=args.metadata_field,
+        input_field=input_field,
+        output_field=output_field,
+        context_field=context_field,
+        id_field=id_field,
+        metadata_fields=metadata_fields,
         limit=args.limit,
+        redact=not args.no_redact,
+        placeholder=args.redaction_placeholder,
     )
+    report["preset"] = preset_name
+    report["auto_mapped"] = bool(args.auto_map)
+    if auto_mapping:
+        report["auto_mapping"] = auto_mapping
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
         print(f"Imported {report['records']} prompt-response pairs from {Path(str(report['source']))}.")
+        if report["auto_mapped"]:
+            _print_auto_mapping(report)
+        if report["preset"]:
+            print(f"Preset:          {report['preset']}")
         print(f"Mapped prompt:   {report['input_field']}")
         print(f"Mapped response: {report['output_field']}")
         if report["context_field"]:
             print(f"Appended context: {report['context_field']}")
         if report["metadata_fields"]:
             print(f"Copied metadata: {', '.join(report['metadata_fields'])}")
+        if report["redacted"]:
+            print(
+                "Redaction:       "
+                f"best-effort common secrets/PII scanned; {report['redactions']} value(s) redacted"
+            )
+            print(f"Boundary:        {REDACTION_BOUNDARY}")
+            patterns = report.get("redaction_patterns")
+            if isinstance(patterns, dict) and patterns:
+                print(f"Redaction hits:  {', '.join(f'{key}={value}' for key, value in patterns.items())}")
+        else:
+            print("Redaction:       disabled; review sensitive logs before sharing or committing")
         print(f"Wrote {Path(str(report['output']))}.")
         print()
         print("Next:")
-        print(f"- Generate suite: redline suite {Path(str(report['output']))} --out redline-suite.json")
+        print(
+            f"- Generate suite: "
+            f"{_shell_command('redline', 'suite', report['output'], '--out', 'redline-suite.json')}"
+        )
         print("- Inspect cases: redline cases redline-suite.json")
         print("- Compare candidate outputs: redline diff redline-suite.json path/to/candidate.jsonl")
     return 0
+
+
+def _auto_import_mapping(args: argparse.Namespace) -> dict[str, object]:
+    detection = detect_import_fields(args.path, limit=args.limit or 20)
+    suggestions = detection.get("suggestions")
+    if not isinstance(suggestions, list) or not suggestions:
+        raise ValueError(
+            "auto-map could not find a prompt/response mapping; run "
+            "`redline import path/to/export.jsonl --detect` and pass fields manually"
+        )
+    best = suggestions[0]
+    if not isinstance(best, dict):
+        raise ValueError("auto-map produced an invalid mapping; pass --input-field and --output-field manually")
+    return {
+        "input_field": str(best.get("input_field") or ""),
+        "output_field": str(best.get("output_field") or ""),
+        "preset": str(best.get("preset") or ""),
+        "score": int(best.get("score") or 0),
+        "matches": int(best.get("matches") or 0),
+        "records_scanned": int(best.get("records_scanned") or 0),
+    }
+
+
+def _print_auto_mapping(report: Mapping[str, object]) -> None:
+    mapping = report.get("auto_mapping")
+    mapping = mapping if isinstance(mapping, Mapping) else {}
+    details = f"score {mapping.get('score', 0)}"
+    if mapping.get("preset"):
+        details += f"; preset {mapping['preset']}"
+    print(f"Auto-mapped:     yes ({details})")
+
+
+def _print_import_preview(report: Mapping[str, object]) -> None:
+    print(f"Previewed {report['previewed']} prompt-response pairs from {Path(str(report['source']))}.")
+    if report.get("auto_mapped"):
+        _print_auto_mapping(report)
+    if report.get("preset"):
+        print(f"Preset:          {report['preset']}")
+    print(f"Mapped prompt:   {report['input_field']}")
+    print(f"Mapped response: {report['output_field']}")
+    if report["context_field"]:
+        print(f"Appended context: {report['context_field']}")
+    metadata_fields = report.get("metadata_fields")
+    if isinstance(metadata_fields, list) and metadata_fields:
+        print(f"Copied metadata: {', '.join(str(value) for value in metadata_fields)}")
+    if report["redacted"]:
+        print(
+            "Redaction:       "
+            f"best-effort common secrets/PII scanned; {report['redactions']} value(s) redacted"
+        )
+        print(f"Boundary:        {REDACTION_BOUNDARY}")
+    else:
+        print("Redaction:       disabled; review sensitive logs before sharing or committing")
+    print()
+    print("Preview:")
+    rows = report.get("rows")
+    if isinstance(rows, list):
+        for index, row in enumerate(rows, start=1):
+            if not isinstance(row, Mapping):
+                continue
+            prompt = _truncate_preview(str(row.get("prompt") or ""))
+            response = _truncate_preview(str(row.get("response") or ""))
+            print(f"{index}. prompt:   {prompt}")
+            print(f"   response: {response}")
+            metadata = row.get("metadata")
+            if isinstance(metadata, Mapping) and metadata:
+                print(f"   metadata: {json.dumps(metadata, sort_keys=True)}")
+    print()
+    print("No file written.")
+    print("Next:")
+    print(f"- Import when ready: {_shell_command('redline', 'import', report['source'], '--out', 'baseline.jsonl')}")
+
+
+def _truncate_preview(value: str, *, limit: int = 120) -> str:
+    compact = " ".join(value.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 3].rstrip() + "..."
+
+
+def _optional_preset_string(preset: Mapping[str, object], key: str) -> str | None:
+    value = preset.get(key)
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _preset_string_list(preset: Mapping[str, object], key: str) -> list[str]:
+    value = preset.get(key)
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item).strip()]
 
 
 def cmd_watch(args: argparse.Namespace) -> int:
@@ -816,6 +1076,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
             print(f"Skipped {result['skipped_duplicates']} duplicate records.")
         if result.get("redactions"):
             print(f"Redacted {result['redactions']} sensitive value(s).")
+            print(f"Boundary: {REDACTION_BOUNDARY}.")
         print(f"{str(result['mode']).title()} {Path(str(result['output']))}.")
     return 0
 
@@ -1008,11 +1269,16 @@ def cmd_suite(args: argparse.Namespace) -> int:
             },
         },
     )
+    suite_health = suite_summary(suite)
+    readiness = suite_health.get("suite_readiness")
+    readiness = readiness if isinstance(readiness, dict) else {}
     summary = suite["summary"]
     print(f"Generated {summary['cases']} cases from {summary['records_seen']} records.")
     if summary.get("duplicate_prompt_response_pairs"):
         print(f"Skipped {summary['duplicate_prompt_response_pairs']} duplicate prompt-response pairs.")
-    print(f"Detected {summary['clusters']} behavioral clusters.")
+    print(f"Detected {summary['clusters']} behavior-signature groups.")
+    print(f"Suite readiness: {readiness.get('label', 'unknown')} ({readiness.get('score', 0)}/100)")
+    print("Readiness scope: suite health, not model quality or candidate safety")
     if summary.get("selection") != "all":
         unique_pairs = int(summary.get("unique_prompt_response_pairs", summary["records_seen"]))
         cases = int(summary["cases"])
@@ -1021,11 +1287,16 @@ def cmd_suite(args: argparse.Namespace) -> int:
                 f"Selected {cases} representative cases from {unique_pairs} unique prompt-response pairs. "
                 "Use --all-cases for exhaustive coverage or redline suite add for must-cover edge cases."
             )
+    improvement_steps = suite_health.get("next_steps")
+    if isinstance(improvement_steps, list) and improvement_steps:
+        print("Improve suite:")
+        for step in improvement_steps[:2]:
+            print(f"- {step}")
     print(f"Wrote {Path(output)}.")
     print()
     print("Next:")
-    print(f"- Inspect cases: redline cases {Path(output)}")
-    print(f"- Compare a candidate log: redline diff {Path(output)} path/to/candidate.jsonl")
+    print(f"- Inspect cases: {_shell_command('redline', 'cases', output)}")
+    print(f"- Compare a candidate log: {_shell_command('redline', 'diff', output, 'path/to/candidate.jsonl')}")
     print("- Configure replay when ready: redline init --runner stdio --copy-runner")
     return 0
 
@@ -1089,9 +1360,9 @@ def cmd_suite_add(args: argparse.Namespace) -> int:
             print(f"Added {rules} requirement rule(s).")
         print()
         print("Next:")
-        print(f"- Inspect case: redline case {Path(output)} {case['id']}")
-        print(f"- Validate suite: redline validate {Path(output)}")
-        print(f"- Compare candidate: redline diff {Path(output)} path/to/candidate.jsonl")
+        print(f"- Inspect case: {_shell_command('redline', 'case', output, case['id'])}")
+        print(f"- Validate suite: {_shell_command('redline', 'validate', output)}")
+        print(f"- Compare candidate: {_shell_command('redline', 'diff', output, 'path/to/candidate.jsonl')}")
     return 0
 
 
@@ -1199,6 +1470,86 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_quick_check(args: argparse.Namespace) -> int:
+    if args.all_cases and args.max_cases != 42:
+        raise ValueError("--all-cases cannot be combined with --max-cases")
+    baseline_records = read_jsonl_records(args.baseline, args.input_field, args.output_field)
+    candidate_records = read_jsonl_records(args.candidate, args.input_field, args.output_field)
+    suite = build_suite(
+        baseline_records,
+        source=args.baseline,
+        input_field=args.input_field,
+        output_field=args.output_field,
+        max_cases=args.max_cases,
+        all_cases=args.all_cases,
+    )
+    out_dir = Path(args.out_dir)
+    suite_path = out_dir / "suite.json"
+    report_json = out_dir / "diff.json"
+    report_md = out_dir / "diff.md"
+    report_html = out_dir / "diff.html"
+    app_html = out_dir / "app.html"
+    write_json(suite_path, suite)
+
+    result = compare_suite_to_candidate(suite, candidate_records, profile=args.profile)
+    result["suite"] = str(suite_path)
+    result["candidate"] = str(args.candidate)
+    result["artifacts"] = _artifact_paths(
+        {
+            "json": str(report_json),
+            "markdown": str(report_md),
+            "html": str(report_html),
+            "app": str(app_html),
+        }
+    )
+    write_json(report_json, result)
+    write_text(report_md, format_markdown_report(result, title="redline quick-check"))
+    write_text(report_html, format_html_report(result, title="redline quick-check"))
+    dashboard = build_dashboard(
+        reports_dir=out_dir,
+        history_path=out_dir / "history.jsonl",
+        checkpoint_path=out_dir / "audit-checkpoint.json",
+    )
+    write_text(app_html, format_dashboard_html(dashboard, title="redline quick-check app", output_path=app_html, style="app"))
+    if args.open:
+        webbrowser.open(report_html.resolve().as_uri())
+    if args.open_app:
+        webbrowser.open(app_html.resolve().as_uri())
+
+    fail_on = parse_fail_on(args.fail_on)
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    elif args.compact:
+        print(format_compact_report(result, title="redline quick-check"), end="")
+    else:
+        print(format_report(result, title="redline quick-check"), end="")
+    if not args.json:
+        summary = suite["summary"]
+        print()
+        print("Artifacts")
+        print(f"- Suite:       {suite_path}")
+        print(f"- JSON report: {report_json}")
+        print(f"- Markdown:    {report_md}")
+        print(f"- HTML report: {report_html}")
+        print(f"- App:         {app_html}")
+        print()
+        print("Suite coverage")
+        print(f"- Cases: {summary['cases']}/{summary['unique_prompt_response_pairs']} unique prompt-response pairs")
+        covered_clusters = round(int(summary["clusters"]) * float(summary.get("cluster_coverage") or 0.0))
+        print(f"- Behavior groups: {covered_clusters}/{summary['clusters']} represented")
+        print()
+        print("Next:")
+        print(f"- Open HTML report: {report_html}")
+        print(f"- Open guided app: {app_html}")
+        print(f"- Inspect cases: {_shell_command('redline', 'cases', suite_path)}")
+        print(f"- Make this persistent: {_shell_command('redline', 'suite', args.baseline, '--out', 'redline-suite.json')}")
+        if args.open:
+            print("- Opened HTML report in the default browser.")
+        if args.open_app:
+            print("- Opened guided app in the default browser.")
+    return 1 if should_fail(result, fail_on) else 0
+
+
 def cmd_diff(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     suite_path, candidate_path = _suite_candidate_args(args.paths, config)
@@ -1287,15 +1638,50 @@ def cmd_history(args: argparse.Namespace) -> int:
 
 
 def cmd_dashboard(args: argparse.Namespace) -> int:
+    return _write_dashboard_artifact(
+        args,
+        style=args.style,
+        title="redline dashboard",
+        noun="dashboard",
+        open_message="Opened dashboard in the default browser.",
+    )
+
+
+def cmd_app(args: argparse.Namespace) -> int:
+    if args.demo:
+        run_demo(args.demo_out, public=True)
+        if args.reports_dir == ".redline/reports":
+            args.reports_dir = str(Path(args.demo_out) / "reports")
+        if not args.json:
+            print(f"Generated public demo evidence in {Path(args.demo_out)}.")
+    return _write_dashboard_artifact(
+        args,
+        style="app",
+        title="redline app",
+        noun="app",
+        open_message="Opened redline app in the default browser.",
+    )
+
+
+def _write_dashboard_artifact(
+    args: argparse.Namespace,
+    *,
+    style: str,
+    title: str,
+    noun: str,
+    open_message: str,
+) -> int:
     dashboard = build_dashboard(
         reports_dir=args.reports_dir,
         history_path=args.history,
         checkpoint_path=args.checkpoint,
         limit=args.limit,
     )
-    write_text(args.out, format_dashboard_html(dashboard, output_path=args.out))
-    if args.open:
+    write_text(args.out, format_dashboard_html(dashboard, title=title, output_path=args.out, style=style))
+    opened = False
+    if args.open and not args.json:
         webbrowser.open(Path(args.out).resolve().as_uri())
+        opened = True
     if args.json:
         print(json.dumps({**dashboard, "output": args.out}, indent=2, sort_keys=True))
     else:
@@ -1306,10 +1692,16 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
         print(f"Checkpoint: {'yes' if dashboard.get('checkpoint') else 'no'}")
         print(f"Notices: {len(dashboard.get('notices', []))}")
         print(f"Warnings: {len(dashboard.get('errors', []))}")
-        if args.open:
-            print("Opened dashboard in the default browser.")
+        if opened:
+            print(open_message)
         else:
             print(f"Open: {Path(args.out)}")
+        if noun == "app":
+            print()
+            print("Next:")
+            print("- Import logs: redline import path/to/export.jsonl --detect")
+            print("- Generate suite: redline suite .redline/logs/baseline.jsonl --out redline-suite.json")
+            print("- Run eval: redline eval --compact")
     return 0
 
 
@@ -1525,14 +1917,14 @@ def cmd_mark(args: argparse.Namespace) -> int:
     print(f"Marked {case_id} as {args.status} in {Path(output)}.")
     print()
     print("Next:")
-    print(f"- Validate suite: redline validate {Path(output)}")
+    print(f"- Validate suite: {_shell_command('redline', 'validate', output)}")
     if args.status == "expected":
         print(
-            f"- Promote reviewed output: redline accept {Path(output)} {case_id} "
-            '--candidate path/to/candidate.jsonl --note "accepted prompt change"'
+            f"- Promote reviewed output: "
+            f"{_shell_command('redline', 'accept', output, case_id, '--candidate', 'path/to/candidate.jsonl', '--note', 'accepted prompt change')}"
         )
     else:
-        print(f"- Re-run diff: redline diff {Path(output)} path/to/candidate.jsonl")
+        print(f"- Re-run diff: {_shell_command('redline', 'diff', output, 'path/to/candidate.jsonl')}")
     return 0
 
 
@@ -1692,6 +2084,10 @@ def _emit_result(
         print(format_compact_report(result, title=title), end="")
     else:
         print(format_report(result, title=title), end="")
+    if not args.json and out_html:
+        print()
+        print(f"Open HTML report: {Path(out_html)}")
+        print(f"Open app: redline app --reports-dir {shlex.quote(str(Path(out_html).parent))}")
 
     exit_code = 1 if should_fail(result, fail_on) else 0
     if audit_event is not None:
@@ -1886,7 +2282,7 @@ def _read_suite_or_manifest(path: str) -> dict[str, object]:
             raise ValueError(
                 f"{path} looks like raw JSONL logs, but this command expects a redline suite JSON "
                 "or prompt manifest. Build a suite first: "
-                f"redline suite {path} --out redline-suite.json"
+                f"{_shell_command('redline', 'suite', path, '--out', 'redline-suite.json')}"
             ) from exc
         raise
 
@@ -2235,4 +2631,8 @@ def _prompts_regenerate_command(args: argparse.Namespace) -> str:
     parts = ["redline", "prompts", str(args.path), "--suite-dir", str(args.suite_dir), "--out", str(args.out)]
     for extension in args.ext:
         parts.extend(["--ext", str(extension)])
-    return " ".join(shlex.quote(part) for part in parts)
+    return _shell_command(*parts)
+
+
+def _shell_command(*parts: object) -> str:
+    return " ".join(shlex.quote(str(part)) for part in parts)

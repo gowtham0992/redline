@@ -14,7 +14,8 @@ changes; patch versions are reserved for compatible fixes.
 
 - Work from a clean release branch that is pushed to origin.
 - Before tagging, merge to `main` and rerun `bash scripts/certify_release.sh`.
-- Update the version in `pyproject.toml` and `redline/__init__.py`.
+- Update the version in `pyproject.toml`, `redline/__init__.py`, and
+  `server.json`.
 - Update `CHANGELOG.md` with the user-visible changes.
 - Run the packaged release gate:
 
@@ -51,7 +52,7 @@ new user:
 python -m pip install redline-ai
 redline demo
 redline demo --public --compact
-redline dashboard --reports-dir .redline/demo/reports --out .redline/dashboard.html
+redline app --reports-dir .redline/demo/reports --no-open --out .redline/app.html
 redline runners
 redline init --runner stdio --copy-runner
 redline doctor
@@ -59,7 +60,7 @@ redline doctor
 
 Confirm the demo ends with actionable next steps, shows the mark/accept review
 loop, and catches the intentional support-agent regressions. Confirm the
-dashboard opens as a self-contained local report index. Confirm the
+guided app opens as a self-contained local workflow. Confirm the
 public-pattern proof works from the installed package without relying on
 repo-local `examples/` paths.
 
@@ -78,7 +79,7 @@ To run the package gate, external-project Action smoke, release build, and
 `twine check` as one certification pass:
 
 ```bash
-bash scripts/certify_release.sh /tmp/redline-certify-v0.2.1
+bash scripts/certify_release.sh /tmp/redline-certify-v0.3.0
 ```
 
 The certification summary records the git commit, branch, and clean/dirty worktree state.
@@ -89,8 +90,8 @@ Release evidence can be traced back to the exact code that was tested.
 After the release gate and public-alpha smoke both pass:
 
 ```bash
-git tag v0.2.1
-git push origin v0.2.1
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 Use a new tag for every public release. Do not move an existing release tag
@@ -106,11 +107,11 @@ that was tagged. Do not upload an ignored local `dist/*`; it can contain stale
 dogfood artifacts from earlier builds.
 
 ```bash
-bash scripts/build_release.sh /tmp/redline-dist-v0.2.1
-python -m twine upload /tmp/redline-dist-v0.2.1/redline_ai-*.whl /tmp/redline-dist-v0.2.1/redline_ai-*.tar.gz
+bash scripts/build_release.sh /tmp/redline-dist-v0.3.0
+python -m twine upload /tmp/redline-dist-v0.3.0/redline_ai-*.whl /tmp/redline-dist-v0.3.0/redline_ai-*.tar.gz
 ```
 
-`build_release.sh` also writes `/tmp/redline-dist-v0.2.1/redline-sbom.json` as
+`build_release.sh` also writes `/tmp/redline-dist-v0.3.0/redline-sbom.json` as
 CycloneDX release evidence. Keep it with internal release records or attach it
 to GitHub release artifacts when needed.
 

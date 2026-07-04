@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from redline.cli import main
 
@@ -20,6 +21,8 @@ class CliConfigTests(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("Start here:", text)
         self.assertIn("redline demo", text)
+        self.assertIn("redline status", text)
+        self.assertIn("redline quick-check path/to/baseline.jsonl path/to/candidate.jsonl --open", text)
         self.assertIn("redline init --runner stdio --copy-runner", text)
         self.assertIn("Review loop:", text)
         self.assertIn("redline suite add redline-suite.json", text)
@@ -35,6 +38,8 @@ class CliConfigTests(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("Start here:", text)
         self.assertIn("redline demo", text)
+        self.assertIn("redline status", text)
+        self.assertIn("redline quick-check path/to/baseline.jsonl path/to/candidate.jsonl --open", text)
         self.assertNotIn("suite-add", text)
         self.assertNotIn("==SUPPRESS==", text)
 
@@ -46,7 +51,7 @@ class CliConfigTests(unittest.TestCase):
                 main(["--version"])
 
         self.assertEqual(raised.exception.code, 0)
-        self.assertIn("redline 0.2.1", output.getvalue())
+        self.assertIn("redline 0.3.0", output.getvalue())
 
     def test_init_help_lists_only_replay_runners(self) -> None:
         output = io.StringIO()
@@ -148,6 +153,223 @@ class CliConfigTests(unittest.TestCase):
             self.assertEqual(row["response"], "Summary")
             self.assertEqual(row["metadata"], {"category": "summarization"})
 
+    def test_import_command_previews_external_jsonl_without_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            imported = root / "baseline.jsonl"
+            source.write_text(
+                '{"instruction": "Summarize", "response": "Summary", "category": "summarization"}\n',
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(
+                        [
+                            "import",
+                            str(source),
+                            "--input-field",
+                            "instruction",
+                            "--output-field",
+                            "response",
+                            "--metadata-field",
+                            "category",
+                            "--preview",
+                            "1",
+                        ]
+                    ),
+                    0,
+                )
+
+            text = output.getvalue()
+            self.assertIn("Previewed 1 prompt-response pairs", text)
+            self.assertIn("No file written.", text)
+            self.assertIn("prompt:   Summarize", text)
+            self.assertIn("response: Summary", text)
+            self.assertIn('"category": "summarization"', text)
+            self.assertFalse(imported.exists())
+
+    def test_next_step_commands_quote_user_paths_with_spaces(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                raw_source = Path("raw exports/downloaded log.jsonl")
+                raw_source.parent.mkdir()
+                raw_source.write_text(
+                    '{"instruction": "Return JSON", "response": "{\\"owner\\": \\"billing\\"}"}\n',
+                    encoding="utf-8",
+                )
+                imported = Path("normalized logs/baseline log.jsonl")
+                imported.parent.mkdir()
+
+                preview_output = io.StringIO()
+                with contextlib.redirect_stdout(preview_output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "import",
+                                str(raw_source),
+                                "--input-field",
+                                "instruction",
+                                "--output-field",
+                                "response",
+                                "--preview",
+                                "1",
+                            ]
+                        ),
+                        0,
+                    )
+                self.assertIn(
+                    "redline import 'raw exports/downloaded log.jsonl' --out baseline.jsonl",
+                    preview_output.getvalue(),
+                )
+
+                import_output = io.StringIO()
+                with contextlib.redirect_stdout(import_output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "import",
+                                str(raw_source),
+                                "--input-field",
+                                "instruction",
+                                "--output-field",
+                                "response",
+                                "--out",
+                                str(imported),
+                            ]
+                        ),
+                        0,
+                    )
+                self.assertIn(
+                    "redline suite 'normalized logs/baseline log.jsonl' --out redline-suite.json",
+                    import_output.getvalue(),
+                )
+
+                suite_path = Path("suite files/redline suite.json")
+                suite_path.parent.mkdir()
+                suite_output = io.StringIO()
+                with contextlib.redirect_stdout(suite_output):
+                    self.assertEqual(main(["suite", str(imported), "--out", str(suite_path), "--all-cases"]), 0)
+                suite_text = suite_output.getvalue()
+                self.assertIn("redline cases 'suite files/redline suite.json'", suite_text)
+                self.assertIn("redline diff 'suite files/redline suite.json' path/to/candidate.jsonl", suite_text)
+
+                add_output = io.StringIO()
+                with contextlib.redirect_stdout(add_output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "suite",
+                                "add",
+                                str(suite_path),
+                                "--prompt",
+                                "Pinned path prompt",
+                                "--response",
+                                "Pinned path response",
+                                "--case-id",
+                                "case with spaces",
+                            ]
+                        ),
+                        0,
+                    )
+                add_text = add_output.getvalue()
+                self.assertIn("redline case 'suite files/redline suite.json' 'case with spaces'", add_text)
+                self.assertIn("redline validate 'suite files/redline suite.json'", add_text)
+
+                mark_output = io.StringIO()
+                with contextlib.redirect_stdout(mark_output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "mark",
+                                str(suite_path),
+                                "case with spaces",
+                                "--status",
+                                "expected",
+                                "--note",
+                                "intentional",
+                            ]
+                        ),
+                        0,
+                    )
+                mark_text = mark_output.getvalue()
+                self.assertIn("redline validate 'suite files/redline suite.json'", mark_text)
+                self.assertIn(
+                    "redline accept 'suite files/redline suite.json' 'case with spaces'",
+                    mark_text,
+                )
+            finally:
+                os.chdir(previous)
+
+    def test_import_command_auto_maps_external_jsonl(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            imported = root / "baseline.jsonl"
+            source.write_text(
+                (
+                    '{"instruction": "Summarize", "context": "Policy text", '
+                    '"response": "Summary", "category": "summarization"}\n'
+                ),
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["import", str(source), "--auto-map", "--out", str(imported)]), 0)
+
+            text = output.getvalue()
+            self.assertIn("Auto-mapped:     yes (score 100; preset dolly)", text)
+            self.assertIn("Preset:          dolly", text)
+            self.assertIn("Mapped prompt:   instruction", text)
+            self.assertIn("Mapped response: response", text)
+            row = json.loads(imported.read_text(encoding="utf-8"))
+            self.assertEqual(row["prompt"], "Summarize\n\nContext:\nPolicy text")
+            self.assertEqual(row["response"], "Summary")
+            self.assertEqual(row["metadata"], {"category": "summarization"})
+
+    def test_import_command_auto_maps_preview_without_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "downloaded.jsonl"
+            imported = root / "baseline.jsonl"
+            source.write_text('{"input": "Classify", "output": "billing"}\n', encoding="utf-8")
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["import", str(source), "--auto-map", "--preview", "1"]), 0)
+
+            text = output.getvalue()
+            self.assertIn("Previewed 1 prompt-response pairs", text)
+            self.assertIn("Auto-mapped:     yes (score 100; preset langfuse)", text)
+            self.assertIn("Mapped prompt:   input", text)
+            self.assertIn("Mapped response: output", text)
+            self.assertFalse(imported.exists())
+
+    def test_import_command_detects_external_jsonl_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "export.jsonl"
+            source.write_text(
+                '{"input": "Classify", "output": "billing"}\n',
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["import", str(source), "--detect"]), 0)
+
+            text = output.getvalue()
+            self.assertIn("redline import detection", text)
+            self.assertIn("input", text)
+            self.assertIn("output", text)
+            self.assertIn("--preview 3", text)
+
     def test_runners_command_can_copy_adapter(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -219,6 +441,23 @@ class CliConfigTests(unittest.TestCase):
                 self.assertIn("--out can only be used", stderr.getvalue())
             finally:
                 os.chdir(previous)
+
+    def test_import_command_lists_presets(self) -> None:
+        output = io.StringIO()
+
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(["import", "--list-presets"]), 0)
+
+        text = output.getvalue()
+        self.assertIn("redline import presets", text)
+        self.assertIn("langfuse", text)
+        self.assertIn("openai-chat", text)
+
+        json_output = io.StringIO()
+        with contextlib.redirect_stdout(json_output):
+            self.assertEqual(main(["import", "--list-presets", "--json"]), 0)
+        payload = json.loads(json_output.getvalue())
+        self.assertTrue(any(row["id"] == "helicone" for row in payload["presets"]))
 
     def test_judges_command_lists_templates(self) -> None:
         output = io.StringIO()
@@ -558,10 +797,14 @@ class CliConfigTests(unittest.TestCase):
                     encoding="utf-8",
                 )
 
-                with contextlib.redirect_stdout(io.StringIO()):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
                     self.assertEqual(main(["suite", "baseline.jsonl"]), 0)
                     self.assertEqual(main(["diff", "candidate.jsonl"]), 0)
 
+                text = output.getvalue()
+                self.assertIn("Open HTML report: .redline/reports/diff.html", text)
+                self.assertIn("Open app: redline app --reports-dir .redline/reports", text)
                 self.assertTrue((root / ".redline" / "suite.json").exists())
                 self.assertTrue((root / ".redline" / "reports" / "diff.json").exists())
                 self.assertTrue((root / ".redline" / "reports" / "diff.md").exists())
@@ -580,6 +823,137 @@ class CliConfigTests(unittest.TestCase):
                 self.assertEqual(report["artifacts"]["slack"], ".redline/reports/diff.slack.json")
             finally:
                 os.chdir(previous)
+
+    def test_quick_check_generates_suite_and_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+                output = io.StringIO()
+
+                with patch("redline.cli.webbrowser.open") as open_browser:
+                    with contextlib.redirect_stdout(output):
+                        self.assertEqual(
+                            main(
+                                [
+                                    "quick-check",
+                                    "baseline.jsonl",
+                                    "candidate.jsonl",
+                                    "--fail-on",
+                                    "none",
+                                    "--open",
+                                ]
+                            ),
+                            0,
+                        )
+
+                text = output.getvalue()
+                self.assertIn("redline quick-check", text)
+                self.assertIn("candidate lost valid JSON format", text)
+                self.assertIn("Open HTML report", text)
+                self.assertIn("Open guided app", text)
+                self.assertIn("Opened HTML report in the default browser.", text)
+                self.assertTrue((root / ".redline" / "quick-check" / "suite.json").exists())
+                self.assertTrue((root / ".redline" / "quick-check" / "diff.json").exists())
+                self.assertTrue((root / ".redline" / "quick-check" / "diff.md").exists())
+                self.assertTrue((root / ".redline" / "quick-check" / "diff.html").exists())
+                self.assertTrue((root / ".redline" / "quick-check" / "app.html").exists())
+                report = json.loads((root / ".redline" / "quick-check" / "diff.json").read_text(encoding="utf-8"))
+                self.assertEqual(report["summary"]["regression"], 1)
+                self.assertEqual(report["artifacts"]["html"], ".redline/quick-check/diff.html")
+                self.assertEqual(report["artifacts"]["app"], ".redline/quick-check/app.html")
+                self.assertEqual(report["suite"], ".redline/quick-check/suite.json")
+                app = (root / ".redline" / "quick-check" / "app.html").read_text(encoding="utf-8")
+                self.assertIn('data-redline-dashboard="app"', app)
+                self.assertIn("candidate lost valid JSON format", app)
+                open_browser.assert_called_once()
+            finally:
+                os.chdir(previous)
+
+    def test_quick_check_can_open_guided_app(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+                output = io.StringIO()
+
+                with patch("redline.cli.webbrowser.open") as open_browser:
+                    with contextlib.redirect_stdout(output):
+                        self.assertEqual(
+                            main(
+                                [
+                                    "quick-check",
+                                    "baseline.jsonl",
+                                    "candidate.jsonl",
+                                    "--fail-on",
+                                    "none",
+                                    "--open-app",
+                                ]
+                            ),
+                            0,
+                        )
+
+                text = output.getvalue()
+                app_path = root / ".redline" / "quick-check" / "app.html"
+                self.assertTrue(app_path.exists())
+                self.assertIn("Opened guided app in the default browser.", text)
+                open_browser.assert_called_once_with(app_path.resolve().as_uri())
+            finally:
+                os.chdir(previous)
+
+    def test_diff_output_quotes_app_command_report_dir_with_spaces(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "{\\"ok\\": true}"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Return JSON", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(main(["suite", "baseline.jsonl", "--out", "suite.json"]), 0)
+                    self.assertEqual(
+                        main(
+                            [
+                                "diff",
+                                "suite.json",
+                                "candidate.jsonl",
+                                "--fail-on",
+                                "none",
+                                "--out-html",
+                                "report dir/diff.html",
+                            ]
+                        ),
+                        0,
+                    )
+            finally:
+                os.chdir(previous)
+
+        self.assertIn("Open app: redline app --reports-dir 'report dir'", output.getvalue())
 
     def test_diff_profile_review_downgrades_number_and_entity_loss(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -672,6 +1046,9 @@ class CliConfigTests(unittest.TestCase):
                     )
 
                 text = output.getvalue()
+                self.assertIn("Suite readiness:", text)
+                self.assertIn("Readiness scope: suite health, not model quality or candidate safety", text)
+                self.assertIn("Improve suite:", text)
                 self.assertIn("Selected 1 representative cases from 3 unique prompt-response pairs.", text)
                 self.assertIn("Use --all-cases for exhaustive coverage", text)
                 self.assertIn("redline suite add for must-cover edge cases", text)
@@ -797,7 +1174,7 @@ class CliConfigTests(unittest.TestCase):
                 self.assertNotIn("ada@example.com", row["prompt"])
                 self.assertEqual(row["api_key"], "[REDACTED]")
                 self.assertIn("Redactions: 2", output.getvalue())
-                self.assertIn("best-effort common secret/PII patterns", output.getvalue())
+                self.assertIn("not a privacy boundary", output.getvalue())
                 audit = [
                     json.loads(line)
                     for line in (root / ".redline" / "audit.jsonl").read_text(encoding="utf-8").splitlines()
@@ -2070,6 +2447,7 @@ class CliConfigTests(unittest.TestCase):
 
                 observed = root / ".redline" / "logs" / "prompts.jsonl"
                 self.assertIn("Redacted 1 sensitive value", output.getvalue())
+                self.assertIn("not a privacy boundary", output.getvalue())
                 self.assertNotIn("ada@example.com", observed.read_text(encoding="utf-8"))
 
                 with contextlib.redirect_stdout(io.StringIO()):
@@ -2078,6 +2456,93 @@ class CliConfigTests(unittest.TestCase):
                         0,
                     )
                 self.assertIn("ada@example.com", observed.read_text(encoding="utf-8"))
+            finally:
+                os.chdir(previous)
+
+    def test_import_reports_default_redaction_and_supports_raw_opt_out(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("downloaded.jsonl").write_text(
+                    '{"instruction": "Email ada@example.com", "response": "ok"}\n',
+                    encoding="utf-8",
+                )
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "import",
+                                "downloaded.jsonl",
+                                "--input-field",
+                                "instruction",
+                                "--output-field",
+                                "response",
+                                "--out",
+                                "baseline.jsonl",
+                            ]
+                        ),
+                        0,
+                    )
+
+                self.assertIn("1 value(s) redacted", output.getvalue())
+                self.assertIn("not a privacy boundary", output.getvalue())
+                self.assertNotIn("ada@example.com", Path("baseline.jsonl").read_text(encoding="utf-8"))
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(
+                        main(
+                            [
+                                "import",
+                                "downloaded.jsonl",
+                                "--input-field",
+                                "instruction",
+                                "--output-field",
+                                "response",
+                                "--out",
+                                "raw.jsonl",
+                                "--no-redact",
+                            ]
+                        ),
+                        0,
+                    )
+                self.assertIn("ada@example.com", Path("raw.jsonl").read_text(encoding="utf-8"))
+
+                Path("langfuse.jsonl").write_text(
+                    json.dumps(
+                        {
+                            "input": "Summarize refund policy",
+                            "output": "Refunds are available for 30 days.",
+                            "traceId": "trace-123",
+                        }
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "import",
+                                "langfuse.jsonl",
+                                "--preset",
+                                "langfuse",
+                                "--out",
+                                "langfuse-baseline.jsonl",
+                            ]
+                        ),
+                        0,
+                    )
+                text = output.getvalue()
+                self.assertIn("Preset:          langfuse", text)
+                self.assertIn("Mapped prompt:   input", text)
+                imported_row = json.loads(Path("langfuse-baseline.jsonl").read_text(encoding="utf-8"))
+                self.assertEqual(imported_row["prompt"], "Summarize refund policy")
+                self.assertEqual(imported_row["metadata"], {"traceId": "trace-123"})
             finally:
                 os.chdir(previous)
 

@@ -59,6 +59,8 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
     summary = suite.get("summary", {})
     if not isinstance(summary, dict):
         summary = {}
+    methodology = suite.get("methodology")
+    methodology = methodology if isinstance(methodology, dict) else {}
     cases = suite.get("cases", [])
     if not isinstance(cases, list):
         cases = []
@@ -121,6 +123,8 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "source": str(suite.get("source") or ""),
         "created_at": str(suite.get("created_at") or ""),
         "selection": str(summary.get("selection") or ""),
+        "methodology_version": str(methodology.get("version") or ""),
+        "methodology_name": str(methodology.get("name") or ""),
         "records_seen": records_seen,
         "unique_prompt_response_pairs": unique_pairs,
         "duplicate_prompt_response_pairs": int(summary.get("duplicate_prompt_response_pairs", 0)),
@@ -150,10 +154,12 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "high_variance_clusters": len(high_variance),
         "failure_pattern_clusters": len(failure_patterns),
         "non_ascii_records": int(summary.get("non_ascii_records", 0)),
+        "stochastic_prompt_groups": int(summary.get("stochastic_prompt_groups", 0)),
         "judgments": dict(sorted(judgment_counts.items())),
         "requirements": requirements_count,
         "top_clusters": top_clusters,
     }
+    result["suite_readiness"] = _suite_readiness(result)
     result["next_steps"] = _summary_next_steps(result)
     return result
 
@@ -240,6 +246,7 @@ def prompt_manifest_summary(
             "high_variance_clusters",
             "failure_pattern_clusters",
             "non_ascii_records",
+            "stochastic_prompt_groups",
             "requirements",
         ):
             totals[key] += int(child_summary.get(key) or 0)
@@ -302,6 +309,7 @@ def prompt_manifest_summary(
         "high_variance_clusters": totals["high_variance_clusters"],
         "failure_pattern_clusters": totals["failure_pattern_clusters"],
         "non_ascii_records": totals["non_ascii_records"],
+        "stochastic_prompt_groups": totals["stochastic_prompt_groups"],
         "requirements": totals["requirements"],
         "prompts": prompt_rows,
         "missing_suites": missing_suites,
@@ -326,13 +334,16 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
         f"Source:                 {summary['source'] or '<unknown>'}",
         f"Created:                {summary['created_at'] or '<unknown>'}",
         f"Selection:              {summary['selection'] or '<unknown>'}",
+        f"Methodology:            {_methodology_label(summary)}",
         f"Records seen:           {summary['records_seen']}",
         f"Unique pairs:           {summary['unique_prompt_response_pairs']}",
         f"Duplicate pairs:        {summary['duplicate_prompt_response_pairs']}",
-        f"Behavioral clusters:    {summary['clusters']}",
-        f"Cluster coverage:       {summary['covered_clusters']}/{summary['clusters']} ({_percent(summary['cluster_coverage'])})",
+        f"Behavior groups:        {summary['clusters']}",
+        f"Group coverage:         {summary['covered_clusters']}/{summary['clusters']} ({_percent(summary['cluster_coverage'])})",
         f"Representative cases:   {summary['cases']}",
         f"Case coverage:          {summary['cases']}/{summary['unique_prompt_response_pairs']} ({_percent(summary['case_coverage'])})",
+        f"Suite readiness:        {_format_readiness(summary['suite_readiness'])}",
+        "Readiness scope:        suite health, not model quality or candidate safety",
         f"Pinned cases:           {summary['pinned_cases']}",
         f"Owned cases:            {summary['owned_cases']}/{summary['cases']}",
         f"Owner rule coverage:    {summary['owner_rule_cases']}/{summary['owned_cases']} ({_percent(summary['owner_rule_coverage'])})",
@@ -340,11 +351,12 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
         f"Approved baselines:     {summary['approved_baselines']}/{summary['accepted_baselines']}",
         f"Explicit guard coverage: {summary['explicit_guard_cases']}/{summary['cases']} ({_percent(summary['explicit_guard_coverage'])})",
         f"Max cases:              {summary['max_cases']}",
-        f"High-risk clusters:     {summary['high_risk_clusters']}",
-        f"Medium-risk clusters:   {summary['medium_risk_clusters']}",
-        f"High-variance clusters: {summary['high_variance_clusters']}",
-        f"Failure-pattern clusters: {summary['failure_pattern_clusters']:>2}",
+        f"High-risk groups:       {summary['high_risk_clusters']}",
+        f"Medium-risk groups:     {summary['medium_risk_clusters']}",
+        f"High-variance groups:   {summary['high_variance_clusters']}",
+        f"Failure-pattern groups: {summary['failure_pattern_clusters']:>2}",
         f"Non-ASCII records:      {summary['non_ascii_records']}",
+        f"Stochastic prompts:     {summary['stochastic_prompt_groups']}",
         f"Cases with requirements: {summary['requirements']:>2}",
         "",
     ]
@@ -365,7 +377,7 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
 
     top_clusters = summary["top_clusters"]
     if top_clusters:
-        lines.append("Top clusters:")
+        lines.append("Top groups:")
         for cluster in top_clusters:
             marker = " high-variance" if cluster["high_variance"] else ""
             flags = cluster["failure_patterns"]
@@ -373,6 +385,15 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
                 marker = f"{marker} flags={','.join(str(flag) for flag in flags)}"
             lines.append(f"  {cluster['size']:>4}  {cluster['behavior']}{marker}")
         lines.append("")
+
+    readiness = summary.get("suite_readiness")
+    if isinstance(readiness, dict):
+        reasons = readiness.get("reasons")
+        if isinstance(reasons, list) and reasons:
+            lines.append("Readiness signals:")
+            for reason in reasons:
+                lines.append(f"- {reason}")
+            lines.append("")
 
     next_steps = summary["next_steps"]
     if next_steps:
@@ -398,8 +419,8 @@ def format_prompt_manifest_summary(report: dict[str, Any]) -> str:
         f"Invalid suites:         {report['invalid_suite_count']}",
         f"Records seen:           {report['records_seen']}",
         f"Unique pairs:           {report['unique_prompt_response_pairs']}",
-        f"Behavioral clusters:    {report['clusters']}",
-        f"Cluster coverage:       {report['covered_clusters']}/{report['clusters']} ({_percent(report['cluster_coverage'])})",
+        f"Behavior groups:        {report['clusters']}",
+        f"Group coverage:         {report['covered_clusters']}/{report['clusters']} ({_percent(report['cluster_coverage'])})",
         f"Representative cases:   {report['cases']}",
         f"Case coverage:          {report['cases']}/{report['unique_prompt_response_pairs']} ({_percent(report['case_coverage'])})",
         f"Pinned cases:           {report['pinned_cases']}",
@@ -408,9 +429,10 @@ def format_prompt_manifest_summary(report: dict[str, Any]) -> str:
         f"Accepted baselines:     {report['accepted_baselines']}",
         f"Approved baselines:     {report['approved_baselines']}/{report['accepted_baselines']}",
         f"Explicit guard coverage: {report['explicit_guard_cases']}/{report['cases']} ({_percent(report['explicit_guard_coverage'])})",
-        f"High-risk clusters:     {report['high_risk_clusters']}",
-        f"Medium-risk clusters:   {report['medium_risk_clusters']}",
+        f"High-risk groups:       {report['high_risk_clusters']}",
+        f"Medium-risk groups:     {report['medium_risk_clusters']}",
         f"Non-ASCII records:      {report['non_ascii_records']}",
+        f"Stochastic prompts:     {report['stochastic_prompt_groups']}",
         f"Cases with requirements: {report['requirements']:>2}",
         "",
     ]
@@ -477,11 +499,108 @@ def _summary_next_steps(summary: dict[str, Any], *, suite_path: str | None = Non
             "Review non-English cases manually or with a domain judge; structural checks still work, "
             "but entity/refusal heuristics are English-oriented."
         )
+    if int(summary.get("stochastic_prompt_groups") or 0):
+        steps.append(
+            "Stabilize repeated-prompt baselines or use review mode; otherwise natural sampling variance can look like regressions."
+        )
     if int(summary["cases"]) and not summary["judgments"]:
         steps.append("After the first eval, mark expected or ignored changes to train the suite.")
     if int(summary["cases"]) == 0:
         steps.append("Generate or add at least one suite case before running eval.")
     return steps
+
+
+def _suite_readiness(summary: dict[str, Any]) -> dict[str, Any]:
+    cases = int(summary.get("cases") or 0)
+    if cases == 0:
+        return {
+            "score": 0,
+            "label": "empty",
+            "reasons": ["no suite cases are available yet"],
+        }
+
+    score = 0.0
+    score += 35.0 * float(summary.get("cluster_coverage") or 0.0)
+    score += 20.0 * float(summary.get("case_coverage") or 0.0)
+    score += 20.0 * float(summary.get("explicit_guard_coverage") or 0.0)
+    owner_coverage = _ratio(int(summary.get("owned_cases") or 0), cases) or 0.0
+    score += 10.0 * owner_coverage
+    if int(summary.get("high_risk_clusters") or 0) == 0 or int(summary.get("requirements") or 0):
+        score += 10.0
+    if int(summary.get("non_ascii_records") or 0) == 0:
+        score += 5.0
+
+    rounded = int(round(min(100.0, max(0.0, score))))
+    if rounded >= 80:
+        label = "strong"
+    elif rounded >= 55:
+        label = "usable"
+    else:
+        label = "needs_work"
+
+    return {
+        "score": rounded,
+        "label": label,
+        "reasons": _readiness_reasons(summary, owner_coverage=owner_coverage),
+    }
+
+
+def _readiness_reasons(summary: dict[str, Any], *, owner_coverage: float) -> list[str]:
+    reasons = []
+    cluster_coverage = float(summary.get("cluster_coverage") or 0.0)
+    case_coverage = float(summary.get("case_coverage") or 0.0)
+    explicit_guard_coverage = float(summary.get("explicit_guard_coverage") or 0.0)
+
+    if cluster_coverage >= 1.0:
+        reasons.append("all detected behavior-signature groups have at least one selected case")
+    else:
+        reasons.append("some behavior-signature groups are not represented in the suite")
+
+    if case_coverage >= 0.8:
+        reasons.append("case budget covers most unique prompt-response pairs")
+    else:
+        reasons.append("case budget is sampling a small share of unique prompt-response pairs")
+
+    if explicit_guard_coverage >= 0.5:
+        reasons.append("many cases have requirements or recorded judgments")
+    elif explicit_guard_coverage > 0:
+        reasons.append("some cases have requirements or recorded judgments")
+    else:
+        reasons.append("no cases have explicit requirements or recorded judgments yet")
+
+    if owner_coverage >= 1.0:
+        reasons.append("all cases have owners")
+    elif owner_coverage > 0:
+        reasons.append("some cases still need owners")
+    else:
+        reasons.append("no cases have owners yet")
+
+    if int(summary.get("high_risk_clusters") or 0) and int(summary.get("requirements") or 0) == 0:
+        reasons.append("high-risk groups need explicit requirements or a judge before CI gating")
+    if int(summary.get("non_ascii_records") or 0):
+        reasons.append("non-ASCII records need extra review because entity/refusal heuristics are English-oriented")
+    if int(summary.get("stochastic_prompt_groups") or 0):
+        reasons.append("repeated prompts with multiple baseline responses need stochastic baseline review")
+
+    return reasons
+
+
+def _format_readiness(value: object) -> str:
+    if not isinstance(value, dict):
+        return "<unknown>"
+    score = int(value.get("score") or 0)
+    label = str(value.get("label") or "unknown").replace("_", " ")
+    return f"{score}/100 ({label})"
+
+
+def _methodology_label(summary: dict[str, Any]) -> str:
+    name = str(summary.get("methodology_name") or "").strip()
+    version = str(summary.get("methodology_version") or "").strip()
+    if name and version:
+        return f"{name} ({version})"
+    if version:
+        return version
+    return "<unknown>"
 
 
 def _manifest_summary_status(summary: dict[str, Any]) -> str:

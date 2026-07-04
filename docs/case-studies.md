@@ -1,8 +1,9 @@
 # Case Studies
 
-These are repo-local dogfood runs that anyone can reproduce from a fresh
-checkout. They are not customer case studies yet. They are the proof fixtures we
-use until external users share anonymized logs.
+These are dogfood runs we use until external users share anonymized logs. The
+first two are repo-local fixtures that anyone can reproduce from a fresh
+checkout. The public internet dogfood run uses third-party rows that stay under
+`.redline/private/`, so only the protocol and aggregate result are committed.
 
 The important property is that the data is checked in, deterministic, and
 launch-safe. If a future redline change stops catching these regressions, the
@@ -130,6 +131,68 @@ redline diff .redline/private/normalized/claude-suite.json \
 Expected result: long-form assistant differences appear as `changed` review
 items unless a candidate loses stronger deterministic signals such as required
 structure, URLs, refusals, or empty output.
+
+## Case Study 4: Public Internet Dogfood
+
+Scenario: download a public instruction-response dataset, import a 100-row
+sample, create a deterministic local "candidate got shorter" variant, then
+verify that redline diagnoses the regression pattern across reports and
+dashboard surfaces.
+
+Source:
+
+- [Databricks Dolly 15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k)
+- Local raw and normalized rows stay under `.redline/private/`.
+
+Protocol used:
+
+```bash
+curl -L \
+  https://huggingface.co/datasets/databricks/databricks-dolly-15k/resolve/main/databricks-dolly-15k.jsonl \
+  -o .redline/private/internet-dogfood-100/dolly-raw.jsonl
+
+redline import .redline/private/internet-dogfood-100/dolly-raw.jsonl \
+  --preset dolly \
+  --limit 100 \
+  --out .redline/private/internet-dogfood-100/dolly-baseline-100.jsonl
+
+redline suite .redline/private/internet-dogfood-100/dolly-baseline-100.jsonl \
+  --out .redline/private/internet-dogfood-100/dolly-suite-100.json \
+  --all-cases
+```
+
+The candidate file for this run was generated locally by applying deterministic
+shortening, refusal, empty-output, and generic-answer mutations to the imported
+baseline. It stays under `.redline/private/` with the downloaded source rows.
+For real dogfood, replace that mutation step with your actual candidate model or
+prompt runner.
+
+```bash
+redline diff .redline/private/internet-dogfood-100/dolly-suite-100.json \
+  .redline/private/internet-dogfood-100/dolly-candidate-100.jsonl \
+  --compact \
+  --fail-on none
+```
+
+Current result:
+
+```text
+redline diff: cases=100 regression=51 changed=27 improved=0 accepted=0 ignored=0 missing=0 neutral=22
+Diagnosis: Candidate got shorter, lost required structure, dropped concrete details, returned empty outputs, and changed content substantially; fix blocking cases before shipping.
+```
+
+What redline catches:
+
+- Shorter candidate outputs that drop concrete details.
+- Empty outputs and newly refused safe requests.
+- Structure loss in code, lists, and other format-sensitive answers.
+- Suite coverage across 100/100 cases and 20/20 behavior groups.
+- Dashboard sidecar filtering: 1 report, 1 benchmark, 1 history entry, and 0
+  warnings in the local product app.
+
+Why this matters: the demo proves the first-run promise; this run proves the
+same local loop can process a larger public prompt-response sample and produce
+dashboard/report evidence without cloud services or private data.
 
 ## External Case Studies Still Needed
 

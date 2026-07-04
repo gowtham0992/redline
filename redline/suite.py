@@ -16,6 +16,24 @@ FeatureCache = dict[int, TextFeatures]
 ClusterInfo = dict[str, Any]
 SUITE_SCHEMA_URL = "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-suite.schema.json"
 PROMPT_DIVERSITY_EDGE_TARGET = 8
+SELECTION_METHODOLOGY_VERSION = "behavior-signature-v1"
+SELECTION_METHODOLOGY = {
+    "name": "deterministic behavior-signature grouping",
+    "version": SELECTION_METHODOLOGY_VERSION,
+    "trust_scope": "structural checks only; review factual, tone, hallucination, policy, and reasoning risks separately",
+    "case_selection": [
+        "one representative per behavior-signature group",
+        "high-risk groups first when case budget is tight",
+        "high-variance edge cases when budget remains",
+        "prompt-diverse samples from large groups when budget remains",
+    ],
+}
+
+
+def _ratio(part: int, total: int) -> float | None:
+    if total <= 0:
+        return None
+    return part / total
 
 
 def build_suite(
@@ -48,7 +66,9 @@ def build_suite(
         if all_cases
         else _select_representatives(grouped, max_cases, feature_cache, cluster_infos)
     )
+    selected_clusters = {signatures[id(record)] for record, _ in selected}
     non_ascii_records = sum(1 for record in unique_records if _has_non_ascii(record.prompt) or _has_non_ascii(record.response))
+    stochastic_prompt_groups = _stochastic_prompt_groups(unique_records)
     cases = []
     for index, (record, selection_reason) in enumerate(selected, 1):
         signature = signatures[id(record)]
@@ -99,12 +119,15 @@ def build_suite(
         "source": str(source),
         "input_field": input_field,
         "output_field": output_field,
+        "methodology": dict(SELECTION_METHODOLOGY),
         "summary": {
             "records_seen": len(records),
             "unique_prompt_response_pairs": len(unique_records),
             "duplicate_prompt_response_pairs": len(records) - len(unique_records),
             "clusters": len(grouped),
             "cases": len(cases),
+            "case_coverage": _ratio(len(cases), len(unique_records)),
+            "cluster_coverage": _ratio(len(selected_clusters), len(grouped)),
             "max_cases": len(unique_records) if all_cases else max_cases,
             "selection": "all" if all_cases else "representative",
             "high_risk_clusters": _risk_count(cluster_infos, "high"),
@@ -113,6 +136,7 @@ def build_suite(
             "failure_pattern_clusters": sum(1 for info in cluster_infos.values() if info["failure_patterns"]),
             "prompt_diversity_cases": sum(1 for _, reason in selected if reason == "prompt_diversity_edge"),
             "non_ascii_records": non_ascii_records,
+            "stochastic_prompt_groups": stochastic_prompt_groups,
             "owned_cases": _owned_case_count(cases),
         },
         "clusters": clusters,
@@ -249,6 +273,13 @@ def _unique_prompt_response_records(records: list[LogRecord]) -> list[LogRecord]
         seen.add(key)
         unique.append(record)
     return unique
+
+
+def _stochastic_prompt_groups(records: list[LogRecord]) -> int:
+    responses_by_prompt: dict[str, set[str]] = defaultdict(set)
+    for record in records:
+        responses_by_prompt[record.prompt].add(record.response)
+    return sum(1 for responses in responses_by_prompt.values() if len(responses) > 1)
 
 
 def _has_non_ascii(value: str) -> bool:
