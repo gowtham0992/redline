@@ -241,11 +241,6 @@ class PackagingTests(unittest.TestCase):
     def test_readme_marks_repo_only_script_commands(self) -> None:
         readme = Path("README.md").read_text(encoding="utf-8")
 
-        self.assertIn("https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-logo.svg", readme)
-        self.assertIn(
-            "https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-logo-dark.svg",
-            readme,
-        )
         self.assertIn(
             "https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-product-demo.gif",
             readme,
@@ -258,9 +253,13 @@ class PackagingTests(unittest.TestCase):
             "https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-report-proof.png",
             readme,
         )
-        self.assertIn('alt="redline" width="420" height="105"', readme)
+        self.assertIn('<h1 align="center">redline</h1>', readme)
         self.assertIn("Automatic eval suites from the prompt logs you already have", readme)
         self.assertIn("Product Proof", readme)
+        self.assertIn("100 prompt-response rows sampled from [Databricks Dolly 15k]", readme)
+        self.assertIn("51 regressions, 27 changed cases, 22 neutral controls", readme)
+        self.assertIn("0 dashboard warnings", readme)
+        self.assertIn("These screenshots are local artifacts from the 100-row internet dogfood run", readme)
         self.assertIn("Product Promise", readme)
         self.assertIn("[![PyPI](https://img.shields.io/pypi/v/redline-ai.svg)](https://pypi.org/project/redline-ai/)", readme)
         self.assertIn("[![MCP Registry]", readme)
@@ -590,6 +589,10 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("redline diff: cases=10 regression=9", guide)
         self.assertIn("docs/ai-session-dogfood-prompts.jsonl", guide)
         self.assertIn(".redline/private/", guide)
+        self.assertIn("Public Internet Dogfood", guide)
+        self.assertIn("Databricks Dolly 15k", guide)
+        self.assertIn("redline diff: cases=100 regression=51 changed=27", guide)
+        self.assertIn("1 report, 1 benchmark, 1 history entry, and 0", guide)
         self.assertIn("External Case Studies Still Needed", guide)
 
     def test_public_dogfood_fixture_documents_source_inspiration(self) -> None:

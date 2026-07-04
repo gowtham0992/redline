@@ -303,9 +303,30 @@ code span,
   margin-top: 28px;
 }
 
-.badges img {
-  display: block;
-  height: 20px;
+.badges a {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.badges strong,
+.badges span {
+  padding: 4px 8px;
+}
+
+.badges strong {
+  background: var(--bg3);
+  color: var(--fg);
+  font-weight: 700;
+}
+
+.badges span {
+  background: var(--green-soft);
+  color: var(--green);
 }
 
 .terminal-proof {
@@ -385,6 +406,7 @@ code span,
 
 .diff-card,
 .readiness-card,
+.dogfood-proof article,
 .proof-grid article,
 .trust-layout > div,
 .certification-grid article,
@@ -501,6 +523,29 @@ code span,
 
 .readiness-card p strong {
   color: var(--fg);
+}
+
+.dogfood-proof {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.dogfood-proof article {
+  padding: 16px;
+}
+
+.dogfood-proof strong {
+  display: block;
+  color: var(--fg);
+  font-size: 15px;
+}
+
+.dogfood-proof p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .readiness-stats {
@@ -837,6 +882,7 @@ code span,
   .proof-showcase,
   .steps,
   .proof-grid,
+  .dogfood-proof,
   .artifact-proof,
   .trust-layout,
   .assistant-grid,
