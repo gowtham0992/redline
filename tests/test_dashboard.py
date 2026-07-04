@@ -451,6 +451,41 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("bad.json", html)
             self.assertIn("missing summary object", html)
 
+    def test_dashboard_ignores_redline_sidecar_json_files(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / ".redline" / "reports"
+            reports.mkdir(parents=True)
+            write_json(
+                reports / "eval.json",
+                {
+                    "$schema": "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-report.schema.json",
+                    "summary": {"cases": 1, "regression": 1, "changed": 0, "missing": 0, "neutral": 0},
+                    "decision": {"recommended_action": "fix blocking cases before shipping"},
+                    "diffs": [],
+                },
+            )
+            write_json(
+                reports / "redline-suite.json",
+                {
+                    "$schema": "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-suite.schema.json",
+                    "summary": {"cases": 1, "clusters": 1},
+                    "cases": [],
+                },
+            )
+            write_json(
+                reports / "eval.slack.json",
+                {
+                    "text": "redline summary",
+                    "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "regression"}}],
+                },
+            )
+
+            dashboard = build_dashboard(reports_dir=reports, history_path=root / "missing.jsonl")
+
+            self.assertEqual([report["name"] for report in dashboard["reports"]], ["eval.json"])
+            self.assertEqual(dashboard["errors"], [])
+
     def test_dashboard_reports_invalid_checkpoint_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

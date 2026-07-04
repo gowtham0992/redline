@@ -939,6 +939,8 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
             continue
         if _is_benchmark_report(report):
             continue
+        if _is_dashboard_sidecar_json(path, report):
+            continue
         summary = report.get("summary")
         if not isinstance(summary, dict):
             errors.append({"path": str(path), "message": "missing summary object"})
@@ -965,6 +967,15 @@ def _collect_reports(reports_dir: Path, *, limit: int) -> tuple[list[dict[str, A
             }
         )
     return reports, errors
+
+
+def _is_dashboard_sidecar_json(path: Path, payload: dict[str, Any]) -> bool:
+    schema = str(payload.get("$schema") or "")
+    if schema.endswith("/redline-suite.schema.json") or schema.endswith("redline-suite.schema.json"):
+        return True
+    if path.name.endswith(".slack.json") and isinstance(payload.get("blocks"), list):
+        return True
+    return False
 
 
 def _collect_benchmarks(reports_dir: Path, *, limit: int) -> list[dict[str, Any]]:
