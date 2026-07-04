@@ -91,7 +91,7 @@ should sell the loop, not the package manager.
 
 4. Create the GitHub release from `v0.2.1`.
 5. Attach the demo GIF or link the public README asset:
-   `https://gowtham0992.github.io/redline/assets/redline-product-demo.gif`.
+   `https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-product-demo.gif`.
 
 ## Launch Post
 

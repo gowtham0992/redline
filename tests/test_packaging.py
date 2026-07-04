@@ -241,11 +241,24 @@ class PackagingTests(unittest.TestCase):
     def test_readme_marks_repo_only_script_commands(self) -> None:
         readme = Path("README.md").read_text(encoding="utf-8")
 
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-logo.svg", readme)
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-logo-dark.svg", readme)
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-product-demo.gif", readme)
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-dashboard-proof.png", readme)
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-report-proof.png", readme)
+        self.assertIn("https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-logo.svg", readme)
+        self.assertIn(
+            "https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-logo-dark.svg",
+            readme,
+        )
+        self.assertIn(
+            "https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-product-demo.gif",
+            readme,
+        )
+        self.assertIn(
+            "https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-dashboard-proof.png",
+            readme,
+        )
+        self.assertIn(
+            "https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-report-proof.png",
+            readme,
+        )
+        self.assertIn('alt="redline" width="420" height="105"', readme)
         self.assertIn("Automatic eval suites from the prompt logs you already have", readme)
         self.assertIn("Product Proof", readme)
         self.assertIn("Product Promise", readme)
@@ -355,7 +368,10 @@ class PackagingTests(unittest.TestCase):
         readme = Path("README.md").read_text(encoding="utf-8")
 
         self.assertIn("redline-demo.gif", guide)
-        self.assertIn("https://gowtham0992.github.io/redline/assets/redline-product-demo.gif", guide)
+        self.assertIn(
+            "https://raw.githubusercontent.com/gowtham0992/redline/main/site/assets/redline-product-demo.gif",
+            guide,
+        )
         self.assertIn("python -m pip install redline-ai", guide)
         self.assertIn("Website Checklist", guide)
         self.assertIn("Demo GIF Storyboard", guide)
