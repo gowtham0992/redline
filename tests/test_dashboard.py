@@ -226,6 +226,10 @@ class DashboardTests(unittest.TestCase):
                 ],
             )
             self.assertIn("<title>redline dashboard</title>", html)
+            self.assertIn("--accent: #111111", html)
+            self.assertIn("--danger: #111111", html)
+            self.assertNotIn("#0f766e", html)
+            self.assertNotIn("#b91c1c", html)
             self.assertIn("<h2>Evidence Trail</h2>", html)
             self.assertIn("eval.json", html)
             self.assertIn("Runtime evidence", html)
@@ -325,6 +329,12 @@ class DashboardTests(unittest.TestCase):
         )
 
         self.assertIn('data-redline-dashboard="app"', html)
+        self.assertIn("--bg0: #050505", html)
+        self.assertIn("--accent: #f5f5f5", html)
+        self.assertNotIn("#f06060", html)
+        self.assertNotIn("#3ecf8e", html)
+        self.assertNotIn("#60a5fa", html)
+        self.assertNotIn("#e24b4a", html)
         self.assertIn("local app", html)
         self.assertIn('class="svg-ico"', html)
         self.assertIn('button type="button" class="sb-item', html)
