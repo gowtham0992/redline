@@ -110,10 +110,13 @@ dogfood run.
 | Proof | Command or data | Result |
 | --- | --- | --- |
 | First-run demo | `redline demo --public --compact` | 10 synthetic regressions caught locally with no API keys. |
-| Internet dogfood | 100 prompt-response rows sampled from [Databricks Dolly 15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k) | 51 regressions, 27 changed cases, 22 neutral controls, and 0 dashboard warnings. |
+| Local internet dogfood | 100 rows imported from [Databricks Dolly 15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k) with the committed protocol | 51 regressions, 27 changed cases, 22 neutral controls, and 0 dashboard warnings. Raw third-party rows stay uncommitted under `.redline/private/`, so treat this as dogfood evidence, not a reproducible benchmark artifact. |
 | Release gate | tests, lint, type check, action smoke, and release build | Package, CI, report, dashboard, and MCP paths are validated before publish. |
 
-These screenshots are local artifacts from the 100-row internet dogfood run.
+These screenshots are local artifacts from the 100-row internet dogfood run. To
+rerun the same style of check, follow the source list and conversion recipe in
+[docs/internet-dogfood-sources.md](docs/internet-dogfood-sources.md) with your
+own local download.
 
 | Dashboard | HTML report |
 | --- | --- |
@@ -148,6 +151,11 @@ It generates a temporary suite, writes JSON/Markdown/HTML reports plus a guided
 local app under `.redline/quick-check`, opens the focused HTML report, and
 prints the concrete behavioral diff. Use `--open-app` when you want the guided
 review workflow to open instead of only the focused report.
+
+For small logs, `quick-check` includes every unique prompt-response pair by
+default. For larger logs it uses representative sampling, prints how many pairs
+were excluded, and shows an excluded-case preview; add `--all-cases` when the
+first pass must be exhaustive.
 
 ### 1. Logs
 
@@ -291,6 +299,9 @@ redline is built around the full prompt-regression loop:
 - `RedlineMiddleware`: capture bounded JSON FastAPI or ASGI request/response pairs locally, with optional skip diagnostics.
 - `redline redact --check`: scan logs for common secrets and PII, then write a scrubbed copy when needed.
   Redaction is best-effort pattern matching, not a privacy boundary; review sensitive logs before sharing.
+  It covers common provider keys, GitHub/PyPI/AWS access-key IDs, JWTs, bearer tokens,
+  emails, SSNs, phone numbers, card-like numbers, and sensitive field names such as
+  `api_key`, `password`, `secret`, and `token`.
 - `redline cluster`: inspect deterministic behavior-signature groups before suite generation.
 - `redline suite`: generate a representative eval suite from baseline logs.
 - `redline prompts`: scan many prompt files and write or check a versionable prompt-to-suite manifest.

@@ -72,8 +72,32 @@ class SuiteTests(unittest.TestCase):
         self.assertIn("case_coverage", schema["properties"]["summary"]["properties"])
         self.assertIn("cluster_coverage", schema["properties"]["summary"]["properties"])
         self.assertIn("prompt_diversity_cases", schema["properties"]["summary"]["properties"])
+        self.assertIn("excluded_prompt_response_pairs", schema["properties"]["summary"]["properties"])
+        self.assertIn("excluded_case_previews", schema["properties"]["summary"]["properties"])
+        self.assertIn("excluded_cases", schema["properties"])
         self.assertIn("non_ascii_records", schema["properties"]["summary"]["properties"])
         self.assertIn("stochastic_prompt_groups", schema["properties"]["summary"]["properties"])
+
+    def test_representative_suite_surfaces_excluded_case_previews(self) -> None:
+        suite = build_suite(
+            [
+                LogRecord(1, "Give four steps for setup", "1. Install\n2. Configure", {}),
+                LogRecord(2, "Give four steps for teardown", "1. Stop\n2. Remove", {}),
+                LogRecord(3, "Give four steps for rollback", "1. Pause\n2. Restore", {}),
+            ],
+            source="memory",
+            input_field="prompt",
+            output_field="response",
+            max_cases=1,
+        )
+
+        self.assertEqual(suite["summary"]["cases"], 1)
+        self.assertEqual(suite["summary"]["excluded_prompt_response_pairs"], 2)
+        self.assertEqual(suite["summary"]["excluded_case_previews"], 2)
+        self.assertEqual(len(suite["excluded_cases"]), 2)
+        self.assertIn("already represented", suite["excluded_cases"][0]["reason"])
+        self.assertTrue(suite["excluded_cases"][0]["represented_by"].startswith("case_"))
+        self.assertIn("prompt_preview", suite["excluded_cases"][0])
 
     def test_build_suite_assigns_case_owners_from_rules(self) -> None:
         suite = build_suite(

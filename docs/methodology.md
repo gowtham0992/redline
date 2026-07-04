@@ -101,6 +101,12 @@ Use the score to decide what to improve before CI gating. A high score means the
 suite is better prepared for review and automation. It does not mean the
 candidate prompt is safe to ship.
 
+When representative sampling leaves unique prompt-response pairs out of the
+suite, generated suites include a bounded `excluded_cases` preview. Each preview
+records the source line, behavior-signature group, reason for exclusion, and the
+selected case that already represents the group when one exists. This makes
+sampling gaps reviewable without storing every omitted row in large suites.
+
 ## Judges
 
 Optional judges are for ambiguous `changed` cases and semantic risks that

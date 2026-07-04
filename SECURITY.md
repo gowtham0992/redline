@@ -31,6 +31,14 @@ bodies, headers, and metadata that your app handles. Capture is bounded,
 JSON-oriented, and redacted with best-effort common secret and PII patterns, but
 that redaction is not a privacy boundary. Review logs before sharing them.
 
+Default redaction covers common OpenAI/Anthropic/GitHub/PyPI token shapes, AWS
+access-key IDs, JWTs, bearer tokens, emails, SSNs, phone numbers, card-like
+numbers, and sensitive field names such as `api_key`, `password`, `secret`, and
+`token`. It can still miss proprietary token formats, organization-specific
+identifiers, names, addresses, customer IDs, unusual phone/card formats, and
+secrets embedded in images or binary payloads. Treat `redline redact --check`
+as a preflight, not approval to publish logs.
+
 Before running third-party or copied runner scripts, inspect the command in
 `redline.json` and the environment variables it needs:
 

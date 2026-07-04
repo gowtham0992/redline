@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Prioritize refusal and empty-output explanations above generic structure-loss
+  explanations in report impact text.
+- Make `redline quick-check` exhaustive for small logs by default, and surface
+  excluded-case previews when representative sampling is used.
+- Add bounded `excluded_cases` metadata to generated suites so sampling gaps are
+  visible instead of silent.
+- Expand default redaction to cover JWTs, bearer tokens, SSNs, phone numbers,
+  and card-like numbers, while keeping the privacy-boundary warning explicit.
+- Clarify that the 100-row Dolly dogfood proof is local evidence with raw
+  third-party rows kept out of git, not a committed benchmark dataset.
+
 ## 0.3.0
 
 redline 0.3.0 turns the alpha from a CLI-first regression checker into a

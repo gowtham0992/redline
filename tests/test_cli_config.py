@@ -919,6 +919,83 @@ class CliConfigTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
 
+    def test_quick_check_uses_exhaustive_coverage_for_small_logs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Give steps for setup", "response": "1. Install\\n2. Configure"}\n'
+                    '{"prompt": "Give steps for rollback", "response": "1. Pause\\n2. Restore"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(
+                    '{"prompt": "Give steps for setup", "response": "1. Install\\n2. Configure"}\n'
+                    '{"prompt": "Give steps for rollback", "response": "Sorry, I cannot help with that."}\n',
+                    encoding="utf-8",
+                )
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(["quick-check", "baseline.jsonl", "candidate.jsonl", "--fail-on", "none"]),
+                        0,
+                    )
+
+                suite = json.loads((root / ".redline" / "quick-check" / "suite.json").read_text(encoding="utf-8"))
+                report = json.loads((root / ".redline" / "quick-check" / "diff.json").read_text(encoding="utf-8"))
+                text = output.getvalue()
+                self.assertEqual(suite["summary"]["selection"], "all")
+                self.assertEqual(suite["summary"]["cases"], 2)
+                self.assertEqual(report["summary"]["regression"], 1)
+                self.assertIn("candidate newly refuses", text)
+                self.assertIn("Small log detected: quick-check included all 2 unique prompt-response pairs", text)
+                self.assertIn("redline suite baseline.jsonl --out redline-suite.json --all-cases", text)
+            finally:
+                os.chdir(previous)
+
+    def test_quick_check_warns_when_representative_sampling_excludes_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                Path("baseline.jsonl").write_text(
+                    '{"prompt": "Give steps for setup", "response": "1. Install\\n2. Configure"}\n'
+                    '{"prompt": "Give steps for teardown", "response": "1. Stop\\n2. Remove"}\n'
+                    '{"prompt": "Give steps for rollback", "response": "1. Pause\\n2. Restore"}\n',
+                    encoding="utf-8",
+                )
+                Path("candidate.jsonl").write_text(Path("baseline.jsonl").read_text(encoding="utf-8"), encoding="utf-8")
+
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(
+                        main(
+                            [
+                                "quick-check",
+                                "baseline.jsonl",
+                                "candidate.jsonl",
+                                "--max-cases",
+                                "1",
+                                "--fail-on",
+                                "none",
+                            ]
+                        ),
+                        0,
+                    )
+
+                suite = json.loads((root / ".redline" / "quick-check" / "suite.json").read_text(encoding="utf-8"))
+                text = output.getvalue()
+                self.assertEqual(suite["summary"]["selection"], "representative")
+                self.assertEqual(suite["summary"]["excluded_prompt_response_pairs"], 2)
+                self.assertIn("Excluded: 2 unique pair(s) not selected", text)
+                self.assertIn("Excluded case preview:", text)
+                self.assertIn("rerun with --all-cases for exhaustive coverage", text)
+            finally:
+                os.chdir(previous)
+
     def test_diff_output_quotes_app_command_report_dir_with_spaces(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

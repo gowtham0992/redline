@@ -558,6 +558,10 @@ def case_impact(status: str, reasons: tuple[str, ...] | list[str]) -> str:
     normalized_status = status.lower()
     if normalized_status == "missing":
         return "Replay did not produce a candidate output, so this baseline behavior is untested."
+    if "became empty" in text:
+        return "The user may receive no usable answer."
+    if "newly refuses" in text or "refusal" in text:
+        return "A previously supported safe workflow may now be blocked."
     if "valid json" in text or "json keys" in text:
         return "Downstream code may fail if consumers expect parseable JSON or required fields."
     if "markdown table" in text or "table structure" in text:
@@ -568,10 +572,6 @@ def case_impact(status: str, reasons: tuple[str, ...] | list[str]) -> str:
         return "A workflow expecting ordered or scannable steps may become harder to review."
     if "missing numbers" in text or "missing urls" in text or "missing entities" in text:
         return "Concrete details used for decisions, routing, or compliance may have been dropped."
-    if "newly refuses" in text or "refusal" in text:
-        return "A previously supported safe workflow may now be blocked."
-    if "became empty" in text:
-        return "The user may receive no usable answer."
     if "content changed substantially" in text or "much shorter" in text:
         return "Meaning may have changed enough to require human review before acceptance."
     if normalized_status == "regression":

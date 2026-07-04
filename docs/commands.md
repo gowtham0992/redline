@@ -15,7 +15,7 @@ output and examples after installing.
 | `redline import` | Normalize exported JSONL fields into redline `prompt`/`response` logs, with best-effort redaction on by default. | `--list-presets`, `--detect`, `--auto-map`, `--preview`, `--preset`, `--input-field`, `--output-field`, `--context-field`, `--metadata-field`, `--limit`, `--out`, `--no-redact` |
 | `redline redact` | Check or write best-effort redacted logs. | `--check`, `--out`, `--json` |
 | `redline cluster` | Inspect deterministic behavior-signature groups before suite generation. | `--max-cases`, `--json` |
-| `redline suite` | Generate a suite from baseline JSONL logs. | `--out`, `--max-cases`, `--all-cases`, `--owner` |
+| `redline suite` | Generate a suite from baseline JSONL logs, with excluded-case previews when representative sampling omits unique pairs. | `--out`, `--max-cases`, `--all-cases`, `--owner` |
 | `redline suite add` | Pin a hand-picked edge case. | `--prompt`, `--response`, `--include`, `--exclude`, `--owner` |
 | `redline cases` | List generated suite case IDs and coverage. | `--json` |
 | `redline case` | Show one full suite case. | `--json` |
@@ -23,7 +23,7 @@ output and examples after installing.
 | `redline prompts` | Build or check a prompt-to-suite manifest. | `--suite-dir`, `--out`, `--check`, `--check-suites` |
 | `redline summary` | Summarize suite or manifest readiness, including suite score and coverage gaps. | `--json` |
 | `redline validate` | Validate suite or manifest structure and freshness. | `--strict`, `--json` |
-| `redline quick-check` | Generate a temporary suite from baseline JSONL, diff candidate JSONL, and write reports plus a guided local app in one first-run command. | `--input-field`, `--output-field`, `--out-dir`, `--max-cases`, `--all-cases`, `--profile`, `--fail-on`, `--open`, `--open-app` |
+| `redline quick-check` | Generate a temporary suite from baseline JSONL, diff candidate JSONL, and write reports plus a guided local app in one first-run command. Small logs are exhaustive by default; larger sampled logs print excluded-case previews. | `--input-field`, `--output-field`, `--out-dir`, `--max-cases`, `--all-cases`, `--profile`, `--fail-on`, `--open`, `--open-app` |
 | `redline budget` | Estimate CI runtime without replaying prompts. | `--workers`, `--timeout`, `--max-seconds`, `--measure-local` |
 | `redline benchmark` | Compatibility alias for `redline budget`. | Same as `budget` |
 | `redline eval` | Replay suite cases through a configured runner. | `--prompt`, `--replay`, `--workers`, `--judge`, `--fail-on`, `--compact` |
@@ -48,6 +48,9 @@ output and examples after installing.
 - Default workers: `1`, unless configured in `redline.json`.
 - Reports default to `.redline/reports/{command}.*` when configured by
   `redline init`.
+- `redline quick-check` includes all unique prompt-response pairs when the log
+  fits within `--max-cases`; use `--all-cases` to force exhaustive coverage on
+  larger logs.
 
 ## Trust boundary
 

@@ -131,6 +131,8 @@ def suite_summary(suite: dict[str, Any]) -> dict[str, Any]:
         "clusters": clusters_count,
         "covered_clusters": len(covered_clusters),
         "cases": cases_count,
+        "excluded_prompt_response_pairs": int(summary.get("excluded_prompt_response_pairs", 0)),
+        "excluded_case_previews": int(summary.get("excluded_case_previews", 0)),
         "case_coverage": _ratio(cases_count, unique_pairs),
         "cluster_coverage": _ratio(len(covered_clusters), clusters_count),
         "max_cases": int(summary.get("max_cases", 0)),
@@ -341,6 +343,7 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
         f"Behavior groups:        {summary['clusters']}",
         f"Group coverage:         {summary['covered_clusters']}/{summary['clusters']} ({_percent(summary['cluster_coverage'])})",
         f"Representative cases:   {summary['cases']}",
+        f"Excluded pairs:         {summary['excluded_prompt_response_pairs']}",
         f"Case coverage:          {summary['cases']}/{summary['unique_prompt_response_pairs']} ({_percent(summary['case_coverage'])})",
         f"Suite readiness:        {_format_readiness(summary['suite_readiness'])}",
         "Readiness scope:        suite health, not model quality or candidate safety",
@@ -384,6 +387,26 @@ def format_suite_summary(suite: dict[str, Any], *, suite_path: str | None = None
             if flags:
                 marker = f"{marker} flags={','.join(str(flag) for flag in flags)}"
             lines.append(f"  {cluster['size']:>4}  {cluster['behavior']}{marker}")
+        lines.append("")
+
+    excluded_cases = suite.get("excluded_cases")
+    if isinstance(excluded_cases, list) and excluded_cases:
+        lines.append("Excluded case preview:")
+        for item in excluded_cases[:5]:
+            if not isinstance(item, dict):
+                continue
+            flags = item.get("risk_flags")
+            flag_text = ""
+            if isinstance(flags, list) and flags:
+                flag_text = f" flags={','.join(str(flag) for flag in flags)}"
+            represented_by = str(item.get("represented_by") or "")
+            represented_text = f" represented_by={represented_by}" if represented_by else ""
+            lines.append(
+                f"  line {item.get('source_line')}: {item.get('reason')}{represented_text}{flag_text}"
+            )
+            prompt = str(item.get("prompt_preview") or "").strip()
+            if prompt:
+                lines.append(f"    {prompt}")
         lines.append("")
 
     readiness = summary.get("suite_readiness")

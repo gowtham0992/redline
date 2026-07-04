@@ -17,6 +17,7 @@ ClusterInfo = dict[str, Any]
 SUITE_SCHEMA_URL = "https://raw.githubusercontent.com/gowtham0992/redline/main/redline-suite.schema.json"
 PROMPT_DIVERSITY_EDGE_TARGET = 8
 SELECTION_METHODOLOGY_VERSION = "behavior-signature-v1"
+EXCLUDED_CASE_PREVIEW_LIMIT = 50
 SELECTION_METHODOLOGY = {
     "name": "deterministic behavior-signature grouping",
     "version": SELECTION_METHODOLOGY_VERSION,
@@ -66,10 +67,12 @@ def build_suite(
         if all_cases
         else _select_representatives(grouped, max_cases, feature_cache, cluster_infos)
     )
+    selected_record_ids = {id(record) for record, _ in selected}
     selected_clusters = {signatures[id(record)] for record, _ in selected}
     non_ascii_records = sum(1 for record in unique_records if _has_non_ascii(record.prompt) or _has_non_ascii(record.response))
     stochastic_prompt_groups = _stochastic_prompt_groups(unique_records)
     cases = []
+    selected_case_by_cluster: dict[str, str] = {}
     for index, (record, selection_reason) in enumerate(selected, 1):
         signature = signatures[id(record)]
         cluster_info = cluster_infos[signature]
@@ -97,6 +100,16 @@ def build_suite(
         if owner_match.get("owner_rule"):
             case["owner_rule"] = owner_match["owner_rule"]
         cases.append(case)
+        selected_case_by_cluster.setdefault(signature, str(case["id"]))
+
+    excluded_cases = _excluded_case_previews(
+        unique_records,
+        selected_record_ids=selected_record_ids,
+        signatures=signatures,
+        selected_case_by_cluster=selected_case_by_cluster,
+        cluster_infos=cluster_infos,
+        feature_cache=feature_cache,
+    )
 
     clusters = []
     for signature, info in sorted(cluster_infos.items(), key=_cluster_info_rank):
@@ -126,6 +139,8 @@ def build_suite(
             "duplicate_prompt_response_pairs": len(records) - len(unique_records),
             "clusters": len(grouped),
             "cases": len(cases),
+            "excluded_prompt_response_pairs": len(unique_records) - len(cases),
+            "excluded_case_previews": len(excluded_cases),
             "case_coverage": _ratio(len(cases), len(unique_records)),
             "cluster_coverage": _ratio(len(selected_clusters), len(grouped)),
             "max_cases": len(unique_records) if all_cases else max_cases,
@@ -140,6 +155,7 @@ def build_suite(
             "owned_cases": _owned_case_count(cases),
         },
         "clusters": clusters,
+        "excluded_cases": excluded_cases,
         "cases": cases,
     }
 
@@ -377,6 +393,61 @@ def _spread_indexes(size: int, count: int) -> list[int]:
     for step in range(count):
         indexes.append(round(step * (size - 1) / (count - 1)))
     return list(dict.fromkeys(indexes))
+
+
+def _excluded_case_previews(
+    records: list[LogRecord],
+    *,
+    selected_record_ids: set[int],
+    signatures: dict[int, str],
+    selected_case_by_cluster: dict[str, str],
+    cluster_infos: dict[str, ClusterInfo],
+    feature_cache: FeatureCache,
+) -> list[dict[str, Any]]:
+    previews: list[dict[str, Any]] = []
+    for record in records:
+        if id(record) in selected_record_ids:
+            continue
+        signature = signatures[id(record)]
+        info = cluster_infos[signature]
+        represented_by = selected_case_by_cluster.get(signature, "")
+        reason = (
+            "similar behavior-signature group already represented"
+            if represented_by
+            else "case budget exhausted before this behavior-signature group was selected"
+        )
+        features = _record_features(record, feature_cache)
+        previews.append(
+            {
+                "source_line": record.line_number,
+                "cluster": signature,
+                "cluster_risk": str(info["risk"]),
+                "reason": reason,
+                "represented_by": represented_by,
+                "risk_flags": _record_risk_flags(features),
+                "prompt_preview": _preview(record.prompt),
+                "baseline_preview": _preview(record.response),
+            }
+        )
+        if len(previews) >= EXCLUDED_CASE_PREVIEW_LIMIT:
+            break
+    return previews
+
+
+def _record_risk_flags(features: TextFeatures) -> list[str]:
+    flags = []
+    if features.empty:
+        flags.append("empty_response")
+    if features.refusal:
+        flags.append("refusal_response")
+    return flags
+
+
+def _preview(value: str, limit: int = 96) -> str:
+    compact = " ".join(value.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 1] + "..."
 
 
 def _is_high_variance(lengths: list[int]) -> bool:

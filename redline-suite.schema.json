@@ -51,6 +51,8 @@
         "duplicate_prompt_response_pairs": {"type": "integer", "minimum": 0},
         "clusters": {"type": "integer", "minimum": 0},
         "cases": {"type": "integer", "minimum": 0},
+        "excluded_prompt_response_pairs": {"type": "integer", "minimum": 0},
+        "excluded_case_previews": {"type": "integer", "minimum": 0},
         "case_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
         "cluster_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
         "max_cases": {"type": "integer", "minimum": 0},
@@ -138,6 +140,24 @@
             "required": ["shape", "length_bucket", "empty", "valid_json"],
             "additionalProperties": true
           }
+        },
+        "additionalProperties": true
+      }
+    },
+    "excluded_cases": {
+      "type": "array",
+      "description": "Bounded preview of unique prompt-response pairs not selected when representative sampling is used.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source_line": {"type": ["integer", "null"]},
+          "cluster": {"type": "string"},
+          "cluster_risk": {"type": "string", "enum": ["high", "medium", "low"]},
+          "reason": {"type": "string"},
+          "represented_by": {"type": "string"},
+          "risk_flags": {"type": "array", "items": {"type": "string"}},
+          "prompt_preview": {"type": "string"},
+          "baseline_preview": {"type": "string"}
         },
         "additionalProperties": true
       }

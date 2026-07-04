@@ -101,9 +101,9 @@ Diagnosis: candidate got shorter, lost required structure, dropped concrete deta
             The public demo is synthetic and safe to share, but it behaves like
             a real prompt change: the candidate gets shorter and silently drops
             required structure, dates, owners, URLs, and refusal behavior. The
-            larger internet dogfood run imports 100 rows from Databricks Dolly
-            15k and pushes them through the same suite, diff, history,
-            benchmark, app, and dashboard surfaces.
+            larger internet dogfood run imports 100 local-only rows from
+            Databricks Dolly 15k and pushes them through the same suite, diff,
+            history, benchmark, app, and dashboard surfaces.
           </p>
         </div>
         <div class="proof-showcase" aria-label="Example redline regression diagnosis">
@@ -144,13 +144,13 @@ not valid JSON</code></pre>
               <span><strong>0</strong><small>missing</small></span>
               <span><strong>22</strong><small>neutral</small></span>
             </div>
-            <small>100-row Dolly dogfood; structural checks only - review tone, facts, and reasoning separately.</small>
+            <small>100-row Dolly dogfood; raw third-party rows are local-only; structural checks only - review tone, facts, and reasoning separately.</small>
           </aside>
         </div>
         <div class="dogfood-proof" aria-label="Internet dogfood evidence">
           <article>
             <strong>100 public prompt-response rows</strong>
-            <p>Imported from Databricks Dolly 15k with redline's JSONL importer and kept as local-only dogfood evidence.</p>
+            <p>Imported from Databricks Dolly 15k with redline's JSONL importer. The protocol is public; raw third-party rows stay uncommitted under .redline/private/.</p>
           </article>
           <article>
             <strong>20 behavior groups covered</strong>

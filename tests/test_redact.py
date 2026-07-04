@@ -18,7 +18,12 @@ class RedactTests(unittest.TestCase):
         text = (
             "Contact ada@example.com with "
             "sk-ant-abcdefghijklmnopqrstuvwxyz123456 "
-            "and ghp_abcdefghijklmnopqrstuvwxyz123456."
+            "ghp_abcdefghijklmnopqrstuvwxyz123456 "
+            "Bearer abcdefghijklmnopqrstuvwxyz123456 "
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abcdefghijklmnopqrstu.vwxyzABCDEFGHIJKLMN "
+            "123-45-6789 "
+            "4111 1111 1111 1111 "
+            "and 415-555-0101."
         )
 
         redacted = redact_text(text, counts=counts)
@@ -26,9 +31,19 @@ class RedactTests(unittest.TestCase):
         self.assertNotIn("ada@example.com", redacted)
         self.assertNotIn("sk-ant-", redacted)
         self.assertNotIn("ghp_", redacted)
+        self.assertNotIn("Bearer abc", redacted)
+        self.assertNotIn("eyJ", redacted)
+        self.assertNotIn("123-45-6789", redacted)
+        self.assertNotIn("4111 1111 1111 1111", redacted)
+        self.assertNotIn("415-555-0101", redacted)
         self.assertEqual(counts["email"], 1)
         self.assertEqual(counts["anthropic_key"], 1)
         self.assertEqual(counts["github_token"], 1)
+        self.assertEqual(counts["bearer_token"], 1)
+        self.assertEqual(counts["jwt"], 1)
+        self.assertEqual(counts["ssn"], 1)
+        self.assertEqual(counts["payment_card_like"], 1)
+        self.assertEqual(counts["phone"], 1)
 
     def test_redact_object_redacts_sensitive_field_values(self) -> None:
         counts: dict[str, int] = {}

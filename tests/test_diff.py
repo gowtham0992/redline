@@ -94,6 +94,25 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(status, "regression")
         self.assertIn("candidate lost valid JSON format", reasons)
 
+    def test_case_impact_prioritizes_refusal_and_empty_over_format_loss(self) -> None:
+        refusal = case_impact(
+            "regression",
+            [
+                "candidate newly refuses",
+                "candidate lost numbered list structure",
+            ],
+        )
+        empty = case_impact(
+            "regression",
+            [
+                "candidate became empty",
+                "candidate lost bullet list structure",
+            ],
+        )
+
+        self.assertEqual(refusal, "A previously supported safe workflow may now be blocked.")
+        self.assertEqual(empty, "The user may receive no usable answer.")
+
     def test_classify_same_shape_content_drift_as_changed(self) -> None:
         baseline_text = "The ticket should be routed to billing support."
         candidate_text = "The ticket should be routed to security review."

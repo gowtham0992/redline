@@ -1287,6 +1287,7 @@ def cmd_suite(args: argparse.Namespace) -> int:
                 f"Selected {cases} representative cases from {unique_pairs} unique prompt-response pairs. "
                 "Use --all-cases for exhaustive coverage or redline suite add for must-cover edge cases."
             )
+            _print_excluded_case_preview(suite)
     improvement_steps = suite_health.get("next_steps")
     if isinstance(improvement_steps, list) and improvement_steps:
         print("Improve suite:")
@@ -1475,13 +1476,15 @@ def cmd_quick_check(args: argparse.Namespace) -> int:
         raise ValueError("--all-cases cannot be combined with --max-cases")
     baseline_records = read_jsonl_records(args.baseline, args.input_field, args.output_field)
     candidate_records = read_jsonl_records(args.candidate, args.input_field, args.output_field)
+    unique_baseline_pairs = _unique_prompt_response_pair_count(baseline_records)
+    effective_all_cases = args.all_cases or unique_baseline_pairs <= args.max_cases
     suite = build_suite(
         baseline_records,
         source=args.baseline,
         input_field=args.input_field,
         output_field=args.output_field,
         max_cases=args.max_cases,
-        all_cases=args.all_cases,
+        all_cases=effective_all_cases,
     )
     out_dir = Path(args.out_dir)
     suite_path = out_dir / "suite.json"
@@ -1537,17 +1540,59 @@ def cmd_quick_check(args: argparse.Namespace) -> int:
         print(f"- Cases: {summary['cases']}/{summary['unique_prompt_response_pairs']} unique prompt-response pairs")
         covered_clusters = round(int(summary["clusters"]) * float(summary.get("cluster_coverage") or 0.0))
         print(f"- Behavior groups: {covered_clusters}/{summary['clusters']} represented")
+        if effective_all_cases and not args.all_cases:
+            print(f"- Small log detected: quick-check included all {summary['cases']} unique prompt-response pairs")
+        elif summary.get("selection") != "all":
+            excluded = int(summary.get("excluded_prompt_response_pairs", 0) or 0)
+            if excluded:
+                print(
+                    f"- Excluded: {excluded} unique pair(s) not selected for this representative suite; "
+                    "rerun with --all-cases for exhaustive coverage"
+                )
+                _print_excluded_case_preview(suite)
         print()
         print("Next:")
         print(f"- Open HTML report: {report_html}")
         print(f"- Open guided app: {app_html}")
         print(f"- Inspect cases: {_shell_command('redline', 'cases', suite_path)}")
-        print(f"- Make this persistent: {_shell_command('redline', 'suite', args.baseline, '--out', 'redline-suite.json')}")
+        persistent_args = ["redline", "suite", args.baseline, "--out", "redline-suite.json"]
+        if effective_all_cases:
+            persistent_args.append("--all-cases")
+        print(f"- Make this persistent: {_shell_command(*persistent_args)}")
         if args.open:
             print("- Opened HTML report in the default browser.")
         if args.open_app:
             print("- Opened guided app in the default browser.")
     return 1 if should_fail(result, fail_on) else 0
+
+
+def _unique_prompt_response_pair_count(records: Sequence[object]) -> int:
+    pairs = {
+        (getattr(record, "prompt", ""), getattr(record, "response", ""))
+        for record in records
+    }
+    return len(pairs)
+
+
+def _print_excluded_case_preview(suite: Mapping[str, object], *, limit: int = 3) -> None:
+    excluded = suite.get("excluded_cases")
+    if not isinstance(excluded, list) or not excluded:
+        return
+    print("Excluded case preview:")
+    for item in excluded[:limit]:
+        if not isinstance(item, dict):
+            continue
+        line = item.get("source_line")
+        flags = item.get("risk_flags")
+        flag_text = ""
+        if isinstance(flags, list) and flags:
+            flag_text = f" flags={','.join(str(flag) for flag in flags)}"
+        represented_by = str(item.get("represented_by") or "")
+        represented_text = f" represented_by={represented_by}" if represented_by else ""
+        print(
+            f"- line {line}: {item.get('reason')}{represented_text}{flag_text}; "
+            f"{item.get('prompt_preview')}"
+        )
 
 
 def cmd_diff(args: argparse.Namespace) -> int:
