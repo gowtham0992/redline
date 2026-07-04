@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
@@ -30,14 +30,14 @@ jobs:
         run: bash scripts/certify_release.sh "$RUNNER_TEMP/redline-certify"
 
       - name: Upload release distributions
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: redline-release-distributions
           path: ${{ runner.temp }}/redline-certify/dist/*
           if-no-files-found: error
 
       - name: Upload certification summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: redline-release-certification
           path: ${{ runner.temp }}/redline-certify/certification.txt

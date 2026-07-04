@@ -162,10 +162,12 @@ class GitHubPagesSiteTests(unittest.TestCase):
 
         self.assertIn("- main", workflow)
         self.assertNotIn("- develop", workflow)
-        self.assertRegex(workflow, r"actions/configure-pages@v\d+")
-        self.assertRegex(workflow, r"actions/upload-pages-artifact@v\d+")
+        self.assertIn("cancel-in-progress: true", workflow)
+        self.assertIn("actions/checkout@v7", workflow)
+        self.assertIn("actions/configure-pages@v6", workflow)
+        self.assertIn("actions/upload-pages-artifact@v5", workflow)
         self.assertIn("path: site", workflow)
-        self.assertRegex(workflow, r"actions/deploy-pages@v\d+")
+        self.assertIn("actions/deploy-pages@v5", workflow)
 
 
 if __name__ == "__main__":

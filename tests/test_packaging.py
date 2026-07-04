@@ -458,8 +458,8 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("pull_request:", workflow)
         self.assertIn("- develop", workflow)
         self.assertIn("- main", workflow)
-        self.assertRegex(workflow, r"actions/checkout@v\d+")
-        self.assertRegex(workflow, r"actions/setup-python@v\d+")
+        self.assertIn("actions/checkout@v7", workflow)
+        self.assertIn("actions/setup-python@v6", workflow)
         self.assertIn('python-version: ["3.10", "3.11", "3.12", "3.13"]', workflow)
         self.assertIn("matrix.python-version", workflow)
         self.assertIn('cache: "pip"', workflow)
@@ -477,6 +477,11 @@ class PackagingTests(unittest.TestCase):
 
         self.assertIn("- main", workflow)
         self.assertNotIn("- develop", workflow)
+        self.assertIn("cancel-in-progress: true", workflow)
+        self.assertIn("actions/checkout@v7", workflow)
+        self.assertIn("actions/configure-pages@v6", workflow)
+        self.assertIn("actions/upload-pages-artifact@v5", workflow)
+        self.assertIn("actions/deploy-pages@v5", workflow)
         self.assertIn("path: site", workflow)
 
     def test_release_workflow_builds_artifacts_without_publishing(self) -> None:
@@ -484,11 +489,12 @@ class PackagingTests(unittest.TestCase):
         guide = Path("docs/release.md").read_text(encoding="utf-8")
 
         self.assertIn("- \"v*\"", workflow)
-        self.assertRegex(workflow, r"actions/setup-python@v\d+")
+        self.assertIn("actions/checkout@v7", workflow)
+        self.assertIn("actions/setup-python@v6", workflow)
         self.assertIn('cache: "pip"', workflow)
         self.assertIn('python -m pip install -e ".[dev]"', workflow)
         self.assertIn('bash scripts/certify_release.sh "$RUNNER_TEMP/redline-certify"', workflow)
-        self.assertRegex(workflow, r"actions/upload-artifact@v\d+")
+        self.assertIn("actions/upload-artifact@v7", workflow)
         self.assertIn("redline-release-distributions", workflow)
         self.assertIn("redline-release-certification", workflow)
         self.assertNotIn("pypa/gh-action-pypi-publish", workflow)
