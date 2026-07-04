@@ -399,7 +399,7 @@ redline init --runner stdio --copy-runner --github-action
 Use redline as a composite GitHub Action from another repo:
 
 ```yaml
-- uses: gowtham0992/redline@v0.2.1
+- uses: gowtham0992/redline@v0.3.0
   with:
     prompt-path: prompts/v2.txt
     benchmark-max-seconds: "300"

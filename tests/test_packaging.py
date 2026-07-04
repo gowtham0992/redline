@@ -539,7 +539,7 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("Dependabot alerts", guide)
         self.assertIn(".github/workflows/pages.yml", guide)
         self.assertIn("on `main`", guide)
-        self.assertIn("bash scripts/certify_release.sh /tmp/redline-certify-v0.2.1", guide)
+        self.assertIn("bash scripts/certify_release.sh /tmp/redline-certify-v0.3.0", guide)
         self.assertIn("docs/repository.md", readme)
         self.assertIn("scripts/README.md", readme)
         self.assertIn("redline import downloaded.jsonl", readme)

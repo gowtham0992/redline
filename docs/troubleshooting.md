@@ -76,7 +76,7 @@ The Action runs in CI against committed files. Make sure the suite or prompt
 manifest exists in the repository and the action input points to it:
 
 ```yaml
-uses: gowtham0992/redline@v0.2.1
+uses: gowtham0992/redline@v0.3.0
 with:
   suite: redline-suite.json
 ```
